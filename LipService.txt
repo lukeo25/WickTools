@@ -2374,8 +2374,8 @@ App.ui.btnSend.addEventListener("click", function(){
       var fps = Number(payload && payload.fps ? payload.fps : App.fps) || 24;
       var dataTotal = Number(payload && payload.totalFrames ? payload.totalFrames : 0) || 0;
 
-      var order = Array.isArray(typeof MOUTH_ORDER !== "undefined" ? MOUTH_ORDER : null) ? MOUTH_ORDER.slice() : [];
-      if (!order.length && App && App.mouths && Array.isArray(App.mouths)) {
+      var order = MOUTH_ORDER.slice();
+if (!order.length && App && App.mouths && Array.isArray(App.mouths)) {
         order = App.mouths.slice();
       }
 
