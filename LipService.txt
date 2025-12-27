@@ -2543,7 +2543,7 @@ App.ui.btnSend.addEventListener("click", function(){
           "/* LukeTools LipService END */"
         ];
 
-        return scriptLines.join("\\n");
+        return scriptLines.join("\n");
       }
 
 function upsertLipServiceBlock(current, block) {
