@@ -2370,107 +2370,183 @@ App.ui.btnSend.addEventListener("click", function(){
     }
 
     function buildDriverScript() {
-  // Simple per frame mouth driver for Wick
-  // Drives: this.Head.<Wick clip name> or this.<Wick clip name> using gotoAndStop
-  var fps = Math.max(1, parseInt(App.fps || "24", 10) || 24);
+        // Build a Wick default-script driver that syncs a named MouthShapes clip
+        // to the Lip Service timeline blocks (using frame names like A, B, C... Rest).
 
-  var mouthClipName = "MouthShapes";
-  try {
-    if (clipNameEl && typeof clipNameEl.value === "string" && clipNameEl.value.trim()) {
-      mouthClipName = clipNameEl.value.trim();
-    }
-  } catch (e0) {}
+        var mouthPath = "";
+        try {
+          mouthPath = (App.ui && App.ui.wickClipName && App.ui.wickClipName.value) ? String(App.ui.wickClipName.value) : "";
+        } catch (e0) {
+          mouthPath = "";
+        }
+        mouthPath = String(mouthPath || "").trim();
 
-  var frameKeys = Array.isArray(App.frameMap) ? App.frameMap.slice() : [];
-  if (!frameKeys.length) {
-    try { rebuildFrameMapFromBlocks(); } catch (e1) {}
-    frameKeys = Array.isArray(App.frameMap) ? App.frameMap.slice() : [];
-  }
+        // Default path tries the common nesting first
+        if (!mouthPath) mouthPath = "Head.MouthShapes";
 
-  function labelToNum(lbl) {
-    if (lbl === "Rest") return 10;
-    if (typeof lbl !== "string" || !lbl) return 1;
-    var c = lbl.charCodeAt(0);
-    // A..I -> 1..9
-    if (c >= 65 && c <= 73) return (c - 65) + 1;
-    return 1;
-  }
+        var total = 0;
+        try {
+          total = Number(App.totalFrames || 0);
+        } catch (e1) {
+          total = 0;
+        }
+        if (!isFinite(total) || total < 1) total = 1;
 
-  var framesLabels = [];
-  var framesNums = [];
-  for (var i = 0; i < frameKeys.length; i += 1) {
-    var lbl = mouthLabel(frameKeys[i]);
-    framesLabels.push(lbl);
-    framesNums.push(labelToNum(lbl));
-  }
+        // Use the existing frameMap if present, otherwise rebuild a simple map from blocks
+        var fm = null;
+        if (Array.isArray(App.frameMap) && App.frameMap.length === total) {
+          fm = App.frameMap;
+        } else {
+          fm = new Array(total);
+          for (var ii = 0; ii < total; ii += 1) fm[ii] = "rest";
+          if (Array.isArray(App.blocks)) {
+            for (var bi = 0; bi < App.blocks.length; bi += 1) {
+              var bb = App.blocks[bi];
+              if (!bb) continue;
+              var s = Number(bb.startFrame);
+              var e = Number(bb.endFrame);
+              if (!isFinite(s)) s = 0;
+              if (!isFinite(e)) e = 0;
+              if (s < 0) s = 0;
+              if (e > total) e = total;
+              if (e <= s) continue;
+              for (var ff = s; ff < e; ff += 1) {
+                fm[ff] = bb.mouth || "rest";
+              }
+            }
+          }
+        }
 
-  var scriptLines = [
-    "/* LukeTools LipService START */",
-    "(function(){",
-    "  var root = this;",
-    "  if (root.__LukeToolsLipServiceInstalled) { return; }",
-    "  root.__LukeToolsLipServiceInstalled = true;",
-    "  var fps = " + fps + ";",
-    "  var mouthClipName = " + JSON.stringify(mouthClipName) + ";",
-    "  var framesLabels = " + JSON.stringify(framesLabels) + ";",
-    "  var framesNums = " + JSON.stringify(framesNums) + ";",
-    "  var lastFrame = -1;",
-    "",
-    "  function getByName(container){",
-    "    if (!container) return null;",
-    "    if (!mouthClipName) return null;",
-    "    try { if (container[mouthClipName]) return container[mouthClipName]; } catch (e1) {}",
-    "    return null;",
-    "  }",
-    "",
-    "  function getMouthClip(){",
-    "    var m = null;",
-    "    try { if (root.Head) { m = getByName(root.Head); if (m) return m; } } catch (e1) {}",
-    "    m = getByName(root); if (m) return m;",
-    "    // fallbacks",
-    "    try { if (root.Head && root.Head.MouthShape) return root.Head.MouthShape; } catch (e2) {}",
-    "    try { if (root.Head && root.Head.MouthShapes) return root.Head.MouthShapes; } catch (e3) {}",
-    "    try { if (root.MouthShape) return root.MouthShape; } catch (e4) {}",
-    "    try { if (root.MouthShapes) return root.MouthShapes; } catch (e5) {}",
-    "    return null;",
-    "  }",
-    "",
-    "  function getMainFrame(){",
-    "    var f = 0;",
-    "    try { if (root.timeline && typeof root.timeline.playheadPosition === \"number\") f = root.timeline.playheadPosition + 1; } catch (e1) {}",
-    "    if (!f) { try { if (typeof root.getCurrentFrame === \"function\") f = root.getCurrentFrame(); } catch (e2) {} }",
-    "    if (!f) { try { if (typeof root.currentFrame === \"number\") f = root.currentFrame; } catch (e3) {} }",
-    "    if (!f) f = 1;",
-    "    f = Math.floor(f);",
-    "    if (f < 1) f = 1;",
-    "    return f;",
-    "  }",
-    "",
-    "  function apply(){",
-    "    var mouth = getMouthClip();",
-    "    if (!mouth || typeof mouth.gotoAndStop !== \"function\") return;",
-    "    var f = getMainFrame();",
-    "    if (f === lastFrame) return;",
-    "    lastFrame = f;",
-    "    var idx = f - 1;",
-    "    if (idx < 0) idx = 0;",
-    "    if (idx >= framesLabels.length) idx = framesLabels.length - 1;",
-    "    var lbl = framesLabels[idx] || \"A\";",
-    "    var num = framesNums[idx] || 1;",
-    "    try { mouth.gotoAndStop(lbl); } catch (e1) { try { mouth.gotoAndStop(num); } catch (e2) {} }",
-    "  }",
-    "",
-    "  try { apply(); } catch (e0) {}",
-    "  setInterval(function(){ try { apply(); } catch (e1) {} }, Math.max(10, Math.round(1000 / fps)));",
-    "}).call(this);",
-    "/* LukeTools LipService END */",
-    ""
-  ];
+        // Convert the per-frame map into compact segments of {s,e,m} using 1-based frame numbers.
+        var segments = [];
+        var cur = mouthLabel(fm[0] || "rest");
+        var segStart = 1;
 
-  return scriptLines.join("\n");
-}
+        for (var f = 2; f <= total; f += 1) {
+          var lab = mouthLabel(fm[f - 1] || "rest");
+          if (lab !== cur) {
+            segments.push({ s: segStart, e: f, m: cur });
+            cur = lab;
+            segStart = f;
+          }
+        }
+        segments.push({ s: segStart, e: total + 1, m: cur });
 
-    function upsertLipServiceBlock(current, block) {
+        var segmentsJson = JSON.stringify(segments);
+        var mouthPathJson = JSON.stringify(mouthPath);
+
+        var scriptLines = [
+          "/* LukeTools LipService START */",
+          "(function () {",
+          "  if (!this.LukeToolsLipServiceState) {",
+          "    this.LukeToolsLipServiceState = { lastFrame: -1, lastLabel: \"\", idx: 0 };",
+          "  }",
+          "  var state = this.LukeToolsLipServiceState;",
+          "  var mouthPath = " + mouthPathJson + ";",
+          "  var segments = " + segmentsJson + ";",
+          "",
+          "  function resolvePath(root, path) {",
+          "    if (!root) return null;",
+          "    path = String(path || \"\").trim();",
+          "    if (!path) return null;",
+          "    var parts = path.split(\".\");",
+          "    var cur = root;",
+          "    for (var i = 0; i < parts.length; i += 1) {",
+          "      var p = String(parts[i] || \"\").trim();",
+          "      if (!p) continue;",
+          "      if (!cur) return null;",
+          "      cur = cur[p];",
+          "    }",
+          "    return cur || null;",
+          "  }",
+          "",
+          "  function resolveMouth(root) {",
+          "    var m = resolvePath(root, mouthPath);",
+          "    if (m) return m;",
+          "",
+          "    try {",
+          "      if (root && root.Head) {",
+          "        if (root.Head.MouthShapes) return root.Head.MouthShapes;",
+          "        if (root.Head.MouthShape) return root.Head.MouthShape;",
+          "      }",
+          "    } catch (e1) {}",
+          "",
+          "    try {",
+          "      if (root && root.MouthShapes) return root.MouthShapes;",
+          "      if (root && root.MouthShape) return root.MouthShape;",
+          "    } catch (e2) {}",
+          "",
+          "    try {",
+          "      if (typeof MouthShapes !== \"undefined\") return MouthShapes;",
+          "      if (typeof MouthShape !== \"undefined\") return MouthShape;",
+          "    } catch (e3) {}",
+          "",
+          "    return null;",
+          "  }",
+          "",
+          "  function getMainFrameNumber(root) {",
+          "    var n = 0;",
+          "    try {",
+          "      if (typeof project !== \"undefined\" && project && typeof project.currentFrameNumber === \"number\") {",
+          "        n = project.currentFrameNumber;",
+          "      }",
+          "    } catch (e1) {}",
+          "    if (!n) {",
+          "      try {",
+          "        if (root && typeof root.currentFrameNumber === \"number\") n = root.currentFrameNumber;",
+          "      } catch (e2) {}",
+          "    }",
+          "    if (!n || !isFinite(n)) n = 1;",
+          "    return n;",
+          "  }",
+          "",
+          "  function findLabelForFrame(frameNum) {",
+          "    if (!segments || !segments.length) return \"\";",
+          "    var idx = state.idx || 0;",
+          "    if (idx < 0 || idx >= segments.length) idx = 0;",
+          "",
+          "    var seg = segments[idx];",
+          "    if (seg && frameNum >= seg.s && frameNum < seg.e) {",
+          "      state.idx = idx;",
+          "      return seg.m;",
+          "    }",
+          "",
+          "    for (var i = 0; i < segments.length; i += 1) {",
+          "      var s = segments[i];",
+          "      if (!s) continue;",
+          "      if (frameNum >= s.s && frameNum < s.e) {",
+          "        state.idx = i;",
+          "        return s.m;",
+          "      }",
+          "    }",
+          "",
+          "    return segments[segments.length - 1].m;",
+          "  }",
+          "",
+          "  var root = this;",
+          "  var mouth = resolveMouth(root);",
+          "  if (!mouth || typeof mouth.gotoAndStop !== \"function\") return;",
+          "",
+          "  var frameNum = getMainFrameNumber(root);",
+          "  if (state.lastFrame === frameNum) return;",
+          "  state.lastFrame = frameNum;",
+          "",
+          "  var label = String(findLabelForFrame(frameNum) || \"\").trim();",
+          "  if (!label) return;",
+          "",
+          "  if (label !== state.lastLabel) {",
+          "    state.lastLabel = label;",
+          "    // MouthShapes frames are named A, B, C... Rest",
+          "    mouth.gotoAndStop(label);",
+          "  }",
+          "})();",
+          "/* LukeTools LipService END */"
+        ];
+
+        return scriptLines.join("\\n");
+      }
+
+function upsertLipServiceBlock(current, block) {
       var startMarker = "/* LukeTools LipService START */";
       var endMarker = "/* LukeTools LipService END */";
 
