@@ -1353,7 +1353,14 @@
 
   function getClipName(){
     const el = document.getElementById("inp-clipname");
-    return el ? String(el.value || "").trim() : "";
+    const v = el ? String(el.value || "").trim() : "";
+    if (v) return v;
+    // Fallback to Wick provided selection (if available)
+    try{
+      return String(localStorage.getItem("LukeToolsSelectedClipName") || "").trim();
+    }catch(e){
+      return "";
+    }
   }
 
   async function exportProject(){
@@ -2152,6 +2159,17 @@ let drag = {
     App.ui.btnStop = el("#btn-stop");
     App.ui.inpFps = el("#inp-fps");
     App.ui.inpClipName = el("#inp-clipname");
+
+
+    // Pull selected Wick clip name (if Wick has stored it)
+    // You said you already store this key from Wick: LukeToolsSelectedClipName
+    var clipName = localStorage.getItem("LukeToolsSelectedClipName") || "";
+    console.log("Clip name:", clipName);
+    if (App.ui.inpClipName && clipName){
+      // Only auto-fill if empty, so you can still type over it
+      if (!String(App.ui.inpClipName.value || "").trim()) App.ui.inpClipName.value = clipName;
+    }
+
     App.ui.btnZoomOut = el("#btn-zoom-out");
     App.ui.btnZoomIn = el("#btn-zoom-in");
     App.ui.btnClear = el("#btn-clear");
