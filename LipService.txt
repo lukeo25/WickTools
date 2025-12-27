@@ -1480,105 +1480,6 @@
     await applyProject(proj);
   }
   
-// Wick editor bridge helpers (injected by parent tool)
-// Assumes parent injector added LukeToolsBridge with:
-// getSelectedClipName, getClipDefaultScript (optional), setClipDefaultScript
-(function () {
-  var CLIP_KEY = "LukeToolsSelectedClipName";
-
-  function canAccessParent() {
-    try {
-      return !!(window.parent && window.parent !== window && window.parent.document);
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function getClipName() {
-    var name = "";
-
-    // 1 bridge if present
-    try {
-      if (window.LukeToolsBridge && typeof window.LukeToolsBridge.getSelectedClipName === "function") {
-        name = window.LukeToolsBridge.getSelectedClipName();
-      }
-    } catch (e) {
-    }
-
-    // 2 parent state if accessible
-    if (!name && canAccessParent()) {
-      try {
-        if (window.parent.LukeToolsState && typeof window.parent.LukeToolsState.getSelectedClipName === "function") {
-          name = window.parent.LukeToolsState.getSelectedClipName();
-        } else if (window.parent.LukeToolsState && typeof window.parent.LukeToolsState.selectedClipName === "string") {
-          name = window.parent.LukeToolsState.selectedClipName;
-        }
-      } catch (e2) {
-      }
-    }
-
-    // 3 localStorage fallback
-    if (!name) {
-      try {
-        name = localStorage.getItem(CLIP_KEY) || "";
-      } catch (e3) {
-      }
-    }
-
-    return String(name || "").trim();
-  }
-
-  function setDefaultScript(clipName, scriptSource) {
-    // 1 bridge if present
-    try {
-      if (window.LukeToolsBridge && typeof window.LukeToolsBridge.setClipDefaultScript === "function") {
-        return !!window.LukeToolsBridge.setClipDefaultScript(clipName, scriptSource);
-      }
-    } catch (e) {
-    }
-
-    // 2 parent editor api if accessible
-    if (canAccessParent()) {
-      try {
-        if (window.parent.LukeToolsEditor && typeof window.parent.LukeToolsEditor.setClipDefaultScript === "function") {
-          return !!window.parent.LukeToolsEditor.setClipDefaultScript(clipName, scriptSource);
-        }
-      } catch (e2) {
-      }
-    }
-
-    return false;
-  }
-
-  function injectHelloWorld() {
-    var clipName = getClipName();
-
-    console.log("[LukeTools Tool] bridge exists", !!window.LukeToolsBridge);
-    console.log("[LukeTools Tool] parent accessible", canAccessParent());
-    try { console.log("[LukeTools Tool] localStorage clip name", localStorage.getItem(CLIP_KEY)); } catch (e) {}
-    console.log("[LukeTools Tool] resolved clip name", clipName);
-
-    if (!clipName) {
-      console.log("[LukeTools Tool] No clip name available. Select a clip, then choose a tool from the combo again.");
-      return;
-    }
-
-    var helloScript =
-      "console.log(\"Hello World from Luke Tools\");\n" +
-      "console.log(\"Target clip\", \"" + clipName.replace(/"/g, "\\\"") + "\");\n";
-
-    var ok = setDefaultScript(clipName, helloScript);
-    console.log("[LukeTools Tool] write ok", ok);
-  }
-
-  // Expose for your button
-  window.LukeToolsHelloWorld = {
-    injectHelloWorld: injectHelloWorld
-  };
-
-  // Optional run immediately for testing
-  // injectHelloWorld();
-})();
 
 function sendToWick(){
     const fm = exportFrameMapJSON();
@@ -1622,15 +1523,7 @@ function sendToWick(){
       bc2.close();
     }catch(e){}
 
-    
-// Also attempt direct write to Wick selected clip via bridge (for testing)
-try{
-  if (window.LukeToolsHelloWorld && typeof window.LukeToolsHelloWorld.injectHelloWorld === "function") { window.LukeToolsHelloWorld.injectHelloWorld(); }
-}catch(e){
-  console.log("[LukeTools Tool] Bridge injection failed:", e);
-}
-
-setStatus(clipName ? ("Updated Wick: " + clipName) : "Updated Wick");
+    setStatus(clipName ? ("Updated Wick: " + clipName) : "Updated Wick");
   }
 
   function openModal(){ App.ui.modalBackdrop.style.display = "flex"; }
@@ -2457,23 +2350,97 @@ let drag = {
     App.ui.btnDownload.addEventListener("click", function(){ saveProjectToFile(); });
     
 App.ui.btnSend.addEventListener("click", function(){
-  // Export/broadcast the current timeline/project payload (existing behavior)
+  // Export/broadcast the current timeline/project payload
   sendToWick();
 
-  // Log Wick selection info (bridge in popup or parent)
+  // Append Hello World to the currently selected clip default script
   (function () {
-    try {
-      var b = window.LukeToolsBridge || (window.parent && window.parent.LukeToolsBridge) || null;
-      console.log("[LukeTools Tool] bridge exists", !!b);
-      if (!b) return;
-
-      var info = b.captureSelectionNow ? b.captureSelectionNow() : { name: b.getSelectedClipName(), uuid: b.getSelectedClipUUID() };
-      console.log("[LukeTools Tool] selection", info);
-    } catch (e) {
-      console.log("[LukeTools Tool] error", e);
+    function getBridge() {
+      try {
+        if (window.LukeToolsBridge) return window.LukeToolsBridge;
+      } catch (e1) {}
+      try {
+        if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge;
+      } catch (e2) {}
+      return null;
     }
+
+    function validateJs(src) {
+      try {
+        new Function(src);
+        return { ok: true, error: "" };
+      } catch (e) {
+        return { ok: false, error: String(e && e.message ? e.message : e) };
+      }
+    }
+
+    function appendHelloWorld() {
+      var b = getBridge();
+      if (!b) {
+        console.log("[LukeTools Tool] Bridge not found");
+        return;
+      }
+
+      if (typeof b.captureSelectionNow === "function") {
+        try { b.captureSelectionNow(); } catch (e0) {}
+      }
+
+      var clipName = "";
+      if (typeof b.getSelectedClipName === "function") {
+        try { clipName = String(b.getSelectedClipName() || "").trim(); } catch (e1) { clipName = ""; }
+      }
+
+      console.log("[LukeTools Tool] Selected clip name:", clipName);
+
+      // This function must exist in your userscript for reading
+      if (typeof b.getDefaultScriptOnSelection !== "function") {
+        console.log("[LukeTools Tool] Missing bridge function getDefaultScriptOnSelection");
+        console.log("[LukeTools Tool] Add it to the userscript bridge or use replace mode");
+        return;
+      }
+
+      var current = "";
+      try {
+        current = String(b.getDefaultScriptOnSelection() || "");
+      } catch (e2) {
+        console.log("[LukeTools Tool] Read error", e2);
+        current = "";
+      }
+
+      var hello =
+        "
+console.log('Hello World from Luke Tools');
+" +
+        "console.log('Target clip name', " + JSON.stringify(clipName) + ");
+";
+
+      var next = current;
+
+      // Ensure a newline boundary
+      if (next && next[next.length - 1] !== "
+") next += "
+";
+      next += hello;
+
+      var v = validateJs(next);
+      console.log("[LukeTools Tool] Validate appended script ok:", v.ok, v.error);
+      if (!v.ok) return;
+
+      var ok = false;
+      try {
+        ok = !!b.setDefaultScriptOnSelection(next);
+      } catch (e3) {
+        console.log("[LukeTools Tool] Write error", e3);
+        ok = false;
+      }
+
+      console.log("[LukeTools Tool] Append write ok:", ok);
+    }
+
+    appendHelloWorld();
   })();
 });
+
 
 App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
     App.ui.modalBackdrop.addEventListener("click", function(ev){
