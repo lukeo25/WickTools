@@ -2432,118 +2432,63 @@ App.ui.btnSend.addEventListener("click", function(){
         }
         segments.push({ s: segStart, e: total + 1, m: cur });
 
-        var segmentsJson = JSON.stringify(segments);
-        var mouthPathJson = JSON.stringify(mouthPath);
+                        var mouthExpr = String(mouthPath || "").trim();
+                if (!mouthExpr) mouthExpr = "MouthShapes";
+                if (mouthExpr.indexOf("this.") !== 0) mouthExpr = "this." + mouthExpr;
 
-        var scriptLines = [
-          "/* LukeTools LipService START */",
-          "(function () {",
-          "  if (!this.LukeToolsLipServiceState) {",
-          "    this.LukeToolsLipServiceState = { lastFrame: -1, lastLabel: \"\", idx: 0 };",
-          "  }",
-          "  var state = this.LukeToolsLipServiceState;",
-          "  var mouthPath = " + mouthPathJson + ";",
-          "  var segments = " + segmentsJson + ";",
-          "",
-          "  function resolvePath(root, path) {",
-          "    if (!root) return null;",
-          "    path = String(path || \"\").trim();",
-          "    if (!path) return null;",
-          "    var parts = path.split(\".\");",
-          "    var cur = root;",
-          "    for (var i = 0; i < parts.length; i += 1) {",
-          "      var p = String(parts[i] || \"\").trim();",
-          "      if (!p) continue;",
-          "      if (!cur) return null;",
-          "      cur = cur[p];",
-          "    }",
-          "    return cur || null;",
-          "  }",
-          "",
-          "  function resolveMouth(root) {",
-          "    var m = resolvePath(root, mouthPath);",
-          "    if (m) return m;",
-          "",
-          "    try {",
-          "      if (root && root.Head) {",
-          "        if (root.Head.MouthShapes) return root.Head.MouthShapes;",
-          "        if (root.Head.MouthShape) return root.Head.MouthShape;",
-          "      }",
-          "    } catch (e1) {}",
-          "",
-          "    try {",
-          "      if (root && root.MouthShapes) return root.MouthShapes;",
-          "      if (root && root.MouthShape) return root.MouthShape;",
-          "    } catch (e2) {}",
-          "",
-          "    try {",
-          "      if (typeof MouthShapes !== \"undefined\") return MouthShapes;",
-          "      if (typeof MouthShape !== \"undefined\") return MouthShape;",
-          "    } catch (e3) {}",
-          "",
-          "    return null;",
-          "  }",
-          "",
-          "  function getMainFrameNumber(root) {",
-          "    var n = 0;",
-          "    try {",
-          "      if (typeof project !== \"undefined\" && project && typeof project.currentFrameNumber === \"number\") {",
-          "        n = project.currentFrameNumber;",
-          "      }",
-          "    } catch (e1) {}",
-          "    if (!n) {",
-          "      try {",
-          "        if (root && typeof root.currentFrameNumber === \"number\") n = root.currentFrameNumber;",
-          "      } catch (e2) {}",
-          "    }",
-          "    if (!n || !isFinite(n)) n = 1;",
-          "    return n;",
-          "  }",
-          "",
-          "  function findLabelForFrame(frameNum) {",
-          "    if (!segments || !segments.length) return \"\";",
-          "    var idx = state.idx || 0;",
-          "    if (idx < 0 || idx >= segments.length) idx = 0;",
-          "",
-          "    var seg = segments[idx];",
-          "    if (seg && frameNum >= seg.s && frameNum < seg.e) {",
-          "      state.idx = idx;",
-          "      return seg.m;",
-          "    }",
-          "",
-          "    for (var i = 0; i < segments.length; i += 1) {",
-          "      var s = segments[i];",
-          "      if (!s) continue;",
-          "      if (frameNum >= s.s && frameNum < s.e) {",
-          "        state.idx = i;",
-          "        return s.m;",
-          "      }",
-          "    }",
-          "",
-          "    return segments[segments.length - 1].m;",
-          "  }",
-          "",
-          "  var root = this;",
-          "  var mouth = resolveMouth(root);",
-          "  if (!mouth || typeof mouth.gotoAndStop !== \"function\") return;",
-          "",
-          "  var frameNum = getMainFrameNumber(root);",
-          "  if (state.lastFrame === frameNum) return;",
-          "  state.lastFrame = frameNum;",
-          "",
-          "  var label = String(findLabelForFrame(frameNum) || \"\").trim();",
-          "  if (!label) return;",
-          "",
-          "  if (label !== state.lastLabel) {",
-          "    state.lastLabel = label;",
-          "    // MouthShapes frames are named A, B, C... Rest",
-          "    mouth.gotoAndStop(label);",
-          "  }",
-          "})();",
-          "/* LukeTools LipService END */"
-        ];
+                var scriptLines = [];
+                scriptLines.push("/* LukeTools LipService START */");
+                scriptLines.push("(function () {");
+                scriptLines.push("  if (!this.LukeToolsLipServiceState) {");
+                scriptLines.push("    this.LukeToolsLipServiceState = { lastFrame: 0, lastLabel: \"\" , inited: false };");
+                scriptLines.push("  }");
+                scriptLines.push("  var state = this.LukeToolsLipServiceState;");
+                scriptLines.push("  var frameNum = 1;");
+                scriptLines.push("  try {");
+                scriptLines.push("    if (typeof project !== \"undefined\" && project && typeof project.currentFrameNumber === \"number\") frameNum = project.currentFrameNumber;");
+                scriptLines.push("  } catch (e1) {}");
+                scriptLines.push("  if (!frameNum || !isFinite(frameNum)) frameNum = 1;");
+                scriptLines.push("  if (state.lastFrame === frameNum) return;");
+                scriptLines.push("  if (state.lastFrame && frameNum < state.lastFrame) state.inited = false;");
+                scriptLines.push("  state.lastFrame = frameNum;");
+                scriptLines.push("  var mouth = null;");
+                scriptLines.push("  try { mouth = " + mouthExpr + "; } catch (e2) { mouth = null; }");
+                scriptLines.push("  if (!mouth || typeof mouth.gotoAndStop !== \"function\") return;");
+                scriptLines.push("  if (!state.inited) {");
+                scriptLines.push("    var initLabel = \"\";");
 
-        return scriptLines.join("\n");
+                for (var i = 0; i < segments.length; i += 1) {
+                  var seg = segments[i];
+                  if (!seg) continue;
+                  var s = Number(seg.s);
+                  var e = Number(seg.e);
+                  if (!isFinite(s) || !isFinite(e)) continue;
+                  var lab = JSON.stringify(String(seg.m || ""));
+                  var prefix = (i === 0) ? "    if" : "    else if";
+                  scriptLines.push(prefix + " (frameNum >= " + s + " && frameNum < " + e + ") initLabel = " + lab + ";");
+                }
+
+                scriptLines.push("    if (initLabel) { state.lastLabel = initLabel; mouth.gotoAndStop(initLabel); }");
+                scriptLines.push("    state.inited = true;");
+                scriptLines.push("  }");
+
+                for (var j = 0; j < segments.length; j += 1) {
+                  var seg2 = segments[j];
+                  if (!seg2) continue;
+                  var ss = Number(seg2.s);
+                  if (!isFinite(ss)) continue;
+                  var lab2 = JSON.stringify(String(seg2.m || ""));
+                  scriptLines.push("  if (frameNum === " + ss + ") {");
+                  scriptLines.push("    var nextLabel = " + lab2 + ";");
+                  scriptLines.push("    if (nextLabel && nextLabel !== state.lastLabel) { state.lastLabel = nextLabel; mouth.gotoAndStop(nextLabel); }");
+                  scriptLines.push("    return;");
+                  scriptLines.push("  }");
+                }
+
+                scriptLines.push("})();");
+                scriptLines.push("/* LukeTools LipService END */");
+
+                return scriptLines.join("\n");
       }
 
 function upsertLipServiceBlock(current, block) {
