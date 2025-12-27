@@ -526,7 +526,7 @@
 
       <div class="group">
         <span class="label">Wick clip</span>
-        <input id="inp-clipname" type="text" value="" placeholder="Clip name">
+        <input id="inp-clipname" type="text" value="" placeholder="MouthShapes or Head.MouthShapes">
       </div>
 
       <button class="btn small" id="btn-download">Save Project</button>
@@ -2381,8 +2381,8 @@ App.ui.btnSend.addEventListener("click", function(){
         }
         mouthPath = String(mouthPath || "").trim();
 
-        // Default path tries the common nesting first
-        if (!mouthPath) mouthPath = "Head.MouthShapes";
+        // Default path is selection relative: MouthShapes inside the selected clip
+        if (!mouthPath) mouthPath = "MouthShapes";
 
         var total = 0;
         try {
