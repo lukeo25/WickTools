@@ -2350,95 +2350,107 @@ let drag = {
     App.ui.btnDownload.addEventListener("click", function(){ saveProjectToFile(); });
     
 App.ui.btnSend.addEventListener("click", function(){
-  // Export/broadcast the current timeline/project payload
+  // Export and broadcast the current timeline project payload
   sendToWick();
 
-  // Append Hello World to the currently selected clip default script
+  // Append Hello World to the selected clip default script
   (function () {
-    function getBridge() {
-      try {
-        if (window.LukeToolsBridge) return window.LukeToolsBridge;
-      } catch (e1) {}
-      try {
-        if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge;
-      } catch (e2) {}
-      return null;
+  function getBridge() {
+    try {
+      if (window.LukeToolsBridge) return window.LukeToolsBridge;
+    } catch (e1) {}
+    try {
+      if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge;
+    } catch (e2) {}
+    return null;
+  }
+
+  function validateJs(src) {
+    try {
+      new Function(src);
+      return { ok: true, error: "" };
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) };
+    }
+  }
+
+  function appendHelloWorldToSelectedClip() {
+    var b = getBridge();
+    if (!b) {
+      console.log("[LukeTools Tool] no bridge found");
+      return;
     }
 
-    function validateJs(src) {
-      try {
-        new Function(src);
-        return { ok: true, error: "" };
-      } catch (e) {
-        return { ok: false, error: String(e && e.message ? e.message : e) };
-      }
+    if (typeof b.captureSelectionNow === "function") {
+      try { b.captureSelectionNow(); } catch (e0) {}
     }
 
-    function appendHelloWorld() {
-      var b = getBridge();
-      if (!b) {
-        console.log("[LukeTools Tool] Bridge not found");
-        return;
-      }
+    var clipName = "";
+    if (typeof b.getSelectedClipName === "function") {
+      try { clipName = String(b.getSelectedClipName() || "").trim(); } catch (e1) { clipName = ""; }
+    }
 
-      if (typeof b.captureSelectionNow === "function") {
-        try { b.captureSelectionNow(); } catch (e0) {}
-      }
+    console.log("[LukeTools Tool] selected clip name", clipName);
 
-      var clipName = "";
-      if (typeof b.getSelectedClipName === "function") {
-        try { clipName = String(b.getSelectedClipName() || "").trim(); } catch (e1) { clipName = ""; }
-      }
+    if (typeof b.getDefaultScriptOnSelection !== "function" || typeof b.setDefaultScriptOnSelection !== "function") {
+      console.log("[LukeTools Tool] bridge missing getDefaultScriptOnSelection or setDefaultScriptOnSelection");
+      return;
+    }
 
-      console.log("[LukeTools Tool] Selected clip name:", clipName);
+    var current = "";
+    try {
+      current = String(b.getDefaultScriptOnSelection() || "");
+    } catch (e2) {
+      console.log("[LukeTools Tool] read failed", e2);
+      current = "";
+    }
 
-      // This function must exist in your userscript for reading
-      if (typeof b.getDefaultScriptOnSelection !== "function") {
-        console.log("[LukeTools Tool] Missing bridge function getDefaultScriptOnSelection");
-        console.log("[LukeTools Tool] Add it to the userscript bridge or use replace mode");
-        return;
-      }
+    console.log("[LukeTools Tool] current length", current.length);
 
-      var current = "";
-      try {
-        current = String(b.getDefaultScriptOnSelection() || "");
-      } catch (e2) {
-        console.log("[LukeTools Tool] Read error", e2);
-        current = "";
-      }
+    var marker = "console.log('Hello World from Luke Tools');";
+    if (current.indexOf(marker) !== -1) {
+      console.log("[LukeTools Tool] hello world already present, skipping");
+      return;
+    }
 
-      var hello =
-        "
-console.log('Hello World from Luke Tools');
+    var hello =
+      "
 " +
-        "console.log('Target clip name', " + JSON.stringify(clipName) + ");
+      "console.log('Hello World from Luke Tools');
+" +
+      "console.log('Target clip name', " + JSON.stringify(clipName) + ");
 ";
 
-      var next = current;
-
-      // Ensure a newline boundary
-      if (next && next[next.length - 1] !== "
+    var next = current;
+    if (next && next[next.length - 1] !== "
 ") next += "
 ";
-      next += hello;
+    next += hello;
 
-      var v = validateJs(next);
-      console.log("[LukeTools Tool] Validate appended script ok:", v.ok, v.error);
-      if (!v.ok) return;
+    var v = validateJs(next);
+    console.log("[LukeTools Tool] validate ok", v.ok, v.error);
+    if (!v.ok) return;
 
-      var ok = false;
-      try {
-        ok = !!b.setDefaultScriptOnSelection(next);
-      } catch (e3) {
-        console.log("[LukeTools Tool] Write error", e3);
-        ok = false;
-      }
-
-      console.log("[LukeTools Tool] Append write ok:", ok);
+    var ok = false;
+    try {
+      ok = !!b.setDefaultScriptOnSelection(next);
+    } catch (e3) {
+      console.log("[LukeTools Tool] write threw", e3);
+      ok = false;
     }
 
-    appendHelloWorld();
-  })();
+    console.log("[LukeTools Tool] append write ok", ok);
+
+    if (ok) {
+      try {
+        var verify = String(b.getDefaultScriptOnSelection() || "");
+        console.log("[LukeTools Tool] verify length", verify.length);
+      } catch (e4) {}
+    }
+  }
+
+  appendHelloWorldToSelectedClip();
+})();
 });
 
 
