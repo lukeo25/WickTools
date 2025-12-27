@@ -2455,42 +2455,27 @@ let drag = {
 
 
     App.ui.btnDownload.addEventListener("click", function(){ saveProjectToFile(); });
-    App.ui.btnSend.addEventListener("click", function(){
-      // 1) Keep existing export/broadcast behavior
-      sendToWick();
+    
+App.ui.btnSend.addEventListener("click", function(){
+  // Export/broadcast the current timeline/project payload (existing behavior)
+  sendToWick();
 
-      // 2) Inject default script onto the *currently selected* Wick clip (via parent bridge)
-      (function () {
-        try {
-          var bridgeOk = !!(window.parent && window.parent.LukeToolsBridge);
-          console.log("[LukeTools Tool] bridge exists", bridgeOk);
+  // Log Wick selection info (bridge in popup or parent)
+  (function () {
+    try {
+      var b = window.LukeToolsBridge || (window.parent && window.parent.LukeToolsBridge) || null;
+      console.log("[LukeTools Tool] bridge exists", !!b);
+      if (!b) return;
 
-          if (!bridgeOk) {
-            console.log("[LukeTools Tool] Bridge not available");
-            return;
-          }
+      var info = b.captureSelectionNow ? b.captureSelectionNow() : { name: b.getSelectedClipName(), uuid: b.getSelectedClipUUID() };
+      console.log("[LukeTools Tool] selection", info);
+    } catch (e) {
+      console.log("[LukeTools Tool] error", e);
+    }
+  })();
+});
 
-          var info = window.parent.LukeToolsBridge.captureSelectionNow();
-          console.log("[LukeTools Tool] selection", info);
-
-          var scriptSource = "";
-          try {
-            scriptSource = (App.ui && App.ui.scriptText) ? String(App.ui.scriptText.value || "") : "";
-          } catch (e0) { scriptSource = ""; }
-          if (!String(scriptSource || "").trim()) {
-            scriptSource = "console.log('Hello World from injected default script');";
-          }
-
-          var ok = window.parent.LukeToolsBridge.setDefaultScriptOnSelection(scriptSource);
-
-          console.log("[LukeTools Tool] write ok", ok);
-        } catch (e) {
-          console.log("[LukeTools Tool] error", e);
-        }
-      })();
-    });
-
-    App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
+App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
     App.ui.modalBackdrop.addEventListener("click", function(ev){
       if (ev.target === App.ui.modalBackdrop) closeModal();
     });
