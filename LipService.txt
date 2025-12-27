@@ -2370,241 +2370,105 @@ App.ui.btnSend.addEventListener("click", function(){
     }
 
     function buildDriverScript() {
-      var payload = exportFrameMapJSON();
-      var fps = Number(payload && payload.fps ? payload.fps : App.fps) || 24;
-      var dataTotal = Number(payload && payload.totalFrames ? payload.totalFrames : 0) || 0;
+  // Simple per frame mouth driver for Wick
+  // Drives: this.Head.<Wick clip name> or this.<Wick clip name> using gotoAndStop
+  var fps = Math.max(1, parseInt(App.fps || "24", 10) || 24);
 
-      var order = MOUTH_ORDER.slice();
-if (!order.length && App && App.mouths && Array.isArray(App.mouths)) {
-        order = App.mouths.slice();
-      }
-
-      var mouthToIndex = {};
-      for (var i = 0; i < order.length; i += 1) {
-        mouthToIndex[String(order[i])] = i + 1;
-      }
-
-      var blocks = Array.isArray(App.blocks) ? App.blocks.slice() : [];
-      blocks.sort(function (a, b) {
-        var sa = Number(a && a.startFrame !== undefined ? a.startFrame : 0) || 0;
-        var sb = Number(b && b.startFrame !== undefined ? b.startFrame : 0) || 0;
-        return sa - sb;
-      });
-
-      var segs = [];
-      for (var j = 0; j < blocks.length; j += 1) {
-        var b = blocks[j];
-        if (!b) continue;
-
-        var mouthKey = String(b.mouth || "");
-        var mIndex = mouthToIndex[mouthKey] || 1;
-
-        var s0 = Number(b.startFrame !== undefined ? b.startFrame : 0) || 0;
-        var d0 = Number(b.durFrames !== undefined ? b.durFrames : 1) || 1;
-        if (d0 < 1) d0 = 1;
-
-        var s1 = s0 + 1;              // 1 based
-        var e1 = s0 + d0;             // inclusive, 1 based
-
-        if (dataTotal > 0) {
-          if (s1 < 1) s1 = 1;
-          if (e1 > dataTotal) e1 = dataTotal;
-          if (s1 > dataTotal) continue;
-          if (e1 < 1) continue;
-        }
-
-        segs.push({ s: s1, e: e1, m: mIndex });
-      }
-
-      // Merge adjacent segments with same mouth index
-      var merged = [];
-      for (var k = 0; k < segs.length; k += 1) {
-        var seg = segs[k];
-        if (!merged.length) {
-          merged.push(seg);
-        } else {
-          var last = merged[merged.length - 1];
-          if (last.m === seg.m && last.e + 1 >= seg.s) {
-            if (seg.e > last.e) last.e = seg.e;
-          } else {
-            merged.push(seg);
-          }
-        }
-      }
-
-      var scriptLines = [
-        "/* LukeTools LipService START */",
-        "(function () {",
-        "  var cfg = {",
-        "    fps: " + JSON.stringify(fps) + ",",
-        "    dataTotalFrames: " + JSON.stringify(dataTotal) + ",",
-        "    mouthClipName: " + JSON.stringify("MouthShapes") + ",",
-        "    segments: " + JSON.stringify(merged) + ",",
-        "    mouthFrameFallback: 1",
-        "  };",
-        "",
-        "  function s(v) {",
-        "    if (v === null || v === undefined) return \"\";",
-        "    return String(v);",
-        "  }",
-        "",
-        "  function getChildrenList(obj) {",
-        "    if (!obj) return [];",
-        "    try { if (Array.isArray(obj.children)) return obj.children; } catch (e1) {}",
-        "    try { if (Array.isArray(obj.objects)) return obj.objects; } catch (e2) {}",
-        "    try { if (obj.timeline && Array.isArray(obj.timeline.children)) return obj.timeline.children; } catch (e3) {}",
-        "    try { if (typeof obj.getChildren === \"function\") { var c = obj.getChildren(); if (Array.isArray(c)) return c; } } catch (e4) {}",
-        "    return [];",
-        "  }",
-        "",
-        "  function getObjName(obj) {",
-        "    try { if (obj && typeof obj.name === \"string\") return obj.name.trim(); } catch (e1) {}",
-        "    try { if (obj && typeof obj.getName === \"function\") return s(obj.getName()).trim(); } catch (e2) {}",
-        "    return \"\";",
-        "  }",
-        "",
-        "  function findDescendantByName(root, targetName) {",
-        "    var want = s(targetName).trim();",
-        "    if (!want) return null;",
-        "    var q = [root];",
-        "    var seen = [];",
-        "    var guard = 0;",
-        "    while (q.length && guard < 5000) {",
-        "      var cur = q.shift();",
-        "      guard += 1;",
-        "      if (!cur) continue;",
-        "      if (seen.indexOf(cur) !== -1) continue;",
-        "      seen.push(cur);",
-        "      var nm = getObjName(cur);",
-        "      if (nm === want) return cur;",
-        "      var kids = getChildrenList(cur);",
-        "      for (var i = 0; i < kids.length; i += 1) q.push(kids[i]);",
-        "      try { if (cur.clipAsset) q.push(cur.clipAsset); } catch (e1) {}",
-        "    }",
-        "    return null;",
-        "  }",
-        "",
-        "  function getTotalFrames(clip) {",
-        "    if (!clip) return 0;",
-        "    try { if (typeof clip.getTotalFrames === \"function\") { var t = Number(clip.getTotalFrames()); if (t > 0) return t; } } catch (e1) {}",
-        "    try { if (typeof clip.totalFrames === \"number\" && clip.totalFrames > 0) return clip.totalFrames; } catch (e2) {}",
-        "    try { if (clip.timeline && typeof clip.timeline.length === \"number\" && clip.timeline.length > 0) return clip.timeline.length; } catch (e3) {}",
-        "    try { if (typeof clip.frameCount === \"number\" && clip.frameCount > 0) return clip.frameCount; } catch (e4) {}",
-        "    return 0;",
-        "  }",
-        "",
-        "  function getCurrentFrame(clip) {",
-        "    if (!clip) return 0;",
-        "    try { if (typeof clip.getCurrentFrame === \"function\") { var f = Number(clip.getCurrentFrame()); if (f > 0) return f; } } catch (e1) {}",
-        "    try { if (typeof clip.currentFrame === \"number\" && clip.currentFrame > 0) return clip.currentFrame; } catch (e2) {}",
-        "    try { if (typeof clip.frame === \"number\" && clip.frame > 0) return clip.frame; } catch (e3) {}",
-        "    try { if (clip.timeline && typeof clip.timeline.playheadPosition === \"number\") { var p = Number(clip.timeline.playheadPosition); if (!isNaN(p)) return p + 1; } } catch (e4) {}",
-        "    return 0;",
-        "  }",
-        "",
-        "  function gotoStop(clip, frame) {",
-        "    if (!clip) return false;",
-        "    var f = Number(frame) || 1;",
-        "    if (f < 1) f = 1;",
-        "    try { if (typeof clip.gotoAndStop === \"function\") { clip.gotoAndStop(f); return true; } } catch (e1) {}",
-        "    try { if (typeof clip.gotoAndStopFrame === \"function\") { clip.gotoAndStopFrame(f); return true; } } catch (e2) {}",
-        "    try { if (typeof clip.gotoAndStopAtFrame === \"function\") { clip.gotoAndStopAtFrame(f); return true; } } catch (e3) {}",
-        "    try { if (typeof clip.stop === \"function\") { clip.stop(); } } catch (e4) {}",
-        "    return false;",
-        "  }",
-        "",
-        "  function mouthFrameForDataFrame(dataFrame) {",
-        "    var f = Number(dataFrame) || 1;",
-        "    if (f < 1) f = 1;",
-        "    var segs = cfg.segments || [];",
-        "    if (!segs.length) return cfg.mouthFrameFallback || 1;",
-        "    var lo = 0;",
-        "    var hi = segs.length - 1;",
-        "    while (lo <= hi) {",
-        "      var mid = (lo + hi) >> 1;",
-        "      var seg = segs[mid];",
-        "      if (f < seg.s) {",
-        "        hi = mid - 1;",
-        "      } else if (f > seg.e) {",
-        "        lo = mid + 1;",
-        "      } else {",
-        "        return seg.m || (cfg.mouthFrameFallback || 1);",
-        "      }",
-        "    }",
-        "    if (hi >= 0 && hi < segs.length) return segs[hi].m || (cfg.mouthFrameFallback || 1);",
-        "    return cfg.mouthFrameFallback || 1;",
-        "  }",
-        "",
-        "  var root = this;",
-        "  var mouthClip = null;",
-        "  var lastMain = -1;",
-        "  var lastMouth = -1;",
-        "",
-        "  function ensureMouthClip() {",
-        "    if (mouthClip) return true;",
-        "    mouthClip = findDescendantByName(root, cfg.mouthClipName);",
-        "    if (!mouthClip) {",
-        "      try { console.log(\"[LukeTools LipService] Mouth clip not found\", cfg.mouthClipName); } catch (e1) {}",
-        "      return false;",
-        "    }",
-        "    return true;",
-        "  }",
-        "",
-        "  function tick() {",
-        "    if (!ensureMouthClip()) return;",
-        "",
-        "    var mainFrame = getCurrentFrame(root);",
-        "    if (!mainFrame) return;",
-        "    if (mainFrame === lastMain) return;",
-        "    lastMain = mainFrame;",
-        "",
-        "    var clipTotal = getTotalFrames(root);",
-        "    var dataTotal = Number(cfg.dataTotalFrames) || 0;",
-        "    var dataFrame = mainFrame;",
-        "",
-        "    if (dataTotal > 0 && clipTotal > 0 && clipTotal !== dataTotal) {",
-        "      var t = (mainFrame - 1) / Math.max(clipTotal - 1, 1);",
-        "      dataFrame = Math.round(t * Math.max(dataTotal - 1, 1)) + 1;",
-        "    }",
-        "",
-        "    if (dataTotal > 0) {",
-        "      if (dataFrame < 1) dataFrame = 1;",
-        "      if (dataFrame > dataTotal) dataFrame = dataTotal;",
-        "    } else {",
-        "      if (dataFrame < 1) dataFrame = 1;",
-        "    }",
-        "",
-        "    var mouthFrame = mouthFrameForDataFrame(dataFrame);",
-        "    if (mouthFrame !== lastMouth) {",
-        "      lastMouth = mouthFrame;",
-        "      gotoStop(mouthClip, mouthFrame);",
-        "    }",
-        "  }",
-        "",
-        "  var ms = Math.max(10, Math.round(1000 / Math.max(1, cfg.fps)));",
-        "  try { tick(); } catch (e0) {}",
-        "",
-        "  try {",
-        "    if (typeof root.onUpdate === \"function\") {",
-        "      root.onUpdate(tick);",
-        "      return;",
-        "    }",
-        "  } catch (e1) {}",
-        "",
-        "  try {",
-        "    if (typeof root.addEventListener === \"function\") {",
-        "      root.addEventListener(\"update\", tick);",
-        "      return;",
-        "    }",
-        "  } catch (e2) {}",
-        "",
-        "  try { setInterval(tick, ms); } catch (e3) {}",
-        "}).call(this);",
-        "/* LukeTools LipService END */"
-      ];
-
-      return scriptLines.join("\n");
+  var mouthClipName = "MouthShapes";
+  try {
+    if (clipNameEl && typeof clipNameEl.value === "string" && clipNameEl.value.trim()) {
+      mouthClipName = clipNameEl.value.trim();
     }
+  } catch (e0) {}
+
+  var frameKeys = Array.isArray(App.frameMap) ? App.frameMap.slice() : [];
+  if (!frameKeys.length) {
+    try { rebuildFrameMapFromBlocks(); } catch (e1) {}
+    frameKeys = Array.isArray(App.frameMap) ? App.frameMap.slice() : [];
+  }
+
+  function labelToNum(lbl) {
+    if (lbl === "Rest") return 10;
+    if (typeof lbl !== "string" || !lbl) return 1;
+    var c = lbl.charCodeAt(0);
+    // A..I -> 1..9
+    if (c >= 65 && c <= 73) return (c - 65) + 1;
+    return 1;
+  }
+
+  var framesLabels = [];
+  var framesNums = [];
+  for (var i = 0; i < frameKeys.length; i += 1) {
+    var lbl = mouthLabel(frameKeys[i]);
+    framesLabels.push(lbl);
+    framesNums.push(labelToNum(lbl));
+  }
+
+  var scriptLines = [
+    "/* LukeTools LipService START */",
+    "(function(){",
+    "  var root = this;",
+    "  if (root.__LukeToolsLipServiceInstalled) { return; }",
+    "  root.__LukeToolsLipServiceInstalled = true;",
+    "  var fps = " + fps + ";",
+    "  var mouthClipName = " + JSON.stringify(mouthClipName) + ";",
+    "  var framesLabels = " + JSON.stringify(framesLabels) + ";",
+    "  var framesNums = " + JSON.stringify(framesNums) + ";",
+    "  var lastFrame = -1;",
+    "",
+    "  function getByName(container){",
+    "    if (!container) return null;",
+    "    if (!mouthClipName) return null;",
+    "    try { if (container[mouthClipName]) return container[mouthClipName]; } catch (e1) {}",
+    "    return null;",
+    "  }",
+    "",
+    "  function getMouthClip(){",
+    "    var m = null;",
+    "    try { if (root.Head) { m = getByName(root.Head); if (m) return m; } } catch (e1) {}",
+    "    m = getByName(root); if (m) return m;",
+    "    // fallbacks",
+    "    try { if (root.Head && root.Head.MouthShape) return root.Head.MouthShape; } catch (e2) {}",
+    "    try { if (root.Head && root.Head.MouthShapes) return root.Head.MouthShapes; } catch (e3) {}",
+    "    try { if (root.MouthShape) return root.MouthShape; } catch (e4) {}",
+    "    try { if (root.MouthShapes) return root.MouthShapes; } catch (e5) {}",
+    "    return null;",
+    "  }",
+    "",
+    "  function getMainFrame(){",
+    "    var f = 0;",
+    "    try { if (root.timeline && typeof root.timeline.playheadPosition === \"number\") f = root.timeline.playheadPosition + 1; } catch (e1) {}",
+    "    if (!f) { try { if (typeof root.getCurrentFrame === \"function\") f = root.getCurrentFrame(); } catch (e2) {} }",
+    "    if (!f) { try { if (typeof root.currentFrame === \"number\") f = root.currentFrame; } catch (e3) {} }",
+    "    if (!f) f = 1;",
+    "    f = Math.floor(f);",
+    "    if (f < 1) f = 1;",
+    "    return f;",
+    "  }",
+    "",
+    "  function apply(){",
+    "    var mouth = getMouthClip();",
+    "    if (!mouth || typeof mouth.gotoAndStop !== \"function\") return;",
+    "    var f = getMainFrame();",
+    "    if (f === lastFrame) return;",
+    "    lastFrame = f;",
+    "    var idx = f - 1;",
+    "    if (idx < 0) idx = 0;",
+    "    if (idx >= framesLabels.length) idx = framesLabels.length - 1;",
+    "    var lbl = framesLabels[idx] || \"A\";",
+    "    var num = framesNums[idx] || 1;",
+    "    try { mouth.gotoAndStop(lbl); } catch (e1) { try { mouth.gotoAndStop(num); } catch (e2) {} }",
+    "  }",
+    "",
+    "  try { apply(); } catch (e0) {}",
+    "  setInterval(function(){ try { apply(); } catch (e1) {} }, Math.max(10, Math.round(1000 / fps)));",
+    "}).call(this);",
+    "/* LukeTools LipService END */",
+    ""
+  ];
+
+  return scriptLines.join("\n");
+}
 
     function upsertLipServiceBlock(current, block) {
       var startMarker = "/* LukeTools LipService START */";
