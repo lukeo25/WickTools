@@ -1,0 +1,2413 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lip Service</title>
+  <style>
+    :root{
+      --bg0:#0f1217;
+      --bg1:#151a21;
+      --line:#2a3342;
+      --line2:#313c4d;
+      --text:#d7deea;
+      --muted:#9aa6ba;
+      --shadow:0 10px 26px rgba(0,0,0,0.38);
+      --radius:12px;
+      --red:#ff4b4b;
+      --blue:#2f89ff;
+    }
+
+    html, body{
+      height:100%;
+      margin:0;
+      background: radial-gradient(1000px 500px at 40% 0%, rgba(255,255,255,0.05), transparent 60%),
+                  linear-gradient(180deg, var(--bg1), var(--bg0));
+      color:var(--text);
+      font-family: Arial, sans-serif;
+      overflow:hidden;
+    }
+    *{ box-sizing:border-box; }
+
+    .app{
+      height:100vh;
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .menu{
+      height:46px;
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      display:flex;
+      align-items:center;
+      padding:8px 10px;
+      gap:8px;
+      user-select:none;
+    }
+
+    .menu .spacer{ flex:1; }
+
+    .btn{
+      appearance:none;
+      border:1px solid var(--line2);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      color:var(--text);
+      border-radius: 10px;
+      padding:8px 12px;
+      font-size:13px;
+      cursor:pointer;
+      transition: transform 0.05s ease, background 0.15s ease, border 0.15s ease;
+      line-height:1;
+      white-space:nowrap;
+    }
+    .btn:hover{ background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03)); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{ border-color: rgba(255,204,0,0.35); }
+    .btn.danger{ border-color: rgba(255,75,75,0.35); }
+    .btn.small{ padding:7px 10px; border-radius:9px; }
+
+    .btn.darktone{
+      background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03));
+      background-color: rgba(15,18,23,0.92);
+      border-color: rgba(42,51,66,0.95);
+      color: var(--text);
+    }
+    .btn.darktone:hover{
+      background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04));
+      background-color: rgba(15,18,23,0.96);
+    }
+
+    .pill{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line2);
+      background: rgba(0,0,0,0.18);
+      font-size:13px;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .pill input{
+      width:70px;
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border:1px solid var(--line2);
+      border-radius:9px;
+      padding:6px 8px;
+      outline:none;
+      font-size:13px;
+    }
+
+    .panel{
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.12));
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+
+    .timeline-wrap{
+      height:230px;
+      display:flex;
+      flex-direction:column;
+    }
+
+    .timeline-scroll{
+      position:relative;
+      flex:1;
+      overflow-x:auto;
+      overflow-y:hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.18));
+      scrollbar-width:none;
+    }
+    .timeline-scroll::-webkit-scrollbar{ height:0; }
+
+    .timeline-surface{
+      position:relative;
+      height:100%;
+    }
+
+    canvas{ display:block; }
+
+    .playhead{
+      position:absolute;
+      top:0;
+      bottom:0;
+      width:2px;
+      background: var(--red);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.35);
+      pointer-events:none;
+    }
+
+    .layout-mid{
+      display:grid;
+      grid-template-columns: 340px 1fr 420px;
+      gap:12px;
+      align-items:stretch;
+      flex:1 1 auto;
+      min-height:320px;
+      margin:0;
+    }
+
+    .mouth-preview{
+      height:100%;
+      padding:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0.22));
+    }
+
+    /* WHITE BACKGROUND FOR THE MAIN ANIMATED MOUTH AREA */
+    .mouth-preview .svg-host{
+      width:100%;
+      height:100%;
+      max-width:none;
+      max-height:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid rgba(0,0,0,0.25);
+      border-radius: 12px;
+      background: #ffffff;
+      overflow:hidden;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+    }
+
+    .svg-host svg{
+      width:92%;
+      height:92%;
+      background: #ffffff;
+    }
+
+    .mouth-grid{
+      padding:10px;
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-height:0;
+    }
+
+    .hint{
+      color: var(--muted);
+      font-size:12px;
+      opacity:0.9;
+    }
+
+    .grid-scroll{
+      flex:1;
+      min-height:0;
+      overflow-y:auto;
+      overflow-x:hidden;
+      padding-right:6px;
+    }
+    .grid-scroll::-webkit-scrollbar{ width:10px; }
+    .grid-scroll::-webkit-scrollbar-thumb{
+      background: rgba(255,255,255,0.15);
+      border-radius: 999px;
+      border:2px solid rgba(0,0,0,0.25);
+    }
+    .grid-scroll::-webkit-scrollbar-track{ background: rgba(0,0,0,0.15); }
+
+    .mouth-grid .grid{
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap:10px;
+    }
+
+    .mouth-btn{
+      appearance:none;
+      border:1px solid var(--line2);
+      background: rgba(0,0,0,0.18);
+      border-radius: 12px;
+      cursor:pointer;
+      padding:8px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      transition: background 0.15s ease, border 0.15s ease;
+      min-height:92px;
+      user-select:none;
+    }
+    .mouth-btn:hover{ background: rgba(255,255,255,0.06); }
+    .mouth-btn.active{
+      border-color: rgba(255,204,0,0.55);
+      box-shadow: 0 0 0 1px rgba(255,204,0,0.20) inset;
+      background: rgba(255,204,0,0.08);
+    }
+
+    /* WHITE BACKGROUND FOR THUMBNAIL MOUTH TILES */
+    .mouth-btn .mini{
+      width:100%;
+      height:56px;
+      border-radius: 10px;
+      border:1px solid rgba(0,0,0,0.18);
+      background: #ffffff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04);
+    }
+    .mouth-btn .mini svg{
+      width:92%;
+      height:92%;
+      background:#ffffff;
+    }
+
+    .mouth-btn .label{
+      font-size:12px;
+      color: var(--text);
+      opacity:0.9;
+    }
+
+    .script-panel{
+      height:170px;
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .script-panel .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      color: var(--muted);
+      font-size:13px;
+    }
+
+    textarea{
+      width:100%;
+      flex:1;
+      resize:none;
+      background: rgba(0,0,0,0.26);
+      border:1px solid var(--line2);
+      border-radius: 12px;
+      color: var(--text);
+      padding:10px;
+      outline:none;
+      font-size: 11px;
+      line-height:1.35;
+    }
+
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,0.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:14px;
+      z-index:9999;
+    }
+    .modal{
+      width:min(720px, 96vw);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.25));
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .modal .head{
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom:1px solid var(--line);
+      font-weight:700;
+      font-size:13px;
+    }
+    .modal .body{
+      padding:12px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    .modal .foot{
+      padding:10px 12px;
+      border-top:1px solid var(--line);
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+    }
+
+    .status{
+      font-size:12px;
+      color: var(--muted);
+      padding:0 6px;
+      white-space:nowrap;
+    }
+  
+    /* Layout tweaks to match latest reference */
+    /* Two separate menus */
+    .menu{ height:46px; }
+    .menu.secondary{
+      margin-top:0px;
+      height:40px;
+      justify-content:flex-start;
+      gap:10px;
+    }
+    .menu .spacer{ flex:1; }
+
+    /* Mid layout: preview, mouth grid, script corner */
+    .layout-mid{
+      display:grid;
+      grid-template-columns: 340px 1fr 420px;
+      gap:12px;
+      align-items:stretch;
+      flex:1 1 auto;
+      min-height:320px;
+      margin:0;
+    }
+
+    .mouth-preview{ height:100%; }
+    .mouth-preview .svg-host{ height:100%; }
+
+    .mouth-grid{
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    .mouth-grid .hint{
+      font-size:13px;
+      color:rgba(255,255,255,0.75);
+      margin-bottom:8px;
+    }
+    .mouth-grid .grid-scroll{
+      flex:1;
+      overflow:auto;
+      padding-right:6px;
+    }
+    .mouth-grid .grid{
+      display:grid;
+      grid-template-columns: repeat(5, minmax(98px, 1fr));
+      gap:10px;
+    }
+
+    /* Script box in the top right corner */
+    .script-panel{
+      height:100%;
+      min-height:0;
+      background:#bfbfbf;
+      border:1px solid rgba(0,0,0,0.40);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.06) inset;
+      position:relative;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .script-panel textarea{
+      width:100%;
+      flex:1 1 auto;
+      min-height:0;
+      border:0;
+      outline:none;
+      resize:none;
+      padding:16px 18px 46px 18px;
+      background:transparent;
+      color:#1b1b1b;
+      font-size:14px;
+      line-height:1.35;
+      font-family: Arial, sans-serif;
+    }
+    .script-panel textarea::placeholder{
+      color:rgba(0,0,0,0.55);
+    }
+    .script-actions{
+      position:absolute;
+      right:14px;
+      bottom:12px;
+    }
+
+    /* Timeline */
+    .timeline-wrap{ margin-top:0; }
+    .timeline-scroll{ height:250px; }
+    .timeline-surface{ height:230px; }
+
+    /* Playhead: add a draggable handle */
+    .playhead{ pointer-events:none; }
+    .playhead .ph-handle{
+      pointer-events:auto;
+      position:absolute;
+      top:-2px;
+      left:-9px;
+      width:18px;
+      height:26px;
+      border-radius:4px;
+      background: linear-gradient(180deg, #f0b38c, #e08b62);
+      border:1px solid rgba(0,0,0,0.45);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+      cursor:grab;
+    }
+    .playhead .ph-handle:active{ cursor:grabbing; }
+    .playhead .ph-lines{
+      position:absolute;
+      left:4px;
+      right:4px;
+      top:7px;
+      height:12px;
+      opacity:0.75;
+    }
+    .playhead .ph-lines::before{
+      content:"";
+      position:absolute;
+      left:0;
+      right:0;
+      top:0;
+      bottom:0;
+      background:
+        linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)) 0 0/100% 2px no-repeat,
+        linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)) 0 5px/100% 2px no-repeat,
+        linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)) 0 10px/100% 2px no-repeat;
+    }
+
+    /* Context menu */
+    .ctx-menu{
+      position:fixed;
+      display:none;
+      z-index:10000;
+      background: rgba(20,24,30,0.98);
+      border:1px solid rgba(255,255,255,0.14);
+      border-radius:10px;
+      min-width:170px;
+      padding:6px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.55);
+    }
+    .ctx-menu button{
+      width:100%;
+      text-align:left;
+      padding:10px 10px;
+      border:0;
+      border-radius:8px;
+      background:transparent;
+      color:rgba(255,255,255,0.92);
+      cursor:pointer;
+      font-size:14px;
+    }
+    .ctx-menu button:hover{
+      background: rgba(255,255,255,0.10);
+    }
+
+    /* Hide legacy top auto button (kept for wiring) */
+    #btn-auto{ display:none; }
+
+  </style>
+</head>
+
+<body>
+  <div class="app" id="app">
+    <div class="menu" id="menuMain">
+      <button class="btn small" id="btn-load">Load Audio</button>
+      <button class="btn small" id="btn-load-project">Load Project</button>
+
+      <button class="btn small" id="btn-play">Play</button>
+      <button class="btn small danger" id="btn-stop">Stop</button>
+
+      <div class="group">
+        <span class="label">FPS</span>
+        <input id="inp-fps" type="number" min="1" max="120" value="24">
+      </div>
+
+      <div class="group">
+        <span class="label">Wick clip</span>
+        <input id="inp-clipname" type="text" value="" placeholder="Clip name">
+      </div>
+
+      <button class="btn small" id="btn-download">Save Project</button>
+      <button class="btn small" id="btn-send">Update Wick</button>
+
+      <!-- kept hidden for wiring; the visible auto-map is in the script corner -->
+      <button class="btn small" id="btn-auto" style="display:none">Auto map</button>
+
+      <div class="spacer"></div>
+      <div class="status" id="status">Ready</div>
+
+      <input id="file-audio" type="file" accept="audio/*" style="display:none">
+      <input id="file-project" type="file" accept="application/json,.json,.lipproj" style="display:none">
+    </div>
+<div class="layout-mid">
+      <div class="panel mouth-preview">
+        <div class="svg-host" id="currentMouthHost"></div>
+      </div>
+
+      <div class="panel mouth-grid">
+        <div class="hint">Select a mouth, then drag or resize blocks on the timeline. Double click the timeline (or use Add mouth) to insert at the playhead.</div>
+        <div class="grid-scroll">
+          <div class="grid" id="mouthGrid"></div>
+        </div>
+      </div>
+
+      <div class="panel script-panel script-corner">
+        <textarea id="scriptText" spellcheck="false" placeholder="Type the script here..."></textarea>
+        <div class="script-actions">
+          <button class="btn small darktone" id="btn-auto-bottom">Auto map</button>
+        </div>
+
+        <!-- hidden status text used by the JS -->
+        <div style="display:none">
+          <span id="selectedBlockLabel">None</span>
+          <span id="totalBlocks">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="menu secondary" id="menuMouth">
+      <button class="btn small" id="btn-zoom-out">Zoom</button>
+      <button class="btn small" id="btn-zoom-in">Zoom+</button>
+      <button class="btn small" id="btn-clear">Clear</button>
+      <button class="btn small" id="btn-insert">Add mouth</button>
+      <button class="btn small danger" id="btn-delete-block">Delete mouth</button>
+    </div>
+
+<div class="panel timeline-wrap" id="timelinePanel">
+      <div class="timeline-scroll" id="timelineScroll">
+        <div class="timeline-surface" id="timelineSurface">
+          <canvas id="timelineCanvas" width="800" height="230"></canvas>
+          <div class="playhead" id="playhead" style="left:0px"><div class="ph-handle" id="playheadHandle" title="Drag to scrub"><div class="ph-lines"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    
+
+    
+    <div class="ctx-menu" id="ctxMenu">
+      <button id="ctxDeleteMouth">Delete mouth</button>
+    </div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <div class="head">
+        <div>Download</div>
+        <button class="btn small" id="btn-close-modal">Close</button>
+      </div>
+      <div class="body">
+        <button class="btn" id="dl-frame-json">Frame map JSON</button>
+        <button class="btn" id="dl-frame-csv">Frame map CSV</button>
+        <button class="btn" id="dl-blocks-json">Blocks JSON</button>
+        <button class="btn" id="dl-papagayo-dat">Papagayo DAT (simple)</button>
+      </div>
+      <div class="foot">
+        <div class="hint">“Send to Wick” writes to localStorage keys: wick-lipsync-frame-map and wick-lipsync-blocks</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+  function el(q){ return document.querySelector(q); }
+  function setStatus(t){ el("#status").textContent = t; }
+
+  function closeCtxMenu(){
+    if (App.ui && App.ui.ctxMenu) App.ui.ctxMenu.style.display = "none";
+  }
+
+  function openCtxMenu(clientX, clientY){
+    if (!App.ui || !App.ui.ctxMenu) return;
+    const m = App.ui.ctxMenu;
+
+    m.style.display = "block";
+    m.style.left = clientX + "px";
+    m.style.top = clientY + "px";
+
+    const r = m.getBoundingClientRect();
+    let x = clientX;
+    let y = clientY;
+
+    if (x + r.width > window.innerWidth - 6) x = Math.max(6, window.innerWidth - r.width - 6);
+    if (y + r.height > window.innerHeight - 6) y = Math.max(6, window.innerHeight - r.height - 6);
+
+    m.style.left = x + "px";
+    m.style.top = y + "px";
+  }
+
+  function uid(prefix){ return prefix + Math.random().toString(16).slice(2) + Date.now().toString(16); }
+
+  const MOUTH_SVGS = {
+    "rest": `
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="30 60 240 240">
+<path d="M0 0 C99 0 198 0 300 0 C300 99 300 198 300 300 C201 300 102 300 0 300 C0 201 0 102 0 0 Z " fill="#FEFEFE" transform="translate(0,0)"/>
+<path d="M0 0 C1.85253906 0.2019043 1.85253906 0.2019043 4 1 C5.28027344 3.06958008 5.28027344 3.06958008 6.359375 5.76953125 C6.75253906 6.74083984 7.14570313 7.71214844 7.55078125 8.71289062 C7.94652344 9.73576172 8.34226563 10.75863281 8.75 11.8125 C9.16121094 12.82376953 9.57242188 13.83503906 9.99609375 14.87695312 C13 22.42663777 13 22.42663777 13 27 C10.75 27 10.75 27 8 26 C6.32801232 23.47332213 5.14194429 20.80063432 4 18 C3.16984375 18.42410156 2.3396875 18.84820312 1.484375 19.28515625 C-39.27019954 39.07047763 -95.29795215 41.05063654 -138.6328125 28.203125 C-155.99955539 21.99783868 -155.99955539 21.99783868 -162 17 C-161.505 15.515 -161.505 15.515 -161 14 C-157.31095136 14.37836396 -154.34048218 15.22718026 -151.03125 16.8203125 C-145.48877648 19.33045195 -139.79228955 21.00244826 -133.9375 22.625 C-132.28476074 23.08447021 -132.28476074 23.08447021 -130.59863281 23.55322266 C-122.04799395 25.85916755 -113.82592008 27.32261561 -105 28 C-103.98164062 28.10828125 -102.96328125 28.2165625 -101.9140625 28.328125 C-84.26056707 30.05263098 -66.56454013 29.13330323 -49 27 C-48.22124512 26.91411621 -47.44249023 26.82823242 -46.64013672 26.73974609 C-30.3730646 24.90620432 -13.55634809 20.59874615 1 13 C1.66 13 2.32 13 3 13 C2.54947266 12.09507813 2.54947266 12.09507813 2.08984375 11.171875 C1.51943359 9.97304687 1.51943359 9.97304687 0.9375 8.75 C0.55464844 7.96109375 0.17179688 7.1721875 -0.22265625 6.359375 C-1.08564091 3.74006478 -0.93045933 2.55144824 0 0 Z " fill="#101010" transform="translate(225,109)"/>
+</svg>
+`,
+    "etc": `
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="30 60 240 240">
+<path d="M0 0 C99 0 198 0 300 0 C300 99 300 198 300 300 C201 300 102 300 0 300 C0 201 0 102 0 0 Z " fill="#FEFEFE" transform="translate(0,0)"/>
+<path d="M0 0 C1.85253906 0.2019043 1.85253906 0.2019043 4 1 C5.28027344 3.06958008 5.28027344 3.06958008 6.359375 5.76953125 C6.75253906 6.74083984 7.14570313 7.71214844 7.55078125 8.71289062 C7.94652344 9.73576172 8.34226563 10.75863281 8.75 11.8125 C9.16121094 12.82376953 9.57242188 13.83503906 9.99609375 14.87695312 C13 22.42663777 13 22.42663777 13 27 C10.75 27 10.75 27 8 26 C6.32801232 23.47332213 5.14194429 20.80063432 4 18 C0.27422224 19.63585902 -0.84154665 20.62168726 -2.44140625 24.44140625 C-2.83241675 25.81027691 -3.20531872 27.18441523 -3.5625 28.5625 C-3.98023608 30.02425118 -4.400803 31.48519639 -4.82421875 32.9453125 C-5.12465088 34.00153809 -5.12465088 34.00153809 -5.43115234 35.07910156 C-6.36372502 38.22823541 -7.57747353 41.22893294 -8.84765625 44.25390625 C-9.78241407 46.48148167 -10.67799786 48.71571868 -11.55859375 50.96484375 C-18.19854396 67.78177279 -26.5129246 84.52437593 -43.31640625 93.1953125 C-54.69865109 97.9065721 -66.56436089 98.36648453 -78.75 98.3125 C-80.06605225 98.30758545 -81.38210449 98.3026709 -82.73803711 98.29760742 C-98.21080258 98.11164815 -116.85640856 96.82873963 -129.453125 86.6640625 C-137.70059635 77.79178271 -140.25073138 66.39711655 -143 55 C-143.53473059 52.8436444 -144.06991088 50.68740028 -144.60546875 48.53125 C-149.17854009 29.91395428 -149.17854009 29.91395428 -150 23 C-150.86625 22.7525 -151.7325 22.505 -152.625 22.25 C-156.18302254 20.93221387 -158.9226155 19.19813178 -162 17 C-161.505 15.515 -161.505 15.515 -161 14 C-156.32306242 14.47968591 -152.7279344 15.95305192 -148.53076172 17.90942383 C-106.11094338 36.18931275 -49.59410165 32.54058598 -7.08544922 16.83935547 C-4.30764114 15.72133812 -1.66925219 14.35313401 1 13 C1.66 13 2.32 13 3 13 C2.54947266 12.09507813 2.54947266 12.09507813 2.08984375 11.171875 C1.51943359 9.97304687 1.51943359 9.97304687 0.9375 8.75 C0.55464844 7.96109375 0.17179688 7.1721875 -0.22265625 6.359375 C-1.08564091 3.74006478 -0.93045933 2.55144824 0 0 Z " fill="#0D0A0A" transform="translate(225,109)"/>
+<path d="M0 0 C-0.56597938 5.20701027 -2.26679769 9.16042769 -4.625 13.75 C-5.16241821 14.80562134 -5.16241821 14.80562134 -5.71069336 15.88256836 C-11.67090706 27.35950006 -19.19613324 39.16349176 -31.95117188 43.69287109 C-33.95733162 44.27134341 -35.96700612 44.77485584 -38 45.25 C-38.67289063 45.42273438 -39.34578125 45.59546875 -40.0390625 45.7734375 C-44.46532794 46.85009666 -48.44774412 47.16596766 -53 47 C-51.42862528 36.90082767 -43.69895462 30.07874451 -36 24 C-33.86807051 22.59732299 -31.73787766 21.28818303 -29.49609375 20.0703125 C-27.66830345 18.98419806 -27.66830345 18.98419806 -27 16 C-38.63268424 18.69743403 -47.75074839 27.06852891 -54.24609375 36.8828125 C-56.16981492 40.13834063 -57.62922622 43.48626983 -59 47 C-61.91672884 47.02700675 -64.83320677 47.04684237 -67.75 47.0625 C-68.9875 47.07506836 -68.9875 47.07506836 -70.25 47.08789062 C-71.44882813 47.09272461 -71.44882813 47.09272461 -72.671875 47.09765625 C-73.4050293 47.10289307 -74.13818359 47.10812988 -74.89355469 47.11352539 C-77.0461849 46.9975109 -78.9314135 46.59073271 -81 46 C-81.68176527 38.33014068 -79.5188303 31.57048043 -75.08203125 25.28125 C-65.10399677 13.55485196 -53.73712626 9.52516784 -38.8203125 7.90917969 C-32.41922463 7.16396955 -26.16758602 5.87580373 -19.875 4.5 C-18.89120361 4.28617676 -17.90740723 4.07235352 -16.89379883 3.85205078 C-11.36296034 2.61832518 -5.61061372 0 0 0 Z " fill="#C80000" transform="translate(209,155)"/>
+<path d="M0 0 C1.81395872 3.62791744 0.02053844 7.70132759 -1.171875 11.39208984 C-2.54935344 14.89402492 -3.55571663 16.67789455 -6.65625 18.92578125 C-9.92350736 20.09756631 -13.02298419 20.88697264 -16.42822266 21.51416016 C-19.27185295 22.05135631 -22.07080203 22.71968472 -24.88671875 23.38671875 C-53.89183844 29.74374039 -87.11520482 30.1966786 -116 23 C-117.13115234 22.72784668 -117.13115234 22.72784668 -118.28515625 22.45019531 C-129.23936722 19.76063278 -129.23936722 19.76063278 -132 17 C-132.8515625 14.7578125 -132.8515625 14.7578125 -133.625 12.125 C-133.88539063 11.26132813 -134.14578125 10.39765625 -134.4140625 9.5078125 C-135 7 -135 7 -135 3 C-132.16718709 3.53387628 -129.38850558 4.15567862 -126.59375 4.8671875 C-91.81682287 13.59830522 -52.72174944 14.42894354 -18 5 C-16.66562857 4.65133188 -15.33097524 4.30374145 -13.99609375 3.95703125 C-6.95333288 2.13181427 -6.95333288 2.13181427 0 0 Z " fill="#FBFBFB" transform="translate(216,132)"/>
+<path d="M0 0 C3.56120382 0.66815623 7.05666698 1.51668301 10.56762695 2.40893555 C26.85736412 6.47058256 43.27627706 7.33663729 60 8 C59 10 59 10 55.875 11.6875 C47.67642829 16.28138272 42.518768 23.36609001 39 32 C38.03688485 35.98149039 37.41233218 39.9264424 37 44 C27.69994855 42.4668028 18.0947009 40.56699588 11 34 C4.77998487 24.87930474 0 11.14881116 0 0 Z " fill="#FB4C4C" transform="translate(86,156)"/>
+</svg>
+`,
+    "E": `
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="30 60 240 240">
+<path d="M0 0 C99 0 198 0 300 0 C300 99 300 198 300 300 C201 300 102 300 0 300 C0 201 0 102 0 0 Z " fill="#FEFEFE" transform="translate(0,0)"/>
+<path d="M0 0 C1.85253906 0.2019043 1.85253906 0.2019043 4 1 C5.28027344 3.06958008 5.28027344 3.06958008 6.359375 5.76953125 C6.75253906 6.74083984 7.14570313 7.71214844 7.55078125 8.71289062 C7.94652344 9.73576172 8.34226563 10.75863281 8.75 11.8125 C9.16121094 12.82376953 9.57242188 13.83503906 9.99609375 14.87695312 C13 22.42663777 13 22.42663777 13 27 C8.41057692 26.50384615 8.41057692 26.50384615 6.33203125 23.953125 C5.67267578 22.98632812 5.67267578 22.98632812 5 22 C4.443125 23.09957031 3.88625 24.19914062 3.3125 25.33203125 C-1.17853426 34.08206135 -5.79490112 42.31808758 -12 50 C-12.62390625 50.78761719 -13.2478125 51.57523438 -13.890625 52.38671875 C-24.70547825 65.33376867 -38.22462338 72.06508895 -54.86630249 73.82501221 C-61.35346749 74.35703452 -67.87280734 74.29236294 -74.37695312 74.26074219 C-76.99632912 74.25001503 -79.61501957 74.26070316 -82.234375 74.2734375 C-99.76624452 74.28812237 -121.67694413 73.97489728 -135.51367188 61.64428711 C-142.14658626 54.30646215 -145.93173981 45.10741399 -149.4375 36 C-149.88287109 34.88238281 -150.32824219 33.76476562 -150.78710938 32.61328125 C-154 24.43052755 -154 24.43052755 -154 21 C-154.94875 20.7525 -155.8975 20.505 -156.875 20.25 C-160 19 -160 19 -161.375 16.875 C-161.58125 16.25625 -161.7875 15.6375 -162 15 C-159.29464603 13.94863021 -158.13512346 13.95482676 -155.3359375 14.890625 C-154.35882813 15.33921875 -153.38171875 15.7878125 -152.375 16.25 C-108.89323446 36.06742665 -51.11978519 33.10412088 -7.08544922 16.83935547 C-4.30764114 15.72133812 -1.66925219 14.35313401 1 13 C1.66 13 2.32 13 3 13 C2.54947266 12.09507813 2.54947266 12.09507813 2.08984375 11.171875 C1.51943359 9.97304687 1.51943359 9.97304687 0.9375 8.75 C0.55464844 7.96109375 0.17179688 7.1721875 -0.22265625 6.359375 C-1.08564091 3.74006478 -0.93045933 2.55144824 0 0 Z " fill="#0F0B0B" transform="translate(225,109)"/>
+<path d="M0 0 C0.99 0.495 0.99 0.495 2 1 C0.59305308 3.94418347 -0.88379058 6.84770585 -2.375 9.75 C-2.96474609 10.9875 -2.96474609 10.9875 -3.56640625 12.25 C-6.54401372 17.93035886 -9.25527595 20.28003803 -15.35888672 22.26953125 C-16.2304541 22.51058594 -17.10202148 22.75164062 -18 23 C-18.80840332 23.24105469 -19.61680664 23.48210937 -20.44970703 23.73046875 C-51.08257118 32.3925592 -85.77684178 32.82300726 -117 27 C-117.86512207 26.83951172 -118.73024414 26.67902344 -119.62158203 26.51367188 C-122.12855589 26.03364309 -124.62758471 25.5273823 -127.125 25 C-127.85404541 24.8462793 -128.58309082 24.69255859 -129.33422852 24.53417969 C-133.37098063 23.60473086 -136.7725524 22.63853945 -140 20 C-141.58203125 16.93359375 -141.58203125 16.93359375 -142.8125 13.4375 C-143.44091797 11.70306641 -143.44091797 11.70306641 -144.08203125 9.93359375 C-145 7 -145 7 -145 5 C-141.93418198 5.55629762 -138.94222161 6.27056532 -135.9375 7.0859375 C-93.784383 18.27083696 -42.38611089 18.69583494 -1.92138672 0.65209961 C-1.2873291 0.43690674 -0.65327148 0.22171387 0 0 Z " fill="#FAFAFA" transform="translate(223,129)"/>
+<path d="M0 0 C0.66306152 0.14099121 1.32612305 0.28198242 2.00927734 0.42724609 C5.12939244 1.08533221 8.2521261 1.73013741 11.375 2.375 C12.4165625 2.59671875 13.458125 2.8184375 14.53125 3.046875 C30.00313732 6.21581578 45.35814033 7.38617982 61.125 7.3125 C61.92338287 7.31100952 62.72176575 7.30951904 63.54434204 7.3079834 C83.51302633 7.24140373 102.6186592 4.82086381 122 0 C119.22811299 4.58196262 116.23240625 7.88298515 111.9375 11.125 C111.07813843 11.7756543 111.07813843 11.7756543 110.20141602 12.43945312 C95.98446143 22.81340255 78.42858434 22.40834426 61.5625 22.375 C60.62890656 22.37512085 59.69531311 22.3752417 58.73342896 22.37536621 C41.53161428 22.34357979 25.72613606 21.48535604 10 14 C10 13.34 10 12.68 10 12 C9.40703125 11.77570313 8.8140625 11.55140625 8.203125 11.3203125 C5.35498583 9.61344896 4.37197983 7.75032788 2.75 4.875 C1.96882813 3.50988281 1.96882813 3.50988281 1.171875 2.1171875 C0.78515625 1.41851562 0.3984375 0.71984375 0 0 Z " fill="#FB4C4C" transform="translate(86,156)"/>
+</svg>
+`,
+    "AI": `
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="30 60 240 240">
+<path d="M0 0 C99 0 198 0 300 0 C300 99 300 198 300 300 C201 300 102 300 0 300 C0 201 0 102 0 0 Z " fill="#FEFEFE" transform="translate(0,0)"/>
+<path d="M0 0 C2.07577932 0.45816239 4.15195104 0.91455061 6.22851562 1.36914062 C11.84819438 2.60655282 17.45802457 3.8830465 23.0625 5.1875 C23.75230957 5.34779694 24.44211914 5.50809387 25.15283203 5.67324829 C40.03847829 9.16347829 40.03847829 9.16347829 45.0625 14.1875 C46.97538824 13.95023057 46.97538824 13.95023057 49.0625 13.1875 C49.84109375 12.93871094 50.6196875 12.68992187 51.421875 12.43359375 C52.21078125 12.16675781 52.9996875 11.89992188 53.8125 11.625 C54.61171875 11.35558594 55.4109375 11.08617188 56.234375 10.80859375 C56.83765625 10.60363281 57.4409375 10.39867188 58.0625 10.1875 C57.61197266 9.28257813 57.61197266 9.28257813 57.15234375 8.359375 C56.58193359 7.16054687 56.58193359 7.16054687 56 5.9375 C55.61714844 5.14859375 55.23429688 4.3596875 54.83984375 3.546875 C53.97685909 0.92756478 54.13204067 -0.26105176 55.0625 -2.8125 C56.91503906 -2.6105957 56.91503906 -2.6105957 59.0625 -1.8125 C60.34277344 0.25708008 60.34277344 0.25708008 61.421875 2.95703125 C61.81503906 3.92833984 62.20820313 4.89964844 62.61328125 5.90039062 C63.00902344 6.92326172 63.40476563 7.94613281 63.8125 9 C64.22371094 10.01126953 64.63492188 11.02253906 65.05859375 12.06445312 C68.0625 19.61413777 68.0625 19.61413777 68.0625 24.1875 C65.8125 24.1875 65.8125 24.1875 63.0625 23.1875 C61.39051232 20.66082213 60.20444429 17.98813432 59.0625 15.1875 C53.67540276 16.70897902 48.60986934 18.14934886 45.12890625 22.734375 C44.05099786 24.76654145 42.9948572 26.81035547 41.95703125 28.86328125 C38.37324206 35.15153816 33.16603319 40.11096071 28.0625 45.1875 C27.23621094 46.01378906 26.40992188 46.84007812 25.55859375 47.69140625 C10.95503847 61.52508712 -5.80281583 70.04013774 -26.08203125 69.55859375 C-32.95174213 69.18251957 -38.74919794 67.11805224 -44.9375 64.1875 C-45.85740723 63.7534082 -45.85740723 63.7534082 -46.79589844 63.31054688 C-58.09083763 57.88482902 -68.13762488 51.18967109 -76.9375 42.1875 C-77.53433594 41.62546875 -78.13117188 41.0634375 -78.74609375 40.484375 C-84.45240722 35.06542984 -89.73337676 29.16831684 -90.9375 21.1875 C-92.1440625 21.0946875 -92.1440625 21.0946875 -93.375 21 C-98.1010451 19.92213007 -101.81263427 17.67158581 -105.9375 15.1875 C-105.9375 13.8675 -105.9375 12.5475 -105.9375 11.1875 C-100.17705788 11.79386233 -95.21735631 13.94408279 -89.9375 16.1875 C-89.52242187 15.76339844 -89.10734375 15.33929688 -88.6796875 14.90234375 C-64.51959259 -8.09523613 -29.99952947 -6.85900385 0 0 Z " fill="#FD4C4C" transform="translate(169.9375,111.8125)"/>
+<path d="M0 0 C2.07577932 0.45816239 4.15195104 0.91455061 6.22851562 1.36914062 C11.84819438 2.60655282 17.45802457 3.8830465 23.0625 5.1875 C23.75230957 5.34779694 24.44211914 5.50809387 25.15283203 5.67324829 C40.03847829 9.16347829 40.03847829 9.16347829 45.0625 14.1875 C46.97538824 13.95023057 46.97538824 13.95023057 49.0625 13.1875 C49.84109375 12.93871094 50.6196875 12.68992187 51.421875 12.43359375 C52.21078125 12.16675781 52.9996875 11.89992188 53.8125 11.625 C54.61171875 11.35558594 55.4109375 11.08617188 56.234375 10.80859375 C56.83765625 10.60363281 57.4409375 10.39867188 58.0625 10.1875 C57.61197266 9.28257813 57.61197266 9.28257813 57.15234375 8.359375 C56.58193359 7.16054687 56.58193359 7.16054687 56 5.9375 C55.61714844 5.14859375 55.23429688 4.3596875 54.83984375 3.546875 C53.97685909 0.92756478 54.13204067 -0.26105176 55.0625 -2.8125 C56.91503906 -2.6105957 56.91503906 -2.6105957 59.0625 -1.8125 C60.34277344 0.25708008 60.34277344 0.25708008 61.421875 2.95703125 C61.81503906 3.92833984 62.20820313 4.89964844 62.61328125 5.90039062 C63.00902344 6.92326172 63.40476563 7.94613281 63.8125 9 C64.22371094 10.01126953 64.63492188 11.02253906 65.05859375 12.06445312 C68.0625 19.61413777 68.0625 19.61413777 68.0625 24.1875 C65.8125 24.1875 65.8125 24.1875 63.0625 23.1875 C61.39051232 20.66082213 60.20444429 17.98813432 59.0625 15.1875 C53.67540276 16.70897902 48.60986934 18.14934886 45.12890625 22.734375 C44.05099786 24.76654145 42.9948572 26.81035547 41.95703125 28.86328125 C38.37324206 35.15153816 33.16603319 40.11096071 28.0625 45.1875 C27.23621094 46.01378906 26.40992188 46.84007812 25.55859375 47.69140625 C10.95503847 61.52508712 -5.80281583 70.04013774 -26.08203125 69.55859375 C-32.95174213 69.18251957 -38.74919794 67.11805224 -44.9375 64.1875 C-45.85740723 63.7534082 -45.85740723 63.7534082 -46.79589844 63.31054688 C-58.09083763 57.88482902 -68.13762488 51.18967109 -76.9375 42.1875 C-77.53433594 41.62546875 -78.13117188 41.0634375 -78.74609375 40.484375 C-84.45240722 35.06542984 -89.73337676 29.16831684 -90.9375 21.1875 C-92.1440625 21.0946875 -92.1440625 21.0946875 -93.375 21 C-98.1010451 19.92213007 -101.81263427 17.67158581 -105.9375 15.1875 C-105.9375 13.8675 -105.9375 12.5475 -105.9375 11.1875 C-100.17705788 11.79386233 -95.21735631 13.94408279 -89.9375 16.1875 C-89.52242187 15.76339844 -89.10734375 15.33929688 -88.6796875 14.90234375 C-64.51959259 -8.09523613 -29.99952947 -6.85900385 0 0 Z M-85.9375 19.1875 C-84.96580217 29.3978018 -75.85476929 36.73352413 -68.46484375 43.1328125 C-64.4399655 46.40497009 -60.29423198 49.37418428 -55.9375 52.1875 C-55.02355469 52.785625 -54.10960938 53.38375 -53.16796875 54 C-40.96408823 61.5804559 -28.42532323 66.05788564 -13.9375 64.1875 C0.7358245 60.71433524 12.92824991 52.04576852 24.0625 42.1875 C24.77019531 41.56359375 25.47789062 40.9396875 26.20703125 40.296875 C30.35470735 36.40280434 33.80260131 32.09944973 37.125 27.5 C37.53186035 26.95311523 37.9387207 26.40623047 38.35791016 25.84277344 C40.10668416 23.32570319 41.09200523 21.73744177 40.92529297 18.63012695 C40.29412721 16.08805339 40.29412721 16.08805339 38.25415039 14.92529297 C31.11645269 12.34306409 23.94963838 10.73171654 16.5 9.3125 C7.95197899 7.63639612 -0.5070662 5.83839274 -8.93286133 3.62573242 C-36.45472402 -3.52578678 -63.58090554 0.55700462 -85.9375 19.1875 Z " fill="#0E0909" transform="translate(169.9375,111.8125)"/>
+<path d="M0 0 C0.80050781 0.41378906 0.80050781 0.41378906 1.6171875 0.8359375 C13.40891949 6.59648854 22.26103532 8.85925362 34.87109375 4.8515625 C37.23997673 3.98880086 37.23997673 3.98880086 40 2 C42.1875 2.375 42.1875 2.375 44 3 C43.64136971 5.6000696 43.27879939 6.74876009 41.30078125 8.53125 C34.18805566 13.07180148 24.2374467 14.03398913 16 13 C8.87769983 11.35435052 3.19894034 9.19894034 -2 4 C-1.34 2.68 -0.68 1.36 0 0 Z " fill="#111111" transform="translate(126,188)"/>
+</svg>
+`,
+    "FV": `
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="30 60 240 240">
+<path d="M0 0 C99 0 198 0 300 0 C300 99 300 198 300 300 C201 300 102 300 0 300 C0 201 0 102 0 0 Z " fill="#FEFEFE" transform="translate(0,0)"/>
+<path d="M0 0 C1.85253906 0.2019043 1.85253906 0.2019043 4 1 C5.28027344 3.06958008 5.28027344 3.06958008 6.359375 5.76953125 C6.75253906 6.74083984 7.14570313 7.71214844 7.55078125 8.71289062 C7.94652344 9.73576172 8.34226563 10.75863281 8.75 11.8125 C9.16121094 12.82376953 9.57242188 13.83503906 9.99609375 14.87695312 C13 22.42663777 13 22.42663777 13 27 C10.6875 26.875 10.6875 26.875 8 26 C6.33203125 22.9453125 6.33203125 22.9453125 5 20 C4.67725098 20.71655762 4.35450195 21.43311523 4.02197266 22.17138672 C2.56098057 25.40805419 1.09308456 28.64154375 -0.375 31.875 C-0.88289062 33.00292969 -1.39078125 34.13085938 -1.9140625 35.29296875 C-2.40390625 36.36933594 -2.89375 37.44570312 -3.3984375 38.5546875 C-3.84880371 39.54968262 -4.29916992 40.54467773 -4.76318359 41.56982422 C-6 44 -6 44 -8 46 C-10.01052442 45.73750685 -12.01052029 45.39125644 -14 45 C-26.81639995 44.02152641 -38.4013263 46.52284853 -50 52 C-52.77152212 54.52056045 -52.77152212 54.52056045 -55 57 C-55.99 57.495 -55.99 57.495 -57 58 C-57.33 57.34 -57.66 56.68 -58 56 C-64.95229456 51.3056463 -71.20293706 50.25764497 -79.4375 50.5 C-80.39720703 50.49742187 -81.35691406 50.49484375 -82.34570312 50.4921875 C-90.89795969 50.60736941 -99.90986028 51.8657609 -107 57 C-107.49886719 56.54109375 -107.99773437 56.0821875 -108.51171875 55.609375 C-117.6842793 47.77070566 -127.41336049 45.51850074 -139.3203125 45.6640625 C-142.22174348 45.82507319 -142.22174348 45.82507319 -145 48 C-148.51724138 47.48275862 -148.51724138 47.48275862 -150 46 C-150.25028811 44.41986783 -150.47440946 42.83557694 -150.6875 41.25 C-151.70788924 35.2067645 -154.01966566 30.20009131 -156.7578125 24.75 C-158 22 -158 22 -158 19 C-159.32 18.34 -160.64 17.68 -162 17 C-161.505 15.515 -161.505 15.515 -161 14 C-156.32306242 14.47968591 -152.7279344 15.95305192 -148.53076172 17.90942383 C-106.11094338 36.18931275 -49.59410165 32.54058598 -7.08544922 16.83935547 C-4.30764114 15.72133812 -1.66925219 14.35313401 1 13 C1.66 13 2.32 13 3 13 C2.54947266 12.09507813 2.54947266 12.09507813 2.08984375 11.171875 C1.51943359 9.97304687 1.51943359 9.97304687 0.9375 8.75 C0.55464844 7.96109375 0.17179688 7.1721875 -0.22265625 6.359375 C-1.08564091 3.74006478 -0.93045933 2.55144824 0 0 Z " fill="#0F0F0F" transform="translate(225,109)"/>
+<path d="M0 0 C0 3.0915187 -0.44142746 4.29234143 -1.75 7.01171875 C-2.29140625 8.14770508 -2.29140625 8.14770508 -2.84375 9.30664062 C-3.41609375 10.48516602 -3.41609375 10.48516602 -4 11.6875 C-4.57234375 12.88342773 -4.57234375 12.88342773 -5.15625 14.10351562 C-6.09902288 16.07155402 -7.04709568 18.03685236 -8 20 C-9.77890625 19.93039063 -9.77890625 19.93039063 -11.59375 19.859375 C-25.75221411 19.47544158 -38.42440758 20.8567896 -50.984375 27.94921875 C-54.13422149 29.59128989 -55.92610461 30.33177256 -59.40234375 29.2578125 C-60.23894531 28.88398438 -61.07554687 28.51015625 -61.9375 28.125 C-74.71731532 22.47580807 -88.80736131 24.92932933 -101.70703125 29.23828125 C-105 30 -105 30 -107.15234375 29.20703125 C-107.74144531 28.74683594 -108.33054688 28.28664062 -108.9375 27.8125 C-119.41990525 20.40008627 -130.57541847 20.84294771 -143 21 C-145 15 -147 9 -149 3 C-148.45762695 3.18755859 -147.91525391 3.37511719 -147.35644531 3.56835938 C-101.43313747 19.19763774 -44.89374639 19.50052265 0 0 Z " fill="#FAFAFA" transform="translate(223,129)"/>
+</svg>
+`,
+    "L": `
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="30 60 240 240">
+<path d="M0 0 C99 0 198 0 300 0 C300 99 300 198 300 300 C201 300 102 300 0 300 C0 201 0 102 0 0 Z " fill="#FEFEFE" transform="translate(0,0)"/>
+<path d="M0 0 C1.85253906 0.2019043 1.85253906 0.2019043 4 1 C5.28027344 3.06958008 5.28027344 3.06958008 6.359375 5.76953125 C6.75253906 6.74083984 7.14570313 7.71214844 7.55078125 8.71289062 C7.94652344 9.73576172 8.34226563 10.75863281 8.75 11.8125 C9.16121094 12.82376953 9.57242188 13.83503906 9.99609375 14.87695312 C13 22.42663777 13 22.42663777 13 27 C10.75 27 10.75 27 8 26 C6.32801232 23.47332213 5.14194429 20.80063432 4 18 C0.27422224 19.63585902 -0.84154665 20.62168726 -2.44140625 24.44140625 C-2.83241675 25.81027691 -3.20531872 27.18441523 -3.5625 28.5625 C-3.98023608 30.02425118 -4.400803 31.48519639 -4.82421875 32.9453125 C-5.12465088 34.00153809 -5.12465088 34.00153809 -5.43115234 35.07910156 C-6.36372502 38.22823541 -7.57747353 41.22893294 -8.84765625 44.25390625 C-9.78241407 46.48148167 -10.67799786 48.71571868 -11.55859375 50.96484375 C-18.19854396 67.78177279 -26.5129246 84.52437593 -43.31640625 93.1953125 C-54.69865109 97.9065721 -66.56436089 98.36648453 -78.75 98.3125 C-80.06605225 98.30758545 -81.38210449 98.3026709 -82.73803711 98.29760742 C-98.21080258 98.11164815 -116.85640856 96.82873963 -129.453125 86.6640625 C-137.70059635 77.79178271 -140.25073138 66.39711655 -143 55 C-143.53473059 52.8436444 -144.06991088 50.68740028 -144.60546875 48.53125 C-149.17854009 29.91395428 -149.17854009 29.91395428 -150 23 C-150.86625 22.7525 -151.7325 22.505 -152.625 22.25 C-156.18302254 20.93221387 -158.9226155 19.19813178 -162 17 C-161.505 15.515 -161.505 15.515 -161 14 C-156.32306242 14.47968591 -152.7279344 15.95305192 -148.53076172 17.90942383 C-106.11094338 36.18931275 -49.59410165 32.54058598 -7.08544922 16.83935547 C-4.30764114 15.72133812 -1.66925219 14.35313401 1 13 C1.66 13 2.32 13 3 13 C2.54947266 12.09507813 2.54947266 12.09507813 2.08984375 11.171875 C1.51943359 9.97304687 1.51943359 9.97304687 0.9375 8.75 C0.55464844 7.96109375 0.17179688 7.1721875 -0.22265625 6.359375 C-1.08564091 3.74006478 -0.93045933 2.55144824 0 0 Z " fill="#0D0A0A" transform="translate(225,109)"/>
+<path d="M0 0 C1.81395872 3.62791744 0.02053844 7.70132759 -1.171875 11.39208984 C-2.54935344 14.89402492 -3.55571663 16.67789455 -6.65625 18.92578125 C-9.92350736 20.09756631 -13.02298419 20.88697264 -16.42822266 21.51416016 C-19.27185295 22.05135631 -22.07080203 22.71968472 -24.88671875 23.38671875 C-53.89183844 29.74374039 -87.11520482 30.1966786 -116 23 C-117.13115234 22.72784668 -117.13115234 22.72784668 -118.28515625 22.45019531 C-129.23936722 19.76063278 -129.23936722 19.76063278 -132 17 C-132.8515625 14.7578125 -132.8515625 14.7578125 -133.625 12.125 C-133.88539063 11.26132813 -134.14578125 10.39765625 -134.4140625 9.5078125 C-135 7 -135 7 -135 3 C-132.16718709 3.53387628 -129.38850558 4.15567862 -126.59375 4.8671875 C-91.81682287 13.59830522 -52.72174944 14.42894354 -18 5 C-16.66562857 4.65133188 -15.33097524 4.30374145 -13.99609375 3.95703125 C-6.95333288 2.13181427 -6.95333288 2.13181427 0 0 Z " fill="#FBFBFB" transform="translate(216,132)"/>
+<path d="M0 0 C14.85 0.33 29.7 0.66 45 1 C45 3.97 45 6.94 45 10 C46.72540304 14.98449768 49.54564596 18.24033783 54 21 C58.53243501 23.13375297 63.1150529 24.87443615 68 26 C65.87849285 30.8141893 62.73712574 32.94291937 58 35 C46.69252399 38.61989459 32.57015738 41.97093768 21.1875 37.4375 C10.45668538 31.7330149 3.84876993 24.54630978 0 13 C0 8.71 0 4.42 0 0 Z " fill="#C90000" transform="translate(121,163)"/>
+<path d="M0 0 C2.99647224 0.56737936 5.96246358 1.21980495 8.92578125 1.9375 C9.99795898 2.19660156 9.99795898 2.19660156 11.09179688 2.4609375 C12.56120143 2.81762673 14.02996638 3.17696222 15.49804688 3.5390625 C20.32332556 4.69886043 25.06527785 5.46470811 30 6 C30.02578125 6.96679688 30.0515625 7.93359375 30.078125 8.9296875 C30.59292833 20.74676386 32.79641825 30.07450306 41 39 C41.99 39.66 42.98 40.32 44 41 C44 41.66 44 42.32 44 43 C45.65 43.66 47.3 44.32 49 45 C42.76055287 48.11972356 31.54495614 43.80954869 25.0625 41.6875 C16.91155936 38.83518731 12.11206399 36.522045 7.875 28.8125 C3.86019235 20.14612757 0 9.63956312 0 0 Z " fill="#F94B4B" transform="translate(86,156)"/>
+<path d="M0 0 C-2.63301231 10.88311756 -7.6656893 20.8117691 -14 30 C-21.37872689 29.19796447 -30.13009814 27.80264698 -36 23 C-38.90046338 18.59929694 -39.40156418 15.2203344 -39 10 C-38.67 9.34 -38.34 8.68 -38 8 C-36.1809082 7.46923828 -36.1809082 7.46923828 -33.80078125 7.0703125 C-32.92728027 6.9165918 -32.0537793 6.76287109 -31.15380859 6.60449219 C-29.74736084 6.36714355 -29.74736084 6.36714355 -28.3125 6.125 C-20.56655091 4.74776683 -13.13330286 3.07752847 -5.6171875 0.734375 C-3 0 -3 0 0 0 Z " fill="#FA4B4B" transform="translate(209,155)"/>
+</svg>
+`,
+    "O": `
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="30 60 240 240">
+<path d="M0 0 C99 0 198 0 300 0 C300 99 300 198 300 300 C201 300 102 300 0 300 C0 201 0 102 0 0 Z " fill="#FEFEFE" transform="translate(0,0)"/>
+<path d="M0 0 C1.87988281 0.21777344 1.87988281 0.21777344 4 1 C5.09667969 2.96191406 5.09667969 2.96191406 5.921875 5.515625 C6.22480469 6.43730469 6.52773437 7.35898438 6.83984375 8.30859375 C7.29037109 9.76458984 7.29037109 9.76458984 7.75 11.25 C8.06582031 12.20519531 8.38164062 13.16039063 8.70703125 14.14453125 C10.13654885 18.59398212 11.18738682 22.29006396 11 27 C9.35 26.67 7.7 26.34 6 26 C5.01 22.04 5.01 22.04 4 18 C3.46632812 18.31453125 2.93265625 18.6290625 2.3828125 18.953125 C-7.0450746 24.36845115 -16.40790029 27.59766811 -27 30 C-27 31.32 -27 32.64 -27 34 C-28.12800244 45.3283674 -35.52084366 56.73356405 -43 65 C-43.55300781 65.63292969 -44.10601562 66.26585937 -44.67578125 66.91796875 C-50.51170613 73.21003488 -57.48684197 77.58119223 -66.13671875 78.23828125 C-73.78304574 78.39810547 -79.42185455 77.98638082 -86 74 C-86.75925781 73.55269531 -87.51851562 73.10539062 -88.30078125 72.64453125 C-100.58402901 64.94427677 -109.22176581 53.67671621 -114 40 C-114.68502424 35.9838775 -114.9853278 32.07153605 -115 28 C-115.70253906 27.88269531 -116.40507813 27.76539063 -117.12890625 27.64453125 C-124.34627538 26.02430553 -132.34892469 22.86620374 -138 18 C-138 16.68 -138 15.36 -138 14 C-132.75763603 14.59254349 -128.54896653 16.32602734 -123.8125 18.5 C-118.48164279 20.93599318 -118.48164279 20.93599318 -113 23 C-112.979375 22.319375 -112.95875 21.63875 -112.9375 20.9375 C-110.75630129 14.10307736 -104.35587776 10.2940774 -98.30859375 7.04296875 C-92.30383371 4.33015838 -87.25913535 3.64514955 -80.75 3.6875 C-79.46996094 3.69160889 -79.46996094 3.69160889 -78.1640625 3.69580078 C-72.96752408 3.78221111 -68.67048659 4.36531072 -63.7890625 6.2109375 C-58.9589382 7.57744325 -53.94308912 7.81235581 -48.94921875 8.17724609 C-40.86109036 8.85404196 -34.46503026 10.57055263 -29 17 C-27 20 -27 20 -27 24 C-17.29334621 20.96583159 -8.14713803 17.48873047 1 13 C0.649375 11.783125 0.29875 10.56625 -0.0625 9.3125 C-0.93456352 5.87913104 -1.07703169 3.44650141 0 0 Z " fill="#FD4C4C" transform="translate(214,109)"/>
+<path d="M0 0 C1.87988281 0.21777344 1.87988281 0.21777344 4 1 C5.09667969 2.96191406 5.09667969 2.96191406 5.921875 5.515625 C6.22480469 6.43730469 6.52773437 7.35898438 6.83984375 8.30859375 C7.29037109 9.76458984 7.29037109 9.76458984 7.75 11.25 C8.06582031 12.20519531 8.38164062 13.16039063 8.70703125 14.14453125 C10.13654885 18.59398212 11.18738682 22.29006396 11 27 C9.35 26.67 7.7 26.34 6 26 C5.01 22.04 5.01 22.04 4 18 C3.46632812 18.31453125 2.93265625 18.6290625 2.3828125 18.953125 C-7.0450746 24.36845115 -16.40790029 27.59766811 -27 30 C-27 31.32 -27 32.64 -27 34 C-28.12800244 45.3283674 -35.52084366 56.73356405 -43 65 C-43.55300781 65.63292969 -44.10601562 66.26585937 -44.67578125 66.91796875 C-50.51170613 73.21003488 -57.48684197 77.58119223 -66.13671875 78.23828125 C-73.78304574 78.39810547 -79.42185455 77.98638082 -86 74 C-86.75925781 73.55269531 -87.51851562 73.10539062 -88.30078125 72.64453125 C-100.58402901 64.94427677 -109.22176581 53.67671621 -114 40 C-114.68502424 35.9838775 -114.9853278 32.07153605 -115 28 C-115.70253906 27.88269531 -116.40507813 27.76539063 -117.12890625 27.64453125 C-124.34627538 26.02430553 -132.34892469 22.86620374 -138 18 C-138 16.68 -138 15.36 -138 14 C-132.75763603 14.59254349 -128.54896653 16.32602734 -123.8125 18.5 C-118.48164279 20.93599318 -118.48164279 20.93599318 -113 23 C-112.979375 22.319375 -112.95875 21.63875 -112.9375 20.9375 C-110.75630129 14.10307736 -104.35587776 10.2940774 -98.30859375 7.04296875 C-92.30383371 4.33015838 -87.25913535 3.64514955 -80.75 3.6875 C-79.46996094 3.69160889 -79.46996094 3.69160889 -78.1640625 3.69580078 C-72.96752408 3.78221111 -68.67048659 4.36531072 -63.7890625 6.2109375 C-58.9589382 7.57744325 -53.94308912 7.81235581 -48.94921875 8.17724609 C-40.86109036 8.85404196 -34.46503026 10.57055263 -29 17 C-27 20 -27 20 -27 24 C-17.29334621 20.96583159 -8.14713803 17.48873047 1 13 C0.649375 11.783125 0.29875 10.56625 -0.0625 9.3125 C-0.93456352 5.87913104 -1.07703169 3.44650141 0 0 Z M-105.96875 18.6484375 C-109.47029486 22.70214905 -110.41670288 26.42043312 -110.24609375 31.76953125 C-108.80826541 44.80127699 -100.82688015 56.51610851 -90.8828125 64.75390625 C-89.09833305 66.18396743 -89.09833305 66.18396743 -87 66 C-87 66.66 -87 67.32 -87 68 C-79.05479702 71.94442701 -71.92920435 74.64391974 -63 73 C-49.54306074 68.04597283 -41.03315447 56.77244459 -35.12817383 44.1340332 C-31.89716731 36.73298773 -31.00845067 29.03380308 -32 21 C-35.01252579 16.56981502 -37.96141073 15.3903392 -43 14 C-46.82056804 13.38903183 -50.65667655 12.94215225 -54.5 12.5 C-60.62585678 11.79525541 -66.14278841 10.96067676 -72 9 C-85.6733227 7.89869681 -95.61890347 9.11740794 -105.96875 18.6484375 Z " fill="#0E0A0A" transform="translate(214,109)"/>
+<path d="M0 0 C4.64769913 0.46476991 8.03590251 1.85896683 12.0703125 4.0625 C20.09719754 7.96220124 29.85704264 6.47298634 38.0390625 3.8515625 C40.18044417 3.06417662 40.18044417 3.06417662 42 1 C44.125 1.375 44.125 1.375 46 2 C45.875 3.75 45.875 3.75 45 6 C37.62014362 12.27287792 28.30135713 12.67520963 19 12 C13.67118276 11.16941378 8.87334504 9.23361648 4 7 C4 6.34 4 5.68 4 5 C2.68 4.34 1.36 3.68 0 3 C0 2.01 0 1.02 0 0 Z " fill="#0B0B0B" transform="translate(121,200)"/>
+</svg>
+`,
+    "U": `
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="30 60 240 240">
+<path d="M0 0 C99 0 198 0 300 0 C300 99 300 198 300 300 C201 300 102 300 0 300 C0 201 0 102 0 0 Z " fill="#FEFEFE" transform="translate(0,0)"/>
+<path d="M0 0 C1.875 0.125 1.875 0.125 4 1 C6.23025497 5.91438639 7.07658784 11.48018565 8.1875 16.75 C8.37763672 17.61238281 8.56777344 18.47476563 8.76367188 19.36328125 C8.93833984 20.18699219 9.11300781 21.01070312 9.29296875 21.859375 C9.4530542 22.60670898 9.61313965 23.35404297 9.77807617 24.12402344 C10 26 10 26 9 28 C7.68 27.67 6.36 27.34 5 27 C4.01 23.535 4.01 23.535 3 20 C2.25234375 20.49371094 1.5046875 20.98742187 0.734375 21.49609375 C-0.25046875 22.13675781 -1.2353125 22.77742188 -2.25 23.4375 C-3.22453125 24.07558594 -4.1990625 24.71367187 -5.203125 25.37109375 C-7.58381615 26.7576136 -9.31780307 27.546581 -12 28 C-11.896875 29.11375 -11.79375 30.2275 -11.6875 31.375 C-11.75124452 40.42672151 -17.64811817 47.42525926 -23.5859375 53.73046875 C-30.68380597 60.40338393 -36.89912076 63.50074913 -46.66796875 63.40625 C-55.56068934 62.32202615 -64.19565371 56.72606652 -70 50 C-74.87815526 43.20474871 -77.85970124 37.4179255 -78 29 C-78.72960937 28.73058594 -79.45921875 28.46117187 -80.2109375 28.18359375 C-82.92868564 27.03026366 -85.1827105 25.71167487 -87.625 24.0625 C-88.38039063 23.55847656 -89.13578125 23.05445313 -89.9140625 22.53515625 C-91.82576882 21.12822632 -93.47856734 19.82178021 -95 18 C-94.6875 15.8125 -94.6875 15.8125 -94 14 C-93.01 14 -92.02 14 -91 14 C-91 14.66 -91 15.32 -91 16 C-90.44828125 16.27585938 -89.8965625 16.55171875 -89.328125 16.8359375 C-85.21875 18.890625 -81.109375 20.9453125 -77 23 C-76.236875 21.948125 -75.47375 20.89625 -74.6875 19.8125 C-69.66968303 14.07118384 -63.72450596 11.36410649 -56.1640625 10.625 C-46.55070459 10.47390597 -46.55070459 10.47390597 -42.14453125 11.96875 C-37.20847454 13.58753133 -32.14744601 13.74192662 -26.98828125 14.12304688 C-22.05030443 14.55875071 -18.27358601 15.26305834 -14 18 C-13.01 19.485 -13.01 19.485 -12 21 C-7.60983438 19.45052978 -3.33033996 17.33033996 0 14 C0.07271741 11.64686445 0.08370868 9.29166332 0.0625 6.9375 C0.05347656 5.64714844 0.04445313 4.35679688 0.03515625 3.02734375 C0.02355469 2.02832031 0.01195312 1.02929688 0 0 Z " fill="#FD4C4C" transform="translate(188,113)"/>
+<path d="M0 0 C1.875 0.125 1.875 0.125 4 1 C6.23025497 5.91438639 7.07658784 11.48018565 8.1875 16.75 C8.37763672 17.61238281 8.56777344 18.47476563 8.76367188 19.36328125 C8.93833984 20.18699219 9.11300781 21.01070312 9.29296875 21.859375 C9.4530542 22.60670898 9.61313965 23.35404297 9.77807617 24.12402344 C10 26 10 26 9 28 C7.68 27.67 6.36 27.34 5 27 C4.01 23.535 4.01 23.535 3 20 C2.25234375 20.49371094 1.5046875 20.98742187 0.734375 21.49609375 C-0.25046875 22.13675781 -1.2353125 22.77742188 -2.25 23.4375 C-3.22453125 24.07558594 -4.1990625 24.71367187 -5.203125 25.37109375 C-7.58381615 26.7576136 -9.31780307 27.546581 -12 28 C-11.896875 29.11375 -11.79375 30.2275 -11.6875 31.375 C-11.75124452 40.42672151 -17.64811817 47.42525926 -23.5859375 53.73046875 C-30.68380597 60.40338393 -36.89912076 63.50074913 -46.66796875 63.40625 C-55.56068934 62.32202615 -64.19565371 56.72606652 -70 50 C-74.87815526 43.20474871 -77.85970124 37.4179255 -78 29 C-78.72960937 28.73058594 -79.45921875 28.46117187 -80.2109375 28.18359375 C-82.92868564 27.03026366 -85.1827105 25.71167487 -87.625 24.0625 C-88.38039063 23.55847656 -89.13578125 23.05445313 -89.9140625 22.53515625 C-91.82576882 21.12822632 -93.47856734 19.82178021 -95 18 C-94.6875 15.8125 -94.6875 15.8125 -94 14 C-93.01 14 -92.02 14 -91 14 C-91 14.66 -91 15.32 -91 16 C-90.44828125 16.27585938 -89.8965625 16.55171875 -89.328125 16.8359375 C-85.21875 18.890625 -81.109375 20.9453125 -77 23 C-76.236875 21.948125 -75.47375 20.89625 -74.6875 19.8125 C-69.66968303 14.07118384 -63.72450596 11.36410649 -56.1640625 10.625 C-46.55070459 10.47390597 -46.55070459 10.47390597 -42.14453125 11.96875 C-37.20847454 13.58753133 -32.14744601 13.74192662 -26.98828125 14.12304688 C-22.05030443 14.55875071 -18.27358601 15.26305834 -14 18 C-13.01 19.485 -13.01 19.485 -12 21 C-7.60983438 19.45052978 -3.33033996 17.33033996 0 14 C0.07271741 11.64686445 0.08370868 9.29166332 0.0625 6.9375 C0.05347656 5.64714844 0.04445313 4.35679688 0.03515625 3.02734375 C0.02355469 2.02832031 0.01195312 1.02929688 0 0 Z M-71.0625 22.6875 C-73.61568009 27.05261435 -74.11014588 30.06778043 -73 35 C-68.86839416 44.51433176 -62.14214956 51.34267853 -53 56 C-52.35675781 56.35578125 -51.71351563 56.7115625 -51.05078125 57.078125 C-46.58533587 59.08544902 -42.00207185 58.68363429 -37.4375 57.125 C-28.09414938 52.79515459 -22.18971318 46.36625963 -18 37 C-17.05852184 33.98244178 -16.74874095 31.09289429 -16.625 27.9375 C-16.57601562 27.08027344 -16.52703125 26.22304687 -16.4765625 25.33984375 C-16.79729213 22.85893503 -16.79729213 22.85893503 -18.86328125 21.29296875 C-23.3348702 19.44976085 -27.78222243 18.95085822 -32.5625 18.375 C-34.43902153 18.13451871 -36.31533326 17.89239328 -38.19140625 17.6484375 C-39.01842041 17.54708496 -39.84543457 17.44573242 -40.69750977 17.34130859 C-42.85119445 17.02205812 -44.89215414 16.53522537 -47 16 C-56.12066595 15.19484714 -64.32907423 15.93526578 -71.0625 22.6875 Z " fill="#0F0B0B" transform="translate(188,113)"/>
+<path d="M0 0 C2.25 0.25 2.25 0.25 4 1 C3.76758005 4.13766931 2.82574004 5.18343153 0.625 7.5 C-7.47853694 13.87268439 -18.96057251 15.9832429 -29 15 C-33.51327474 13.74631257 -37.81063608 12.09468196 -42 10 C-42 8.68 -42 7.36 -42 6 C-34.375 6.875 -34.375 6.875 -31 8 C-21.59245001 8.61244456 -12.31631016 9.13501896 -4 4 C-2.64900897 2.68456137 -1.30794331 1.35824882 0 0 Z " fill="#171717" transform="translate(166,184)"/>
+</svg>
+`,
+    "WQ": `
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="30 60 240 240">
+<path d="M0 0 C99 0 198 0 300 0 C300 99 300 198 300 300 C201 300 102 300 0 300 C0 201 0 102 0 0 Z " fill="#FEFEFE" transform="translate(0,0)"/>
+<path d="M0 0 C1.875 0.125 1.875 0.125 4 1 C6.23025497 5.91438639 7.07658784 11.48018565 8.1875 16.75 C8.37763672 17.61238281 8.56777344 18.47476563 8.76367188 19.36328125 C8.93833984 20.18699219 9.11300781 21.01070312 9.29296875 21.859375 C9.4530542 22.60670898 9.61313965 23.35404297 9.77807617 24.12402344 C10 26 10 26 9 28 C7.68 27.67 6.36 27.34 5 27 C4.01 23.535 4.01 23.535 3 20 C2.25234375 20.49371094 1.5046875 20.98742187 0.734375 21.49609375 C-0.25046875 22.13675781 -1.2353125 22.77742188 -2.25 23.4375 C-3.22453125 24.07558594 -4.1990625 24.71367187 -5.203125 25.37109375 C-7.58381615 26.7576136 -9.31780307 27.546581 -12 28 C-11.896875 29.11375 -11.79375 30.2275 -11.6875 31.375 C-11.75124452 40.42672151 -17.64811817 47.42525926 -23.5859375 53.73046875 C-30.68380597 60.40338393 -36.89912076 63.50074913 -46.66796875 63.40625 C-55.56068934 62.32202615 -64.19565371 56.72606652 -70 50 C-74.87815526 43.20474871 -77.85970124 37.4179255 -78 29 C-78.72960937 28.73058594 -79.45921875 28.46117187 -80.2109375 28.18359375 C-82.92868564 27.03026366 -85.1827105 25.71167487 -87.625 24.0625 C-88.38039063 23.55847656 -89.13578125 23.05445313 -89.9140625 22.53515625 C-91.82576882 21.12822632 -93.47856734 19.82178021 -95 18 C-94.6875 15.8125 -94.6875 15.8125 -94 14 C-93.01 14 -92.02 14 -91 14 C-91 14.66 -91 15.32 -91 16 C-90.44828125 16.27585938 -89.8965625 16.55171875 -89.328125 16.8359375 C-85.21875 18.890625 -81.109375 20.9453125 -77 23 C-76.236875 21.948125 -75.47375 20.89625 -74.6875 19.8125 C-69.66968303 14.07118384 -63.72450596 11.36410649 -56.1640625 10.625 C-46.55070459 10.47390597 -46.55070459 10.47390597 -42.14453125 11.96875 C-37.20847454 13.58753133 -32.14744601 13.74192662 -26.98828125 14.12304688 C-22.05030443 14.55875071 -18.27358601 15.26305834 -14 18 C-13.01 19.485 -13.01 19.485 -12 21 C-7.60983438 19.45052978 -3.33033996 17.33033996 0 14 C0.07271741 11.64686445 0.08370868 9.29166332 0.0625 6.9375 C0.05347656 5.64714844 0.04445313 4.35679688 0.03515625 3.02734375 C0.02355469 2.02832031 0.01195312 1.02929688 0 0 Z " fill="#FD4C4C" transform="translate(188,113)"/>
+<path d="M0 0 C1.875 0.125 1.875 0.125 4 1 C6.23025497 5.91438639 7.07658784 11.48018565 8.1875 16.75 C8.37763672 17.61238281 8.56777344 18.47476563 8.76367188 19.36328125 C8.93833984 20.18699219 9.11300781 21.01070312 9.29296875 21.859375 C9.4530542 22.60670898 9.61313965 23.35404297 9.77807617 24.12402344 C10 26 10 26 9 28 C7.68 27.67 6.36 27.34 5 27 C4.01 23.535 4.01 23.535 3 20 C2.25234375 20.49371094 1.5046875 20.98742187 0.734375 21.49609375 C-0.25046875 22.13675781 -1.2353125 22.77742188 -2.25 23.4375 C-3.22453125 24.07558594 -4.1990625 24.71367187 -5.203125 25.37109375 C-7.58381615 26.7576136 -9.31780307 27.546581 -12 28 C-11.896875 29.11375 -11.79375 30.2275 -11.6875 31.375 C-11.75124452 40.42672151 -17.64811817 47.42525926 -23.5859375 53.73046875 C-30.68380597 60.40338393 -36.89912076 63.50074913 -46.66796875 63.40625 C-55.56068934 62.32202615 -64.19565371 56.72606652 -70 50 C-74.87815526 43.20474871 -77.85970124 37.4179255 -78 29 C-78.72960937 28.73058594 -79.45921875 28.46117187 -80.2109375 28.18359375 C-82.92868564 27.03026366 -85.1827105 25.71167487 -87.625 24.0625 C-88.38039063 23.55847656 -89.13578125 23.05445313 -89.9140625 22.53515625 C-91.82576882 21.12822632 -93.47856734 19.82178021 -95 18 C-94.6875 15.8125 -94.6875 15.8125 -94 14 C-93.01 14 -92.02 14 -91 14 C-91 14.66 -91 15.32 -91 16 C-90.44828125 16.27585938 -89.8965625 16.55171875 -89.328125 16.8359375 C-85.21875 18.890625 -81.109375 20.9453125 -77 23 C-76.236875 21.948125 -75.47375 20.89625 -74.6875 19.8125 C-69.66968303 14.07118384 -63.72450596 11.36410649 -56.1640625 10.625 C-46.55070459 10.47390597 -46.55070459 10.47390597 -42.14453125 11.96875 C-37.20847454 13.58753133 -32.14744601 13.74192662 -26.98828125 14.12304688 C-22.05030443 14.55875071 -18.27358601 15.26305834 -14 18 C-13.01 19.485 -13.01 19.485 -12 21 C-7.60983438 19.45052978 -3.33033996 17.33033996 0 14 C0.07271741 11.64686445 0.08370868 9.29166332 0.0625 6.9375 C0.05347656 5.64714844 0.04445313 4.35679688 0.03515625 3.02734375 C0.02355469 2.02832031 0.01195312 1.02929688 0 0 Z M-71.0625 22.6875 C-73.61568009 27.05261435 -74.11014588 30.06778043 -73 35 C-68.86839416 44.51433176 -62.14214956 51.34267853 -53 56 C-52.35675781 56.35578125 -51.71351563 56.7115625 -51.05078125 57.078125 C-46.58533587 59.08544902 -42.00207185 58.68363429 -37.4375 57.125 C-28.09414938 52.79515459 -22.18971318 46.36625963 -18 37 C-17.05852184 33.98244178 -16.74874095 31.09289429 -16.625 27.9375 C-16.57601562 27.08027344 -16.52703125 26.22304687 -16.4765625 25.33984375 C-16.79729213 22.85893503 -16.79729213 22.85893503 -18.86328125 21.29296875 C-23.3348702 19.44976085 -27.78222243 18.95085822 -32.5625 18.375 C-34.43902153 18.13451871 -36.31533326 17.89239328 -38.19140625 17.6484375 C-39.01842041 17.54708496 -39.84543457 17.44573242 -40.69750977 17.34130859 C-42.85119445 17.02205812 -44.89215414 16.53522537 -47 16 C-56.12066595 15.19484714 -64.32907423 15.93526578 -71.0625 22.6875 Z " fill="#0F0B0B" transform="translate(188,113)"/>
+<path d="M0 0 C2.25 0.25 2.25 0.25 4 1 C3.76758005 4.13766931 2.82574004 5.18343153 0.625 7.5 C-7.47853694 13.87268439 -18.96057251 15.9832429 -29 15 C-33.51327474 13.74631257 -37.81063608 12.09468196 -42 10 C-42 8.68 -42 7.36 -42 6 C-34.375 6.875 -34.375 6.875 -31 8 C-21.59245001 8.61244456 -12.31631016 9.13501896 -4 4 C-2.64900897 2.68456137 -1.30794331 1.35824882 0 0 Z " fill="#171717" transform="translate(166,184)"/>
+</svg>
+`,
+    "MBP": `
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="30 60 240 240">
+<path d="M0 0 C99 0 198 0 300 0 C300 99 300 198 300 300 C201 300 102 300 0 300 C0 201 0 102 0 0 Z " fill="#FEFEFE" transform="translate(0,0)"/>
+<path d="M0 0 C1.85253906 0.2019043 1.85253906 0.2019043 4 1 C5.28027344 3.06958008 5.28027344 3.06958008 6.359375 5.76953125 C6.75253906 6.74083984 7.14570313 7.71214844 7.55078125 8.71289062 C7.94652344 9.73576172 8.34226563 10.75863281 8.75 11.8125 C9.16121094 12.82376953 9.57242188 13.83503906 9.99609375 14.87695312 C13 22.42663777 13 22.42663777 13 27 C10.625 26.75 10.625 26.75 8 26 C6.2058242 23.43689172 6 22.16880694 6 19 C5.34 19 4.68 19 4 19 C3.56892944 19.8647998 3.56892944 19.8647998 3.12915039 20.74707031 C-9.72193398 46.38810956 -9.72193398 46.38810956 -22.3125 51.3125 C-24.19925688 51.90473202 -26.09566446 52.46699304 -28 53 C-28.94875 53.28617188 -29.8975 53.57234375 -30.875 53.8671875 C-45.69222534 58.00497649 -61.49200454 57.2370318 -76.75 57.25 C-77.78859161 57.25167175 -78.82718323 57.25334351 -79.89724731 57.25506592 C-130.26429114 57.25992165 -130.26429114 57.25992165 -143 48 C-148.16871938 42.37156279 -150.81081871 35.13489198 -153.60546875 28.13671875 C-154.83576472 25.36941438 -156.16238166 23.36884725 -158 21 C-158 20.34 -158 19.68 -158 19 C-159.32 18.34 -160.64 17.68 -162 17 C-161.505 15.515 -161.505 15.515 -161 14 C-156.32306242 14.47968591 -152.7279344 15.95305192 -148.53076172 17.90942383 C-106.11094338 36.18931275 -49.59410165 32.54058598 -7.08544922 16.83935547 C-4.30764114 15.72133812 -1.66925219 14.35313401 1 13 C1.66 13 2.32 13 3 13 C2.54947266 12.09507813 2.54947266 12.09507813 2.08984375 11.171875 C1.51943359 9.97304687 1.51943359 9.97304687 0.9375 8.75 C0.55464844 7.96109375 0.17179688 7.1721875 -0.22265625 6.359375 C-1.08564091 3.74006478 -0.93045933 2.55144824 0 0 Z " fill="#FBFBFB" transform="translate(225,109)"/>
+<path d="M0 0 C1.85253906 0.2019043 1.85253906 0.2019043 4 1 C5.28027344 3.06958008 5.28027344 3.06958008 6.359375 5.76953125 C6.75253906 6.74083984 7.14570313 7.71214844 7.55078125 8.71289062 C7.94652344 9.73576172 8.34226563 10.75863281 8.75 11.8125 C9.16121094 12.82376953 9.57242188 13.83503906 9.99609375 14.87695312 C13 22.42663777 13 22.42663777 13 27 C10.625 26.75 10.625 26.75 8 26 C6.2058242 23.43689172 6 22.16880694 6 19 C5.34 19 4.68 19 4 19 C3.56892944 19.8647998 3.56892944 19.8647998 3.12915039 20.74707031 C-9.72193398 46.38810956 -9.72193398 46.38810956 -22.3125 51.3125 C-24.19925688 51.90473202 -26.09566446 52.46699304 -28 53 C-28.94875 53.28617188 -29.8975 53.57234375 -30.875 53.8671875 C-45.69222534 58.00497649 -61.49200454 57.2370318 -76.75 57.25 C-77.78859161 57.25167175 -78.82718323 57.25334351 -79.89724731 57.25506592 C-130.26429114 57.25992165 -130.26429114 57.25992165 -143 48 C-148.16871938 42.37156279 -150.81081871 35.13489198 -153.60546875 28.13671875 C-154.83576472 25.36941438 -156.16238166 23.36884725 -158 21 C-158 20.34 -158 19.68 -158 19 C-159.32 18.34 -160.64 17.68 -162 17 C-161.505 15.515 -161.505 15.515 -161 14 C-156.32306242 14.47968591 -152.7279344 15.95305192 -148.53076172 17.90942383 C-106.11094338 36.18931275 -49.59410165 32.54058598 -7.08544922 16.83935547 C-4.30764114 15.72133812 -1.66925219 14.35313401 1 13 C1.66 13 2.32 13 3 13 C2.54947266 12.09507813 2.54947266 12.09507813 2.08984375 11.171875 C1.51943359 9.97304687 1.51943359 9.97304687 0.9375 8.75 C0.55464844 7.96109375 0.17179688 7.1721875 -0.22265625 6.359375 C-1.08564091 3.74006478 -0.93045933 2.55144824 0 0 Z M-9.92578125 22.80859375 C-54.48945368 39.26722118 -103.9480728 37.03502427 -149 24 C-146.0225306 33.74444531 -143.41308973 41.86268172 -134.08837891 47.06689453 C-126.30859699 50.5429673 -116.9920263 50.58138912 -108.625 51.125 C-107.34367187 51.20919189 -106.06234375 51.29338379 -104.7421875 51.38012695 C-94.16381151 52.02668997 -83.59626134 52.18832898 -73 52.1875 C-72.25099426 52.18840637 -71.50198853 52.18931274 -70.73028564 52.19024658 C-51.84447751 52.23927035 -51.84447751 52.23927035 -33.25 49.3125 C-32.53755127 49.14097412 -31.82510254 48.96944824 -31.09106445 48.79272461 C-21.99988498 46.4313927 -14.80827297 42.4689071 -9.9362793 34.19311523 C-8.8454173 32.20503099 -7.79103424 30.20209404 -6.75 28.1875 C-6.38648438 27.49462891 -6.02296875 26.80175781 -5.6484375 26.08789062 C-4.76083113 24.3944311 -3.87974115 22.69755876 -3 21 C-5.61865221 21 -7.47749099 21.87049673 -9.92578125 22.80859375 Z " fill="#0E0E0E" transform="translate(225,109)"/>
+</svg>
+`
+  };
+
+  const MOUTH_ORDER = ["rest","etc","E","AI","FV","L","O","U","WQ","MBP"];
+
+  const App = {
+    fps: 24,
+    pxPerFrame: 10,
+    zoomMin: 4,
+    zoomMax: 28,
+
+    audioCtx: null,
+    audioBuffer: null,
+    audioUrl: "",
+    peaks: [],
+    totalFrames: 300,
+
+    playheadFrame: 0,
+    isPlaying: false,
+    raf: 0,
+    playSource: null,
+    masterVolume: 0.85,
+    masterGain: null,
+
+    scrubEnabled: true,
+    scrubSource: null,
+    scrubLastAt: 0,
+
+    selectedMouth: "AI",
+    blocks: [],
+    selectedBlockId: "",
+    frameMap: [],
+
+    ui: {}
+  };
+
+  function ensureAudioCtx(){
+    if (App.audioCtx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    App.audioCtx = new Ctx();
+
+    // Master output so scrub and play match volume
+    App.masterGain = App.audioCtx.createGain();
+    App.masterGain.gain.value = App.masterVolume;
+    App.masterGain.connect(App.audioCtx.destination);
+  }
+
+  function resumeAudioCtx(){
+    if (!App.audioCtx) return;
+    if (App.audioCtx.state === "suspended"){
+      try{ App.audioCtx.resume(); }catch(e){}
+    }
+  }
+
+  function mountSvg(host, mouthKey){
+    const svg = MOUTH_SVGS[mouthKey] || MOUTH_SVGS["rest"];
+    host.innerHTML = svg;
+  }
+
+  function mouthAtFrame(frame){
+    if (!App.frameMap || App.frameMap.length !== App.totalFrames) return "rest";
+    return App.frameMap[clamp(frame, 0, App.totalFrames-1)] || "rest";
+  }
+
+  function rebuildFrameMapFromBlocks(){
+    const total = App.totalFrames;
+    const map = new Array(total);
+    for (let i=0;i<total;i++) map[i] = "rest";
+
+    for (let i=0;i<App.blocks.length;i++){
+      const b = App.blocks[i];
+      const s = clamp(b.startFrame, 0, total-1);
+      const e = clamp(b.endFrame, 1, total);
+      for (let f=s; f<e; f++){
+        map[f] = b.mouth || "rest";
+      }
+    }
+
+    App.frameMap = map;
+
+    const tb = document.getElementById("totalBlocks");
+    if (tb) tb.textContent = String(App.blocks.length);
+    const sb = document.getElementById("selectedBlockLabel");
+    if (sb) sb.textContent = App.selectedBlockId ? App.selectedBlockId : "None";
+  }
+
+  function clampAllToTimeline(){
+    App.playheadFrame = clamp(App.playheadFrame, 0, Math.max(0, App.totalFrames-1));
+    for (let i=0;i<App.blocks.length;i++){
+      const b = App.blocks[i];
+      b.startFrame = clamp(b.startFrame, 0, Math.max(0, App.totalFrames-1));
+      b.endFrame = clamp(b.endFrame, 1, App.totalFrames);
+      if (b.endFrame <= b.startFrame) b.endFrame = Math.min(App.totalFrames, b.startFrame + 1);
+    }
+  }
+
+  async function loadAudioFile(file){
+    ensureAudioCtx();
+    resumeAudioCtx();
+
+    if (App.audioUrl){
+      try{ URL.revokeObjectURL(App.audioUrl); }catch(e){}
+      App.audioUrl = "";
+    }
+
+    App.audioUrl = URL.createObjectURL(file);
+
+    const buf = await file.arrayBuffer();
+    App.audioFileBytes = buf.slice(0);
+    App.audioFileName = file && file.name ? file.name : "audio";
+    App.audioFileType = file && file.type ? file.type : "";
+    const decoded = await App.audioCtx.decodeAudioData(buf.slice(0));
+    App.audioBuffer = decoded;
+
+    App.totalFrames = Math.max(1, Math.floor(decoded.duration * App.fps));
+    App.playheadFrame = 0;
+
+    clampAllToTimeline();
+    computePeaks();
+    ensureBlocksExist();
+    rebuildFrameMapFromBlocks();
+    redrawAll(true);
+    setStatus("Audio loaded");
+  }
+
+  function computePeaks(){
+    App.peaks = [];
+    if (!App.audioBuffer) return;
+
+    const ch = App.audioBuffer.numberOfChannels > 0 ? App.audioBuffer.getChannelData(0) : null;
+    if (!ch) return;
+
+    const sr = App.audioBuffer.sampleRate;
+    const samplesPerFrame = Math.max(1, Math.floor(sr / App.fps));
+    const total = App.totalFrames;
+
+    App.peaks.length = total;
+
+    for (let f=0; f<total; f++){
+      const start = f * samplesPerFrame;
+      const end = Math.min(ch.length, start + samplesPerFrame);
+      let peak = 0;
+      for (let i=start;i<end;i++){
+        const a = Math.abs(ch[i]);
+        if (a > peak) peak = a;
+      }
+      App.peaks[f] = peak;
+    }
+  }
+
+  function computeSilenceThreshold(){
+    const p = App.peaks.slice(0);
+    p.sort((a,b)=>a-b);
+    if (p.length === 0) return 0.03;
+    const q10 = p[Math.floor(p.length * 0.10)];
+    const q30 = p[Math.floor(p.length * 0.30)];
+    const base = (q10 + q30) * 0.5;
+    return clamp(base * 1.15, 0.005, 0.08);
+  }
+
+  function guessMouthForToken(token){
+    if (!token) return "rest";
+    if (/^\s+$/.test(token)) return "rest";
+
+    const t = token.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g, "");
+    if (!t) return "rest";
+
+    if (/^(ch|sh|th|ts|st|tr|dr|kr|gr|sk)/.test(t)) return "etc";
+    if (/[mbp]/.test(t)) return "MBP";
+    if (/[fv]/.test(t)) return "FV";
+    if (/[l]/.test(t)) return "L";
+    if (/[wq]/.test(t)) return "WQ";
+    if (/[o]/.test(t)) return "O";
+    if (/[u]/.test(t)) return "U";
+    if (/[e]/.test(t)) return "E";
+    if (/[aiy]/.test(t)) return "AI";
+    return "etc";
+  }
+
+  function buildBlocksFromFrameMap(map){
+    const total = map.length;
+    const blocks = [];
+    let runMouth = map[0] || "rest";
+    let runStart = 0;
+
+    function pushRun(endIndex){
+      blocks.push({
+        id: uid("blk"),
+        startFrame: runStart,
+        endFrame: endIndex,
+        mouth: runMouth || "rest",
+        label: runMouth || "rest"
+      });
+    }
+
+    for (let i=1;i<total;i++){
+      const m = map[i] || "rest";
+      if (m !== runMouth){
+        pushRun(i);
+        runMouth = m;
+        runStart = i;
+      }
+    }
+    pushRun(total);
+
+    App.blocks = blocks.filter(b => (b.endFrame - b.startFrame) > 0);
+    App.selectedBlockId = "";
+    rebuildFrameMapFromBlocks();
+  }
+
+  function getBlockIndexById(id){
+    for (let i=0;i<App.blocks.length;i++){
+      if (App.blocks[i].id === id) return i;
+    }
+    return -1;
+  }
+
+  function findBlockAtFrame(frame){
+    for (let i=0;i<App.blocks.length;i++){
+      const b = App.blocks[i];
+      if (frame >= b.startFrame && frame < b.endFrame) return b;
+    }
+    return null;
+  }
+
+  function ensureBlocksExist(){
+    if (!App.audioBuffer) return;
+    if (!App.blocks || App.blocks.length === 0){
+      App.blocks = [{
+        id: uid("blk"),
+        startFrame: 0,
+        endFrame: App.totalFrames,
+        mouth: "rest",
+        label: "rest"
+      }];
+      App.selectedBlockId = App.blocks[0].id;
+      rebuildFrameMapFromBlocks();
+    }
+  }
+
+  function applyMouthRange(startFrame, endFrame, mouth){
+    ensureBlocksExist();
+    if (!App.frameMap || App.frameMap.length !== App.totalFrames) rebuildFrameMapFromBlocks();
+
+    const s = clamp(startFrame, 0, Math.max(0, App.totalFrames - 1));
+    const e = clamp(endFrame, s + 1, App.totalFrames);
+    for (let f=s; f<e; f++){
+      App.frameMap[f] = mouth || "rest";
+    }
+
+    buildBlocksFromFrameMap(App.frameMap);
+  }
+
+  function insertMouthAtFrame(frame){
+    if (!App.audioBuffer){
+      setStatus("Load audio first");
+      return;
+    }
+    ensureBlocksExist();
+
+    const lenFrames = 3;
+    const maxStart = Math.max(0, App.totalFrames - lenFrames);
+    const start = clamp(frame, 0, maxStart);
+
+    const nb = insertBlockAtFrame(start, lenFrames, App.selectedMouth);
+    if (nb) App.selectedBlockId = nb.id;
+
+    rebuildFrameMapFromBlocks();
+    refreshMouthButtons();
+    redrawAll(false);
+    setStatus("Inserted");
+  }
+
+  function insertBlockAtFrame(frame, lenFrames, mouth){
+    const total = App.totalFrames;
+    const blocks = App.blocks;
+
+    blocks.sort((a,b) => a.startFrame - b.startFrame);
+
+    // Find index where this frame belongs (frame equal to a boundary inserts between)
+    let idx = 0;
+    while (idx < blocks.length && frame >= blocks[idx].endFrame) idx++;
+
+    if (idx < blocks.length){
+      const b = blocks[idx];
+
+      // If inside a block, split it so the right side can be pushed
+      if (frame > b.startFrame && frame < b.endFrame){
+        const right = {
+          id: uid("blk"),
+          startFrame: frame,
+          endFrame: b.endFrame,
+          mouth: b.mouth || "rest",
+          label: b.label || (b.mouth || "rest")
+        };
+        b.endFrame = frame;
+        blocks.splice(idx + 1, 0, right);
+        idx = idx + 1;
+      } else if (frame === b.endFrame){
+        idx = idx + 1;
+      }
+    } else {
+      idx = blocks.length;
+    }
+
+    // Push everything from idx to the right
+    for (let i = idx; i < blocks.length; i++){
+      blocks[i].startFrame += lenFrames;
+      blocks[i].endFrame += lenFrames;
+    }
+
+    // Insert new block at the frame
+    const nb = {
+      id: uid("blk"),
+      startFrame: frame,
+      endFrame: frame + lenFrames,
+      mouth: mouth || "rest",
+      label: mouth || "rest"
+    };
+    blocks.splice(idx, 0, nb);
+
+    // Trim overflow at the end so duration stays the same
+    let overflow = blocks.length ? (blocks[blocks.length - 1].endFrame - total) : 0;
+    if (overflow > 0){
+      for (let i = blocks.length - 1; i >= 0 && overflow > 0; i--){
+        const b = blocks[i];
+        const len = b.endFrame - b.startFrame;
+        if (len <= overflow){
+          overflow -= len;
+          blocks.splice(i, 1);
+        } else {
+          b.endFrame -= overflow;
+          overflow = 0;
+        }
+      }
+    }
+
+    // Clamp and ensure continuity
+    if (blocks.length){
+      blocks[0].startFrame = 0;
+      for (let i = 1; i < blocks.length; i++){
+        blocks[i].startFrame = blocks[i - 1].endFrame;
+      }
+      blocks[blocks.length - 1].endFrame = total;
+    }
+
+    // Remove any zero length blocks
+    for (let i = blocks.length - 1; i >= 0; i--){
+      if (blocks[i].endFrame <= blocks[i].startFrame){
+        blocks.splice(i, 1);
+      }
+    }
+
+    return nb;
+  }
+
+  function addMouthAtPlayhead(){
+    insertMouthAtFrame(App.playheadFrame);
+  }
+
+  function mergeAdjacentBlocksInPlace(){
+    App.blocks.sort((a,b) => a.startFrame - b.startFrame);
+    for (let i = 0; i < App.blocks.length - 1; ){
+      const a = App.blocks[i];
+      const b = App.blocks[i + 1];
+      if ((a.mouth || "rest") === (b.mouth || "rest") && a.endFrame === b.startFrame){
+        a.endFrame = b.endFrame;
+        App.blocks.splice(i + 1, 1);
+        continue;
+      }
+      i++;
+    }
+  }
+
+  function deleteSelectedMouthBlock(){
+    if (!App.audioBuffer || App.blocks.length === 0) return false;
+
+    // If nothing is selected, delete the block under the playhead
+    if (!App.selectedBlockId){
+      const under = findBlockAtFrame(App.playheadFrame);
+      if (under) App.selectedBlockId = under.id;
+    }
+
+    const idx = getBlockIndexById(App.selectedBlockId);
+    if (idx < 0) return false;
+
+    const del = App.blocks[idx];
+    const lenFrames = Math.max(1, del.endFrame - del.startFrame);
+    const total = App.totalFrames;
+
+    // Remove the block and close the gap by pulling everything to the left.
+    App.blocks.splice(idx, 1);
+
+    for (let i = idx; i < App.blocks.length; i++){
+      App.blocks[i].startFrame = App.blocks[i].startFrame - lenFrames;
+      App.blocks[i].endFrame = App.blocks[i].endFrame - lenFrames;
+    }
+
+    // Clamp and rebuild continuity (then extend the last block to the end).
+    if (App.blocks.length === 0){
+      App.blocks = [{
+        id: uid("blk"),
+        startFrame: 0,
+        endFrame: total,
+        mouth: "rest",
+        label: "rest"
+      }];
+      App.selectedBlockId = App.blocks[0].id;
+    } else {
+      for (let i=0;i<App.blocks.length;i++){
+        App.blocks[i].startFrame = clamp(App.blocks[i].startFrame, 0, total);
+        App.blocks[i].endFrame = clamp(App.blocks[i].endFrame, 0, total);
+      }
+
+      App.blocks[0].startFrame = 0;
+      for (let i = 1; i < App.blocks.length; i++){
+        const prev = App.blocks[i - 1];
+        const cur = App.blocks[i];
+        cur.startFrame = prev.endFrame;
+        if (cur.endFrame <= cur.startFrame){
+          cur.endFrame = Math.min(total, cur.startFrame + 1);
+        }
+      }
+      App.blocks[App.blocks.length - 1].endFrame = total;
+
+      mergeAdjacentBlocksInPlace();
+      App.selectedBlockId = "";
+    }
+
+    rebuildFrameMapFromBlocks();
+    redrawAll(false);
+    setStatus("Mouth deleted");
+    return true;
+  }
+
+  function applySnapshot(snapshot){
+    if (!snapshot) return;
+    const map = {};
+    for (let i=0;i<snapshot.length;i++){
+      const s = snapshot[i];
+      map[s.id] = s;
+    }
+    for (let i=0;i<App.blocks.length;i++){
+      const b = App.blocks[i];
+      const s = map[b.id];
+      if (s){
+        b.startFrame = s.start;
+        b.endFrame = s.end;
+      }
+    }
+  }
+
+  function linkedResizeLeft(index, newStart){
+    const blocks = App.blocks;
+    const b = blocks[index];
+    const prev = index > 0 ? blocks[index - 1] : null;
+
+    if (!prev){
+      b.startFrame = 0;
+      return;
+    }
+
+    const minStart = prev.startFrame + 1;
+    const maxStart = b.endFrame - 1;
+    const s = clamp(newStart, minStart, maxStart);
+
+    prev.endFrame = s;
+    b.startFrame = s;
+  }
+
+  function linkedResizeRight(index, newEnd){
+    const blocks = App.blocks;
+    const b = blocks[index];
+    const next = index < blocks.length - 1 ? blocks[index + 1] : null;
+
+    if (!next){
+      b.endFrame = App.totalFrames;
+      return;
+    }
+
+    const minEnd = b.startFrame + 1;
+    const maxEnd = next.endFrame - 1;
+    const e = clamp(newEnd, minEnd, maxEnd);
+
+    b.endFrame = e;
+    next.startFrame = e;
+  }
+
+  function linkedMove(index, newStart){
+    const blocks = App.blocks;
+    const b = blocks[index];
+    const len = b.endFrame - b.startFrame;
+
+    const prev = index > 0 ? blocks[index - 1] : null;
+    const next = index < blocks.length - 1 ? blocks[index + 1] : null;
+
+    if (!prev) newStart = 0;
+    if (!next) newStart = App.totalFrames - len;
+
+    const minStart = prev ? (prev.startFrame + 1) : 0;
+    const maxStart = next ? (next.endFrame - len - 1) : (App.totalFrames - len);
+    const s = clamp(newStart, minStart, maxStart);
+
+    b.startFrame = s;
+    b.endFrame = s + len;
+
+    if (prev) prev.endFrame = b.startFrame;
+    if (next) next.startFrame = b.endFrame;
+
+    if (!prev) b.startFrame = 0;
+    if (!next) b.endFrame = App.totalFrames;
+  }
+
+  function autoMapFromScript(){
+    const text = (App.ui.scriptText.value || "");
+    const total = App.totalFrames;
+    if (total <= 0) return;
+
+    const tokens = [];
+    let i=0;
+    while (i < text.length){
+      const ch = text[i];
+      if (/\s/.test(ch)){
+        let j=i+1;
+        while (j < text.length && /\s/.test(text[j])) j++;
+        tokens.push(text.slice(i,j));
+        i=j;
+        continue;
+      }
+      let j=i+1;
+      while (j < text.length && !/\s/.test(text[j])) j++;
+      tokens.push(text.slice(i,j));
+      i=j;
+    }
+
+    if (tokens.length === 0){
+      App.blocks = [];
+      App.selectedBlockId = "";
+      rebuildFrameMapFromBlocks();
+      return;
+    }
+
+    const tokenMouth = tokens.map(t => guessMouthForToken(t));
+    const tokenWeight = tokens.map((t, idx) => {
+      if (/^\s+$/.test(t)) return 1;
+      const m = tokenMouth[idx];
+      if (m === "MBP") return 4;
+      if (m === "AI" || m === "E" || m === "O" || m === "U") return 3;
+      if (m === "FV" || m === "WQ" || m === "L") return 2;
+      return 2;
+    });
+
+    const totalW = tokenWeight.reduce((a,b)=>a+b,0) || 1;
+    const map = new Array(total);
+    for (let f=0; f<total; f++) map[f] = "rest";
+
+    let fpos = 0;
+    for (let t=0; t<tokens.length; t++){
+      const portion = tokenWeight[t] / totalW;
+      let len = Math.max(1, Math.round(portion * total));
+      if (t === tokens.length-1) len = Math.max(1, total - fpos);
+
+      const mouth = tokenMouth[t] || "rest";
+      for (let k=0; k<len && fpos<total; k++, fpos++){
+        map[fpos] = mouth;
+      }
+      if (fpos >= total) break;
+    }
+
+    if (App.peaks && App.peaks.length === total){
+      const thr = computeSilenceThreshold();
+      const minRun = Math.max(2, Math.floor(App.fps * 0.07));
+      let runStart = -1;
+      for (let f=0; f<total; f++){
+        const silent = (App.peaks[f] || 0) < thr;
+        if (silent && runStart < 0) runStart = f;
+        if (!silent && runStart >= 0){
+          const runLen = f - runStart;
+          if (runLen >= minRun){
+            for (let k=runStart; k<f; k++) map[k] = "rest";
+          }
+          runStart = -1;
+        }
+      }
+      if (runStart >= 0){
+        const runLen = total - runStart;
+        if (runLen >= minRun){
+          for (let k=runStart; k<total; k++) map[k] = "rest";
+        }
+      }
+    }
+
+    buildBlocksFromFrameMap(map);
+  }
+
+  function exportFrameMapJSON(){
+    return { fps: App.fps, totalFrames: App.totalFrames, frameMap: App.frameMap.slice(0) };
+  }
+
+  function exportFrameMapCSV(){
+    const lines = [];
+    lines.push("frame,mouth");
+    for (let i=0;i<App.frameMap.length;i++){
+      lines.push(i + "," + (App.frameMap[i] || "rest"));
+    }
+    return lines.join("\n");
+  }
+
+  function exportBlocksJSON(){
+    return {
+      fps: App.fps,
+      totalFrames: App.totalFrames,
+      blocks: App.blocks.map(b => ({
+        id: b.id,
+        startFrame: b.startFrame,
+        endFrame: b.endFrame,
+        mouth: b.mouth,
+        label: b.label
+      }))
+    };
+  }
+
+  function exportPapagayoSimpleDAT(){
+    const out = [];
+    out.push("fps " + App.fps);
+    out.push("frames " + App.totalFrames);
+    for (let i=0;i<App.frameMap.length;i++){
+      out.push("frame " + i + " " + (App.frameMap[i] || "rest"));
+    }
+    return out.join("\n");
+  }
+
+  function downloadText(filename, text, mime){
+    const blob = new Blob([text], {type: mime || "text/plain"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 2500);
+  }
+
+
+  function sanitizeFilename(name){
+    const s = String(name || "").trim();
+    if (!s) return "lipservice_project";
+    return s
+      .replace(/[^\w\s\.]+/g, "")
+      .replace(/\s+/g, "_")
+      .slice(0, 80) || "lipservice_project";
+  }
+
+  function arrayBufferToBase64(buf){
+    const bytes = new Uint8Array(buf);
+    const chunk = 0x8000;
+    let bin = "";
+    for (let i=0; i<bytes.length; i+=chunk){
+      const sub = bytes.subarray(i, i+chunk);
+      bin += String.fromCharCode.apply(null, sub);
+    }
+    return btoa(bin);
+  }
+
+  function base64ToArrayBuffer(b64){
+    const bin = atob(b64);
+    const len = bin.length;
+    const bytes = new Uint8Array(len);
+    for (let i=0;i<len;i++) bytes[i] = bin.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  function getClipName(){
+    const el = document.getElementById("inp-clipname");
+    return el ? String(el.value || "").trim() : "";
+  }
+
+  async function exportProject(){
+    const proj = {
+      version: 1,
+      app: "Lip Service",
+      savedAt: new Date().toISOString(),
+      fps: App.fps,
+      totalFrames: App.totalFrames,
+      audioDuration: App.audioBuffer ? App.audioBuffer.duration : null,
+      pxPerFrame: App.pxPerFrame,
+      playheadFrame: App.playheadFrame,
+      clipName: getClipName(),
+      scriptText: App.ui && App.ui.scriptText ? (App.ui.scriptText.value || "") : "",
+      blocks: exportBlocksJSON().blocks,
+      frameMap: exportFrameMapJSON().frameMap
+    };
+
+    if (App.audioFileBytes && App.audioFileBytes.byteLength){
+      proj.audio = {
+        name: App.audioFileName || "audio",
+        type: App.audioFileType || "",
+        dataBase64: arrayBufferToBase64(App.audioFileBytes)
+      };
+    } else {
+      proj.audio = null;
+    }
+
+    return proj;
+  }
+
+  async function saveProjectToFile(){
+    const proj = await exportProject();
+    const base = sanitizeFilename(proj.clipName || "lipservice_project");
+    downloadText(base + ".json", JSON.stringify(proj, null, 2), "application/json");
+    setStatus("Project saved");
+  }
+
+  async function applyProject(proj){
+    if (!proj || typeof proj !== "object") throw new Error("Invalid project");
+
+    // Clip name + script
+    const clipInp = document.getElementById("inp-clipname");
+    if (clipInp) clipInp.value = proj.clipName ? String(proj.clipName) : "";
+
+    if (App.ui && App.ui.scriptText){
+      App.ui.scriptText.value = proj.scriptText ? String(proj.scriptText) : "";
+    }
+
+    // FPS
+    if (proj.fps && Number.isFinite(Number(proj.fps))){
+      App.fps = Math.max(1, Math.min(120, Math.floor(Number(proj.fps))));
+      if (App.ui && App.ui.inpFps) App.ui.inpFps.value = String(App.fps);
+    }
+
+    // Timeline length (when no audio is embedded/loaded yet)
+    if (!App.audioBuffer && proj.totalFrames && Number.isFinite(Number(proj.totalFrames))){
+      App.totalFrames = Math.max(1, Math.floor(Number(proj.totalFrames)));
+    }
+
+    // Zoom
+    if (proj.pxPerFrame && Number.isFinite(Number(proj.pxPerFrame))){
+      App.pxPerFrame = clamp(Number(proj.pxPerFrame), App.zoomMin, App.zoomMax);
+    }
+
+    // Blocks
+    if (Array.isArray(proj.blocks) && proj.blocks.length){
+      App.blocks = proj.blocks.map(b => ({
+        id: b.id || uid("blk"),
+        startFrame: Math.max(0, Math.floor(Number(b.startFrame || 0))),
+        endFrame: Math.max(1, Math.floor(Number(b.endFrame || 1))),
+        mouth: b.mouth || "rest",
+        label: b.label || (b.mouth || "rest")
+      }));
+      App.selectedBlockId = App.blocks[0].id;
+    } else {
+      App.blocks = [];
+      App.selectedBlockId = "";
+    }
+
+    // Playhead
+    if (Number.isFinite(Number(proj.playheadFrame))){
+      App.playheadFrame = Math.max(0, Math.floor(Number(proj.playheadFrame)));
+    }
+
+    clampAllToTimeline();
+    ensureBlocksExist();
+    rebuildFrameMapFromBlocks();
+    redrawAll(true);
+    mountSvg(App.ui.currentMouthHost, mouthAtFrame(App.playheadFrame));
+    setStatus("Project loaded");
+  }
+
+  async function loadProjectFile(file){
+    const txt = await file.text();
+    const proj = JSON.parse(txt);
+
+    if (proj && proj.audio && proj.audio.dataBase64){
+      try{
+        const ab = base64ToArrayBuffer(proj.audio.dataBase64);
+        const blob = new Blob([ab], {type: proj.audio.type || "audio/*"});
+        const f = new File([blob], proj.audio.name || "audio", {type: proj.audio.type || "audio/*"});
+        await loadAudioFile(f);
+      }catch(e){
+        // If audio fails, still apply everything else
+      }
+    }
+
+    await applyProject(proj);
+  }
+  function sendToWick(){
+    const fm = exportFrameMapJSON();
+    const bl = exportBlocksJSON();
+    const clipName = getClipName();
+
+    // LocalStorage keys
+    try{
+      localStorage.setItem("wick-lipsync-frame-map", JSON.stringify(fm));
+      localStorage.setItem("wick-lipsync-blocks", JSON.stringify(bl));
+      localStorage.setItem("wick-lipsync-papagayo-simple", exportPapagayoSimpleDAT());
+      localStorage.setItem("wick-lipsync-clip-name", clipName);
+      localStorage.setItem("wick-lipsync-project", JSON.stringify({ clipName, frameMap: fm, blocks: bl }));
+
+      // Underscore variants (optional)
+      localStorage.setItem("wick_lipsync_frame_map", JSON.stringify(fm));
+      localStorage.setItem("wick_lipsync_blocks", JSON.stringify(bl));
+      localStorage.setItem("wick_lipsync_papagayo_simple", exportPapagayoSimpleDAT());
+      localStorage.setItem("wick_lipsync_clip_name", clipName);
+      localStorage.setItem("wick_lipsync_project", JSON.stringify({ clipName, frameMap: fm, blocks: bl }));
+    }catch(e){}
+
+    // BroadcastChannel (old name) + optional underscore channel
+    try{
+      const bc = new BroadcastChannel("wick-lipsync");
+      bc.postMessage({ type:"clip-name", clipName });
+      bc.postMessage({ type:"frame-map", payload: fm, clipName });
+      bc.postMessage({ type:"blocks", payload: bl, clipName });
+      bc.postMessage({ type:"papagayo-simple", payload: exportPapagayoSimpleDAT(), clipName });
+      bc.postMessage({ type:"project", payload: { clipName, frameMap: fm, blocks: bl } });
+      bc.close();
+    }catch(e){}
+
+    try{
+      const bc2 = new BroadcastChannel("wick_lipsync");
+      bc2.postMessage({ type:"clip-name", clipName });
+      bc2.postMessage({ type:"frame-map", payload: fm, clipName });
+      bc2.postMessage({ type:"blocks", payload: bl, clipName });
+      bc2.postMessage({ type:"papagayo-simple", payload: exportPapagayoSimpleDAT(), clipName });
+      bc2.postMessage({ type:"project", payload: { clipName, frameMap: fm, blocks: bl } });
+      bc2.close();
+    }catch(e){}
+
+    setStatus(clipName ? ("Updated Wick: " + clipName) : "Updated Wick");
+  }
+
+  function openModal(){ App.ui.modalBackdrop.style.display = "flex"; }
+  function closeModal(){ App.ui.modalBackdrop.style.display = "none"; }
+
+  function refreshMouthButtons(){
+    const nodes = App.ui.mouthGrid.querySelectorAll(".mouth-btn");
+    for (let i=0;i<nodes.length;i++){
+      const k = nodes[i].dataset.mouth;
+      if (k === App.selectedMouth) nodes[i].classList.add("active");
+      else nodes[i].classList.remove("active");
+    }
+  }
+
+  function findBlockAtFrame(frame){
+    for (let i=0;i<App.blocks.length;i++){
+      const b = App.blocks[i];
+      if (frame >= b.startFrame && frame < b.endFrame) return b;
+    }
+    return null;
+  }
+
+  function updateSelectedBlockMouth(newMouth){
+    if (!App.selectedBlockId) return false;
+    const b = App.blocks.find(x => x.id === App.selectedBlockId);
+    if (!b) return false;
+    b.mouth = newMouth;
+    b.label = newMouth;
+    rebuildFrameMapFromBlocks();
+    return true;
+  }
+
+  function stopScrubSound(){
+    if (App.scrubSource){
+      try{ App.scrubSource.stop(); }catch(e){}
+      App.scrubSource = null;
+    }
+  }
+
+  function scrubAtFrame(frame){
+    if (!App.audioBuffer) return;
+
+    ensureAudioCtx();
+    resumeAudioCtx();
+
+    const now = performance.now();
+    if (now - App.scrubLastAt < 22) return;
+    App.scrubLastAt = now;
+
+    stopScrubSound();
+
+    const t = frame / App.fps;
+    const offset = clamp(t, 0, Math.max(0, App.audioBuffer.duration - 0.001));
+
+    const src = App.audioCtx.createBufferSource();
+    src.buffer = App.audioBuffer;
+
+    const env = App.audioCtx.createGain();
+
+    const ct = App.audioCtx.currentTime;
+    env.gain.setValueAtTime(0.0001, ct);
+    env.gain.linearRampToValueAtTime(1.0, ct + 0.010);
+    env.gain.linearRampToValueAtTime(0.0001, ct + 0.120);
+
+    src.connect(env);
+    env.connect(App.masterGain);
+
+    App.scrubSource = src;
+
+    src.start(0, offset);
+    src.stop(ct + 0.125);
+    src.onended = function(){
+      if (App.scrubSource === src) App.scrubSource = null;
+    };
+  }
+
+  function stopPlayback(){
+    App.isPlaying = false;
+    stopScrubSound();
+    if (App.raf) cancelAnimationFrame(App.raf);
+    App.raf = 0;
+
+    if (App.playSource){
+      try{ App.playSource.stop(); }catch(e){}
+      App.playSource = null;
+    }
+    setStatus("Stopped");
+  }
+
+  function playFromFrame(frame){
+    if (!App.audioBuffer){
+      setStatus("Load audio first");
+      return;
+    }
+
+    stopPlayback();
+    App.isPlaying = true;
+
+    ensureAudioCtx();
+    resumeAudioCtx();
+
+    let startSec = frame / App.fps;
+    if (startSec >= App.audioBuffer.duration) startSec = 0;
+
+    const dur = App.audioBuffer.duration;
+    const offset = clamp(startSec, 0, dur);
+
+    stopScrubSound();
+
+    const src = App.audioCtx.createBufferSource();
+    src.buffer = App.audioBuffer;
+    src.connect(App.masterGain);
+    App.playSource = src;
+
+    const startedAt = App.audioCtx.currentTime;
+    src.start(0, offset);
+
+    src.onended = function(){
+      if (App.isPlaying) stopPlayback();
+    };
+
+    function tick(){
+      if (!App.isPlaying) return;
+      const t = App.audioCtx.currentTime - startedAt + offset;
+      const f = clamp(Math.floor(t * App.fps), 0, Math.max(0, App.totalFrames - 1));
+      App.playheadFrame = f;
+      redrawAll(false);
+      App.raf = requestAnimationFrame(tick);
+    }
+    App.raf = requestAnimationFrame(tick);
+    setStatus("Playing");
+  }
+
+  function togglePlay(){
+    if (!App.audioBuffer){
+      setStatus("Load audio first");
+      return;
+    }
+    if (App.isPlaying){
+      stopPlayback();
+      return;
+    }
+    if (App.playheadFrame >= App.totalFrames - 1) App.playheadFrame = 0;
+    playFromFrame(App.playheadFrame);
+  }
+
+  function bindTimelineInteractions(){
+    const canvas = App.ui.timelineCanvas;
+    const scroll = App.ui.timelineScroll;
+
+    function pxFromClientX(clientX){
+      const rect = canvas.getBoundingClientRect();
+      return clientX - rect.left + scroll.scrollLeft;
+    }
+
+    function yFromClientY(clientY){
+      const rect = canvas.getBoundingClientRect();
+      return clientY - rect.top;
+    }
+
+    function frameFromClientX(clientX, allowEnd){
+      const x = pxFromClientX(clientX);
+      const maxFrame = allowEnd ? App.totalFrames : Math.max(0, App.totalFrames - 1);
+      return clamp(Math.floor(x / App.pxPerFrame), 0, Math.max(0, maxFrame));
+    }
+
+    function hitTestBlock(clientX, clientY){
+      const layout = App.timelineLayout;
+      if (!layout) return null;
+
+      const y = yFromClientY(clientY);
+      if (y < layout.blockY || y > (layout.blockY + layout.blockH)) return null;
+
+      const x = pxFromClientX(clientX);
+      const ppf = App.pxPerFrame;
+      const handleBase = layout.handleW || 10;
+
+      for (let i = App.blocks.length - 1; i >= 0; i--){
+        const b = App.blocks[i];
+        const bx = b.startFrame * ppf;
+        const bw = Math.max(2, (b.endFrame - b.startFrame) * ppf);
+        if (x >= bx && x <= (bx + bw)){
+          const handleW = Math.max(4, Math.min(handleBase, Math.floor(bw / 3)));
+          let part = "body";
+          if (x <= (bx + handleW)) part = "left";
+          else if (x >= (bx + bw - handleW)) part = "right";
+          return { block: b, part: part };
+        }
+      }
+      return null;
+    }
+
+    
+    // Drag handle on the playhead (scrub bar)
+    const phHandle = App.ui.playheadHandle;
+    let phDragging = false;
+
+    if (phHandle){
+      phHandle.addEventListener("pointerdown", function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        closeCtxMenu();
+
+        try { phHandle.setPointerCapture(ev.pointerId); } catch(e){}
+        phDragging = true;
+
+        // Stop playback if it is running so scrubbing is predictable
+        if (App.isPlaying) stopPlayback();
+
+        // Seek immediately to the drag start point
+        App.playheadFrame = frameFromClientX(ev.clientX, false);
+        redrawAll(false);
+        scrubAtFrame(App.playheadFrame);
+      });
+
+      phHandle.addEventListener("pointermove", function(ev){
+        if (!phDragging) return;
+        ev.preventDefault();
+        App.playheadFrame = frameFromClientX(ev.clientX, false);
+        redrawAll(false);
+        scrubAtFrame(App.playheadFrame);
+      });
+
+      const endPhDrag = function(ev){
+        if (!phDragging) return;
+        phDragging = false;
+        stopScrubSound();
+      };
+
+      phHandle.addEventListener("pointerup", endPhDrag);
+      phHandle.addEventListener("pointercancel", endPhDrag);
+      phHandle.addEventListener("lostpointercapture", endPhDrag);
+    }
+
+    // Right click on a block: context menu (delete)
+    canvas.addEventListener("contextmenu", function(ev){
+      ev.preventDefault();
+      const hit = hitTestBlock(ev.clientX, ev.clientY);
+      if (hit && hit.block){
+        App.selectedBlockId = hit.block.id;
+        App.selectedMouth = hit.block.mouth || "rest";
+        refreshMouthButtons();
+        redrawAll(false);
+        openCtxMenu(ev.clientX, ev.clientY);
+      } else {
+        closeCtxMenu();
+      }
+    });
+
+let drag = {
+      active: false,
+      mode: "",
+      startClientX: 0,
+      startScrollLeft: 0,
+      blockId: "",
+      origStart: 0,
+      origEnd: 0,
+      grabOffset: 0,
+      blockIndex: -1,
+      snapshot: null
+    };
+
+    function setCursorForHover(ev){
+      const hit = hitTestBlock(ev.clientX, ev.clientY);
+      if (!hit){
+        canvas.style.cursor = "";
+        return;
+      }
+      if (hit.part === "body") canvas.style.cursor = "grab";
+      else canvas.style.cursor = "ew-resize";
+    }
+
+    function endDrag(){
+      drag.active = false;
+      drag.mode = "";
+      drag.blockId = "";
+      drag.blockIndex = -1;
+      drag.snapshot = null;
+      stopScrubSound();
+    }
+
+    canvas.addEventListener("pointerdown", function(ev){
+      canvas.setPointerCapture(ev.pointerId);
+
+      ensureAudioCtx();
+      resumeAudioCtx();
+      if (App.isPlaying) stopPlayback();
+
+
+      const wantsPan = (ev.button === 1) || ev.altKey;
+
+      drag.active = true;
+      drag.startClientX = ev.clientX;
+      drag.startScrollLeft = scroll.scrollLeft;
+
+      if (wantsPan){
+        drag.mode = "pan";
+        return;
+      }
+
+      const hit = hitTestBlock(ev.clientX, ev.clientY);
+
+      if (hit){
+        App.selectedBlockId = hit.block.id;
+        App.selectedMouth = hit.block.mouth || "rest";
+        refreshMouthButtons();
+
+        drag.blockId = hit.block.id;
+        drag.origStart = hit.block.startFrame;
+        drag.origEnd = hit.block.endFrame;
+        drag.blockIndex = getBlockIndexById(hit.block.id);
+        drag.snapshot = App.blocks.map(bb => ({ id: bb.id, start: bb.startFrame, end: bb.endFrame }));
+
+        const f = frameFromClientX(ev.clientX, true);
+        drag.grabOffset = f - hit.block.startFrame;
+
+        if (hit.part === "left") drag.mode = "resizeL";
+        else if (hit.part === "right") drag.mode = "resizeR";
+        else drag.mode = "move";
+
+        redrawAll(false);
+        return;
+      }
+
+      // Seek
+      drag.mode = "seek";
+      const f = frameFromClientX(ev.clientX, false);
+      App.playheadFrame = f;
+      App.selectedBlockId = "";
+      redrawAll(false);
+      scrubAtFrame(App.playheadFrame);
+    });
+
+    canvas.addEventListener("pointermove", function(ev){
+      if (!drag.active){
+        setCursorForHover(ev);
+        return;
+      }
+
+      if (drag.mode === "pan"){
+        const dx = ev.clientX - drag.startClientX;
+        const maxScroll = Math.max(0, (App.totalFrames * App.pxPerFrame) - scroll.clientWidth);
+        scroll.scrollLeft = clamp(drag.startScrollLeft - dx, 0, maxScroll);
+        return;
+      }
+
+      if (drag.mode === "seek"){
+        const f = frameFromClientX(ev.clientX, false);
+        if (f !== App.playheadFrame){
+          App.playheadFrame = f;
+          redrawAll(false);
+          scrubAtFrame(App.playheadFrame);
+        }
+        return;
+      }
+
+      const b = App.blocks.find(x => x.id === drag.blockId);
+      if (!b) return;
+
+      const total = App.totalFrames;
+
+      applySnapshot(drag.snapshot);
+
+      const idx = drag.blockIndex;
+      if (idx < 0) return;
+
+      if (drag.mode === "move"){
+        const f = frameFromClientX(ev.clientX, true);
+        const newStart = (f - drag.grabOffset);
+        linkedMove(idx, newStart);
+      } else if (drag.mode === "resizeL"){
+        const f = frameFromClientX(ev.clientX, true);
+        linkedResizeLeft(idx, f);
+      } else if (drag.mode === "resizeR"){
+        const x = pxFromClientX(ev.clientX);
+        const f = clamp(Math.ceil(x / App.pxPerFrame), 0, total);
+        linkedResizeRight(idx, f);
+      }
+
+      rebuildFrameMapFromBlocks();
+      redrawAll(false);
+    });
+
+    canvas.addEventListener("pointerup", function(){
+      endDrag();
+    });
+
+    canvas.addEventListener("pointercancel", function(){
+      endDrag();
+    });
+
+    canvas.addEventListener("dblclick", function(ev){
+      if (!App.audioBuffer) return;
+
+      const f = frameFromClientX(ev.clientX, false);
+      App.playheadFrame = clamp(f, 0, Math.max(0, App.totalFrames - 1));
+      movePlayhead();
+
+      insertMouthAtFrame(App.playheadFrame);
+    });
+
+    scroll.addEventListener("scroll", function(){
+      resumeAudioCtx();
+    }, { passive: true });
+  }
+
+  function roundRect(ctx, x, y, w, h, r){
+    const rr = clamp(r, 0, Math.min(w,h)/2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.lineTo(x + w - rr, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    ctx.lineTo(x + rr, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    ctx.lineTo(x, y + rr);
+    ctx.quadraticCurveTo(x, y, x + rr, y);
+    ctx.closePath();
+  }
+
+  function drawWave(ctx, top, height){
+    if (!App.audioBuffer || !App.peaks || App.peaks.length === 0){
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.font = "13px Arial";
+      ctx.fillText("No audio loaded", 12, top + 24);
+      return;
+    }
+
+    const total = App.totalFrames;
+    const ppf = App.pxPerFrame;
+    const mid = top + Math.floor(height / 2);
+
+    let maxPeak = 0;
+    for (let i = 0; i < App.peaks.length; i++){
+      const p = App.peaks[i] || 0;
+      if (p > maxPeak) maxPeak = p;
+    }
+    const gain = maxPeak > 0 ? (0.95 / maxPeak) : 1;
+
+    // Midline
+    ctx.strokeStyle = "rgba(255,255,255,0.10)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, mid + 0.5);
+    ctx.lineTo(App.ui.timelineCanvas.width, mid + 0.5);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(170,240,255,0.95)";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+
+    ctx.beginPath();
+    for (let f = 0; f < total; f++){
+      const raw = (App.peaks[f] || 0) * gain;
+      const peak = raw > 1 ? 1 : raw;
+      const peak2 = Math.pow(peak, 0.55);
+      const amp = Math.max(1.2, peak2 * (height * 0.49));
+      const x = f * ppf + Math.floor(ppf / 2) + 0.5;
+      ctx.moveTo(x, mid - amp);
+      ctx.lineTo(x, mid + amp);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.font = "12px Arial";
+    ctx.fillText("Duration " + App.audioBuffer.duration.toFixed(2) + "s", 12, top - 6);
+  }
+
+  function drawBlocks(ctx, top, height){
+    const ppf = App.pxPerFrame;
+    const layout = App.timelineLayout || {};
+    const handleBase = layout.handleW || 10;
+
+    ctx.font = "12px Arial";
+
+    for (let i = 0; i < App.blocks.length; i++){
+      const b = App.blocks[i];
+      const x = b.startFrame * ppf;
+      const w = Math.max(2, (b.endFrame - b.startFrame) * ppf);
+      const y = top;
+      const h = height;
+
+      const selected = (b.id === App.selectedBlockId);
+
+      const handleW = Math.max(4, Math.min(handleBase, Math.floor(w / 3)));
+
+      // Body
+      ctx.fillStyle = selected ? "rgba(255,204,0,0.78)" : "rgba(255,255,255,0.74)";
+      ctx.strokeStyle = selected ? "rgba(255,204,0,0.98)" : "rgba(255,255,255,0.70)";
+      ctx.lineWidth = selected ? 2 : 1;
+
+      roundRect(ctx, x + 1, y, Math.max(1, w - 2), h, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      // Handles
+      ctx.fillStyle = selected ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.70)";
+      ctx.fillRect(x + 1, y + 1, handleW, h - 2);
+      ctx.fillRect(x + w - handleW - 1, y + 1, handleW, h - 2);
+
+      ctx.strokeStyle = "rgba(0,0,0,0.28)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + 1 + handleW + 0.5, y + 2);
+      ctx.lineTo(x + 1 + handleW + 0.5, y + h - 2);
+      ctx.moveTo(x + w - handleW - 1 + 0.5, y + 2);
+      ctx.lineTo(x + w - handleW - 1 + 0.5, y + h - 2);
+      ctx.stroke();
+
+      // Small grip lines inside each handle
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 1;
+      for (let g = 0; g < 2; g++){
+        const gxL = x + 1 + Math.floor(handleW / 2) + (g === 0 ? -2 : 2) + 0.5;
+        const gxR = x + w - handleW - 1 + Math.floor(handleW / 2) + (g === 0 ? -2 : 2) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(gxL, y + 10);
+        ctx.lineTo(gxL, y + h - 10);
+        ctx.moveTo(gxR, y + 10);
+        ctx.lineTo(gxR, y + h - 10);
+        ctx.stroke();
+      }
+
+      // Label (black for better readability)
+      ctx.fillStyle = "rgba(0,0,0,0.90)";
+      const label = (b.mouth || "rest");
+      const tx = x + handleW + 8;
+      ctx.fillText(label, tx, y + 22);
+
+      // Bottom marker
+      ctx.fillStyle = "rgba(110,210,255,0.80)";
+      ctx.fillRect(tx, y + h - 14, 22, 6);
+    }
+  }
+
+  function drawTimeline(){
+    const ctx = App.ui.timelineCtx;
+    const canvas = App.ui.timelineCanvas;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    ctx.fillRect(0, 0, w, h);
+
+    const rulerH = 28;
+    const waveTop = rulerH + 8;
+    const waveH = 150;
+
+    const blockH = 54;
+    const blockY = waveTop + Math.floor((waveH - blockH) / 2);
+    const handleW = 10;
+
+    App.timelineLayout = {
+      rulerH: rulerH,
+      waveTop: waveTop,
+      waveH: waveH,
+      blockY: blockY,
+      blockH: blockH,
+      handleW: handleW
+    };
+
+    // Ruler background
+    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    ctx.fillRect(0, 0, w, rulerH);
+
+    // Wave area background
+    ctx.fillStyle = "rgba(255,255,255,0.03)";
+    ctx.fillRect(0, waveTop, w, waveH);
+
+    const ppf = App.pxPerFrame;
+    const total = App.totalFrames;
+    const majorEvery = App.fps;
+    const minorEvery = Math.max(1, Math.floor(App.fps / 5));
+
+    // Grid lines
+    for (let f = 0; f <= total; f++){
+      const x = f * ppf + 0.5;
+
+      if (f % majorEvery === 0){
+        ctx.strokeStyle = "rgba(255,255,255,0.16)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,255,255,0.65)";
+        ctx.font = "12px Arial";
+        ctx.fillText(String(Math.floor(f / App.fps)), x + 4, 18);
+
+      } else if (f % minorEvery === 0){
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+
+        if (ppf >= 14){
+          ctx.strokeStyle = "rgba(255,255,255,0.03)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, h);
+          ctx.stroke();
+        }
+      }
+    }
+
+    drawWave(ctx, waveTop, waveH);
+    drawBlocks(ctx, blockY, blockH);
+  }
+
+  function positionPlayhead(){
+    const x = App.playheadFrame * App.pxPerFrame;
+    App.ui.playhead.style.left = x + "px";
+  }
+
+  function redrawAll(resizeCanvas){
+    if (resizeCanvas){
+      const w = Math.max(1, App.totalFrames * App.pxPerFrame);
+      App.ui.timelineCanvas.width = w;
+      App.ui.timelineCanvas.height = 230;
+      App.ui.timelineSurface.style.width = w + "px";
+      App.ui.timelineSurface.style.height = "230px";
+    }
+
+    drawTimeline();
+    positionPlayhead();
+    mountSvg(App.ui.currentMouthHost, mouthAtFrame(App.playheadFrame));
+  }
+
+  function initUi(){
+    App.ui.fileAudio = el("#file-audio");
+    App.ui.fileProject = el("#file-project");
+    App.ui.btnLoad = el("#btn-load");
+    App.ui.btnLoadProject = el("#btn-load-project");
+    App.ui.btnPlay = el("#btn-play");
+    App.ui.btnStop = el("#btn-stop");
+    App.ui.inpFps = el("#inp-fps");
+    App.ui.inpClipName = el("#inp-clipname");
+    App.ui.btnZoomOut = el("#btn-zoom-out");
+    App.ui.btnZoomIn = el("#btn-zoom-in");
+    App.ui.btnClear = el("#btn-clear");
+    App.ui.btnAuto = el("#btn-auto");
+    App.ui.btnInsert = el("#btn-insert");
+    App.ui.btnDownload = el("#btn-download");
+    App.ui.btnSend = el("#btn-send");
+    App.ui.btnDeleteBlock = el("#btn-delete-block");
+
+    App.ui.timelineScroll = el("#timelineScroll");
+    App.ui.timelineSurface = el("#timelineSurface");
+    App.ui.timelineCanvas = el("#timelineCanvas");
+    App.ui.timelineCtx = App.ui.timelineCanvas.getContext("2d");
+    App.ui.playhead = el("#playhead");
+    App.ui.playheadHandle = el("#playheadHandle");
+
+    App.ui.ctxMenu = el("#ctxMenu");
+    App.ui.ctxDeleteMouth = el("#ctxDeleteMouth");
+    App.ui.mouthGrid = el("#mouthGrid");
+    App.ui.currentMouthHost = el("#currentMouthHost");
+
+    App.ui.scriptText = el("#scriptText");
+    App.ui.modalBackdrop = el("#modalBackdrop");
+    App.ui.btnCloseModal = el("#btn-close-modal");
+
+    App.ui.dlFrameJson = el("#dl-frame-json");
+    App.ui.dlFrameCsv = el("#dl-frame-csv");
+    App.ui.dlBlocksJson = el("#dl-blocks-json");
+    App.ui.dlPapagayoDat = el("#dl-papagayo-dat");
+
+    App.ui.mouthGrid.innerHTML = "";
+    for (let i=0;i<MOUTH_ORDER.length;i++){
+      const k = MOUTH_ORDER[i];
+      const b = document.createElement("button");
+      b.className = "mouth-btn" + (k === App.selectedMouth ? " active" : "");
+      b.dataset.mouth = k;
+
+      const mini = document.createElement("div");
+      mini.className = "mini";
+      mini.innerHTML = (MOUTH_SVGS[k] || MOUTH_SVGS["rest"]);
+
+      const lab = document.createElement("div");
+      lab.className = "label";
+      lab.textContent = k;
+
+      b.appendChild(mini);
+      b.appendChild(lab);
+
+      b.addEventListener("click", function(){
+        App.selectedMouth = k;
+        const changed = updateSelectedBlockMouth(k);
+        refreshMouthButtons();
+        redrawAll(false);
+        if (changed) setStatus("Block mouth updated");
+      });
+
+      App.ui.mouthGrid.appendChild(b);
+    }
+
+    mountSvg(App.ui.currentMouthHost, mouthAtFrame(App.playheadFrame));
+
+    App.ui.btnLoad.addEventListener("click", function(){ App.ui.fileAudio.click(); });
+
+    App.ui.btnLoadProject.addEventListener("click", function(){ App.ui.fileProject.click(); });
+    App.ui.fileProject.addEventListener("change", async function(){
+      if (!App.ui.fileProject.files || !App.ui.fileProject.files[0]) return;
+      try{
+        await loadProjectFile(App.ui.fileProject.files[0]);
+      }catch(e){
+        setStatus("Project load failed");
+      }
+      App.ui.fileProject.value = "";
+    });
+    App.ui.fileAudio.addEventListener("change", async function(){
+      if (!App.ui.fileAudio.files || !App.ui.fileAudio.files[0]) return;
+      await loadAudioFile(App.ui.fileAudio.files[0]);
+    });
+
+    App.ui.btnPlay.addEventListener("click", function(){ togglePlay(); });
+    App.ui.btnStop.addEventListener("click", function(){ stopPlayback(); });
+
+    App.ui.inpFps.addEventListener("change", function(){
+      const v = Number(App.ui.inpFps.value);
+      if (!Number.isFinite(v) || v <= 0) return;
+      App.fps = Math.floor(v);
+      if (App.audioBuffer){
+        App.totalFrames = Math.max(1, Math.floor(App.audioBuffer.duration * App.fps));
+      }
+      clampAllToTimeline();
+      computePeaks();
+      rebuildFrameMapFromBlocks();
+      redrawAll(true);
+    });
+
+    App.ui.btnZoomOut.addEventListener("click", function(){
+      App.pxPerFrame = clamp(App.pxPerFrame - 2, App.zoomMin, App.zoomMax);
+      redrawAll(true);
+    });
+    App.ui.btnZoomIn.addEventListener("click", function(){
+      App.pxPerFrame = clamp(App.pxPerFrame + 2, App.zoomMin, App.zoomMax);
+      redrawAll(true);
+    });
+
+    App.ui.btnClear.addEventListener("click", function(){
+      if (App.audioBuffer){
+        App.blocks = [{
+          id: uid("blk"),
+          startFrame: 0,
+          endFrame: App.totalFrames,
+          mouth: "rest",
+          label: "rest"
+        }];
+        App.selectedBlockId = App.blocks[0].id;
+      } else {
+        App.blocks = [];
+        App.selectedBlockId = "";
+      }
+      rebuildFrameMapFromBlocks();
+      redrawAll(true);
+      setStatus("Cleared");
+    });
+
+    App.ui.btnAuto.addEventListener("click", function(){
+      autoMapFromScript();
+      redrawAll(true);
+      setStatus("Auto mapped");
+    });
+
+    App.ui.btnInsert.addEventListener("click", function(){
+      addMouthAtPlayhead();
+    });
+
+    App.ui.btnDeleteBlock.addEventListener("click", function(){
+      deleteSelectedMouthBlock();
+    });
+
+    // Context menu delete
+    if (App.ui.ctxDeleteMouth){
+      App.ui.ctxDeleteMouth.addEventListener("click", function(ev){
+        ev.preventDefault();
+        closeCtxMenu();
+        deleteSelectedMouthBlock();
+      });
+    }
+
+    document.addEventListener("pointerdown", function(ev){
+      if (!App.ui || !App.ui.ctxMenu) return;
+      if (App.ui.ctxMenu.style.display === "block"){
+        if (!App.ui.ctxMenu.contains(ev.target)){
+          closeCtxMenu();
+        }
+      }
+    });
+
+    window.addEventListener("blur", function(){ closeCtxMenu(); });
+
+    document.addEventListener("keydown", function(ev){
+      if (ev.key === "Delete" || ev.key === "Backspace"){
+        // Delete selected mouth block (if any)
+        if (App.selectedBlockId){
+          ev.preventDefault();
+          deleteSelectedMouthBlock();
+        }
+      }
+    });
+
+
+    App.ui.btnDownload.addEventListener("click", function(){ saveProjectToFile(); });
+    App.ui.btnSend.addEventListener("click", function(){ sendToWick(); });
+
+    App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
+    App.ui.modalBackdrop.addEventListener("click", function(ev){
+      if (ev.target === App.ui.modalBackdrop) closeModal();
+    });
+
+    App.ui.dlFrameJson.addEventListener("click", function(){
+      downloadText("frame-map.json", JSON.stringify(exportFrameMapJSON(), null, 2), "application/json");
+      closeModal();
+    });
+    App.ui.dlFrameCsv.addEventListener("click", function(){
+      downloadText("frame-map.csv", exportFrameMapCSV(), "text/csv");
+      closeModal();
+    });
+    App.ui.dlBlocksJson.addEventListener("click", function(){
+      downloadText("blocks.json", JSON.stringify(exportBlocksJSON(), null, 2), "application/json");
+      closeModal();
+    });
+    App.ui.dlPapagayoDat.addEventListener("click", function(){
+      downloadText("papagayo-simple.dat", exportPapagayoSimpleDAT(), "text/plain");
+      closeModal();
+    });
+
+    bindTimelineInteractions();
+    rebuildFrameMapFromBlocks();
+    redrawAll(true);
+    setStatus("Ready");
+  }
+
+  ensureAudioCtx();
+  initUi();
+
+})();
+</script>
+
+<script>
+(function(){
+  const bottom = document.getElementById("btn-auto-bottom");
+  const topAuto = document.getElementById("btn-auto");
+  if (bottom && topAuto){
+    bottom.addEventListener("click", function(){
+      topAuto.click();
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
