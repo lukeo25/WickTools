@@ -2377,23 +2377,31 @@ App.ui.btnSend.addEventListener("click", function(){
   function appendHelloWorldToSelectedClip() {
     var b = getBridge();
     if (!b) {
-      console.log("[LukeTools Tool] no bridge found");
+      console.log("[LukeTools Tool] bridge not found");
       return;
     }
 
-    if (typeof b.captureSelectionNow === "function") {
-      try { b.captureSelectionNow(); } catch (e0) {}
-    }
+    try {
+      if (typeof b.captureSelectionNow === "function") b.captureSelectionNow();
+    } catch (e0) {}
 
     var clipName = "";
-    if (typeof b.getSelectedClipName === "function") {
-      try { clipName = String(b.getSelectedClipName() || "").trim(); } catch (e1) { clipName = ""; }
+    try {
+      if (typeof b.getSelectedClipName === "function") {
+        clipName = String(b.getSelectedClipName() || "").trim();
+      }
+    } catch (e1) {
+      clipName = "";
     }
 
     console.log("[LukeTools Tool] selected clip name", clipName);
 
-    if (typeof b.getDefaultScriptOnSelection !== "function" || typeof b.setDefaultScriptOnSelection !== "function") {
-      console.log("[LukeTools Tool] bridge missing getDefaultScriptOnSelection or setDefaultScriptOnSelection");
+    if (typeof b.getDefaultScriptOnSelection !== "function") {
+      console.log("[LukeTools Tool] getDefaultScriptOnSelection missing on bridge");
+      return;
+    }
+    if (typeof b.setDefaultScriptOnSelection !== "function") {
+      console.log("[LukeTools Tool] setDefaultScriptOnSelection missing on bridge");
       return;
     }
 
@@ -2407,24 +2415,23 @@ App.ui.btnSend.addEventListener("click", function(){
 
     console.log("[LukeTools Tool] current length", current.length);
 
-    var marker = "console.log('Hello World from Luke Tools');";
+    var marker = "console.log(\"Hello World from Luke Tools\");";
     if (current.indexOf(marker) !== -1) {
-      console.log("[LukeTools Tool] hello world already present, skipping");
+      console.log("[LukeTools Tool] hello already present, skipping");
       return;
     }
 
-    var hello =
-      "
-" +
-      "console.log('Hello World from Luke Tools');
-" +
-      "console.log('Target clip name', " + JSON.stringify(clipName) + ");
-";
+    var injectedLines = [
+      "",
+      "console.log(\"Hello World from Luke Tools\");",
+      "console.log(\"Target clip name\", " + JSON.stringify(clipName) + ");",
+      ""
+    ];
+
+    var hello = injectedLines.join("\n");
 
     var next = current;
-    if (next && next[next.length - 1] !== "
-") next += "
-";
+    if (next && next[next.length - 1] !== "\n") next += "\n";
     next += hello;
 
     var v = validateJs(next);
@@ -2440,17 +2447,10 @@ App.ui.btnSend.addEventListener("click", function(){
     }
 
     console.log("[LukeTools Tool] append write ok", ok);
-
-    if (ok) {
-      try {
-        var verify = String(b.getDefaultScriptOnSelection() || "");
-        console.log("[LukeTools Tool] verify length", verify.length);
-      } catch (e4) {}
-    }
   }
 
   appendHelloWorldToSelectedClip();
-})();
+})();;
 });
 
 
