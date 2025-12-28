@@ -233,4 +233,154 @@
       height:16px;
       border-radius:3px;
       border:1px solid var(--stroke2);
-      background:rgba(255,255,
+      background:rgba(255,255,255,0.06);
+      object-fit:contain;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <div class="hdr">
+        <div class="hdrLeft">
+          <img class="brand" alt="Luke Tools" src="https://raw.githubusercontent.com/lukeo25/WickTools/main/LukeToolsBrand.png">
+          <div class="titleBlock">
+            <div class="title">Biped</div>
+            <div class="sub">Select Arm_R then click Arrange to align content inside Shoulder_R and Elbow_R</div>
+          </div>
+        </div>
+        <div class="pill" id="selName">Selected:</div>
+      </div>
+
+      <div class="body">
+        <div class="fieldRow">
+          <div class="field">
+            <label>Shoulder identifier</label>
+            <input id="shoulderId" type="text" value="Shoulder_R">
+          </div>
+          <div class="field">
+            <label>Elbow identifier</label>
+            <input id="elbowId" type="text" value="Elbow_R">
+          </div>
+        </div>
+
+        <div class="btnRow">
+          <button class="primary" id="btnArrange">Arrange</button>
+          <button id="btnRefresh">Refresh selection</button>
+          <button id="btnStore">Store for Pose Panel</button>
+          <button id="btnZero">Zero Pose</button>
+        </div>
+
+        <div class="status" id="status">Ready</div>
+
+        <div class="foot">
+          <div class="hint">
+            Arrange moves the content inside the clips so the pivot is at the top center
+            then places Shoulder at the Arm pivot and Elbow at the end of the Shoulder content
+            <div class="hintCode">Arm_R contains Shoulder_R contains Elbow_R</div>
+          </div>
+          <div class="brandMini" title="Luke Tools">
+            <img alt="Luke Tools" src="https://raw.githubusercontent.com/lukeo25/WickTools/main/LukeToolsBrand.png">
+            Luke Tools
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      function s(v) { return (v === null || v === undefined) ? "" : String(v); }
+      var NL = String.fromCharCode(10);
+
+      function $(id) { return document.getElementById(id); }
+
+      function getBridge() {
+        try { if (window.LukeToolsBridge) return window.LukeToolsBridge; } catch (e1) {}
+        try { if (parent && parent.LukeToolsBridge) return parent.LukeToolsBridge; } catch (e2) {}
+        return null;
+      }
+
+      function setStatus(msg) {
+        $("status").textContent = s(msg);
+      }
+
+      function refreshSelection() {
+        var bridge = getBridge();
+        if (!bridge) {
+          $("selName").textContent = "Selected: bridge missing";
+          setStatus("Bridge missing" + NL + "Update the Luke Tools userscript");
+          return;
+        }
+
+        try {
+          if (typeof bridge.captureSelectionNow === "function") bridge.captureSelectionNow();
+        } catch (e1) {}
+
+        var name = "";
+        try {
+          name = (typeof bridge.getSelectedClipName === "function") ? bridge.getSelectedClipName() : "";
+        } catch (e2) {
+          name = "";
+        }
+
+        $("selName").textContent = "Selected: " + (name ? name : "none");
+      }
+
+      function storeForPosePanel() {
+        var sh = s($("shoulderId").value).trim() || "Shoulder_R";
+        var el = s($("elbowId").value).trim() || "Elbow_R";
+        try { localStorage.setItem("LukeToolsPoseShoulderIdentifier", sh); } catch (e1) {}
+        try { localStorage.setItem("LukeToolsPoseElbowIdentifier", el); } catch (e2) {}
+        setStatus("Stored identifiers for Pose Panel" + NL + "Shoulder " + sh + NL + "Elbow " + el);
+      }
+
+      function zeroPose() {
+        try { localStorage.setItem("LukeToolsPoseShoulderDeg", "0"); } catch (e1) {}
+        try { localStorage.setItem("LukeToolsPoseElbowDeg", "0"); } catch (e2) {}
+        setStatus("Pose values set to 0");
+      }
+
+      function arrange() {
+        var bridge = getBridge();
+        if (!bridge) {
+          setStatus("Bridge missing" + NL + "Update the Luke Tools userscript");
+          return;
+        }
+
+        var sh = s($("shoulderId").value).trim() || "Shoulder_R";
+        var el = s($("elbowId").value).trim() || "Elbow_R";
+
+        storeForPosePanel();
+        refreshSelection();
+
+        if (typeof bridge.arrangeArmRigOnSelection !== "function") {
+          setStatus("Arrange missing on bridge" + NL + "Update the Luke Tools userscript");
+          return;
+        }
+
+        try {
+          var res = bridge.arrangeArmRigOnSelection(sh, el);
+          if (res && res.ok) {
+            setStatus("Arrange ok" + NL + "Shoulder length " + s(res.shoulderLength));
+          } else {
+            setStatus("Arrange failed" + NL + s(res && res.error ? res.error : "unknown"));
+          }
+        } catch (e) {
+          setStatus("Arrange error" + NL + s(e));
+        }
+      }
+
+      $("btnArrange").addEventListener("click", arrange);
+      $("btnRefresh").addEventListener("click", refreshSelection);
+      $("btnStore").addEventListener("click", storeForPosePanel);
+      $("btnZero").addEventListener("click", zeroPose);
+
+      refreshSelection();
+      setInterval(refreshSelection, 500);
+    })();
+  </script>
+</body>
+</html>
