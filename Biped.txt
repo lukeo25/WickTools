@@ -2,64 +2,49 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Luke Tools Biped</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Biped</title>
   <style>
-    html, body { margin:0; padding:0; height:100%; font-family:Arial, sans serif; background:#111; color:#fff; }
+    html, body { margin:0; padding:0; width:100%; height:100%; background:#0f0f0f; color:#ffffff; font-family:Arial, sans serif; }
     .wrap { display:flex; flex-direction:column; height:100%; }
-    .bar { padding:14px 16px; background:#151515; border-bottom:1px solid rgba(255,255,255,0.12); }
-    .title { font-size:16px; font-weight:700; }
-    .sub { margin-top:6px; font-size:12px; opacity:0.85; }
-    .main { flex:1; display:flex; gap:16px; padding:16px; }
-    .card { width:360px; max-width:100%; background:#171717; border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:14px; }
-    label { display:block; font-size:12px; opacity:0.9; margin-top:10px; }
-    input[type="text"] { width:100%; box-sizing:border-box; margin-top:6px; padding:10px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.18); background:rgba(0,0,0,0.35); color:#fff; font-size:13px; }
-    button { margin-top:14px; width:100%; padding:11px 12px; border:0; border-radius:10px; cursor:pointer; font-weight:700; font-size:13px; background:rgba(0,180,255,0.90); color:#fff; }
-    button.secondary { background:rgba(255,255,255,0.12); font-weight:600; }
-    .log { margin-top:12px; padding:10px; border-radius:10px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.12); font-size:12px; white-space:pre-wrap; min-height:74px; }
-    .hint { font-size:12px; opacity:0.85; line-height:1.35; }
-    .right { flex:1; background:#0f0f0f; border:1px dashed rgba(255,255,255,0.18); border-radius:12px; padding:14px; }
-    .right h3 { margin:0 0 10px 0; font-size:14px; }
-    .right p { margin:0 0 10px 0; font-size:12px; opacity:0.85; line-height:1.4; }
-    .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:rgba(255,255,255,0.12); font-size:12px; margin-right:6px; }
+    .top { padding:18px 22px; background:#1c1c1c; border-bottom:1px solid rgba(255,255,255,0.08); }
+    .title { font-size:20px; font-weight:700; margin:0 0 6px 0; }
+    .sub { font-size:13px; opacity:0.85; }
+    .content { flex:1; padding:22px; display:flex; gap:18px; align-items:flex-start; }
+    .card { width:420px; max-width:calc(100vw - 44px); background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); border-radius:14px; box-shadow:0 10px 24px rgba(0,0,0,0.35); padding:18px; }
+    .card h3 { margin:0 0 10px 0; font-size:16px; }
+    .row { margin-top:10px; }
+    .btn { width:100%; padding:14px 12px; border:0; border-radius:12px; background:rgba(0,148,255,0.78); color:#fff; font-size:15px; font-weight:700; cursor:pointer; }
+    .btn:active { transform:translateY(1px); }
+    .muted { font-size:12px; opacity:0.75; margin-top:10px; line-height:1.35; }
+    .log { margin-top:12px; font-family:Consolas, monospace; font-size:12px; white-space:pre-wrap; background:#101010; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:12px; min-height:84px; }
+    .kv { font-family:Consolas, monospace; font-size:12px; opacity:0.9; background:#101010; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:12px; }
+    .kv div { margin:4px 0; }
+    .mini { font-size:11px; opacity:0.7; margin-top:10px; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="bar">
+    <div class="top">
       <div class="title">Biped</div>
-      <div class="sub">Selection <span id="selName" class="pill">none</span></div>
+      <div class="sub">Select Arm_R then click Arrange. Close this tool to show the pose panel in Wick.</div>
     </div>
 
-    <div class="main">
+    <div class="content">
       <div class="card">
-        <div class="hint">
-          This tool arranges a nested arm rig where the structure is
-          <strong>Arm_R</strong> contains <strong>Shoulder_R</strong> contains <strong>Elbo_R</strong>.
-          After you close this tool, the Pose Panel appears in Wick.
+        <h3>Arrange</h3>
+        <div class="kv" id="selBox">
+          <div>Selected clip <span id="selName"></span></div>
+          <div>Selected uuid <span id="selUuid"></span></div>
         </div>
 
-        <label>Shoulder identifier</label>
-        <input id="shoulderId" type="text" value="Shoulder_R">
-
-        <label>Elbow identifier</label>
-        <input id="elbowId" type="text" value="Elbo_R">
-
-        <button id="arrangeBtn">Arrange</button>
-        <button id="refreshBtn" class="secondary">Refresh selection</button>
-
-        <div id="log" class="log"></div>
-      </div>
-
-      <div class="right">
-        <h3>What Arrange does</h3>
-        <p>It sets the shoulder origin for top rotation, moves shoulder to the arm origin, then positions the elbow at the bottom of the shoulder content and sets elbow origin for top rotation.</p>
-        <p>Rotate with the Pose Panel in Wick after you close this overlay.</p>
-
-        <div style="margin-top:12px;">
-          <span class="pill">Arm_R</span>
-          <span class="pill">Shoulder_R</span>
-          <span class="pill">Elbo_R</span>
+        <div class="row">
+          <button class="btn" id="arrangeBtn">Arrange Arm</button>
+          <div class="muted">Expected nesting Arm_R contains Shoulder_R and Shoulder_R contains Elbo_R</div>
         </div>
+
+        <div class="log" id="logBox"></div>
+        <div class="mini">If Arrange says missing something, check your identifiers exactly match Shoulder_R and Elbo_R</div>
       </div>
     </div>
   </div>
@@ -69,57 +54,61 @@
       function s(v) { return (v === null || v === undefined) ? "" : String(v); }
 
       function getBridge() {
-        try { return window.LukeToolsBridge || null; } catch (e) { return null; }
+        try { if (window.LukeToolsBridge) return window.LukeToolsBridge; } catch (e1) {}
+        try { if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; } catch (e2) {}
+        return null;
       }
 
-      function setLog(msg) {
-        var el = document.getElementById("log");
-        if (!el) return;
-        el.textContent = s(msg);
+      var logBox = document.getElementById("logBox");
+      var selName = document.getElementById("selName");
+      var selUuid = document.getElementById("selUuid");
+      var arrangeBtn = document.getElementById("arrangeBtn");
+
+      function log(msg) {
+        logBox.textContent = s(msg);
       }
 
       function refreshSelection() {
         var bridge = getBridge();
-        var name = "";
-        if (bridge && typeof bridge.captureSelectionNow === "function") {
-          try { bridge.captureSelectionNow(); } catch (e1) {}
+        if (!bridge) {
+          selName.textContent = "";
+          selUuid.textContent = "";
+          return;
         }
-        if (bridge && typeof bridge.getSelectedClipName === "function") {
-          try { name = bridge.getSelectedClipName(); } catch (e2) { name = ""; }
-        }
-        var tag = document.getElementById("selName");
-        if (tag) tag.textContent = name ? name : "none";
+        try {
+          selName.textContent = s(bridge.getSelectedClipName ? bridge.getSelectedClipName() : "");
+        } catch (e1) { selName.textContent = ""; }
+        try {
+          selUuid.textContent = s(bridge.getSelectedClipUUID ? bridge.getSelectedClipUUID() : "");
+        } catch (e2) { selUuid.textContent = ""; }
       }
 
-      function arrange() {
+      arrangeBtn.addEventListener("click", function () {
         var bridge = getBridge();
-        if (!bridge) { setLog("Bridge missing"); return; }
-
-        var shoulderId = s(document.getElementById("shoulderId").value).trim() || "Shoulder_R";
-        var elbowId = s(document.getElementById("elbowId").value).trim() || "Elbo_R";
-
+        if (!bridge) {
+          log("Bridge not found");
+          return;
+        }
         if (typeof bridge.arrangeArmRigOnSelection !== "function") {
-          setLog("Arrange error bridge.arrangeArmRigOnSelection is not a function");
+          log("arrangeArmRigOnSelection missing on bridge");
           return;
         }
 
-        var res = null;
-        try { res = bridge.arrangeArmRigOnSelection(shoulderId, elbowId); } catch (e) { res = { ok:false, error:s(e) }; }
-
-        if (!res || !res.ok) {
-          setLog("Arrange failed\n" + (res && res.error ? res.error : "unknown"));
-          return;
+        log("Arranging");
+        try {
+          var res = bridge.arrangeArmRigOnSelection({ shoulderId: "Shoulder_R", elbowId: "Elbo_R" });
+          if (!res || res.ok !== true) {
+            log("Arrange failed " + s(res && res.error ? res.error : "unknown"));
+            return;
+          }
+          log("Arrange ok\njoinY " + s(res.joinY) + "\nshoulder moved " + s(res.shoulderNormalized && res.shoulderNormalized.moved) + "\nelbow moved " + s(res.elbowNormalized && res.elbowNormalized.moved));
+        } catch (e) {
+          log("Arrange failed " + s(e));
         }
-
-        setLog("Arrange ok\nshoulderHeight " + s(res.shoulderHeight));
-        refreshSelection();
-      }
-
-      document.getElementById("arrangeBtn").addEventListener("click", arrange);
-      document.getElementById("refreshBtn").addEventListener("click", refreshSelection);
+      });
 
       refreshSelection();
-      setLog("Ready");
+      setInterval(refreshSelection, 350);
     })();
   </script>
 </body>
