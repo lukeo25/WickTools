@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Arm rig arrange v4</title>
+  <title>Arm rig arrange v5</title>
   <style>
     body{
       font-family: Arial, sans serif;
@@ -12,10 +12,7 @@
       background: #ffffff;
       color: #111;
     }
-    h1{
-      font-size: 18px;
-      margin: 0 0 12px 0;
-    }
+    h1{ font-size: 18px; margin: 0 0 12px 0; }
     .box{
       border: 1px solid #ddd;
       border-radius: 12px;
@@ -25,6 +22,7 @@
     }
     .row{ margin: 8px 0; }
     .label{ font-weight: 700; }
+    .muted{ color: #444; font-size: 13px; }
     button{
       padding: 10px 12px;
       border-radius: 12px;
@@ -32,8 +30,16 @@
       background: #fff;
       cursor: pointer;
       margin-right: 8px;
+      margin-top: 6px;
     }
     button:active{ transform: translateY(1px); }
+    input{
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      width: 260px;
+      max-width: 100%;
+    }
     pre{
       font-family: Consolas, Menlo, Monaco, monospace;
       font-size: 12px;
@@ -41,52 +47,53 @@
       word-break: break-word;
       margin: 0;
     }
-    input{
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid #ddd;
-      width: 240px;
-      max-width: 100%;
+    .grid{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
     }
-    .muted{ color: #444; font-size: 13px; }
+    @media (max-width: 700px){
+      .grid{ grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <h1>Arrange Shoulder and Elbow inside selected clip</h1>
+  <h1>Arrange Shoulder_R and Elbo_R inside selected clip</h1>
 
   <div class="box">
     <div class="row"><span class="label">Selected clip</span>: <span id="selName">(none)</span></div>
-
     <div class="row muted">
-      This targets child clip instances by identifier.
-      It uses _identifier or _cachedSerializeData.identifier.
-      It does not guess or search beyond those names.
+      Targets children by identifier only. Uses <code>_identifier</code> or <code>_cachedSerializeData.identifier</code>.
+      This version also verifies that x and y actually change after writing.
     </div>
 
-    <div class="row">
-      <span class="label">Shoulder identifier</span>
-      <div class="row">
-        <input id="shoulderId" value="Shoulder_R">
+    <div class="grid">
+      <div>
+        <div class="row"><span class="label">Shoulder identifier</span></div>
+        <div class="row"><input id="shoulderId" value="Shoulder_R"></div>
+      </div>
+      <div>
+        <div class="row"><span class="label">Elbow identifier</span></div>
+        <div class="row"><input id="elbowId" value="Elbo_R"></div>
       </div>
     </div>
 
-    <div class="row">
-      <span class="label">Elbow identifier</span>
-      <div class="row">
-        <input id="elbowId" value="Elbo_R">
+    <div class="grid">
+      <div>
+        <div class="row"><span class="label">Gap below shoulder (px)</span></div>
+        <div class="row"><input id="gap" value="0"></div>
       </div>
-    </div>
-
-    <div class="row">
-      <span class="label">Extra gap</span>
-      <div class="row">
-        <input id="gap" value="0">
+      <div>
+        <div class="row"><span class="label">Optional test nudge (px)</span></div>
+        <div class="row"><input id="nudge" value="50"></div>
       </div>
     </div>
 
     <div class="row">
       <button id="btnRefresh" type="button">Refresh selection</button>
+      <button id="btnInspect" type="button">Log current positions</button>
       <button id="btnArrange" type="button">Arrange</button>
+      <button id="btnNudgeElbow" type="button">Test nudge elbow right</button>
     </div>
   </div>
 
@@ -157,6 +164,25 @@
     }catch(e2){}
   }
 
+  function requestRender(ed){
+    // Best effort: different editor builds use different flags
+    try{
+      if (ed && ed.canvas && typeof ed.canvas.requestRender === "function") ed.canvas.requestRender();
+    }catch(e1){}
+    try{
+      if (ed && ed.renderer && typeof ed.renderer.requestRender === "function") ed.renderer.requestRender();
+    }catch(e2){}
+    try{
+      if (ed && ed.project && typeof ed.project.requestRender === "function") ed.project.requestRender();
+    }catch(e3){}
+    try{
+      if (ed && ed.view && typeof ed.view.requestRender === "function") ed.view.requestRender();
+    }catch(e4){}
+    try{
+      if (ed && ed.canvas) ed.canvas.needsRender = true;
+    }catch(e5){}
+  }
+
   function getIdentifier(obj){
     if (!obj) return "";
     try{ if (typeof obj._identifier === "string") return tidy(obj._identifier); }catch(e1){}
@@ -166,7 +192,6 @@
       }
     }catch(e2){}
     try{ if (typeof obj.identifier === "string") return tidy(obj.identifier); }catch(e3){}
-    try{ if (typeof obj.name === "string") return tidy(obj.name); }catch(e4){}
     return "";
   }
 
@@ -175,12 +200,11 @@
     try{ if (typeof obj._uuid === "string") return tidy(obj._uuid); }catch(e1){}
     try{ if (typeof obj.uuid === "string") return tidy(obj.uuid); }catch(e2){}
     try{ if (typeof obj.UUID === "string") return tidy(obj.UUID); }catch(e3){}
-    try{ if (typeof obj.id === "string") return tidy(obj.id); }catch(e4){}
     try{
       if (obj._cachedSerializeData && typeof obj._cachedSerializeData.uuid === "string"){
         return tidy(obj._cachedSerializeData.uuid);
       }
-    }catch(e5){}
+    }catch(e4){}
     return "";
   }
 
@@ -192,58 +216,135 @@
     }catch(e1){}
 
     try{
+      if (isFiniteNumber(obj._x) && isFiniteNumber(obj._y)) return { x: obj._x, y: obj._y, mode: "_xy" };
+    }catch(e2){}
+
+    try{
       if (obj.transformation && isFiniteNumber(obj.transformation.x) && isFiniteNumber(obj.transformation.y)){
         return { x: obj.transformation.x, y: obj.transformation.y, mode: "transformation" };
       }
-    }catch(e2){}
+    }catch(e3){}
 
     try{
       if (obj.transform && isFiniteNumber(obj.transform.x) && isFiniteNumber(obj.transform.y)){
         return { x: obj.transform.x, y: obj.transform.y, mode: "transform" };
       }
-    }catch(e3){}
+    }catch(e4){}
+
+    try{
+      if (obj._cachedSerializeData && isFiniteNumber(obj._cachedSerializeData.x) && isFiniteNumber(obj._cachedSerializeData.y)){
+        return { x: obj._cachedSerializeData.x, y: obj._cachedSerializeData.y, mode: "cached" };
+      }
+    }catch(e5){}
 
     return null;
   }
 
   function setXY(obj, x, y){
-    if (!obj) return false;
+    var steps = [];
+    var didAny = false;
 
-    try{
-      if (isFiniteNumber(obj.x) && isFiniteNumber(obj.y)){
-        obj.x = x;
-        obj.y = y;
+    function step(name, fn){
+      try{
+        var ok = fn();
+        steps.push(name + " " + (ok ? "ok" : "no"));
+        if (ok) didAny = true;
+      }catch(e){
+        steps.push(name + " error " + s(e));
+      }
+    }
+
+    step("setPosition", function(){
+      if (obj && typeof obj.setPosition === "function"){
+        obj.setPosition(x, y);
         return true;
       }
-    }catch(e1){}
+      return false;
+    });
 
-    try{
-      if (obj.transformation && isFiniteNumber(obj.transformation.x) && isFiniteNumber(obj.transformation.y)){
+    step("setX setY", function(){
+      if (obj && typeof obj.setX === "function" && typeof obj.setY === "function"){
+        obj.setX(x);
+        obj.setY(y);
+        return true;
+      }
+      return false;
+    });
+
+    step("x y", function(){
+      if (!obj) return false;
+      obj.x = x;
+      obj.y = y;
+      return true;
+    });
+
+    step("_x _y", function(){
+      if (!obj) return false;
+      obj._x = x;
+      obj._y = y;
+      return true;
+    });
+
+    step("transformation", function(){
+      if (obj && obj.transformation){
         obj.transformation.x = x;
         obj.transformation.y = y;
         return true;
       }
-    }catch(e2){}
+      return false;
+    });
 
-    try{
-      if (obj.transform && isFiniteNumber(obj.transform.x) && isFiniteNumber(obj.transform.y)){
+    step("transform", function(){
+      if (obj && obj.transform){
         obj.transform.x = x;
         obj.transform.y = y;
         return true;
       }
-    }catch(e3){}
+      return false;
+    });
 
-    return false;
+    step("cached x y", function(){
+      if (obj && obj._cachedSerializeData){
+        obj._cachedSerializeData.x = x;
+        obj._cachedSerializeData.y = y;
+
+        // common nested shapes
+        if (obj._cachedSerializeData.transform){
+          obj._cachedSerializeData.transform.x = x;
+          obj._cachedSerializeData.transform.y = y;
+        }
+        if (obj._cachedSerializeData.transformation){
+          obj._cachedSerializeData.transformation.x = x;
+          obj._cachedSerializeData.transformation.y = y;
+        }
+        return true;
+      }
+      return false;
+    });
+
+    step("rebuild cache", function(){
+      if (obj && typeof obj._generateCachedSerializeData === "function"){
+        obj._generateCachedSerializeData();
+        return true;
+      }
+      if (obj && typeof obj.generateCachedSerializeData === "function"){
+        obj.generateCachedSerializeData();
+        return true;
+      }
+      if (obj && typeof obj._updateCachedSerializeData === "function"){
+        obj._updateCachedSerializeData();
+        return true;
+      }
+      return false;
+    });
+
+    return { didAny: didAny, steps: steps };
   }
 
   function getTimelineFromClipLike(obj){
     if (!obj) return null;
     try{ if (obj.timeline) return obj.timeline; }catch(e1){}
     try{ if (obj._timeline) return obj._timeline; }catch(e2){}
-    try{ if (obj.clipAsset && obj.clipAsset.timeline) return obj.clipAsset.timeline; }catch(e3){}
-    try{ if (obj.clipAsset && obj.clipAsset._timeline) return obj.clipAsset._timeline; }catch(e4){}
-    try{ if (obj.asset && obj.asset.timeline) return obj.asset.timeline; }catch(e5){}
-    try{ if (obj.asset && obj.asset._timeline) return obj.asset._timeline; }catch(e6){}
     return null;
   }
 
@@ -284,7 +385,6 @@
           var o = objs[k];
           if (!o) continue;
 
-          // Clip instances show up with _classname Clip in your inspector
           var isClip = false;
           try{ if (o._classname === "Clip") isClip = true; }catch(e1){}
           try{ if (!isClip && o._cachedSerializeData && o._cachedSerializeData.classname === "Clip") isClip = true; }catch(e2){}
@@ -300,11 +400,21 @@
     return out;
   }
 
-  function findChildByIdentifier(containerClip, wantedIdentifier){
+  function getTimelineOwner(container){
+    // If selection is an instance, clipAsset is the editable content.
+    // If selection is already the asset, it will have timeline.
+    try{
+      if (container && container.clipAsset && getTimelineFromClipLike(container.clipAsset)) return container.clipAsset;
+    }catch(e1){}
+    if (container && getTimelineFromClipLike(container)) return container;
+    return container;
+  }
+
+  function findChildByIdentifier(containerOwner, wantedIdentifier){
     wantedIdentifier = tidy(wantedIdentifier);
     if (!wantedIdentifier) return null;
 
-    var tl = getTimelineFromClipLike(containerClip);
+    var tl = getTimelineFromClipLike(containerOwner);
     if (!tl) return null;
 
     var children = collectChildClipsFromTimeline(tl);
@@ -317,146 +427,11 @@
     return null;
   }
 
-  function getObjectBounds(obj){
-    if (!obj) return null;
-
-    // native bounds
-    try{
-      if (typeof obj.getBounds === "function"){
-        var b1 = obj.getBounds();
-        if (b1 && isFiniteNumber(b1.x) && isFiniteNumber(b1.y) && isFiniteNumber(b1.width) && isFiniteNumber(b1.height)){
-          return { minX: b1.x, minY: b1.y, maxX: b1.x + b1.width, maxY: b1.y + b1.height };
-        }
-        if (b1 && isFiniteNumber(b1.left) && isFiniteNumber(b1.top) && isFiniteNumber(b1.right) && isFiniteNumber(b1.bottom)){
-          return { minX: b1.left, minY: b1.top, maxX: b1.right, maxY: b1.bottom };
-        }
-      }
-    }catch(e1){}
-
-    // bounds field
-    try{
-      var b2 = obj.bounds || obj._bounds || null;
-      if (b2){
-        if (isFiniteNumber(b2.x) && isFiniteNumber(b2.y) && isFiniteNumber(b2.width) && isFiniteNumber(b2.height)){
-          return { minX: b2.x, minY: b2.y, maxX: b2.x + b2.width, maxY: b2.y + b2.height };
-        }
-        if (isFiniteNumber(b2.left) && isFiniteNumber(b2.top) && isFiniteNumber(b2.right) && isFiniteNumber(b2.bottom)){
-          return { minX: b2.left, minY: b2.top, maxX: b2.right, maxY: b2.bottom };
-        }
-      }
-    }catch(e2){}
-
-    // width height with center position
-    var x = null;
-    var y = null;
-    var w = null;
-    var h = null;
-
-    try{ if (isFiniteNumber(obj.x)) x = obj.x; }catch(e3){}
-    try{ if (isFiniteNumber(obj.y)) y = obj.y; }catch(e4){}
-
-    try{ if (isFiniteNumber(obj.width)) w = obj.width; }catch(e5){}
-    try{ if (isFiniteNumber(obj.height)) h = obj.height; }catch(e6){}
-    try{ if (!w && isFiniteNumber(obj._width)) w = obj._width; }catch(e7){}
-    try{ if (!h && isFiniteNumber(obj._height)) h = obj._height; }catch(e8){}
-
-    // cached serialize size
-    try{
-      if (obj._cachedSerializeData){
-        if (!w && isFiniteNumber(obj._cachedSerializeData.width)) w = obj._cachedSerializeData.width;
-        if (!h && isFiniteNumber(obj._cachedSerializeData.height)) h = obj._cachedSerializeData.height;
-      }
-    }catch(e9){}
-
-    if (x !== null && y !== null && w !== null && h !== null){
-      return { minX: x - w / 2, minY: y - h / 2, maxX: x + w / 2, maxY: y + h / 2 };
-    }
-
-    return null;
-  }
-
-  function unionBounds(a, b){
-    if (!a) return b;
-    if (!b) return a;
-    return {
-      minX: Math.min(a.minX, b.minX),
-      minY: Math.min(a.minY, b.minY),
-      maxX: Math.max(a.maxX, b.maxX),
-      maxY: Math.max(a.maxY, b.maxY)
-    };
-  }
-
-  function computeContentBounds(clip){
-    // bounds of objects inside this clip across all frames
-    var tl = getTimelineFromClipLike(clip);
-    if (!tl) return null;
-
-    var layers = getLayersFromTimeline(tl);
-    var bounds = null;
-
-    for (var i = 0; i < layers.length; i += 1){
-      var frames = getFramesFromLayer(layers[i]);
-      for (var j = 0; j < frames.length; j += 1){
-        var objs = getObjectsFromFrame(frames[j]);
-        for (var k = 0; k < objs.length; k += 1){
-          var o = objs[k];
-          if (!o) continue;
-          var b = getObjectBounds(o);
-          if (!b) continue;
-          bounds = unionBounds(bounds, b);
-        }
-      }
-    }
-
-    return bounds;
-  }
-
-  function shiftClipContents(clip, dx, dy){
-    // shifts all objects inside clip across all frames by dx dy
-    var tl = getTimelineFromClipLike(clip);
-    if (!tl) return false;
-
-    var moved = 0;
-
-    var layers = getLayersFromTimeline(tl);
-    for (var i = 0; i < layers.length; i += 1){
-      var frames = getFramesFromLayer(layers[i]);
-      for (var j = 0; j < frames.length; j += 1){
-        var objs = getObjectsFromFrame(frames[j]);
-        for (var k = 0; k < objs.length; k += 1){
-          var o = objs[k];
-          if (!o) continue;
-
-          var pos = getXY(o);
-          if (pos){
-            setXY(o, pos.x + dx, pos.y + dy);
-            moved += 1;
-          }
-        }
-      }
-    }
-
-    return moved > 0;
-  }
-
-  function setTopCenterAsOrigin(clip){
-    // move internal contents so that top center becomes 0 0 in the clip local space
-    var b = computeContentBounds(clip);
-    if (!b) return { ok: false, reason: "content bounds not found" };
-
-    var centerX = (b.minX + b.maxX) / 2;
-    var topY = b.minY;
-
-    var dx = -centerX;
-    var dy = -topY;
-
-    var did = shiftClipContents(clip, dx, dy);
-    if (!did) return { ok: false, reason: "no movable objects found in clip" };
-
-    // recompute after shift
-    var b2 = computeContentBounds(clip);
-
-    return { ok: true, dx: dx, dy: dy, boundsBefore: b, boundsAfter: b2 };
+  function refreshSelectionUI(){
+    var bridge = getBridge();
+    var nm = "";
+    try{ if (bridge && typeof bridge.getSelectedClipName === "function") nm = tidy(bridge.getSelectedClipName()); }catch(e1){}
+    el("selName").textContent = nm || "(none)";
   }
 
   function getSelectedRaw(){
@@ -475,11 +450,13 @@
     return null;
   }
 
-  function refreshSelectionUI(){
-    var bridge = getBridge();
-    var nm = "";
-    try{ if (bridge && typeof bridge.getSelectedClipName === "function") nm = tidy(bridge.getSelectedClipName()); }catch(e1){}
-    el("selName").textContent = nm || "(none)";
+  function logPositions(shoulder, elbow){
+    var sp = getXY(shoulder);
+    var ep = getXY(elbow);
+    logLine("Shoulder id " + getIdentifier(shoulder) + " uuid " + getUUID(shoulder));
+    logLine("Shoulder pos " + (sp ? (sp.x + ", " + sp.y + " mode " + sp.mode) : "unknown"));
+    logLine("Elbow id " + getIdentifier(elbow) + " uuid " + getUUID(elbow));
+    logLine("Elbow pos " + (ep ? (ep.x + ", " + ep.y + " mode " + ep.mode) : "unknown"));
   }
 
   function arrange(){
@@ -489,99 +466,136 @@
     var elbowId = tidy(el("elbowId").value);
     var gap = num(el("gap").value, 0);
 
-    if (!shoulderId || !elbowId){
-      logLine("Missing identifiers");
-      return;
-    }
-
-    var container = getSelectedRaw();
-    if (!container){
+    var selected = getSelectedRaw();
+    if (!selected){
       logLine("No selected clip object");
       return;
     }
 
-    var ed = getEditor();
+    var owner = getTimelineOwner(selected);
+    var tl = getTimelineFromClipLike(owner);
+    if (!tl){
+      logLine("Selected clip has no timeline");
+      return;
+    }
 
-    // In your inspector the selected clip object has _classname Clip.
-    // We will use its own timeline.
-    var containerIdentifier = getIdentifier(container);
-    logLine("Selected identifier " + (containerIdentifier || "(blank)"));
-    logLine("Selected uuid " + (getUUID(container) || "(blank)"));
-
-    var shoulder = findChildByIdentifier(container, shoulderId);
-    var elbow = findChildByIdentifier(container, elbowId);
+    var shoulder = findChildByIdentifier(owner, shoulderId);
+    var elbow = findChildByIdentifier(owner, elbowId);
 
     if (!shoulder){
-      logLine("Shoulder not found: " + shoulderId);
+      logLine("Shoulder not found " + shoulderId);
       return;
     }
     if (!elbow){
-      logLine("Elbow not found: " + elbowId);
+      logLine("Elbow not found " + elbowId);
       return;
     }
 
-    logLine("Found shoulder uuid " + getUUID(shoulder));
-    logLine("Found elbow uuid " + getUUID(elbow));
+    var sp0 = getXY(shoulder);
+    var ep0 = getXY(elbow);
+
+    if (!sp0 || !ep0){
+      logLine("Could not read positions");
+      logPositions(shoulder, elbow);
+      return;
+    }
+
+    logLine("Before");
+    logPositions(shoulder, elbow);
     logLine("");
 
-    // Move contents inside each so origin is at top center
-    var shRes = setTopCenterAsOrigin(shoulder);
-    if (!shRes.ok){
-      logLine("Shoulder origin shift failed: " + shRes.reason);
-      return;
+    // Arrange rule:
+    // - align elbow x to shoulder x
+    // - move elbow down so it is clearly different, even if we cannot compute sizes
+    //   Use current delta + gap + 100 as a minimum visible change.
+    var minMove = 120;
+    var desiredElbowX = sp0.x;
+    var desiredElbowY = sp0.y + Math.max(minMove, Math.abs(ep0.y - sp0.y) + gap);
+
+    var setRes = setXY(elbow, desiredElbowX, desiredElbowY);
+    logLine("Write steps " + setRes.steps.join(" | "));
+
+    // Verify
+    var ep1 = getXY(elbow);
+    logLine("After write elbow readback " + (ep1 ? (ep1.x + ", " + ep1.y + " mode " + ep1.mode) : "unknown"));
+
+    var ok = false;
+    if (ep1){
+      var dx = Math.abs(ep1.x - desiredElbowX);
+      var dy = Math.abs(ep1.y - desiredElbowY);
+      ok = (dx < 0.01 && dy < 0.01);
     }
 
-    var elRes = setTopCenterAsOrigin(elbow);
-    if (!elRes.ok){
-      logLine("Elbow origin shift failed: " + elRes.reason);
-      return;
+    if (!ok){
+      logLine("");
+      logLine("Position did not stick");
+      logLine("Desired elbow " + desiredElbowX + ", " + desiredElbowY);
+      logLine("This usually means Wick is storing position somewhere else for this object.");
+      logLine("If you run the inspector v3, look for any numeric fields like _cachedSerializeData.x or transformation.x and tell me which ones exist.");
+    } else {
+      logLine("");
+      logLine("Success");
+      markDirty(getEditor());
+      requestRender(getEditor());
     }
 
-    logLine("Shifted shoulder contents dx " + shRes.dx + " dy " + shRes.dy);
-    logLine("Shifted elbow contents dx " + elRes.dx + " dy " + elRes.dy);
     logLine("");
+    logLine("After");
+    logPositions(shoulder, elbow);
+  }
 
-    // Determine shoulder height to stack elbow under it
-    var shBoundsAfter = shRes.boundsAfter;
-    if (!shBoundsAfter){
-      logLine("Cannot compute shoulder bounds after shift");
+  function nudgeElbow(){
+    clearLog();
+
+    var shoulderId = tidy(el("shoulderId").value);
+    var elbowId = tidy(el("elbowId").value);
+    var nudge = num(el("nudge").value, 50);
+
+    var selected = getSelectedRaw();
+    if (!selected){
+      logLine("No selected clip object");
       return;
     }
 
-    var shoulderHeight = shBoundsAfter.maxY - shBoundsAfter.minY;
-    if (!isFiniteNumber(shoulderHeight) || shoulderHeight <= 0){
-      logLine("Shoulder height invalid");
+    var owner = getTimelineOwner(selected);
+    var tl = getTimelineFromClipLike(owner);
+    if (!tl){
+      logLine("Selected clip has no timeline");
       return;
     }
 
-    var shPos = getXY(shoulder);
-    var elPos = getXY(elbow);
+    var elbow = findChildByIdentifier(owner, elbowId);
+    var shoulder = findChildByIdentifier(owner, shoulderId);
 
-    if (!shPos || !elPos){
-      logLine("Cannot read shoulder or elbow position");
+    if (!elbow){
+      logLine("Elbow not found " + elbowId);
       return;
     }
 
-    // Align x and stack y
-    var newElbowX = shPos.x;
-    var newElbowY = shPos.y + shoulderHeight + gap;
-
-    var did1 = setXY(elbow, newElbowX, newElbowY);
-
-    if (!did1){
-      logLine("Failed to set elbow position");
+    var ep0 = getXY(elbow);
+    if (!ep0){
+      logLine("Cannot read elbow position");
       return;
     }
 
-    // Optional align shoulder x to nearest integer to avoid tiny drift
-    setXY(shoulder, shPos.x, shPos.y);
+    logLine("Before elbow " + ep0.x + ", " + ep0.y + " mode " + ep0.mode);
 
-    markDirty(ed);
+    var desiredX = ep0.x + nudge;
+    var desiredY = ep0.y;
 
-    logLine("Done");
-    logLine("Shoulder at x " + shPos.x + " y " + shPos.y);
-    logLine("Elbow at x " + newElbowX + " y " + newElbowY);
-    logLine("Used shoulder height " + shoulderHeight);
+    var setRes = setXY(elbow, desiredX, desiredY);
+    logLine("Write steps " + setRes.steps.join(" | "));
+
+    var ep1 = getXY(elbow);
+    logLine("After elbow " + (ep1 ? (ep1.x + ", " + ep1.y + " mode " + ep1.mode) : "unknown"));
+
+    markDirty(getEditor());
+    requestRender(getEditor());
+
+    if (shoulder){
+      logLine("");
+      logLine("Shoulder for reference " + getIdentifier(shoulder) + " uuid " + getUUID(shoulder));
+    }
   }
 
   el("btnRefresh").addEventListener("click", function(){
@@ -590,9 +604,42 @@
     logLine("Refreshed");
   });
 
+  el("btnInspect").addEventListener("click", function(){
+    clearLog();
+    refreshSelectionUI();
+
+    var selected = getSelectedRaw();
+    if (!selected){
+      logLine("No selection");
+      return;
+    }
+
+    var owner = getTimelineOwner(selected);
+    var tl = getTimelineFromClipLike(owner);
+    if (!tl){
+      logLine("Selected clip has no timeline");
+      return;
+    }
+
+    var shoulder = findChildByIdentifier(owner, tidy(el("shoulderId").value));
+    var elbow = findChildByIdentifier(owner, tidy(el("elbowId").value));
+
+    if (!shoulder) logLine("Shoulder not found");
+    if (!elbow) logLine("Elbow not found");
+
+    if (shoulder && elbow){
+      logPositions(shoulder, elbow);
+    }
+  });
+
   el("btnArrange").addEventListener("click", function(){
     refreshSelectionUI();
     arrange();
+  });
+
+  el("btnNudgeElbow").addEventListener("click", function(){
+    refreshSelectionUI();
+    nudgeElbow();
   });
 
   refreshSelectionUI();
