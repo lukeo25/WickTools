@@ -1,100 +1,180 @@
 <!doctype html>
 <html>
-  <head>
-    <title>Biped</title>
-    <style>
-      body { margin: 0; font-family: Arial, sans serif; background: #f6f6f6; }
-      .wrap { padding: 18px; max-width: 900px; margin: 0 auto; }
-      .card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 8px 22px rgba(0,0,0,0.12); }
-      h1 { margin: 0 0 12px 0; font-size: 18px; }
-      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-      .field { display: flex; flex-direction: column; gap: 6px; }
-      label { font-size: 12px; opacity: 0.75; }
-      input { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.18); min-width: 220px; }
-      button { padding: 10px 12px; border: 0; border-radius: 12px; cursor: pointer; background: rgba(0,0,0,0.82); color: white; font-size: 13px; }
-      button.secondary { background: rgba(0,0,0,0.12); color: black; }
-      .note { margin-top: 10px; font-size: 12px; opacity: 0.75; line-height: 1.4; }
-      .log { margin-top: 12px; font-family: Consolas, monospace; font-size: 12px; white-space: pre-wrap; background: rgba(0,0,0,0.06); padding: 10px; border-radius: 10px; }
-      .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,0.08); font-size: 12px; }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <div class="card">
-        <h1>Biped</h1>
-        <div class="row" style="margin-bottom:12px;">
-          <div class="pill" id="selName">Selected: </div>
-        </div>
+<head>
+  <meta charset="utf-8">
+  <title>Luke Tools Biped</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <div class="row">
-          <div class="field">
-            <label>Shoulder id</label>
-            <input id="shoulderId" value="Shoulder_R" />
-          </div>
-          <div class="field">
-            <label>Elbow id</label>
-            <input id="elbowId" value="Elbo_R" />
-          </div>
-        </div>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
 
-        <div class="row" style="margin-top:12px;">
-          <button id="btnArrange">Arrange</button>
-          <button class="secondary" id="btnRefresh">Refresh selection</button>
-        </div>
+    .wrap {
+      padding: 18px;
+      max-width: 980px;
+      margin: 0 auto;
+    }
 
-        <div class="note">
-          Arrange moves Shoulder and Elbow inside the selected clip. Close this tool to show the pose panel in Wick Editor.
-        </div>
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.12);
+    }
 
-        <div class="log" id="log"></div>
+    h1 {
+      margin: 0 0 12px 0;
+      font-size: 20px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin: 10px 0;
+    }
+
+    label {
+      font-size: 13px;
+      opacity: 0.85;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    input[type="text"] {
+      padding: 10px 12px;
+      border: 1px solid rgba(0,0,0,0.15);
+      border-radius: 10px;
+      width: 220px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btnPrimary {
+      background: #111827;
+      color: white;
+    }
+
+    .btnSecondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      background: #f9fafb;
+      border: 1px solid rgba(0,0,0,0.08);
+      padding: 10px;
+      border-radius: 10px;
+      min-height: 44px;
+    }
+
+    .small {
+      font-size: 12px;
+      opacity: 0.75;
+      margin-top: 10px;
+      line-height: 1.35;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Biped</h1>
+
+      <div class="row">
+        <div>
+          <label>Shoulder identifier</label>
+          <input id="shoulderId" type="text" value="Shoulder_R">
+        </div>
+        <div>
+          <label>Elbow identifier</label>
+          <input id="elbowId" type="text" value="Elbo_R">
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="btnArrange" class="btnPrimary">Arrange</button>
+        <button id="btnShowPose" class="btnSecondary">Show Pose Panel</button>
+      </div>
+
+      <div id="status" class="status">Ready</div>
+
+      <div class="small">
+        Select your Arm_R clip in Wick first.
+        Arrange will try to nest Elbo_R inside Shoulder_R and place it at the bottom of the shoulder.
+        Close this overlay to auto show the Pose Panel inside Wick.
       </div>
     </div>
+  </div>
 
-    <script>
-      function s(v) { return (v === null || v === undefined) ? "" : String(v); }
-      function logLine(t) {
-        var el = document.getElementById("log");
-        el.textContent = (el.textContent ? el.textContent + "\n" : "") + t;
+  <script>
+    (function () {
+      function byId(id) { return document.getElementById(id); }
+      var status = byId("status");
+
+      function setStatus(t) {
+        status.textContent = String(t || "");
       }
 
       function getBridge() {
-        try { if (window.LukeToolsBridge) return window.LukeToolsBridge; } catch (e1) {}
-        try { if (parent && parent.LukeToolsBridge) return parent.LukeToolsBridge; } catch (e2) {}
-        return null;
+        try { return window.LukeToolsBridge || parent.LukeToolsBridge; } catch (e) { return null; }
       }
 
-      function refreshSelection() {
+      byId("btnArrange").addEventListener("click", function () {
         var bridge = getBridge();
         if (!bridge) {
-          document.getElementById("selName").textContent = "Selected: bridge missing";
+          setStatus("Bridge not found. This tool must be opened from the Luke Tools dropdown.");
           return;
         }
-        try {
-          var info = bridge.captureSelectionNow();
-          document.getElementById("selName").textContent = "Selected: " + s(info && info.name ? info.name : bridge.getSelectedClipName());
-        } catch (e) {
-          document.getElementById("selName").textContent = "Selected: error";
-          logLine("Selection error " + s(e));
+
+        if (typeof bridge.arrangeArmRigOnSelection !== "function") {
+          setStatus("Arrange failed. bridge.arrangeArmRigOnSelection is not a function.");
+          return;
         }
-      }
 
-      function arrange() {
+        var sh = byId("shoulderId").value || "Shoulder_R";
+        var el = byId("elbowId").value || "Elbo_R";
+
+        try {
+          var ok = bridge.arrangeArmRigOnSelection(sh, el);
+          setStatus(ok ? "Arrange ok" : "Arrange failed");
+        } catch (e) {
+          setStatus("Arrange error: " + e);
+        }
+      });
+
+      byId("btnShowPose").addEventListener("click", function () {
         var bridge = getBridge();
-        if (!bridge) { logLine("Bridge missing"); return; }
+        if (!bridge || typeof bridge.showPosePanel !== "function") {
+          setStatus("Pose Panel call not available. Update the userscript.");
+          return;
+        }
 
-        var sh = document.getElementById("shoulderId").value;
-        var el = document.getElementById("elbowId").value;
-
-        var ok = false;
-        try { ok = bridge.arrangeArmRigOnSelection(sh, el); } catch (e) { ok = false; logLine("Arrange error " + s(e)); }
-
-        logLine("Arrange " + (ok ? "ok" : "failed"));
-      }
-
-      document.getElementById("btnArrange").addEventListener("click", arrange);
-      document.getElementById("btnRefresh").addEventListener("click", refreshSelection);
-
-      refreshSelection();
-    </script>
-  </body>
+        try {
+          bridge.showPosePanel();
+          setStatus("Pose Panel shown in Wick");
+        } catch (e) {
+          setStatus("Pose Panel error: " + e);
+        }
+      });
+    })();
+  </script>
+</body>
 </html>
