@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Arrange Arm Rig</title>
+  <title>Arrange Shoulder and Elbow</title>
   <style>
     body{
       font-family: Arial, sans serif;
@@ -53,21 +53,18 @@
   </style>
 </head>
 <body>
-  <h1>Arrange Shoulder and Elbow inside Arm_R</h1>
+  <h1>Arrange Shoulder_R and Elbow_R inside the Selected Clip</h1>
 
   <div class="row box">
     <div class="row"><span class="label">Selected clip</span>: <span id="selName">(none)</span></div>
     <div class="row muted">
-      Select a parent clip (or Arm_R itself) then press Arrange.
-      The tool will find Arm_R inside the selected clip (or use the selected clip if it is Arm_R).
-      Inside Arm_R it will find Shoulder_R and Elbow_R, move the contents of each so their top center is at 0,0,
-      then place Shoulder_R at 0,0 and Elbow_R below it.
+      No searching. No guessing. This targets ONLY the clip you currently have selected in Wick.
+      It expects two child clips exist in the selected clip: Shoulder_R and Elbow_R.
+      It shifts the contents of each child so its top center becomes 0,0, then stacks them:
+      Shoulder at 0,0 and Elbow below it.
     </div>
 
     <div class="row grid">
-      <div class="label">Container clip name</div>
-      <div><input id="containerName" value="Arm_R"></div>
-
       <div class="label">Shoulder name</div>
       <div><input id="shoulderName" value="Shoulder_R"></div>
 
@@ -401,13 +398,7 @@
       if (setXY(o, xy.x + dx, xy.y + dy, xy.mode)) moved += 1;
     }
 
-    return {
-      ok: true,
-      moved: moved,
-      before: bounds,
-      dx: dx,
-      dy: dy
-    };
+    return { ok: true, moved: moved, dx: dx, dy: dy };
   }
 
   function computeClipAssetBounds(asset){
@@ -433,10 +424,7 @@
         var o = objs[k];
         if (!o) continue;
 
-        var n = getObjName(o);
-        if (!n) continue;
-
-        if (n === targetName){
+        if (getObjName(o) === targetName){
           if (!seen.has(o)){
             seen.add(o);
             matches.push(o);
@@ -446,22 +434,6 @@
     }
 
     return matches;
-  }
-
-  function resolveContainerAssetFromSelection(selectionObj, containerName){
-    // If the selected object is already the container
-    if (getObjName(selectionObj) === containerName){
-      return resolveClipAssetFromSelection(selectionObj);
-    }
-
-    // Otherwise look for an instance named containerName inside the selected clip asset
-    var selectedAsset = resolveClipAssetFromSelection(selectionObj);
-    if (!selectedAsset) return null;
-
-    var matches = findNamedInstancesInClipAsset(selectedAsset, containerName);
-    if (!matches.length) return null;
-
-    return resolveClipAssetFromSelection(matches[0]) || matches[0].clipAsset || null;
   }
 
   function setInstancesPosition(containerAsset, targetName, x, y){
@@ -494,42 +466,37 @@
 
     var selectionObj = refreshSelection();
     if (!selectionObj){
-      logLine("No selection found. Select a parent clip or Arm_R.");
+      logLine("No selection found. Select Arm_R and try again.");
       return;
     }
 
-    var containerName = tidy(el("containerName").value);
+    var containerAsset = resolveClipAssetFromSelection(selectionObj);
+    if (!containerAsset){
+      logLine("Your selection does not look like a clip (no clipAsset / timeline).");
+      return;
+    }
+
+    var containerName = getObjName(selectionObj) || "(selected clip)";
+    logLine("Targeting selected clip: " + containerName);
+
     var shoulderName = tidy(el("shoulderName").value);
     var elbowName = tidy(el("elbowName").value);
     var overlap = toNum(el("overlap").value, 0);
 
-    if (!containerName){
-      logLine("Please enter a container clip name.");
-      return;
-    }
     if (!shoulderName || !elbowName){
       logLine("Please enter both Shoulder and Elbow names.");
       return;
     }
 
-    var armAsset = resolveContainerAssetFromSelection(selectionObj, containerName);
-    if (!armAsset){
-      logLine("Could not find container clip named " + containerName + " from the current selection.");
-      logLine("Tip: select Arm_R directly or select a parent clip that contains Arm_R.");
-      return;
-    }
-
-    logLine("Container asset resolved: " + containerName);
-
-    var shoulderInstances = findNamedInstancesInClipAsset(armAsset, shoulderName);
-    var elbowInstances = findNamedInstancesInClipAsset(armAsset, elbowName);
+    var shoulderInstances = findNamedInstancesInClipAsset(containerAsset, shoulderName);
+    var elbowInstances = findNamedInstancesInClipAsset(containerAsset, elbowName);
 
     if (!shoulderInstances.length){
-      logLine("Could not find any instance named " + shoulderName + " inside " + containerName + ".");
+      logLine("Could not find " + shoulderName + " inside the selected clip.");
       return;
     }
     if (!elbowInstances.length){
-      logLine("Could not find any instance named " + elbowName + " inside " + containerName + ".");
+      logLine("Could not find " + elbowName + " inside the selected clip.");
       return;
     }
 
@@ -537,53 +504,49 @@
     var elbowAsset = resolveClipAssetFromSelection(elbowInstances[0]) || elbowInstances[0].clipAsset || null;
 
     if (!shoulderAsset){
-      logLine("Shoulder instance found but could not resolve its clip asset.");
+      logLine("Found " + shoulderName + " but could not resolve its clip asset.");
       return;
     }
     if (!elbowAsset){
-      logLine("Elbow instance found but could not resolve its clip asset.");
+      logLine("Found " + elbowName + " but could not resolve its clip asset.");
       return;
     }
 
-    logLine("Shifting Shoulder contents to top center...");
+    logLine("Shift contents: " + shoulderName + " top center to 0,0");
     var shMove = moveContentsOfClipAssetToTopCenter(shoulderAsset);
     if (!shMove.ok){
       logLine("Shoulder shift failed: " + shMove.reason);
       return;
     }
-    logLine("Shoulder objects moved: " + shMove.moved);
 
-    logLine("Shifting Elbow contents to top center...");
+    logLine("Shift contents: " + elbowName + " top center to 0,0");
     var elMove = moveContentsOfClipAssetToTopCenter(elbowAsset);
     if (!elMove.ok){
       logLine("Elbow shift failed: " + elMove.reason);
       return;
     }
-    logLine("Elbow objects moved: " + elMove.moved);
 
     var shBounds = computeClipAssetBounds(shoulderAsset);
     if (!shBounds){
-      logLine("Could not compute shoulder bounds after shift.");
+      logLine("Could not compute shoulder bounds after shifting.");
       return;
     }
 
     var shoulderHeight = shBounds.maxY - shBounds.minY;
     if (!isFinite(shoulderHeight)) shoulderHeight = 0;
 
-    logLine("Shoulder height: " + shoulderHeight);
-
     var elbowY = shoulderHeight - overlap;
 
-    logLine("Placing Shoulder at 0,0 inside " + containerName);
-    var shSet = setInstancesPosition(armAsset, shoulderName, 0, 0);
-    logLine("Shoulder instances updated: " + (shSet.ok ? shSet.changed : 0));
+    logLine("Place " + shoulderName + " at 0,0");
+    var shSet = setInstancesPosition(containerAsset, shoulderName, 0, 0);
 
-    logLine("Placing Elbow at 0," + elbowY + " inside " + containerName);
-    var elSet = setInstancesPosition(armAsset, elbowName, 0, elbowY);
-    logLine("Elbow instances updated: " + (elSet.ok ? elSet.changed : 0));
+    logLine("Place " + elbowName + " at 0," + elbowY);
+    var elSet = setInstancesPosition(containerAsset, elbowName, 0, elbowY);
 
     markDirty(getEditor());
-    logLine("Done. Exit the clip and rotate the arm to test pivots.");
+    logLine("Done.");
+    logLine("Shoulder instances updated: " + (shSet.ok ? shSet.changed : 0));
+    logLine("Elbow instances updated: " + (elSet.ok ? elSet.changed : 0));
   }
 
   el("btnRefresh").addEventListener("click", function(){
