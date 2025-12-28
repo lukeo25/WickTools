@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Arrange Shoulder and Elbow</title>
+  <title>Arrange Shoulder and Elbow (v3)</title>
   <style>
     body{
       font-family: Arial, sans serif;
@@ -58,9 +58,9 @@
   <div class="row box">
     <div class="row"><span class="label">Selected clip</span>: <span id="selName">(none)</span></div>
     <div class="row muted">
-      No searching. No guessing. This targets ONLY the clip you currently have selected in Wick.
-      It expects two child clips exist in the selected clip: Shoulder_R and Elbow_R.
-      It shifts the contents of each child so its top center becomes 0,0, then stacks them:
+      Targets ONLY the currently selected clip in Wick.
+      Then finds the two child clip instances by either their instance name OR their clip asset name.
+      Moves contents inside each child so top center becomes 0,0, then stacks:
       Shoulder at 0,0 and Elbow below it.
     </div>
 
@@ -105,13 +105,15 @@
     return s(v).replace(/\s+/g, " ").trim();
   }
 
-  function isNum(n){
-    return typeof n === "number" && isFinite(n);
+  function toFiniteNumber(v){
+    var n = Number(v);
+    if (!isFinite(n)) return null;
+    return n;
   }
 
   function toNum(v, fallback){
-    var n = Number(v);
-    if (!isFinite(n)) return fallback;
+    var n = toFiniteNumber(v);
+    if (n === null) return fallback;
     return n;
   }
 
@@ -126,6 +128,13 @@
     try { if (window.WickEditor && window.WickEditor.editor) return window.WickEditor.editor; } catch (e2) {}
     try { if (window.editor) return window.editor; } catch (e3) {}
     try { if (window.app) return window.app; } catch (e4) {}
+
+    // iframe case: editor lives on parent window
+    try { if (window.parent && window.parent.wickEditor) return window.parent.wickEditor; } catch (e5) {}
+    try { if (window.parent && window.parent.WickEditor && window.parent.WickEditor.editor) return window.parent.WickEditor.editor; } catch (e6) {}
+    try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e7) {}
+    try { if (window.parent && window.parent.app) return window.parent.app; } catch (e8) {}
+
     return null;
   }
 
@@ -143,6 +152,36 @@
       if (typeof obj.getName === "function") return tidy(obj.getName());
     }catch(e1){}
     return "";
+  }
+
+  function getAssetName(obj){
+    if (!obj) return "";
+    try{
+      if (obj.clipAsset){
+        if (typeof obj.clipAsset.name === "string") return tidy(obj.clipAsset.name);
+        if (typeof obj.clipAsset.getName === "function") return tidy(obj.clipAsset.getName());
+      }
+    }catch(e1){}
+    try{
+      if (obj.asset){
+        if (typeof obj.asset.name === "string") return tidy(obj.asset.name);
+        if (typeof obj.asset.getName === "function") return tidy(obj.asset.getName());
+      }
+    }catch(e2){}
+    return "";
+  }
+
+  function matchesTarget(obj, targetName){
+    var t = tidy(targetName);
+    if (!t) return false;
+
+    var n1 = getObjName(obj);
+    if (n1 && n1 === t) return true;
+
+    var n2 = getAssetName(obj);
+    if (n2 && n2 === t) return true;
+
+    return false;
   }
 
   function refreshSelection(){
@@ -168,110 +207,20 @@
     return null;
   }
 
-  function getXY(obj){
-    if (!obj) return null;
-
-    if (isNum(obj.x) && isNum(obj.y)) return { x: obj.x, y: obj.y, mode: "xy" };
-
-    if (obj.transformation && isNum(obj.transformation.x) && isNum(obj.transformation.y)) {
-      return { x: obj.transformation.x, y: obj.transformation.y, mode: "transformation" };
-    }
-
-    if (obj.transform && isNum(obj.transform.x) && isNum(obj.transform.y)) {
-      return { x: obj.transform.x, y: obj.transform.y, mode: "transform" };
-    }
-
-    return null;
-  }
-
-  function setXY(obj, x, y, mode){
-    if (!obj) return false;
-    if (!isNum(x) || !isNum(y)) return false;
-
-    if (mode === "xy"){
-      obj.x = x;
-      obj.y = y;
-      return true;
-    }
-
-    if (mode === "transformation"){
-      if (!obj.transformation) obj.transformation = {};
-      obj.transformation.x = x;
-      obj.transformation.y = y;
-      return true;
-    }
-
-    if (mode === "transform"){
-      if (!obj.transform) obj.transform = {};
-      obj.transform.x = x;
-      obj.transform.y = y;
-      return true;
-    }
-
-    return false;
-  }
-
-  function normalizeBounds(b){
-    if (!b) return null;
-
-    if (isNum(b.x) && isNum(b.y) && isNum(b.width) && isNum(b.height)){
-      return { minX: b.x, minY: b.y, maxX: b.x + b.width, maxY: b.y + b.height };
-    }
-
-    if (isNum(b.minX) && isNum(b.minY) && isNum(b.maxX) && isNum(b.maxY)){
-      return { minX: b.minX, minY: b.minY, maxX: b.maxX, maxY: b.maxY };
-    }
-
-    if (isNum(b.left) && isNum(b.top) && isNum(b.right) && isNum(b.bottom)){
-      return { minX: b.left, minY: b.top, maxX: b.right, maxY: b.bottom };
-    }
-
-    if (Array.isArray(b) && b.length >= 4 && isNum(b[0]) && isNum(b[1]) && isNum(b[2]) && isNum(b[3])){
-      return { minX: b[0], minY: b[1], maxX: b[2], maxY: b[3] };
-    }
-
-    return null;
-  }
-
-  function getObjectBounds(obj){
-    if (!obj) return null;
-
-    try{
-      if (typeof obj.getBounds === "function"){
-        var b1 = normalizeBounds(obj.getBounds());
-        if (b1) return b1;
-      }
-    }catch(e1){}
-
-    try{
-      if (typeof obj.getBoundingBox === "function"){
-        var b2 = normalizeBounds(obj.getBoundingBox());
-        if (b2) return b2;
-      }
-    }catch(e2){}
-
-    try{
-      var b3 = normalizeBounds(obj.bounds);
-      if (b3) return b3;
-    }catch(e3){}
-
-    try{
-      var b4 = normalizeBounds(obj._bounds);
-      if (b4) return b4;
-    }catch(e4){}
-
-    var xy = getXY(obj);
-    if (xy){
-      return { minX: xy.x, minY: xy.y, maxX: xy.x, maxY: xy.y };
-    }
-
-    return null;
-  }
-
   function getTimelineFromAsset(asset){
     if (!asset) return null;
     try{ if (asset.timeline) return asset.timeline; }catch(e1){}
     try{ if (asset._timeline) return asset._timeline; }catch(e2){}
+    return null;
+  }
+
+  function resolveClipAssetFromObject(obj){
+    if (!obj) return null;
+
+    try{ if (obj.clipAsset) return obj.clipAsset; }catch(e1){}
+    try{ if (obj.asset) return obj.asset; }catch(e2){}
+
+    if (getTimelineFromAsset(obj)) return obj;
     return null;
   }
 
@@ -311,57 +260,218 @@
     return frames;
   }
 
-  function resolveClipAssetFromSelection(selObj){
-    if (!selObj) return null;
+  function gatherAllObjectsDeep(list){
+    var out = [];
+    var stack = Array.isArray(list) ? list.slice() : [];
+    var seen = new Set();
 
-    try{ if (selObj.clipAsset) return selObj.clipAsset; }catch(e1){}
+    function pushIf(o){
+      if (!o) return;
+      if (seen.has(o)) return;
+      seen.add(o);
+      out.push(o);
+      stack.push(o);
+    }
 
-    if (getTimelineFromAsset(selObj)) return selObj;
+    // seed
+    for (var i = 0; i < stack.length; i += 1){
+      // nothing
+    }
 
+    // We use stack as a queue of "nodes to expand"
+    var idx = 0;
+    while (idx < stack.length){
+      var cur = stack[idx];
+      idx += 1;
+      if (!cur) continue;
+
+      // Expand common child collections
+      try{
+        if (Array.isArray(cur.children)){
+          for (var c1 = 0; c1 < cur.children.length; c1 += 1) pushIf(cur.children[c1]);
+        }
+      }catch(e1){}
+
+      try{
+        if (Array.isArray(cur.wickObjects)){
+          for (var c2 = 0; c2 < cur.wickObjects.length; c2 += 1) pushIf(cur.wickObjects[c2]);
+        }
+      }catch(e2){}
+
+      try{
+        if (Array.isArray(cur.objects)){
+          for (var c3 = 0; c3 < cur.objects.length; c3 += 1) pushIf(cur.objects[c3]);
+        }
+      }catch(e3){}
+
+      try{
+        if (Array.isArray(cur._children)){
+          for (var c4 = 0; c4 < cur._children.length; c4 += 1) pushIf(cur._children[c4]);
+        }
+      }catch(e4){}
+    }
+
+    // include original list items, preserving order
+    var ordered = [];
+    var seen2 = new Set();
+    for (var j = 0; j < (Array.isArray(list) ? list.length : 0); j += 1){
+      var o2 = list[j];
+      if (!o2) continue;
+      if (seen2.has(o2)) continue;
+      seen2.add(o2);
+      ordered.push(o2);
+    }
+    // then any extras discovered
+    for (var k = 0; k < out.length; k += 1){
+      if (!out[k]) continue;
+      if (seen2.has(out[k])) continue;
+      seen2.add(out[k]);
+      ordered.push(out[k]);
+    }
+
+    return ordered;
+  }
+
+  function collectAllObjectsInClipAsset(asset){
+    var tl = getTimelineFromAsset(asset);
+    if (!tl) return [];
+    var frames = collectFramesFromTimeline(tl);
+    var all = [];
+    for (var i = 0; i < frames.length; i += 1){
+      var objs = getObjectsFromFrame(frames[i]);
+      if (objs && objs.length){
+        var deep = gatherAllObjectsDeep(objs);
+        for (var j = 0; j < deep.length; j += 1) all.push(deep[j]);
+      }
+    }
+    return all;
+  }
+
+  function getXY(obj){
+    if (!obj) return null;
+
+    // direct x/y
+    var x1 = toFiniteNumber(obj.x);
+    var y1 = toFiniteNumber(obj.y);
+    if (x1 !== null && y1 !== null) return { x: x1, y: y1, mode: "xy" };
+
+    // transformation
     try{
-      if (selObj.asset && getTimelineFromAsset(selObj.asset)) return selObj.asset;
+      if (obj.transformation){
+        var x2 = toFiniteNumber(obj.transformation.x);
+        var y2 = toFiniteNumber(obj.transformation.y);
+        if (x2 !== null && y2 !== null) return { x: x2, y: y2, mode: "transformation" };
+      }
+    }catch(e1){}
+
+    // transform
+    try{
+      if (obj.transform){
+        var x3 = toFiniteNumber(obj.transform.x);
+        var y3 = toFiniteNumber(obj.transform.y);
+        if (x3 !== null && y3 !== null) return { x: x3, y: y3, mode: "transform" };
+      }
     }catch(e2){}
 
     return null;
   }
 
-  function collectPlacedObjectsFromFrames(frames){
-    var out = [];
-    var seen = new Set();
+  function setXY(obj, x, y, mode){
+    if (!obj) return false;
+    var nx = toFiniteNumber(x);
+    var ny = toFiniteNumber(y);
+    if (nx === null || ny === null) return false;
 
-    for (var i = 0; i < frames.length; i += 1){
-      var fr = frames[i];
-      if (!fr) continue;
-
-      var objs = getObjectsFromFrame(fr);
-      if (!objs || !objs.length) continue;
-
-      for (var k = 0; k < objs.length; k += 1){
-        var o = objs[k];
-        if (!o) continue;
-
-        var xy = getXY(o);
-        if (!xy) continue;
-
-        if (!seen.has(o)){
-          seen.add(o);
-          out.push({ obj: o, mode: xy.mode });
-        }
-      }
+    if (mode === "xy"){
+      obj.x = nx;
+      obj.y = ny;
+      return true;
     }
 
-    return out;
+    if (mode === "transformation"){
+      if (!obj.transformation) obj.transformation = {};
+      obj.transformation.x = nx;
+      obj.transformation.y = ny;
+      return true;
+    }
+
+    if (mode === "transform"){
+      if (!obj.transform) obj.transform = {};
+      obj.transform.x = nx;
+      obj.transform.y = ny;
+      return true;
+    }
+
+    return false;
   }
 
-  function computeBounds(placed){
-    var minX = Infinity;
-    var minY = Infinity;
-    var maxX = -Infinity;
-    var maxY = -Infinity;
+  function normalizeBounds(b){
+    function n(v){ return toFiniteNumber(v); }
 
-    for (var i = 0; i < placed.length; i += 1){
-      var b = getObjectBounds(placed[i].obj);
+    if (!b) return null;
+
+    if (n(b.x) !== null && n(b.y) !== null && n(b.width) !== null && n(b.height) !== null){
+      var bx = n(b.x), by = n(b.y), bw = n(b.width), bh = n(b.height);
+      return { minX: bx, minY: by, maxX: bx + bw, maxY: by + bh };
+    }
+
+    if (n(b.minX) !== null && n(b.minY) !== null && n(b.maxX) !== null && n(b.maxY) !== null){
+      return { minX: n(b.minX), minY: n(b.minY), maxX: n(b.maxX), maxY: n(b.maxY) };
+    }
+
+    if (n(b.left) !== null && n(b.top) !== null && n(b.right) !== null && n(b.bottom) !== null){
+      return { minX: n(b.left), minY: n(b.top), maxX: n(b.right), maxY: n(b.bottom) };
+    }
+
+    if (Array.isArray(b) && b.length >= 4 && n(b[0]) !== null && n(b[1]) !== null && n(b[2]) !== null && n(b[3]) !== null){
+      return { minX: n(b[0]), minY: n(b[1]), maxX: n(b[2]), maxY: n(b[3]) };
+    }
+
+    return null;
+  }
+
+  function getObjectBounds(obj){
+    if (!obj) return null;
+
+    try{
+      if (typeof obj.getBounds === "function"){
+        var b1 = normalizeBounds(obj.getBounds());
+        if (b1) return b1;
+      }
+    }catch(e1){}
+
+    try{
+      if (typeof obj.getBoundingBox === "function"){
+        var b2 = normalizeBounds(obj.getBoundingBox());
+        if (b2) return b2;
+      }
+    }catch(e2){}
+
+    try{
+      var b3 = normalizeBounds(obj.bounds);
+      if (b3) return b3;
+    }catch(e3){}
+
+    try{
+      var b4 = normalizeBounds(obj._bounds);
+      if (b4) return b4;
+    }catch(e4){}
+
+    // fallback: treat as a point at its x/y
+    var xy = getXY(obj);
+    if (xy) return { minX: xy.x, minY: xy.y, maxX: xy.x, maxY: xy.y };
+
+    return null;
+  }
+
+  function computeBounds(objs){
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    var count = 0;
+
+    for (var i = 0; i < objs.length; i += 1){
+      var b = getObjectBounds(objs[i]);
       if (!b) continue;
+      count += 1;
       if (b.minX < minX) minX = b.minX;
       if (b.minY < minY) minY = b.minY;
       if (b.maxX > maxX) maxX = b.maxX;
@@ -369,20 +479,14 @@
     }
 
     if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) return null;
-    return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
+    return { minX: minX, minY: minY, maxX: maxX, maxY: maxY, counted: count };
   }
 
   function moveContentsOfClipAssetToTopCenter(asset){
-    var tl = getTimelineFromAsset(asset);
-    if (!tl) return { ok: false, reason: "no timeline" };
+    var objs = collectAllObjectsInClipAsset(asset);
+    if (!objs.length) return { ok: false, reason: "no objects found in clip" };
 
-    var frames = collectFramesFromTimeline(tl);
-    if (!frames.length) return { ok: false, reason: "no frames" };
-
-    var placed = collectPlacedObjectsFromFrames(frames);
-    if (!placed.length) return { ok: false, reason: "no objects" };
-
-    var bounds = computeBounds(placed);
+    var bounds = computeBounds(objs);
     if (!bounds) return { ok: false, reason: "no bounds" };
 
     var anchorX = (bounds.minX + bounds.maxX) / 2;
@@ -391,65 +495,78 @@
     var dy = -anchorY;
 
     var moved = 0;
-    for (var i = 0; i < placed.length; i += 1){
-      var o = placed[i].obj;
-      var xy = getXY(o);
+    for (var i = 0; i < objs.length; i += 1){
+      var xy = getXY(objs[i]);
       if (!xy) continue;
-      if (setXY(o, xy.x + dx, xy.y + dy, xy.mode)) moved += 1;
+      if (setXY(objs[i], xy.x + dx, xy.y + dy, xy.mode)) moved += 1;
     }
 
-    return { ok: true, moved: moved, dx: dx, dy: dy };
+    return { ok: true, moved: moved, dx: dx, dy: dy, counted: bounds.counted };
   }
 
   function computeClipAssetBounds(asset){
-    var tl = getTimelineFromAsset(asset);
-    if (!tl) return null;
-    var frames = collectFramesFromTimeline(tl);
-    if (!frames.length) return null;
-    var placed = collectPlacedObjectsFromFrames(frames);
-    if (!placed.length) return null;
-    return computeBounds(placed);
+    var objs = collectAllObjectsInClipAsset(asset);
+    if (!objs.length) return null;
+    return computeBounds(objs);
   }
 
-  function findNamedInstancesInClipAsset(containerAsset, targetName){
-    var tl = getTimelineFromAsset(containerAsset);
-    if (!tl) return [];
-    var frames = collectFramesFromTimeline(tl);
+  function findInstances(containerAsset, targetName){
+    var objs = collectAllObjectsInClipAsset(containerAsset);
     var matches = [];
     var seen = new Set();
 
-    for (var i = 0; i < frames.length; i += 1){
-      var objs = getObjectsFromFrame(frames[i]);
-      for (var k = 0; k < objs.length; k += 1){
-        var o = objs[k];
-        if (!o) continue;
-
-        if (getObjName(o) === targetName){
-          if (!seen.has(o)){
-            seen.add(o);
-            matches.push(o);
-          }
-        }
-      }
+    for (var i = 0; i < objs.length; i += 1){
+      var o = objs[i];
+      if (!o) continue;
+      if (!matchesTarget(o, targetName)) continue;
+      if (seen.has(o)) continue;
+      seen.add(o);
+      matches.push(o);
     }
 
     return matches;
   }
 
+  function listAvailableNames(containerAsset, limit){
+    limit = limit || 50;
+    var objs = collectAllObjectsInClipAsset(containerAsset);
+    var names = [];
+    var seen = new Set();
+
+    function addName(n){
+      n = tidy(n);
+      if (!n) return;
+      if (seen.has(n)) return;
+      seen.add(n);
+      names.push(n);
+    }
+
+    for (var i = 0; i < objs.length; i += 1){
+      addName(getObjName(objs[i]));
+      addName(getAssetName(objs[i]));
+      if (names.length >= limit) break;
+    }
+
+    return names;
+  }
+
   function setInstancesPosition(containerAsset, targetName, x, y){
     var tl = getTimelineFromAsset(containerAsset);
     if (!tl) return { ok: false, reason: "no timeline" };
+
     var frames = collectFramesFromTimeline(tl);
     if (!frames.length) return { ok: false, reason: "no frames" };
 
     var changed = 0;
 
     for (var i = 0; i < frames.length; i += 1){
-      var objs = getObjectsFromFrame(frames[i]);
+      var baseObjs = getObjectsFromFrame(frames[i]);
+      var objs = gatherAllObjectsDeep(baseObjs);
+
       for (var k = 0; k < objs.length; k += 1){
         var o = objs[k];
         if (!o) continue;
-        if (getObjName(o) !== targetName) continue;
+        if (!matchesTarget(o, targetName)) continue;
 
         var xy = getXY(o);
         if (!xy) continue;
@@ -470,13 +587,13 @@
       return;
     }
 
-    var containerAsset = resolveClipAssetFromSelection(selectionObj);
+    var containerAsset = resolveClipAssetFromObject(selectionObj);
     if (!containerAsset){
-      logLine("Your selection does not look like a clip (no clipAsset / timeline).");
+      logLine("Your selection does not look like a clip (no clipAsset / asset / timeline).");
       return;
     }
 
-    var containerName = getObjName(selectionObj) || "(selected clip)";
+    var containerName = getObjName(selectionObj) || getAssetName(selectionObj) || "(selected clip)";
     logLine("Targeting selected clip: " + containerName);
 
     var shoulderName = tidy(el("shoulderName").value);
@@ -488,20 +605,30 @@
       return;
     }
 
-    var shoulderInstances = findNamedInstancesInClipAsset(containerAsset, shoulderName);
-    var elbowInstances = findNamedInstancesInClipAsset(containerAsset, elbowName);
+    logLine("Finding: " + shoulderName + " and " + elbowName + " (instance name OR asset name)");
 
-    if (!shoulderInstances.length){
-      logLine("Could not find " + shoulderName + " inside the selected clip.");
+    var shoulderInstances = findInstances(containerAsset, shoulderName);
+    var elbowInstances = findInstances(containerAsset, elbowName);
+
+    if (!shoulderInstances.length || !elbowInstances.length){
+      if (!shoulderInstances.length) logLine("Not found: " + shoulderName);
+      if (!elbowInstances.length) logLine("Not found: " + elbowName);
+
+      var avail = listAvailableNames(containerAsset, 80);
+      if (avail.length){
+        logLine("");
+        logLine("Names I CAN see inside this selected clip (first 80):");
+        logLine(avail.join(", "));
+      } else {
+        logLine("");
+        logLine("No readable names found inside this selected clip.");
+      }
       return;
     }
-    if (!elbowInstances.length){
-      logLine("Could not find " + elbowName + " inside the selected clip.");
-      return;
-    }
 
-    var shoulderAsset = resolveClipAssetFromSelection(shoulderInstances[0]) || shoulderInstances[0].clipAsset || null;
-    var elbowAsset = resolveClipAssetFromSelection(elbowInstances[0]) || elbowInstances[0].clipAsset || null;
+    // Resolve clip assets for Shoulder and Elbow (the child clips)
+    var shoulderAsset = resolveClipAssetFromObject(shoulderInstances[0]);
+    var elbowAsset = resolveClipAssetFromObject(elbowInstances[0]);
 
     if (!shoulderAsset){
       logLine("Found " + shoulderName + " but could not resolve its clip asset.");
@@ -512,19 +639,21 @@
       return;
     }
 
-    logLine("Shift contents: " + shoulderName + " top center to 0,0");
+    logLine("Shift contents of " + shoulderName + " so top center becomes 0,0");
     var shMove = moveContentsOfClipAssetToTopCenter(shoulderAsset);
     if (!shMove.ok){
       logLine("Shoulder shift failed: " + shMove.reason);
       return;
     }
+    logLine("  moved objects: " + shMove.moved + " (bounds counted: " + shMove.counted + ")");
 
-    logLine("Shift contents: " + elbowName + " top center to 0,0");
+    logLine("Shift contents of " + elbowName + " so top center becomes 0,0");
     var elMove = moveContentsOfClipAssetToTopCenter(elbowAsset);
     if (!elMove.ok){
       logLine("Elbow shift failed: " + elMove.reason);
       return;
     }
+    logLine("  moved objects: " + elMove.moved + " (bounds counted: " + elMove.counted + ")");
 
     var shBounds = computeClipAssetBounds(shoulderAsset);
     if (!shBounds){
@@ -537,10 +666,10 @@
 
     var elbowY = shoulderHeight - overlap;
 
-    logLine("Place " + shoulderName + " at 0,0");
+    logLine("Place " + shoulderName + " instance at 0,0");
     var shSet = setInstancesPosition(containerAsset, shoulderName, 0, 0);
 
-    logLine("Place " + elbowName + " at 0," + elbowY);
+    logLine("Place " + elbowName + " instance at 0," + elbowY);
     var elSet = setInstancesPosition(containerAsset, elbowName, 0, elbowY);
 
     markDirty(getEditor());
