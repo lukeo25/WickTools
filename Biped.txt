@@ -3,79 +3,143 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Origin to top</title>
+  <title>Move Contents Pivot To Top</title>
+  <style>
+    body{
+      font-family: Arial, sans serif;
+      margin: 0;
+      padding: 16px;
+      background: #ffffff;
+      color: #111;
+    }
+    h1{ font-size: 18px; margin: 0 0 10px 0; }
+    .row{ margin: 10px 0; }
+    .box{
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 12px;
+      background: #fafafa;
+    }
+    button{
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      background: #fff;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    button:active{ transform: translateY(1px); }
+    .label{ font-weight: bold; }
+    .muted{ color: #444; font-size: 13px; }
+    pre{
+      font-family: Consolas, Menlo, Monaco, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+    }
+    select{
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      background: #fff;
+    }
+  </style>
 </head>
 <body>
-  <h2>Origin to top</h2>
+  <h1>Move Contents so Pivot is at Top</h1>
 
-  <p>
-    Selected name
-    <strong id="selName">(none)</strong>
-  </p>
+  <div class="row box">
+    <div class="row"><span class="label">Selected clip</span>: <span id="selName">(none)</span></div>
+    <div class="row muted">
+      This does NOT move the crosshair (0,0). Instead it shifts everything INSIDE the selected clip so the chosen anchor lands on 0,0.
+      Then when you go back to the main timeline and rotate the clip instance, it rotates around that anchor.
+    </div>
 
-  <p>
-    This sets OriginY to Height divided by 2 and adjusts Y by the same delta so the artwork stays in place
-  </p>
+    <div class="row">
+      <span class="label">Anchor</span>
+      <select id="anchor">
+        <option value="topCenter" selected>Top center</option>
+        <option value="topLeft">Top left</option>
+        <option value="center">Center</option>
+      </select>
+    </div>
 
-  <button id="btnRefresh" type="button">Refresh selection</button>
-  <button id="btnApply" type="button">Set origin to top</button>
+    <div class="row">
+      <button id="btnRefresh" type="button">Refresh selection</button>
+      <button id="btnApply" type="button">Move contents</button>
+    </div>
+  </div>
 
-  <pre id="log"></pre>
+  <div class="row box">
+    <div class="row"><span class="label">Log</span></div>
+    <pre id="log"></pre>
+  </div>
 
 <script>
 (function () {
   "use strict";
 
-  function el(id) { return document.getElementById(id); }
+  function el(id){ return document.getElementById(id); }
   var logEl = el("log");
 
-  function logLine(msg) {
-    logEl.textContent += String(msg || "") + "\n";
-  }
+  function clearLog(){ logEl.textContent = ""; }
+  function logLine(msg){ logEl.textContent += String(msg === undefined ? "" : msg) + "\n"; }
 
-  function clearLog() {
-    logEl.textContent = "";
-  }
-
-  function s(v) {
+  function s(v){
     if (v === null || v === undefined) return "";
     return String(v);
   }
 
-  function isNum(n) {
+  function isNum(n){
     return typeof n === "number" && isFinite(n);
   }
 
-  function getBridge() {
-    try { if (window.LukeToolsBridge) return window.LukeToolsBridge; } catch (e1) {}
-    try { if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; } catch (e2) {}
+  function getBridge(){
+    try{ if (window.LukeToolsBridge) return window.LukeToolsBridge; }catch(e1){}
+    try{ if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; }catch(e2){}
     return null;
   }
 
-  function refreshSelection() {
+  function getEditor(){
+    try { if (window.wickEditor) return window.wickEditor; } catch (e1) {}
+    try { if (window.WickEditor && window.WickEditor.editor) return window.WickEditor.editor; } catch (e2) {}
+    try { if (window.editor) return window.editor; } catch (e3) {}
+    try { if (window.app) return window.app; } catch (e4) {}
+    return null;
+  }
+
+  function markDirty(ed){
+    try{ if (ed && ed.project && typeof ed.project.markAsModified === "function") ed.project.markAsModified(); }catch(e1){}
+    try{ if (ed && ed.project) ed.project.unsavedChanges = true; }catch(e2){}
+    try{ if (ed && typeof ed.requestRender === "function") ed.requestRender(); }catch(e3){}
+    try{ if (ed && ed.renderer && typeof ed.renderer.requestRender === "function") ed.renderer.requestRender(); }catch(e4){}
+  }
+
+  function refreshSelection(){
     var bridge = getBridge();
-    if (!bridge) {
+    if (!bridge){
       el("selName").textContent = "(bridge missing)";
       return null;
     }
 
-    try { if (typeof bridge.captureSelectionNow === "function") bridge.captureSelectionNow(); } catch (e1) {}
+    try{ if (typeof bridge.captureSelectionNow === "function") bridge.captureSelectionNow(); }catch(e1){}
 
     var name = "";
-    try { if (typeof bridge.getSelectedClipName === "function") name = s(bridge.getSelectedClipName()).trim(); } catch (e2) {}
+    try{ if (typeof bridge.getSelectedClipName === "function") name = s(bridge.getSelectedClipName()).trim(); }catch(e2){}
     el("selName").textContent = name || "(none)";
 
-    try {
-      if (typeof bridge.captureSelectionNow === "function") {
+    try{
+      if (typeof bridge.captureSelectionNow === "function"){
         var sel = bridge.captureSelectionNow();
         if (sel && sel.raw) return sel.raw;
       }
-    } catch (e3) {}
+    }catch(e3){}
 
     return null;
   }
 
-  function getXY(obj) {
+  function getXY(obj){
     if (!obj) return null;
 
     if (isNum(obj.x) && isNum(obj.y)) return { x: obj.x, y: obj.y, mode: "xy" };
@@ -91,24 +155,24 @@
     return null;
   }
 
-  function setXY(obj, x, y, mode) {
+  function setXY(obj, x, y, mode){
     if (!obj) return false;
     if (!isNum(x) || !isNum(y)) return false;
 
-    if (mode === "xy") {
+    if (mode === "xy"){
       obj.x = x;
       obj.y = y;
       return true;
     }
 
-    if (mode === "transformation") {
+    if (mode === "transformation"){
       if (!obj.transformation) obj.transformation = {};
       obj.transformation.x = x;
       obj.transformation.y = y;
       return true;
     }
 
-    if (mode === "transform") {
+    if (mode === "transform"){
       if (!obj.transform) obj.transform = {};
       obj.transform.x = x;
       obj.transform.y = y;
@@ -118,155 +182,255 @@
     return false;
   }
 
-  function getOrigin(obj) {
-    if (!obj) return null;
+  function normalizeBounds(b){
+    if (!b) return null;
 
-    if (isNum(obj.originX) && isNum(obj.originY)) return { ox: obj.originX, oy: obj.originY, mode: "originXY" };
-
-    if (obj.origin && isNum(obj.origin.x) && isNum(obj.origin.y)) return { ox: obj.origin.x, oy: obj.origin.y, mode: "originObj" };
-
-    if (obj.transformation && isNum(obj.transformation.originX) && isNum(obj.transformation.originY)) {
-      return { ox: obj.transformation.originX, oy: obj.transformation.originY, mode: "transformationOriginXY" };
+    if (isNum(b.x) && isNum(b.y) && isNum(b.width) && isNum(b.height)){
+      return { minX: b.x, minY: b.y, maxX: b.x + b.width, maxY: b.y + b.height };
     }
 
-    if (obj.transform && isNum(obj.transform.originX) && isNum(obj.transform.originY)) {
-      return { ox: obj.transform.originX, oy: obj.transform.originY, mode: "transformOriginXY" };
+    if (isNum(b.minX) && isNum(b.minY) && isNum(b.maxX) && isNum(b.maxY)){
+      return { minX: b.minX, minY: b.minY, maxX: b.maxX, maxY: b.maxY };
+    }
+
+    if (isNum(b.left) && isNum(b.top) && isNum(b.right) && isNum(b.bottom)){
+      return { minX: b.left, minY: b.top, maxX: b.right, maxY: b.bottom };
+    }
+
+    if (Array.isArray(b) && b.length >= 4 && isNum(b[0]) && isNum(b[1]) && isNum(b[2]) && isNum(b[3])){
+      return { minX: b[0], minY: b[1], maxX: b[2], maxY: b[3] };
     }
 
     return null;
   }
 
-  function setOrigin(obj, ox, oy, mode) {
-    if (!obj) return false;
-    if (!isNum(ox) || !isNum(oy)) return false;
-
-    if (mode === "originXY") {
-      obj.originX = ox;
-      obj.originY = oy;
-      return true;
-    }
-
-    if (mode === "originObj") {
-      if (!obj.origin) obj.origin = {};
-      obj.origin.x = ox;
-      obj.origin.y = oy;
-      return true;
-    }
-
-    if (mode === "transformationOriginXY") {
-      if (!obj.transformation) obj.transformation = {};
-      obj.transformation.originX = ox;
-      obj.transformation.originY = oy;
-      return true;
-    }
-
-    if (mode === "transformOriginXY") {
-      if (!obj.transform) obj.transform = {};
-      obj.transform.originX = ox;
-      obj.transform.originY = oy;
-      return true;
-    }
-
-    return false;
-  }
-
-  function getSize(obj) {
+  function getObjectBounds(obj){
     if (!obj) return null;
 
-    if (isNum(obj.width) && isNum(obj.height)) return { w: obj.width, h: obj.height, mode: "wh" };
-
-    try {
-      if (typeof obj.getBounds === "function") {
-        var b = obj.getBounds();
-        if (b && isNum(b.width) && isNum(b.height)) return { w: b.width, h: b.height, mode: "boundsWH" };
-        if (b && isNum(b.x) && isNum(b.y) && isNum(b.width) && isNum(b.height)) return { w: b.width, h: b.height, mode: "boundsRect" };
+    try{
+      if (typeof obj.getBounds === "function"){
+        var b1 = normalizeBounds(obj.getBounds());
+        if (b1) return b1;
       }
-    } catch (e1) {}
+    }catch(e1){}
 
-    try {
-      if (obj.bounds && isNum(obj.bounds.width) && isNum(obj.bounds.height)) return { w: obj.bounds.width, h: obj.bounds.height, mode: "boundsPropWH" };
-    } catch (e2) {}
+    try{
+      if (typeof obj.getBoundingBox === "function"){
+        var b2 = normalizeBounds(obj.getBoundingBox());
+        if (b2) return b2;
+      }
+    }catch(e2){}
 
-    return null;
-  }
+    try{
+      var b3 = normalizeBounds(obj.bounds);
+      if (b3) return b3;
+    }catch(e3){}
 
-  function getEditor() {
-    try { if (window.wickEditor) return window.wickEditor; } catch (e1) {}
-    try { if (window.WickEditor && window.WickEditor.editor) return window.WickEditor.editor; } catch (e2) {}
-    try { if (window.editor) return window.editor; } catch (e3) {}
-    try { if (window.app) return window.app; } catch (e4) {}
-    return null;
-  }
-
-  function markDirty(ed) {
-    try { if (ed && ed.project && typeof ed.project.markAsModified === "function") ed.project.markAsModified(); } catch (e1) {}
-    try { if (ed && ed.project) ed.project.unsavedChanges = true; } catch (e2) {}
-    try { if (ed && typeof ed.requestRender === "function") ed.requestRender(); } catch (e3) {}
-    try { if (ed && ed.renderer && typeof ed.renderer.requestRender === "function") ed.renderer.requestRender(); } catch (e4) {}
-  }
-
-  function applyOriginToTop() {
-    clearLog();
-
-    var obj = refreshSelection();
-    if (!obj) {
-      logLine("No selection raw object found");
-      return;
-    }
+    try{
+      var b4 = normalizeBounds(obj._bounds);
+      if (b4) return b4;
+    }catch(e4){}
 
     var xy = getXY(obj);
-    var ori = getOrigin(obj);
-    var size = getSize(obj);
-
-    logLine("Found x y " + (xy ? (xy.x + " " + xy.y + " " + xy.mode) : "missing"));
-    logLine("Found origin " + (ori ? (ori.ox + " " + ori.oy + " " + ori.mode) : "missing"));
-    logLine("Found size " + (size ? (size.w + " " + size.h + " " + size.mode) : "missing"));
-
-    if (!xy) {
-      logLine("Cannot change position because x and y were not found");
-      return;
+    if (xy){
+      return { minX: xy.x, minY: xy.y, maxX: xy.x, maxY: xy.y };
     }
 
-    if (!ori) {
-      logLine("Cannot change origin because originX originY were not found on this selection");
-      return;
-    }
-
-    if (!size || !isNum(size.h) || size.h <= 0) {
-      logLine("Cannot change origin because height was not found");
-      return;
-    }
-
-    var oldOY = ori.oy;
-    var newOY = size.h / 2;
-    var deltaOY = newOY - oldOY;
-
-    var okOrigin = setOrigin(obj, ori.ox, newOY, ori.mode);
-    if (!okOrigin) {
-      logLine("Failed to set origin");
-      return;
-    }
-
-    var okXY = setXY(obj, xy.x, xy.y + deltaOY, xy.mode);
-    if (!okXY) {
-      logLine("Failed to set y");
-      return;
-    }
-
-    markDirty(getEditor());
-
-    logLine("Applied new OriginY " + newOY);
-    logLine("Applied new Y " + (xy.y + deltaOY));
+    return null;
   }
 
-  el("btnRefresh").addEventListener("click", function () {
+  function getTimelineFromAsset(asset){
+    if (!asset) return null;
+    try{ if (asset.timeline) return asset.timeline; }catch(e1){}
+    try{ if (asset._timeline) return asset._timeline; }catch(e2){}
+    return null;
+  }
+
+  function getLayersFromTimeline(tl){
+    if (!tl) return [];
+    try{ if (Array.isArray(tl.layers)) return tl.layers; }catch(e1){}
+    try{ if (Array.isArray(tl._layers)) return tl._layers; }catch(e2){}
+    try{ if (Array.isArray(tl.layer)) return tl.layer; }catch(e3){}
+    return [];
+  }
+
+  function getFramesFromLayer(layer){
+    if (!layer) return [];
+    try{ if (Array.isArray(layer.frames)) return layer.frames; }catch(e1){}
+    try{ if (Array.isArray(layer._frames)) return layer._frames; }catch(e2){}
+    try{ if (Array.isArray(layer.frame)) return layer.frame; }catch(e3){}
+    return [];
+  }
+
+  function getObjectsFromFrame(fr){
+    if (!fr) return [];
+    try{ if (Array.isArray(fr.wickObjects)) return fr.wickObjects; }catch(e1){}
+    try{ if (Array.isArray(fr.objects)) return fr.objects; }catch(e2){}
+    try{ if (Array.isArray(fr.children)) return fr.children; }catch(e3){}
+    try{ if (Array.isArray(fr._children)) return fr._children; }catch(e4){}
+    return [];
+  }
+
+  function collectFramesFromTimeline(tl){
+    var frames = [];
+    var layers = getLayersFromTimeline(tl);
+    for (var i = 0; i < layers.length; i += 1){
+      var frs = getFramesFromLayer(layers[i]);
+      for (var j = 0; j < frs.length; j += 1){
+        if (frs[j]) frames.push(frs[j]);
+      }
+    }
+    return frames;
+  }
+
+  function resolveClipAssetFromSelection(selObj){
+    if (!selObj) return null;
+
+    try{ if (selObj.clipAsset) return selObj.clipAsset; }catch(e1){}
+
+    if (getTimelineFromAsset(selObj)) return selObj;
+
+    try{
+      if (selObj.asset && getTimelineFromAsset(selObj.asset)) return selObj.asset;
+    }catch(e2){}
+
+    return null;
+  }
+
+  function collectPlacedObjects(frames){
+    var out = [];
+    var seen = new Set();
+
+    for (var i = 0; i < frames.length; i += 1){
+      var fr = frames[i];
+      if (!fr) continue;
+
+      var objs = getObjectsFromFrame(fr);
+      if (!objs || !objs.length) continue;
+
+      for (var k = 0; k < objs.length; k += 1){
+        var o = objs[k];
+        if (!o) continue;
+        if (seen.has(o)) continue;
+
+        var xy = getXY(o);
+        if (!xy) continue;
+
+        seen.add(o);
+        out.push({ obj: o, mode: xy.mode });
+      }
+    }
+
+    return out;
+  }
+
+  function computeBounds(placed){
+    var minX = Infinity;
+    var minY = Infinity;
+    var maxX = -Infinity;
+    var maxY = -Infinity;
+
+    for (var i = 0; i < placed.length; i += 1){
+      var b = getObjectBounds(placed[i].obj);
+      if (!b) continue;
+      if (b.minX < minX) minX = b.minX;
+      if (b.minY < minY) minY = b.minY;
+      if (b.maxX > maxX) maxX = b.maxX;
+      if (b.maxY > maxY) maxY = b.maxY;
+    }
+
+    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) return null;
+    return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
+  }
+
+  function moveContents(){
+    clearLog();
+
+    var raw = refreshSelection();
+    if (!raw){
+      logLine("No selection found. Select a clip instance and try again.");
+      return;
+    }
+
+    var asset = resolveClipAssetFromSelection(raw);
+    if (!asset){
+      logLine("Selection does not look like a clip. (No clipAsset or timeline found)");
+      return;
+    }
+
+    var tl = getTimelineFromAsset(asset);
+    if (!tl){
+      logLine("Clip asset timeline not found.");
+      return;
+    }
+
+    var frames = collectFramesFromTimeline(tl);
+    logLine("Frames found: " + frames.length);
+
+    if (!frames.length){
+      logLine("No frames were found. Wick internal structure may have changed.");
+      return;
+    }
+
+    var placed = collectPlacedObjects(frames);
+    logLine("Placed objects found: " + placed.length);
+
+    if (!placed.length){
+      logLine("No positioned objects found inside frames.");
+      return;
+    }
+
+    var bounds = computeBounds(placed);
+    if (!bounds){
+      logLine("Could not compute bounds.");
+      return;
+    }
+
+    var anchorMode = el("anchor").value;
+
+    var anchorX = 0;
+    var anchorY = 0;
+
+    if (anchorMode === "topLeft"){
+      anchorX = bounds.minX;
+      anchorY = bounds.minY;
+    } else if (anchorMode === "center"){
+      anchorX = (bounds.minX + bounds.maxX) / 2;
+      anchorY = (bounds.minY + bounds.maxY) / 2;
+    } else { // topCenter
+      anchorX = (bounds.minX + bounds.maxX) / 2;
+      anchorY = bounds.minY;
+    }
+
+    var dx = -anchorX;
+    var dy = -anchorY;
+
+    logLine("Bounds minX " + bounds.minX + " minY " + bounds.minY + " maxX " + bounds.maxX + " maxY " + bounds.maxY);
+    logLine("Anchor " + anchorMode + " at " + anchorX + ", " + anchorY);
+    logLine("Shift dx " + dx + " dy " + dy);
+
+    var moved = 0;
+    for (var i = 0; i < placed.length; i += 1){
+      var o = placed[i].obj;
+      var xy = getXY(o);
+      if (!xy) continue;
+      if (setXY(o, xy.x + dx, xy.y + dy, xy.mode)) moved += 1;
+    }
+
+    logLine("Objects moved: " + moved);
+
+    markDirty(getEditor());
+    logLine("Done. Leave the clip and rotate the clip instance on the main timeline.");
+  }
+
+  el("btnRefresh").addEventListener("click", function(){
     clearLog();
     refreshSelection();
     logLine("Refreshed");
   });
 
-  el("btnApply").addEventListener("click", function () {
-    applyOriginToTop();
+  el("btnApply").addEventListener("click", function(){
+    moveContents();
   });
 
   refreshSelection();
