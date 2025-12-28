@@ -2479,9 +2479,10 @@ App.ui.btnSend.addEventListener("click", function(){
         scriptLines.push("}");
         scriptLines.push("/* LukeTools LipService END */");
 
-        return scriptLines.join("
-");
-      }function upsertLipServiceBlock(current, block) {
+        return scriptLines.join("\n");
+      }
+
+    function upsertLipServiceBlock(current, block) {
       var startMarker = "/* LukeTools LipService START */";
       var endMarker = "/* LukeTools LipService END */";
 
