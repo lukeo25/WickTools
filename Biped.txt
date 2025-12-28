@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pivot To Top</title>
+  <style>
+    body{
+      font-family: Arial, sans serif;
+      margin: 0;
+      padding: 16px;
+      background: #ffffff;
+      color: #111;
+    }
+    h1{ font-size: 20px; margin: 0 0 10px 0; }
+    .row{ margin: 10px 0; }
+    .box{
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 12px;
+      background: #fafafa;
+    }
+    button{
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      background: #fff;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    button:active{ transform: translateY(1px); }
+    code, pre{
+      font-family: Consolas, Menlo, Monaco, monospace;
+      font-size: 12px;
+    }
+    pre{
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+    }
+    .muted{ color: #444; font-size: 13px; }
+    .label{ font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Pivot To Top</h1>
+
+  <div class="row box">
+    <div class="row"><span class="label">Selected clip name</span>: <span id="selName">(none)</span></div>
+    <div class="row muted">This tool tries to move the pivot by shifting the contents inside the selected clip so the top of the content becomes the origin</div>
+    <div class="row">
+      <button id="btnRefresh" type="button">Refresh selection</button>
+      <button id="btnMove" type="button">Move pivot to top</button>
+    </div>
+  </div>
+
+  <div class="row box">
+    <div class="row"><span class="label">Result</span></div>
+    <pre id="log"></pre>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  function el(id){ return document.getElementById(id); }
+  var logEl = el("log");
+
+  function logLine(msg){
+    var t = (msg === null || msg === undefined) ? "" : String(msg);
+    logEl.textContent = logEl.textContent + t + "\n";
+  }
+
+  function clearLog(){ logEl.textContent = ""; }
+
+  function s(v){
+    if (v === null || v === undefined) return "";
+    return String(v);
+  }
+
+  function isNum(n){
+    return typeof n === "number" && isFinite(n);
+  }
+
+  function getBridge(){
+    try{
+      if (window.LukeToolsBridge) return window.LukeToolsBridge;
+    }catch(e1){}
+    try{
+      if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge;
+    }catch(e2){}
+    return null;
+  }
+
+  function getEditor(){
+    try { if (window.wickEditor) return window.wickEditor; } catch (e1) {}
+    try { if (window.WickEditor && window.WickEditor.editor) return window.WickEditor.editor; } catch (e2) {}
+    try { if (window.editor) return window.editor; } catch (e3) {}
+    try { if (window.app) return window.app; } catch (e4) {}
+    return null;
+  }
+
+  function markDirty(ed){
+    try{
+      if (ed && ed.project && typeof ed.project.markAsModified === "function"){
+        ed.project.markAsModified();
+      }
+    }catch(e1){}
+    try{
+      if (ed && ed.project){
+        ed.project.unsavedChanges = true;
+      }
+    }catch(e2){}
+    try{
+      if (ed && typeof ed.requestRender === "function") ed.requestRender();
+    }catch(e3){}
+    try{
+      if (ed && ed.renderer && typeof ed.renderer.requestRender === "function") ed.renderer.requestRender();
+    }catch(e4){}
+  }
+
+  function refreshSelection(){
+    var bridge = getBridge();
+    if (!bridge){
+      el("selName").textContent = "(bridge missing)";
+      return;
+    }
+    try{
+      if (typeof bridge.captureSelectionNow === "function") bridge.captureSelectionNow();
+    }catch(e1){}
+    var name = "";
+    try{
+      if (typeof bridge.getSelectedClipName === "function") name = s(bridge.getSelectedClipName()).trim();
+    }catch(e2){}
+    el("selName").textContent = name || "(none)";
+  }
+
+  function getSelectionRaw(){
+    var bridge = getBridge();
+    if (!bridge) return null;
+    try{
+      if (typeof bridge.captureSelectionNow !== "function") return null;
+      var sel = bridge.captureSelectionNow();
+      if (!sel) return null;
+      if (sel.raw) return sel.raw;
+    }catch(e1){}
+    return null;
+  }
+
+  function getXY(obj){
+    if (!obj) return null;
+    if (isNum(obj.x) && isNum(obj.y)) return { x: obj.x, y: obj.y, mode: "xy" };
+    if (obj.transformation && isNum(obj.transformation.x) && isNum(obj.transformation.y)) return { x: obj.transformation.x, y: obj.transformation.y, mode: "transformation" };
+    if (obj.transform && isNum(obj.transform.x) && isNum(obj.transform.y)) return { x: obj.transform.x, y: obj.transform.y, mode: "transform" };
+    return null;
+  }
+
+  function setXY(obj, x, y, mode){
+    if (!obj) return false;
+    if (!isNum(x) || !isNum(y)) return false;
+
+    if (mode === "xy"){
+      if (isNum(obj.x)) obj.x = x;
+      if (isNum(obj.y)) obj.y = y;
+      return true;
+    }
+    if (mode === "transformation"){
+      if (!obj.transformation) obj.transformation = {};
+      obj.transformation.x = x;
+      obj.transformation.y = y;
+      return true;
+    }
+    if (mode === "transform"){
+      if (!obj.transform) obj.transform = {};
+      obj.transform.x = x;
+      obj.transform.y = y;
+      return true;
+    }
+    return false;
+  }
+
+  function normalizeBounds(b){
+    if (!b) return null;
+
+    if (isNum(b.x) && isNum(b.y) && isNum(b.width) && isNum(b.height)){
+      return { minX: b.x, minY: b.y, maxX: b.x + b.width, maxY: b.y + b.height };
+    }
+
+    if (isNum(b.minX) && isNum(b.minY) && isNum(b.maxX) && isNum(b.maxY)){
+      return { minX: b.minX, minY: b.minY, maxX: b.maxX, maxY: b.maxY };
+    }
+
+    if (isNum(b.left) && isNum(b.top) && isNum(b.right) && isNum(b.bottom)){
+      return { minX: b.left, minY: b.top, maxX: b.right, maxY: b.bottom };
+    }
+
+    if (Array.isArray(b) && b.length >= 4 && isNum(b[0]) && isNum(b[1]) && isNum(b[2]) && isNum(b[3])){
+      return { minX: b[0], minY: b[1], maxX: b[2], maxY: b[3] };
+    }
+
+    return null;
+  }
+
+  function getObjectBounds(obj){
+    if (!obj) return null;
+
+    try{
+      if (typeof obj.getBounds === "function"){
+        var b1 = normalizeBounds(obj.getBounds());
+        if (b1) return b1;
+      }
+    }catch(e1){}
+
+    try{
+      if (typeof obj.getBoundingBox === "function"){
+        var b2 = normalizeBounds(obj.getBoundingBox());
+        if (b2) return b2;
+      }
+    }catch(e2){}
+
+    try{
+      var b3 = normalizeBounds(obj.bounds);
+      if (b3) return b3;
+    }catch(e3){}
+
+    try{
+      var b4 = normalizeBounds(obj._bounds);
+      if (b4) return b4;
+    }catch(e4){}
+
+    var pos = getXY(obj);
+    if (pos){
+      var w = 0;
+      var h = 0;
+      try{
+        if (isNum(obj.width)) w = obj.width;
+        if (isNum(obj.height)) h = obj.height;
+      }catch(e5){}
+      return { minX: pos.x, minY: pos.y, maxX: pos.x + w, maxY: pos.y + h };
+    }
+
+    return null;
+  }
+
+  function collectPlacedObjectsFromFrames(frames){
+    var out = [];
+    var seen = new Set();
+
+    for (var i = 0; i < frames.length; i += 1){
+      var fr = frames[i];
+      if (!fr) continue;
+
+      var kids = null;
+      try{
+        if (Array.isArray(fr._children)) kids = fr._children;
+        else if (Array.isArray(fr.children)) kids = fr.children;
+        else if (Array.isArray(fr.wickObjects)) kids = fr.wickObjects;
+        else if (Array.isArray(fr.objects)) kids = fr.objects;
+      }catch(e1){ kids = null; }
+
+      if (!kids || !kids.length) continue;
+
+      for (var k = 0; k < kids.length; k += 1){
+        var o = kids[k];
+        if (!o) continue;
+        if (seen.has(o)) continue;
+
+        var xy = getXY(o);
+        if (xy){
+          seen.add(o);
+          out.push({ obj: o, mode: xy.mode });
+        }
+      }
+    }
+
+    return out;
+  }
+
+  function collectFramesFromClipAsset(asset){
+    var frames = [];
+    var seen = new Set();
+    var q = [asset];
+    var guard = 0;
+
+    while (q.length && guard < 80000){
+      guard += 1;
+      var cur = q.shift();
+      if (!cur) continue;
+      if (seen.has(cur)) continue;
+      seen.add(cur);
+
+      var isFrame = false;
+      try{
+        if (Array.isArray(cur._children) && typeof cur.length === "number") isFrame = true;
+        if (Array.isArray(cur._children) && cur.parentLayer) isFrame = true;
+        if (Array.isArray(cur._children) && cur.parentTimeline) isFrame = true;
+      }catch(e1){}
+
+      if (isFrame){
+        frames.push(cur);
+        continue;
+      }
+
+      for (var key in cur){
+        if (!Object.prototype.hasOwnProperty.call(cur, key)) continue;
+        var v = cur[key];
+
+        if (!v) continue;
+
+        if (Array.isArray(v)){
+          for (var j = 0; j < v.length; j += 1){
+            var item = v[j];
+            if (item && typeof item === "object") q.push(item);
+          }
+        } else if (typeof v === "object"){
+          q.push(v);
+        }
+      }
+    }
+
+    return frames;
+  }
+
+  function resolveClipAssetFromSelection(selObj){
+    if (!selObj) return null;
+
+    try{
+      if (selObj.clipAsset) return selObj.clipAsset;
+    }catch(e1){}
+
+    try{
+      if (selObj.asset && (selObj.asset.timeline || selObj.asset._timeline)) return selObj.asset;
+    }catch(e2){}
+
+    try{
+      if (selObj.timeline || selObj._timeline) return selObj;
+    }catch(e3){}
+
+    try{
+      if (selObj._children && typeof selObj.length === "number") return selObj;
+    }catch(e4){}
+
+    return selObj;
+  }
+
+  function computeBounds(placed){
+    var minX = Infinity;
+    var minY = Infinity;
+    var maxX = -Infinity;
+    var maxY = -Infinity;
+
+    for (var i = 0; i < placed.length; i += 1){
+      var o = placed[i].obj;
+      var b = getObjectBounds(o);
+      if (!b) continue;
+
+      if (b.minX < minX) minX = b.minX;
+      if (b.minY < minY) minY = b.minY;
+      if (b.maxX > maxX) maxX = b.maxX;
+      if (b.maxY > maxY) maxY = b.maxY;
+    }
+
+    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) return null;
+    return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
+  }
+
+  function movePivotToTop(){
+    clearLog();
+
+    var raw = getSelectionRaw();
+    if (!raw){
+      logLine("No selection found");
+      return;
+    }
+
+    var clipName = "";
+    try{
+      if (raw.name) clipName = s(raw.name).trim();
+      else if (typeof raw.getName === "function") clipName = s(raw.getName()).trim();
+    }catch(e1){ clipName = ""; }
+
+    logLine("Selected: " + (clipName || "(unnamed)"));
+
+    var asset = resolveClipAssetFromSelection(raw);
+    if (!asset){
+      logLine("Could not resolve clip asset");
+      return;
+    }
+
+    var frames = collectFramesFromClipAsset(asset);
+    logLine("Frames found: " + frames.length);
+
+    if (!frames.length){
+      logLine("No frames found. This tool could not locate the internal timeline structure.");
+      return;
+    }
+
+    var placed = collectPlacedObjectsFromFrames(frames);
+    logLine("Placed objects with position: " + placed.length);
+
+    if (!placed.length){
+      logLine("No positioned objects found inside frames.");
+      return;
+    }
+
+    var bounds = computeBounds(placed);
+    if (!bounds){
+      logLine("Could not compute bounds.");
+      return;
+    }
+
+    var centerX = (bounds.minX + bounds.maxX) / 2;
+    var dx = -centerX;
+    var dy = -bounds.minY;
+
+    logLine("Bounds minX " + bounds.minX + " minY " + bounds.minY + " maxX " + bounds.maxX + " maxY " + bounds.maxY);
+    logLine("Shift dx " + dx + " dy " + dy);
+
+    var moved = 0;
+
+    for (var i = 0; i < placed.length; i += 1){
+      var obj = placed[i].obj;
+      var xy = getXY(obj);
+      if (!xy) continue;
+      var ok = setXY(obj, xy.x + dx, xy.y + dy, xy.mode);
+      if (ok) moved += 1;
+    }
+
+    logLine("Objects moved: " + moved);
+
+    var ed = getEditor();
+    markDirty(ed);
+
+    logLine("Done");
+    logLine("If you do not see changes immediately, click away and reselect, or toggle timelines.");
+  }
+
+  el("btnRefresh").addEventListener("click", function(){
+    refreshSelection();
+  });
+
+  el("btnMove").addEventListener("click", function(){
+    refreshSelection();
+    movePivotToTop();
+  });
+
+  refreshSelection();
+})();
+</script>
+</body>
+</html>
