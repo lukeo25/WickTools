@@ -46,27 +46,28 @@
     }
     .grid{
       display: grid;
-      grid-template-columns: 150px 1fr;
+      grid-template-columns: 170px 1fr;
       gap: 10px;
       align-items: center;
     }
   </style>
 </head>
 <body>
-  <h1>Arrange Arm Rig inside Selected Clip</h1>
+  <h1>Arrange Shoulder and Elbow inside Arm_R</h1>
 
   <div class="row box">
     <div class="row"><span class="label">Selected clip</span>: <span id="selName">(none)</span></div>
     <div class="row muted">
-      Select the container clip instance (for example Arm_R) then press Arrange.
-      This will:
-      1) Find children named Shoulder_R and Elbow_R inside the selected clip.
-      2) Move the CONTENTS inside those clips so their top center is at 0,0.
-      3) Place Shoulder_R at 0,0 and Elbow_R at 0, shoulderHeight (optionally minus overlap).
-      Then the arm rotates around the crosshair at 0,0 (shoulder joint).
+      Select a parent clip (or Arm_R itself) then press Arrange.
+      The tool will find Arm_R inside the selected clip (or use the selected clip if it is Arm_R).
+      Inside Arm_R it will find Shoulder_R and Elbow_R, move the contents of each so their top center is at 0,0,
+      then place Shoulder_R at 0,0 and Elbow_R below it.
     </div>
 
     <div class="row grid">
+      <div class="label">Container clip name</div>
+      <div><input id="containerName" value="Arm_R"></div>
+
       <div class="label">Shoulder name</div>
       <div><input id="shoulderName" value="Shoulder_R"></div>
 
@@ -288,6 +289,7 @@
     if (!layer) return [];
     try{ if (Array.isArray(layer.frames)) return layer.frames; }catch(e1){}
     try{ if (Array.isArray(layer._frames)) return layer._frames; }catch(e2){}
+    try{ if (Array.isArray(layer.frame)) return layer.frame; }catch(e3){}
     return [];
   }
 
@@ -446,6 +448,22 @@
     return matches;
   }
 
+  function resolveContainerAssetFromSelection(selectionObj, containerName){
+    // If the selected object is already the container
+    if (getObjName(selectionObj) === containerName){
+      return resolveClipAssetFromSelection(selectionObj);
+    }
+
+    // Otherwise look for an instance named containerName inside the selected clip asset
+    var selectedAsset = resolveClipAssetFromSelection(selectionObj);
+    if (!selectedAsset) return null;
+
+    var matches = findNamedInstancesInClipAsset(selectedAsset, containerName);
+    if (!matches.length) return null;
+
+    return resolveClipAssetFromSelection(matches[0]) || matches[0].clipAsset || null;
+  }
+
   function setInstancesPosition(containerAsset, targetName, x, y){
     var tl = getTimelineFromAsset(containerAsset);
     if (!tl) return { ok: false, reason: "no timeline" };
@@ -474,40 +492,44 @@
   function arrange(){
     clearLog();
 
-    var raw = refreshSelection();
-    if (!raw){
-      logLine("No selection found. Select the container clip instance (Arm_R) and try again.");
+    var selectionObj = refreshSelection();
+    if (!selectionObj){
+      logLine("No selection found. Select a parent clip or Arm_R.");
       return;
     }
 
-    var containerAsset = resolveClipAssetFromSelection(raw);
-    if (!containerAsset){
-      logLine("Selection does not look like a clip instance. (No clipAsset / timeline)");
-      return;
-    }
-
+    var containerName = tidy(el("containerName").value);
     var shoulderName = tidy(el("shoulderName").value);
     var elbowName = tidy(el("elbowName").value);
     var overlap = toNum(el("overlap").value, 0);
 
+    if (!containerName){
+      logLine("Please enter a container clip name.");
+      return;
+    }
     if (!shoulderName || !elbowName){
       logLine("Please enter both Shoulder and Elbow names.");
       return;
     }
 
-    logLine("Shoulder: " + shoulderName);
-    logLine("Elbow: " + elbowName);
-    logLine("Overlap: " + overlap);
+    var armAsset = resolveContainerAssetFromSelection(selectionObj, containerName);
+    if (!armAsset){
+      logLine("Could not find container clip named " + containerName + " from the current selection.");
+      logLine("Tip: select Arm_R directly or select a parent clip that contains Arm_R.");
+      return;
+    }
 
-    var shoulderInstances = findNamedInstancesInClipAsset(containerAsset, shoulderName);
-    var elbowInstances = findNamedInstancesInClipAsset(containerAsset, elbowName);
+    logLine("Container asset resolved: " + containerName);
+
+    var shoulderInstances = findNamedInstancesInClipAsset(armAsset, shoulderName);
+    var elbowInstances = findNamedInstancesInClipAsset(armAsset, elbowName);
 
     if (!shoulderInstances.length){
-      logLine("Could not find any instance named " + shoulderName + " inside the selected clip.");
+      logLine("Could not find any instance named " + shoulderName + " inside " + containerName + ".");
       return;
     }
     if (!elbowInstances.length){
-      logLine("Could not find any instance named " + elbowName + " inside the selected clip.");
+      logLine("Could not find any instance named " + elbowName + " inside " + containerName + ".");
       return;
     }
 
@@ -552,16 +574,16 @@
 
     var elbowY = shoulderHeight - overlap;
 
-    logLine("Placing Shoulder at 0,0");
-    var shSet = setInstancesPosition(containerAsset, shoulderName, 0, 0);
+    logLine("Placing Shoulder at 0,0 inside " + containerName);
+    var shSet = setInstancesPosition(armAsset, shoulderName, 0, 0);
     logLine("Shoulder instances updated: " + (shSet.ok ? shSet.changed : 0));
 
-    logLine("Placing Elbow at 0," + elbowY);
-    var elSet = setInstancesPosition(containerAsset, elbowName, 0, elbowY);
+    logLine("Placing Elbow at 0," + elbowY + " inside " + containerName);
+    var elSet = setInstancesPosition(armAsset, elbowName, 0, elbowY);
     logLine("Elbow instances updated: " + (elSet.ok ? elSet.changed : 0));
 
     markDirty(getEditor());
-    logLine("Done. Exit the clip and rotate the Arm_R instance to test the new pivot positions.");
+    logLine("Done. Exit the clip and rotate the arm to test pivots.");
   }
 
   el("btnRefresh").addEventListener("click", function(){
