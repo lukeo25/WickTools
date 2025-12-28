@@ -111,41 +111,56 @@
 
       <div class="row">
         <button id="btnArrange" class="btnPrimary">Arrange</button>
-        <button id="btnShowPose" class="btnSecondary">Show Pose Panel</button>
+        <button id="btnPose" class="btnSecondary">Show pose panel</button>
       </div>
 
       <div id="status" class="status">Ready</div>
 
       <div class="small">
-        Select your Arm_R clip in Wick first.
-        Arrange will try to nest Elbo_R inside Shoulder_R and place it at the bottom of the shoulder.
-        Close this overlay to auto show the Pose Panel inside Wick.
+        Select your Arm_R clip in Wick first, then click Arrange.
+        Close the overlay using the Close button.
+        The pose panel appears inside Wick after closing.
       </div>
     </div>
   </div>
 
   <script>
     (function () {
-      function byId(id) { return document.getElementById(id); }
-      var status = byId("status");
+      var KEY_BIPED_ACTIVE = "LukeToolsBipedActive";
 
-      function setStatus(t) {
-        status.textContent = String(t || "");
-      }
+      function byId(id) { return document.getElementById(id); }
 
       function getBridge() {
-        try { return window.LukeToolsBridge || parent.LukeToolsBridge; } catch (e) { return null; }
+        try {
+          if (window.LukeToolsBridge) return window.LukeToolsBridge;
+        } catch (e1) {}
+        try {
+          if (parent && parent.LukeToolsBridge) return parent.LukeToolsBridge;
+        } catch (e2) {}
+        return null;
       }
+
+      function setStatus(t) {
+        byId("status").textContent = String(t || "");
+      }
+
+      function setBipedActive(flag) {
+        try { parent.localStorage.setItem(KEY_BIPED_ACTIVE, flag ? "1" : "0"); } catch (e1) {}
+        try { localStorage.setItem(KEY_BIPED_ACTIVE, flag ? "1" : "0"); } catch (e2) {}
+      }
+
+      // Mark that biped is open so the addon can show the pose panel after Close
+      setBipedActive(true);
 
       byId("btnArrange").addEventListener("click", function () {
         var bridge = getBridge();
         if (!bridge) {
-          setStatus("Bridge not found. This tool must be opened from the Luke Tools dropdown.");
+          setStatus("Bridge not found");
           return;
         }
 
         if (typeof bridge.arrangeArmRigOnSelection !== "function") {
-          setStatus("Arrange failed. bridge.arrangeArmRigOnSelection is not a function.");
+          setStatus("Arrange error TypeError: bridge.arrangeArmRigOnSelection is not a function");
           return;
         }
 
@@ -156,23 +171,29 @@
           var ok = bridge.arrangeArmRigOnSelection(sh, el);
           setStatus(ok ? "Arrange ok" : "Arrange failed");
         } catch (e) {
-          setStatus("Arrange error: " + e);
+          setStatus("Arrange error " + e);
         }
       });
 
-      byId("btnShowPose").addEventListener("click", function () {
+      byId("btnPose").addEventListener("click", function () {
+        try {
+          if (parent && typeof parent.LukeToolsPosePanelShow === "function") {
+            parent.LukeToolsPosePanelShow();
+            setStatus("Pose panel shown");
+            return;
+          }
+        } catch (e1) {}
+
         var bridge = getBridge();
-        if (!bridge || typeof bridge.showPosePanel !== "function") {
-          setStatus("Pose Panel call not available. Update the userscript.");
-          return;
+        if (bridge && typeof bridge.showPosePanel === "function") {
+          try {
+            bridge.showPosePanel();
+            setStatus("Pose panel shown");
+            return;
+          } catch (e2) {}
         }
 
-        try {
-          bridge.showPosePanel();
-          setStatus("Pose Panel shown in Wick");
-        } catch (e) {
-          setStatus("Pose Panel error: " + e);
-        }
+        setStatus("Pose panel not available");
       });
     })();
   </script>
