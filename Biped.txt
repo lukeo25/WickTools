@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Inspect selected clip children version 3</title>
+  <title>Arm rig arrange v4</title>
   <style>
     body{
       font-family: Arial, sans serif;
@@ -14,18 +14,20 @@
     }
     h1{
       font-size: 18px;
-      margin: 0 0 10px 0;
+      margin: 0 0 12px 0;
     }
-    .row{ margin: 10px 0; }
     .box{
       border: 1px solid #ddd;
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 12px;
       background: #fafafa;
+      margin-bottom: 12px;
     }
+    .row{ margin: 8px 0; }
+    .label{ font-weight: 700; }
     button{
       padding: 10px 12px;
-      border-radius: 10px;
+      border-radius: 12px;
       border: 1px solid #ddd;
       background: #fff;
       cursor: pointer;
@@ -39,34 +41,56 @@
       word-break: break-word;
       margin: 0;
     }
-    .label{ font-weight: 700; }
-    .muted{ color: #444; font-size: 13px; }
-    code{
-      font-family: Consolas, Menlo, Monaco, monospace;
-      font-size: 12px;
-      background: #f1f1f1;
-      padding: 2px 6px;
-      border-radius: 8px;
+    input{
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      width: 240px;
+      max-width: 100%;
     }
+    .muted{ color: #444; font-size: 13px; }
   </style>
 </head>
 <body>
-  <h1>Inspect selected clip contents</h1>
+  <h1>Arrange Shoulder and Elbow inside selected clip</h1>
 
-  <div class="row box">
-    <div class="row"><span class="label">Tool</span>: <span id="toolVersion"></span></div>
-    <div class="row"><span class="label">Selected clip name</span>: <span id="selName">(none)</span></div>
+  <div class="box">
+    <div class="row"><span class="label">Selected clip</span>: <span id="selName">(none)</span></div>
+
     <div class="row muted">
-      This inspects the selected clip timeline and lists child clip instances.
-      It then dumps any string fields on the instance that look like names or ids, and tries to resolve clip asset names by searching the project library using any uuid values it can discover.
+      This targets child clip instances by identifier.
+      It uses _identifier or _cachedSerializeData.identifier.
+      It does not guess or search beyond those names.
     </div>
+
+    <div class="row">
+      <span class="label">Shoulder identifier</span>
+      <div class="row">
+        <input id="shoulderId" value="Shoulder_R">
+      </div>
+    </div>
+
+    <div class="row">
+      <span class="label">Elbow identifier</span>
+      <div class="row">
+        <input id="elbowId" value="Elbo_R">
+      </div>
+    </div>
+
+    <div class="row">
+      <span class="label">Extra gap</span>
+      <div class="row">
+        <input id="gap" value="0">
+      </div>
+    </div>
+
     <div class="row">
       <button id="btnRefresh" type="button">Refresh selection</button>
-      <button id="btnInspect" type="button">Inspect children</button>
+      <button id="btnArrange" type="button">Arrange</button>
     </div>
   </div>
 
-  <div class="row box">
+  <div class="box">
     <div class="row"><span class="label">Log</span></div>
     <pre id="log"></pre>
   </div>
@@ -75,11 +99,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "inspect selected clip children v3";
-
   function el(id){ return document.getElementById(id); }
-  el("toolVersion").textContent = VERSION;
-
   var logEl = el("log");
 
   function clearLog(){ logEl.textContent = ""; }
@@ -92,6 +112,12 @@
 
   function tidy(v){
     return s(v).replace(/\s+/g, " ").trim();
+  }
+
+  function num(v, fallback){
+    var n = Number(v);
+    if (!isFinite(n)) return fallback;
+    return n;
   }
 
   function isFiniteNumber(v){
@@ -118,33 +144,43 @@
     return null;
   }
 
-  function getProject(ed){
-    if (!ed) return null;
-    try { if (ed.project) return ed.project; } catch (e1) {}
-    try { if (ed.editor && ed.editor.project) return ed.editor.project; } catch (e2) {}
-    try { if (ed.state && ed.state.project) return ed.state.project; } catch (e3) {}
-    return null;
+  function markDirty(ed){
+    try{
+      if (ed && ed.project && typeof ed.project.markAsModified === "function"){
+        ed.project.markAsModified();
+      }
+    }catch(e1){}
+    try{
+      if (ed && ed.project){
+        ed.project.unsavedChanges = true;
+      }
+    }catch(e2){}
   }
 
-  function getObjUUID(obj){
+  function getIdentifier(obj){
     if (!obj) return "";
-    try { if (typeof obj.uuid === "string") return tidy(obj.uuid); } catch (e1) {}
-    try { if (typeof obj.UUID === "string") return tidy(obj.UUID); } catch (e2) {}
-    try { if (typeof obj.id === "string") return tidy(obj.id); } catch (e3) {}
+    try{ if (typeof obj._identifier === "string") return tidy(obj._identifier); }catch(e1){}
+    try{
+      if (obj._cachedSerializeData && typeof obj._cachedSerializeData.identifier === "string"){
+        return tidy(obj._cachedSerializeData.identifier);
+      }
+    }catch(e2){}
+    try{ if (typeof obj.identifier === "string") return tidy(obj.identifier); }catch(e3){}
+    try{ if (typeof obj.name === "string") return tidy(obj.name); }catch(e4){}
     return "";
   }
 
-  function getObjName(obj){
+  function getUUID(obj){
     if (!obj) return "";
-    try { if (typeof obj.name === "string") return tidy(obj.name); } catch (e1) {}
-    try { if (typeof obj.getName === "function") return tidy(obj.getName()); } catch (e2) {}
-
-    try { if (typeof obj.displayName === "string") return tidy(obj.displayName); } catch (e3) {}
-    try { if (typeof obj.label === "string") return tidy(obj.label); } catch (e4) {}
-    try { if (typeof obj.title === "string") return tidy(obj.title); } catch (e5) {}
-    try { if (typeof obj.objectName === "string") return tidy(obj.objectName); } catch (e6) {}
-    try { if (typeof obj._name === "string") return tidy(obj._name); } catch (e7) {}
-
+    try{ if (typeof obj._uuid === "string") return tidy(obj._uuid); }catch(e1){}
+    try{ if (typeof obj.uuid === "string") return tidy(obj.uuid); }catch(e2){}
+    try{ if (typeof obj.UUID === "string") return tidy(obj.UUID); }catch(e3){}
+    try{ if (typeof obj.id === "string") return tidy(obj.id); }catch(e4){}
+    try{
+      if (obj._cachedSerializeData && typeof obj._cachedSerializeData.uuid === "string"){
+        return tidy(obj._cachedSerializeData.uuid);
+      }
+    }catch(e5){}
     return "";
   }
 
@@ -156,13 +192,13 @@
     }catch(e1){}
 
     try{
-      if (obj.transformation && isFiniteNumber(obj.transformation.x) && isFiniteNumber(obj.transformation.y)) {
+      if (obj.transformation && isFiniteNumber(obj.transformation.x) && isFiniteNumber(obj.transformation.y)){
         return { x: obj.transformation.x, y: obj.transformation.y, mode: "transformation" };
       }
     }catch(e2){}
 
     try{
-      if (obj.transform && isFiniteNumber(obj.transform.x) && isFiniteNumber(obj.transform.y)) {
+      if (obj.transform && isFiniteNumber(obj.transform.x) && isFiniteNumber(obj.transform.y)){
         return { x: obj.transform.x, y: obj.transform.y, mode: "transform" };
       }
     }catch(e3){}
@@ -170,26 +206,44 @@
     return null;
   }
 
-  function getTimelineFromAsset(asset){
-    if (!asset) return null;
-    try{ if (asset.timeline) return asset.timeline; }catch(e1){}
-    try{ if (asset._timeline) return asset._timeline; }catch(e2){}
-    return null;
-  }
-
-  function looksLikeClipInstance(obj){
+  function setXY(obj, x, y){
     if (!obj) return false;
-    try{ if (obj.clipAsset) return true; }catch(e1){}
-    try{ if (obj.asset && getTimelineFromAsset(obj.asset)) return true; }catch(e2){}
-    try{ if (getTimelineFromAsset(obj)) return true; }catch(e3){}
+
+    try{
+      if (isFiniteNumber(obj.x) && isFiniteNumber(obj.y)){
+        obj.x = x;
+        obj.y = y;
+        return true;
+      }
+    }catch(e1){}
+
+    try{
+      if (obj.transformation && isFiniteNumber(obj.transformation.x) && isFiniteNumber(obj.transformation.y)){
+        obj.transformation.x = x;
+        obj.transformation.y = y;
+        return true;
+      }
+    }catch(e2){}
+
+    try{
+      if (obj.transform && isFiniteNumber(obj.transform.x) && isFiniteNumber(obj.transform.y)){
+        obj.transform.x = x;
+        obj.transform.y = y;
+        return true;
+      }
+    }catch(e3){}
+
     return false;
   }
 
-  function resolveClipAssetFromObject(obj){
+  function getTimelineFromClipLike(obj){
     if (!obj) return null;
-    try{ if (obj.clipAsset) return obj.clipAsset; }catch(e1){}
-    try{ if (obj.asset) return obj.asset; }catch(e2){}
-    if (getTimelineFromAsset(obj)) return obj;
+    try{ if (obj.timeline) return obj.timeline; }catch(e1){}
+    try{ if (obj._timeline) return obj._timeline; }catch(e2){}
+    try{ if (obj.clipAsset && obj.clipAsset.timeline) return obj.clipAsset.timeline; }catch(e3){}
+    try{ if (obj.clipAsset && obj.clipAsset._timeline) return obj.clipAsset._timeline; }catch(e4){}
+    try{ if (obj.asset && obj.asset.timeline) return obj.asset.timeline; }catch(e5){}
+    try{ if (obj.asset && obj.asset._timeline) return obj.asset._timeline; }catch(e6){}
     return null;
   }
 
@@ -217,343 +271,331 @@
     return [];
   }
 
-  function collectFramesFromTimeline(tl){
-    var frames = [];
+  function collectChildClipsFromTimeline(tl){
     var layers = getLayersFromTimeline(tl);
-    for (var i = 0; i < layers.length; i += 1){
-      var frs = getFramesFromLayer(layers[i]);
-      for (var j = 0; j < frs.length; j += 1){
-        if (frs[j]) frames.push({ frame: frs[j], layerIndex: i, frameIndex: j });
-      }
-    }
-    return frames;
-  }
-
-  function uuidLike(v){
-    v = tidy(v);
-    if (!v) return false;
-    return /^[0-9a-f]{8}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{12}$/i.test(v);
-  }
-
-  function extractStringFields(obj, maxDepth){
-    maxDepth = maxDepth || 2;
-
     var out = [];
-    var uuidCandidates = [];
     var seen = new Set();
 
-    function addUUID(v){
-      v = tidy(v);
-      if (!v) return;
-      if (!uuidLike(v)) return;
-      if (uuidCandidates.indexOf(v) !== -1) return;
-      uuidCandidates.push(v);
-    }
+    for (var i = 0; i < layers.length; i += 1){
+      var frames = getFramesFromLayer(layers[i]);
+      for (var j = 0; j < frames.length; j += 1){
+        var objs = getObjectsFromFrame(frames[j]);
+        for (var k = 0; k < objs.length; k += 1){
+          var o = objs[k];
+          if (!o) continue;
 
-    function addField(k, v){
-      k = tidy(k);
-      v = tidy(v);
-      if (!k && !v) return;
-      out.push({ key: k, value: v });
-      addUUID(v);
-    }
+          // Clip instances show up with _classname Clip in your inspector
+          var isClip = false;
+          try{ if (o._classname === "Clip") isClip = true; }catch(e1){}
+          try{ if (!isClip && o._cachedSerializeData && o._cachedSerializeData.classname === "Clip") isClip = true; }catch(e2){}
 
-    function shouldKeepKey(k){
-      k = String(k || "").toLowerCase();
-      return (
-        k.indexOf("name") !== -1 ||
-        k.indexOf("label") !== -1 ||
-        k.indexOf("title") !== -1 ||
-        k.indexOf("uuid") !== -1 ||
-        k.indexOf("id") !== -1 ||
-        k.indexOf("asset") !== -1 ||
-        k.indexOf("clip") !== -1
-      );
-    }
-
-    function walk(cur, prefix, depth){
-      if (!cur) return;
-      if (seen.has(cur)) return;
-      seen.add(cur);
-
-      var keys = [];
-      try { keys = Object.keys(cur); } catch (e1) { keys = []; }
-
-      for (var i = 0; i < keys.length; i += 1){
-        var k = keys[i];
-        var v = null;
-
-        try { v = cur[k]; } catch (e2) { continue; }
-
-        var fullKey = prefix ? (prefix + "." + k) : k;
-
-        if (typeof v === "string"){
-          if (shouldKeepKey(k) || uuidLike(v)) addField(fullKey, v);
-          continue;
+          if (!isClip) continue;
+          if (seen.has(o)) continue;
+          seen.add(o);
+          out.push(o);
         }
+      }
+    }
 
-        if (typeof v === "number" || typeof v === "boolean"){
-          if (shouldKeepKey(k)) addField(fullKey, String(v));
-          continue;
+    return out;
+  }
+
+  function findChildByIdentifier(containerClip, wantedIdentifier){
+    wantedIdentifier = tidy(wantedIdentifier);
+    if (!wantedIdentifier) return null;
+
+    var tl = getTimelineFromClipLike(containerClip);
+    if (!tl) return null;
+
+    var children = collectChildClipsFromTimeline(tl);
+
+    for (var i = 0; i < children.length; i += 1){
+      var id = getIdentifier(children[i]);
+      if (id === wantedIdentifier) return children[i];
+    }
+
+    return null;
+  }
+
+  function getObjectBounds(obj){
+    if (!obj) return null;
+
+    // native bounds
+    try{
+      if (typeof obj.getBounds === "function"){
+        var b1 = obj.getBounds();
+        if (b1 && isFiniteNumber(b1.x) && isFiniteNumber(b1.y) && isFiniteNumber(b1.width) && isFiniteNumber(b1.height)){
+          return { minX: b1.x, minY: b1.y, maxX: b1.x + b1.width, maxY: b1.y + b1.height };
         }
+        if (b1 && isFiniteNumber(b1.left) && isFiniteNumber(b1.top) && isFiniteNumber(b1.right) && isFiniteNumber(b1.bottom)){
+          return { minX: b1.left, minY: b1.top, maxX: b1.right, maxY: b1.bottom };
+        }
+      }
+    }catch(e1){}
 
-        if (v && typeof v === "object" && depth < maxDepth){
-          // Only walk likely useful branches
-          var kk = String(k || "").toLowerCase();
-          var allow =
-            kk.indexOf("asset") !== -1 ||
-            kk.indexOf("clip") !== -1 ||
-            kk.indexOf("transform") !== -1 ||
-            kk.indexOf("transformation") !== -1 ||
-            kk.indexOf("project") !== -1 ||
-            kk.indexOf("library") !== -1;
+    // bounds field
+    try{
+      var b2 = obj.bounds || obj._bounds || null;
+      if (b2){
+        if (isFiniteNumber(b2.x) && isFiniteNumber(b2.y) && isFiniteNumber(b2.width) && isFiniteNumber(b2.height)){
+          return { minX: b2.x, minY: b2.y, maxX: b2.x + b2.width, maxY: b2.y + b2.height };
+        }
+        if (isFiniteNumber(b2.left) && isFiniteNumber(b2.top) && isFiniteNumber(b2.right) && isFiniteNumber(b2.bottom)){
+          return { minX: b2.left, minY: b2.top, maxX: b2.right, maxY: b2.bottom };
+        }
+      }
+    }catch(e2){}
 
-          // Still allow walking plain objects but keep it limited
-          if (allow || depth == 0){
-            walk(v, fullKey, depth + 1);
+    // width height with center position
+    var x = null;
+    var y = null;
+    var w = null;
+    var h = null;
+
+    try{ if (isFiniteNumber(obj.x)) x = obj.x; }catch(e3){}
+    try{ if (isFiniteNumber(obj.y)) y = obj.y; }catch(e4){}
+
+    try{ if (isFiniteNumber(obj.width)) w = obj.width; }catch(e5){}
+    try{ if (isFiniteNumber(obj.height)) h = obj.height; }catch(e6){}
+    try{ if (!w && isFiniteNumber(obj._width)) w = obj._width; }catch(e7){}
+    try{ if (!h && isFiniteNumber(obj._height)) h = obj._height; }catch(e8){}
+
+    // cached serialize size
+    try{
+      if (obj._cachedSerializeData){
+        if (!w && isFiniteNumber(obj._cachedSerializeData.width)) w = obj._cachedSerializeData.width;
+        if (!h && isFiniteNumber(obj._cachedSerializeData.height)) h = obj._cachedSerializeData.height;
+      }
+    }catch(e9){}
+
+    if (x !== null && y !== null && w !== null && h !== null){
+      return { minX: x - w / 2, minY: y - h / 2, maxX: x + w / 2, maxY: y + h / 2 };
+    }
+
+    return null;
+  }
+
+  function unionBounds(a, b){
+    if (!a) return b;
+    if (!b) return a;
+    return {
+      minX: Math.min(a.minX, b.minX),
+      minY: Math.min(a.minY, b.minY),
+      maxX: Math.max(a.maxX, b.maxX),
+      maxY: Math.max(a.maxY, b.maxY)
+    };
+  }
+
+  function computeContentBounds(clip){
+    // bounds of objects inside this clip across all frames
+    var tl = getTimelineFromClipLike(clip);
+    if (!tl) return null;
+
+    var layers = getLayersFromTimeline(tl);
+    var bounds = null;
+
+    for (var i = 0; i < layers.length; i += 1){
+      var frames = getFramesFromLayer(layers[i]);
+      for (var j = 0; j < frames.length; j += 1){
+        var objs = getObjectsFromFrame(frames[j]);
+        for (var k = 0; k < objs.length; k += 1){
+          var o = objs[k];
+          if (!o) continue;
+          var b = getObjectBounds(o);
+          if (!b) continue;
+          bounds = unionBounds(bounds, b);
+        }
+      }
+    }
+
+    return bounds;
+  }
+
+  function shiftClipContents(clip, dx, dy){
+    // shifts all objects inside clip across all frames by dx dy
+    var tl = getTimelineFromClipLike(clip);
+    if (!tl) return false;
+
+    var moved = 0;
+
+    var layers = getLayersFromTimeline(tl);
+    for (var i = 0; i < layers.length; i += 1){
+      var frames = getFramesFromLayer(layers[i]);
+      for (var j = 0; j < frames.length; j += 1){
+        var objs = getObjectsFromFrame(frames[j]);
+        for (var k = 0; k < objs.length; k += 1){
+          var o = objs[k];
+          if (!o) continue;
+
+          var pos = getXY(o);
+          if (pos){
+            setXY(o, pos.x + dx, pos.y + dy);
+            moved += 1;
           }
         }
       }
     }
 
-    // seed with known direct fields
-    addUUID(getObjUUID(obj));
-
-    walk(obj, "", 0);
-
-    // also try clipAsset and asset explicitly if present
-    try{ if (obj.clipAsset) walk(obj.clipAsset, "clipAsset", 1); }catch(e3){}
-    try{ if (obj.asset) walk(obj.asset, "asset", 1); }catch(e4){}
-
-    return { fields: out, uuids: uuidCandidates };
+    return moved > 0;
   }
 
-  function gatherAssetsFromProject(project){
-    var assets = [];
-    var arrays = [];
+  function setTopCenterAsOrigin(clip){
+    // move internal contents so that top center becomes 0 0 in the clip local space
+    var b = computeContentBounds(clip);
+    if (!b) return { ok: false, reason: "content bounds not found" };
 
-    try{ if (Array.isArray(project.assets)) arrays.push(project.assets); }catch(e1){}
-    try{ if (Array.isArray(project._assets)) arrays.push(project._assets); }catch(e2){}
-    try{ if (project.library && Array.isArray(project.library.assets)) arrays.push(project.library.assets); }catch(e3){}
-    try{ if (project.library && Array.isArray(project.library._assets)) arrays.push(project.library._assets); }catch(e4){}
+    var centerX = (b.minX + b.maxX) / 2;
+    var topY = b.minY;
 
-    for (var i = 0; i < arrays.length; i += 1){
-      for (var j = 0; j < arrays[i].length; j += 1){
-        if (arrays[i][j]) assets.push(arrays[i][j]);
-      }
-    }
+    var dx = -centerX;
+    var dy = -topY;
 
-    return assets;
+    var did = shiftClipContents(clip, dx, dy);
+    if (!did) return { ok: false, reason: "no movable objects found in clip" };
+
+    // recompute after shift
+    var b2 = computeContentBounds(clip);
+
+    return { ok: true, dx: dx, dy: dy, boundsBefore: b, boundsAfter: b2 };
   }
 
-  function assetGetUUID(asset){
-    if (!asset) return "";
-    try{ if (typeof asset.uuid === "string") return tidy(asset.uuid); }catch(e1){}
-    try{ if (typeof asset.id === "string") return tidy(asset.id); }catch(e2){}
-    return "";
-  }
-
-  function assetGetName(asset){
-    if (!asset) return "";
-    try{ if (typeof asset.name === "string") return tidy(asset.name); }catch(e1){}
-    try{ if (typeof asset.getName === "function") return tidy(asset.getName()); }catch(e2){}
-    try{ if (typeof asset.displayName === "string") return tidy(asset.displayName); }catch(e3){}
-    try{ if (typeof asset.label === "string") return tidy(asset.label); }catch(e4){}
-    return "";
-  }
-
-  function buildAssetMap(project){
-    var map = {};
-    if (!project) return map;
-
-    var assets = gatherAssetsFromProject(project);
-    for (var i = 0; i < assets.length; i += 1){
-      var a = assets[i];
-      var u = assetGetUUID(a);
-      if (!u) continue;
-      if (!map[u]) map[u] = a;
-    }
-
-    // try known maps if present
-    try{
-      if (project.assetMap && typeof project.assetMap === "object"){
-        var keys = Object.keys(project.assetMap);
-        for (var j = 0; j < keys.length; j += 1){
-          var k = keys[j];
-          if (!map[k] && project.assetMap[k]) map[k] = project.assetMap[k];
-        }
-      }
-    }catch(e1){}
-
-    try{
-      if (project.library && project.library.assetMap && typeof project.library.assetMap === "object"){
-        var keys2 = Object.keys(project.library.assetMap);
-        for (var j2 = 0; j2 < keys2.length; j2 += 1){
-          var k2 = keys2[j2];
-          if (!map[k2] && project.library.assetMap[k2]) map[k2] = project.library.assetMap[k2];
-        }
-      }
-    }catch(e2){}
-
-    return map;
-  }
-
-  function refreshSelectionRaw(){
+  function getSelectedRaw(){
     var bridge = getBridge();
-    if (!bridge){
-      el("selName").textContent = "(bridge missing)";
-      return null;
-    }
+    if (!bridge) return null;
 
     try{ if (typeof bridge.captureSelectionNow === "function") bridge.captureSelectionNow(); }catch(e1){}
-
-    var nm = "";
-    try{ if (typeof bridge.getSelectedClipName === "function") nm = tidy(bridge.getSelectedClipName()); }catch(e2){}
-    el("selName").textContent = nm || "(none)";
 
     try{
       if (typeof bridge.captureSelectionNow === "function"){
         var sel = bridge.captureSelectionNow();
         if (sel && sel.raw) return sel.raw;
       }
-    }catch(e3){}
+    }catch(e2){}
 
     return null;
   }
 
-  function inspectChildren(){
+  function refreshSelectionUI(){
+    var bridge = getBridge();
+    var nm = "";
+    try{ if (bridge && typeof bridge.getSelectedClipName === "function") nm = tidy(bridge.getSelectedClipName()); }catch(e1){}
+    el("selName").textContent = nm || "(none)";
+  }
+
+  function arrange(){
     clearLog();
 
-    var rawSel = refreshSelectionRaw();
-    if (!rawSel){
-      logLine("No selection found");
+    var shoulderId = tidy(el("shoulderId").value);
+    var elbowId = tidy(el("elbowId").value);
+    var gap = num(el("gap").value, 0);
+
+    if (!shoulderId || !elbowId){
+      logLine("Missing identifiers");
+      return;
+    }
+
+    var container = getSelectedRaw();
+    if (!container){
+      logLine("No selected clip object");
       return;
     }
 
     var ed = getEditor();
-    var project = getProject(ed);
-    var assetMap = buildAssetMap(project);
 
-    var containerAsset = resolveClipAssetFromObject(rawSel);
-    if (!containerAsset){
-      logLine("Selection is not a clip or clip asset");
+    // In your inspector the selected clip object has _classname Clip.
+    // We will use its own timeline.
+    var containerIdentifier = getIdentifier(container);
+    logLine("Selected identifier " + (containerIdentifier || "(blank)"));
+    logLine("Selected uuid " + (getUUID(container) || "(blank)"));
+
+    var shoulder = findChildByIdentifier(container, shoulderId);
+    var elbow = findChildByIdentifier(container, elbowId);
+
+    if (!shoulder){
+      logLine("Shoulder not found: " + shoulderId);
+      return;
+    }
+    if (!elbow){
+      logLine("Elbow not found: " + elbowId);
       return;
     }
 
-    var tl = getTimelineFromAsset(containerAsset);
-    if (!tl){
-      logLine("Selected clip has no timeline");
-      return;
-    }
-
-    var frames = collectFramesFromTimeline(tl);
-    if (!frames.length){
-      logLine("Selected clip has no frames");
-      return;
-    }
-
-    var found = [];
-    var seen = new Set();
-
-    for (var i = 0; i < frames.length; i += 1){
-      var fr = frames[i].frame;
-      var objs = getObjectsFromFrame(fr);
-
-      for (var j = 0; j < objs.length; j += 1){
-        var o = objs[j];
-        if (!o) continue;
-        if (!looksLikeClipInstance(o)) continue;
-        if (seen.has(o)) continue;
-        seen.add(o);
-        found.push({ obj: o, layerIndex: frames[i].layerIndex, frameIndex: frames[i].frameIndex });
-      }
-    }
-
-    if (!found.length){
-      logLine("No child clips found on the timeline of the selected clip");
-      return;
-    }
-
-    logLine("Child clips found " + found.length);
+    logLine("Found shoulder uuid " + getUUID(shoulder));
+    logLine("Found elbow uuid " + getUUID(elbow));
     logLine("");
 
-    for (var k = 0; k < found.length; k += 1){
-      var child = found[k].obj;
-      var instanceName = getObjName(child);
-      var instanceUUID = getObjUUID(child);
-      var xy = getXY(child);
-
-      logLine("Index " + (k + 1));
-      logLine("Layer index " + found[k].layerIndex);
-      logLine("Frame index " + found[k].frameIndex);
-
-      logLine("Instance name " + (instanceName || "(blank)"));
-      logLine("Instance uuid " + (instanceUUID || "(blank)"));
-
-      if (xy){
-        logLine("X " + xy.x);
-        logLine("Y " + xy.y);
-        logLine("Position mode " + xy.mode);
-      } else {
-        logLine("X and Y not found");
-      }
-
-      var extracted = extractStringFields(child, 2);
-
-      if (extracted.uuids.length){
-        logLine("Uuid candidates " + extracted.uuids.join(", "));
-      } else {
-        logLine("Uuid candidates none");
-      }
-
-      // Resolve possible assets by uuid candidates
-      var resolvedAssets = [];
-      for (var u = 0; u < extracted.uuids.length; u += 1){
-        var uid = extracted.uuids[u];
-        var a = assetMap[uid] || null;
-        if (!a) continue;
-        var nm = assetGetName(a);
-        var au = assetGetUUID(a);
-        var item = (nm ? nm : "(blank)") + " (" + au + ")";
-        if (resolvedAssets.indexOf(item) === -1) resolvedAssets.push(item);
-      }
-
-      if (resolvedAssets.length){
-        logLine("Resolved assets " + resolvedAssets.join(", "));
-      } else {
-        logLine("Resolved assets none");
-      }
-
-      if (extracted.fields.length){
-        logLine("String fields");
-        for (var f = 0; f < extracted.fields.length; f += 1){
-          var kv = extracted.fields[f];
-          if (!kv) continue;
-          logLine("  " + kv.key + " = " + kv.value);
-        }
-      } else {
-        logLine("String fields none");
-      }
-
-      logLine("");
+    // Move contents inside each so origin is at top center
+    var shRes = setTopCenterAsOrigin(shoulder);
+    if (!shRes.ok){
+      logLine("Shoulder origin shift failed: " + shRes.reason);
+      return;
     }
 
-    logLine("Note");
-    logLine("If names are still blank, Wick is not exposing clip names on instances in this part of the API.");
-    logLine("In that case use uuid targeting, or store uuids by selecting each part once and saving them in localStorage.");
+    var elRes = setTopCenterAsOrigin(elbow);
+    if (!elRes.ok){
+      logLine("Elbow origin shift failed: " + elRes.reason);
+      return;
+    }
+
+    logLine("Shifted shoulder contents dx " + shRes.dx + " dy " + shRes.dy);
+    logLine("Shifted elbow contents dx " + elRes.dx + " dy " + elRes.dy);
+    logLine("");
+
+    // Determine shoulder height to stack elbow under it
+    var shBoundsAfter = shRes.boundsAfter;
+    if (!shBoundsAfter){
+      logLine("Cannot compute shoulder bounds after shift");
+      return;
+    }
+
+    var shoulderHeight = shBoundsAfter.maxY - shBoundsAfter.minY;
+    if (!isFiniteNumber(shoulderHeight) || shoulderHeight <= 0){
+      logLine("Shoulder height invalid");
+      return;
+    }
+
+    var shPos = getXY(shoulder);
+    var elPos = getXY(elbow);
+
+    if (!shPos || !elPos){
+      logLine("Cannot read shoulder or elbow position");
+      return;
+    }
+
+    // Align x and stack y
+    var newElbowX = shPos.x;
+    var newElbowY = shPos.y + shoulderHeight + gap;
+
+    var did1 = setXY(elbow, newElbowX, newElbowY);
+
+    if (!did1){
+      logLine("Failed to set elbow position");
+      return;
+    }
+
+    // Optional align shoulder x to nearest integer to avoid tiny drift
+    setXY(shoulder, shPos.x, shPos.y);
+
+    markDirty(ed);
+
+    logLine("Done");
+    logLine("Shoulder at x " + shPos.x + " y " + shPos.y);
+    logLine("Elbow at x " + newElbowX + " y " + newElbowY);
+    logLine("Used shoulder height " + shoulderHeight);
   }
 
   el("btnRefresh").addEventListener("click", function(){
     clearLog();
-    refreshSelectionRaw();
+    refreshSelectionUI();
     logLine("Refreshed");
   });
 
-  el("btnInspect").addEventListener("click", function(){
-    inspectChildren();
+  el("btnArrange").addEventListener("click", function(){
+    refreshSelectionUI();
+    arrange();
   });
 
-  refreshSelectionRaw();
+  refreshSelectionUI();
 })();
 </script>
 </body>
