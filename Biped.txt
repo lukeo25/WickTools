@@ -1,7 +1,9 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <title>Inspect selected clip contents</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inspect selected clip children version 2</title>
 </head>
 <body>
   <div id="wrap"></div>
@@ -95,12 +97,40 @@
     return null;
   }
 
+  function getEditor() {
+    try { if (window.wickEditor) return window.wickEditor; } catch (e1) {}
+    try { if (window.WickEditor && window.WickEditor.editor) return window.WickEditor.editor; } catch (e2) {}
+    try { if (window.editor) return window.editor; } catch (e3) {}
+    try { if (window.app) return window.app; } catch (e4) {}
+
+    try { if (window.parent && window.parent.wickEditor) return window.parent.wickEditor; } catch (e5) {}
+    try { if (window.parent && window.parent.WickEditor && window.parent.WickEditor.editor) return window.parent.WickEditor.editor; } catch (e6) {}
+    try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e7) {}
+    try { if (window.parent && window.parent.app) return window.parent.app; } catch (e8) {}
+
+    return null;
+  }
+
+  function getProject(ed) {
+    if (!ed) return null;
+    try { if (ed.project) return ed.project; } catch (e1) {}
+    try { if (ed.editor && ed.editor.project) return ed.editor.project; } catch (e2) {}
+    try { if (ed.state && ed.state.project) return ed.state.project; } catch (e3) {}
+    return null;
+  }
+
   function getObjName(obj) {
     if (!obj) return "";
     try {
       if (typeof obj.name === "string") return tidy(obj.name);
       if (typeof obj.getName === "function") return tidy(obj.getName());
     } catch (e1) {}
+    try {
+      if (typeof obj.displayName === "string") return tidy(obj.displayName);
+      if (typeof obj.label === "string") return tidy(obj.label);
+      if (typeof obj.objectName === "string") return tidy(obj.objectName);
+      if (typeof obj._name === "string") return tidy(obj._name);
+    } catch (e2) {}
     return "";
   }
 
@@ -112,21 +142,26 @@
     return "";
   }
 
-  function getAssetNameFromObj(obj) {
-    if (!obj) return "";
+  function getXY(obj) {
+    if (!obj) return null;
+
     try {
-      if (obj.clipAsset) {
-        if (typeof obj.clipAsset.name === "string") return tidy(obj.clipAsset.name);
-        if (typeof obj.clipAsset.getName === "function") return tidy(obj.clipAsset.getName());
-      }
+      if (isFiniteNumber(obj.x) && isFiniteNumber(obj.y)) return { x: obj.x, y: obj.y, mode: "xy" };
     } catch (e1) {}
+
     try {
-      if (obj.asset) {
-        if (typeof obj.asset.name === "string") return tidy(obj.asset.name);
-        if (typeof obj.asset.getName === "function") return tidy(obj.asset.getName());
+      if (obj.transformation && isFiniteNumber(obj.transformation.x) && isFiniteNumber(obj.transformation.y)) {
+        return { x: obj.transformation.x, y: obj.transformation.y, mode: "transformation" };
       }
     } catch (e2) {}
-    return "";
+
+    try {
+      if (obj.transform && isFiniteNumber(obj.transform.x) && isFiniteNumber(obj.transform.y)) {
+        return { x: obj.transform.x, y: obj.transform.y, mode: "transform" };
+      }
+    } catch (e3) {}
+
+    return null;
   }
 
   function getTimelineFromAsset(asset) {
@@ -142,6 +177,14 @@
     try { if (obj.asset) return obj.asset; } catch (e2) {}
     if (getTimelineFromAsset(obj)) return obj;
     return null;
+  }
+
+  function looksLikeClipInstance(obj) {
+    if (!obj) return false;
+    try { if (obj.clipAsset) return true; } catch (e1) {}
+    try { if (obj.asset && getTimelineFromAsset(obj.asset)) return true; } catch (e2) {}
+    try { if (getTimelineFromAsset(obj)) return true; } catch (e3) {}
+    return false;
   }
 
   function getLayersFromTimeline(tl) {
@@ -180,41 +223,131 @@
     return frames;
   }
 
-  function looksLikeClipInstance(obj) {
-    if (!obj) return false;
-    try { if (obj.clipAsset) return true; } catch (e1) {}
-    try { if (obj.asset && getTimelineFromAsset(obj.asset)) return true; } catch (e2) {}
-    try { if (getTimelineFromAsset(obj)) return true; } catch (e3) {}
-    return false;
+  function assetGetName(asset) {
+    if (!asset) return "";
+    try { if (typeof asset.name === "string") return tidy(asset.name); } catch (e1) {}
+    try { if (typeof asset.getName === "function") return tidy(asset.getName()); } catch (e2) {}
+    try { if (typeof asset.displayName === "string") return tidy(asset.displayName); } catch (e3) {}
+    try { if (typeof asset.label === "string") return tidy(asset.label); } catch (e4) {}
+    return "";
   }
 
-  function getXY(obj) {
-    if (!obj) return null;
-    var x = null;
-    var y = null;
+  function gatherCandidateAssetUUIDs(obj) {
+    var out = [];
+    function add(v) {
+      v = tidy(v);
+      if (!v) return;
+      if (out.indexOf(v) !== -1) return;
+      out.push(v);
+    }
 
+    // common possibilities
+    try { add(obj.clipAssetUUID); } catch (e1) {}
+    try { add(obj.clipUUID); } catch (e2) {}
+    try { add(obj.sourceUUID); } catch (e3) {}
+    try { add(obj.assetUUID); } catch (e4) {}
+    try { add(obj.assetId); } catch (e5) {}
+    try { add(obj.clipAssetId); } catch (e6) {}
+    try { add(obj.assetID); } catch (e7) {}
+    try { add(obj.clipAssetID); } catch (e8) {}
+
+    // sometimes stored nested
+    try { if (obj.asset) add(obj.asset.uuid); } catch (e9) {}
+    try { if (obj.clipAsset) add(obj.clipAsset.uuid); } catch (e10) {}
+
+    // fallback to instance uuid
+    add(getObjUUID(obj));
+
+    return out;
+  }
+
+  function projectFindAssetByUUID(project, uuid) {
+    if (!project) return null;
+    uuid = tidy(uuid);
+    if (!uuid) return null;
+
+    // direct methods
     try {
-      if (isFiniteNumber(obj.x) && isFiniteNumber(obj.y)) {
-        x = obj.x; y = obj.y;
-        return { x: x, y: y, mode: "xy" };
+      if (typeof project.getAssetByUUID === "function") {
+        var a1 = project.getAssetByUUID(uuid);
+        if (a1) return a1;
       }
     } catch (e1) {}
 
     try {
-      if (obj.transformation && isFiniteNumber(obj.transformation.x) && isFiniteNumber(obj.transformation.y)) {
-        x = obj.transformation.x; y = obj.transformation.y;
-        return { x: x, y: y, mode: "transformation" };
+      if (typeof project.getAsset === "function") {
+        var a2 = project.getAsset(uuid);
+        if (a2) return a2;
       }
     } catch (e2) {}
 
+    // library methods
     try {
-      if (obj.transform && isFiniteNumber(obj.transform.x) && isFiniteNumber(obj.transform.y)) {
-        x = obj.transform.x; y = obj.transform.y;
-        return { x: x, y: y, mode: "transform" };
+      if (project.library) {
+        if (typeof project.library.getAssetByUUID === "function") {
+          var a3 = project.library.getAssetByUUID(uuid);
+          if (a3) return a3;
+        }
+        if (typeof project.library.getAsset === "function") {
+          var a4 = project.library.getAsset(uuid);
+          if (a4) return a4;
+        }
       }
     } catch (e3) {}
 
+    // arrays
+    var arrays = [];
+    try { if (Array.isArray(project.assets)) arrays.push(project.assets); } catch (e4) {}
+    try { if (project.library && Array.isArray(project.library.assets)) arrays.push(project.library.assets); } catch (e5) {}
+    try { if (project.library && Array.isArray(project.library._assets)) arrays.push(project.library._assets); } catch (e6) {}
+    try { if (Array.isArray(project._assets)) arrays.push(project._assets); } catch (e7) {}
+
+    for (var i = 0; i < arrays.length; i += 1) {
+      var arr = arrays[i];
+      for (var j = 0; j < arr.length; j += 1) {
+        var a = arr[j];
+        if (!a) continue;
+        var au = "";
+        try { if (typeof a.uuid === "string") au = tidy(a.uuid); } catch (e8) {}
+        try { if (!au && typeof a.id === "string") au = tidy(a.id); } catch (e9) {}
+        if (au && au === uuid) return a;
+      }
+    }
+
+    // maps
+    try {
+      if (project.library && project.library.assetMap && project.library.assetMap[uuid]) return project.library.assetMap[uuid];
+    } catch (e10) {}
+
+    try {
+      if (project.assetMap && project.assetMap[uuid]) return project.assetMap[uuid];
+    } catch (e11) {}
+
     return null;
+  }
+
+  function resolveAssetNameFromProject(ed, obj) {
+    // direct first
+    var direct = "";
+    try { if (obj.clipAsset) direct = assetGetName(obj.clipAsset); } catch (e1) {}
+    if (direct) return { name: direct, via: "obj.clipAsset.name" };
+
+    try { if (obj.asset) direct = assetGetName(obj.asset); } catch (e2) {}
+    if (direct) return { name: direct, via: "obj.asset.name" };
+
+    // lookup by uuid
+    var project = getProject(ed);
+    var candidates = gatherCandidateAssetUUIDs(obj);
+
+    for (var i = 0; i < candidates.length; i += 1) {
+      var uuid = candidates[i];
+      var a = projectFindAssetByUUID(project, uuid);
+      if (!a) continue;
+      var nm = assetGetName(a);
+      if (nm) return { name: nm, via: "project lookup " + uuid };
+    }
+
+    return { name: "", via: "" };
   }
 
   function refreshSelectionRaw() {
@@ -249,6 +382,7 @@
       return;
     }
 
+    var ed = getEditor();
     var containerAsset = resolveClipAssetFromObject(rawSel);
     if (!containerAsset) {
       logLine("Selection is not a clip or clip asset");
@@ -293,14 +427,21 @@
     for (var k = 0; k < found.length; k += 1) {
       var child = found[k];
       var instanceName = getObjName(child);
-      var assetName = getAssetNameFromObj(child);
       var uuid = getObjUUID(child);
       var xy = getXY(child);
 
+      var assetInfo = resolveAssetNameFromProject(ed, child);
+      var assetName = assetInfo.name;
+
       logLine("Index " + (k + 1));
       logLine("Instance name " + (instanceName || "(blank)"));
-      logLine("Asset name " + (assetName || "(blank)"));
+      logLine("Resolved asset name " + (assetName || "(blank)"));
+      if (assetInfo.via) logLine("Resolved via " + assetInfo.via);
       logLine("UUID " + (uuid || "(blank)"));
+
+      var candidates = gatherCandidateAssetUUIDs(child);
+      if (candidates.length) logLine("UUID candidates " + candidates.join(", "));
+
       if (xy) {
         logLine("X " + xy.x);
         logLine("Y " + xy.y);
@@ -308,6 +449,7 @@
       } else {
         logLine("X and Y not found");
       }
+
       logLine("");
     }
   }
