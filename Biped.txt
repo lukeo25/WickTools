@@ -3,832 +3,372 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Arm rig panel tool</title>
+  <title>LukeTools Biped Arm Rig Tool</title>
   <style>
-    body{
-      font-family: Arial, sans serif;
+    html, body { height: 100%; }
+    body {
       margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #eee;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
       padding: 16px;
-      background: #ffffff;
-      color: #111;
     }
-    h1{
-      font-size: 18px;
-      margin: 0 0 10px 0;
-    }
-    .box{
-      border: 1px solid rgba(0,0,0,0.12);
-      border-radius: 12px;
-      padding: 12px;
-      background: rgba(0,0,0,0.02);
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 14px;
       margin-bottom: 12px;
     }
-    .row{ margin: 10px 0; }
-    .label{ font-weight: 700; }
-    .muted{ color: rgba(0,0,0,0.65); font-size: 13px; line-height: 1.35; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .row > * { flex: 0 0 auto; }
+    .grow { flex: 1 1 auto; min-width: 220px; }
+    .label { font-size: 12px; opacity: 0.9; }
+    .value { font-weight: 700; }
     input[type="text"]{
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(0,0,0,0.16);
       width: 100%;
-      max-width: 520px;
       box-sizing: border-box;
-      font-size: 14px;
-    }
-    button{
       padding: 10px 12px;
       border-radius: 12px;
-      border: 1px solid rgba(0,0,0,0.16);
-      background: #fff;
-      cursor: pointer;
-      margin-right: 8px;
-      margin-top: 6px;
-      font-size: 14px;
-    }
-    button.primary{
-      border: 0;
-      background: rgba(0,0,0,0.85);
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.35);
       color: #fff;
+      outline: none;
+      font-size: 13px;
     }
-    button:active{ transform: translateY(1px); }
-    .grid{
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+    input[type="range"]{ width: 260px; }
+    button {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.10);
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
     }
-    @media (max-width: 720px){
-      .grid{ grid-template-columns: 1fr; }
+    button.primary {
+      background: rgba(0,0,0,0.75);
+      border-color: rgba(0,0,0,0.75);
     }
-    pre{
-      font-family: Consolas, Menlo, Monaco, monospace;
-      font-size: 12px;
+    button:active { transform: translateY(1px); }
+    .muted { opacity: 0.75; }
+    .log {
       white-space: pre-wrap;
-      word-break: break-word;
-      margin: 0;
+      font-family: Consolas, Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.3;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 140px;
+      max-height: 46vh;
+      overflow: auto;
     }
-    code{
-      font-family: Consolas, Menlo, Monaco, monospace;
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.12);
       font-size: 12px;
     }
   </style>
 </head>
 <body>
-  <h1>Arm rig tool</h1>
-
-  <div class="box">
-    <div class="row"><span class="label">Selected clip</span>: <span id="selName">(none)</span></div>
-    <div class="row"><span class="label">Selected uuid</span>: <span id="selUUID">(none)</span></div>
-    <div class="row muted">
-      This tool injects an update script into the selected clip. In preview it forces Shoulder and Elbow to form an arm no matter where they currently sit.
-      It also installs a persistent rig panel on the left side of the Wick Editor canvas with sliders that update rotation in real time.
-    </div>
-
-    <div class="grid">
-      <div>
-        <div class="row"><span class="label">Shoulder identifier</span></div>
-        <div class="row"><input id="shoulderId" type="text" value="Shoulder_R"></div>
-      </div>
-      <div>
-        <div class="row"><span class="label">Elbow identifier</span></div>
-        <div class="row"><input id="elbowId" type="text" value="Elbo_R"></div>
+  <div class="wrap">
+    <div class="card">
+      <div class="row">
+        <div class="grow">
+          <div class="label">Selected clip</div>
+          <div class="value" id="selName">(not loaded)</div>
+          <div class="muted" style="font-size:12px;margin-top:4px;">This tool calls LukeToolsBridge in the Wick Editor page. If LukeToolsBridge is missing, the userscript is not running.</div>
+        </div>
+        <div>
+          <button id="btnRefresh">Refresh selection</button>
+        </div>
       </div>
     </div>
 
-    <div class="row">
-      <button id="btnRefresh" type="button">Refresh selection</button>
-      <button id="btnInstallPanel" type="button">Install rig panel</button>
-      <button id="btnShowPanel" type="button">Show rig panel</button>
-      <button id="btnHidePanel" type="button">Hide rig panel</button>
-      <button id="btnRemovePanel" type="button">Remove rig panel</button>
+    <div class="card">
+      <div class="row" style="align-items:flex-end;">
+        <div class="grow">
+          <div class="label">Shoulder identifier inside selected clip</div>
+          <input id="shoulderId" type="text" value="Shoulder_R">
+        </div>
+        <div class="grow">
+          <div class="label">Elbow identifier inside selected clip</div>
+          <input id="elbowId" type="text" value="Elbo_R">
+        </div>
+        <div>
+          <button class="primary" id="btnArrange">Arrange in editor</button>
+        </div>
+      </div>
+      <div class="muted" style="font-size:12px;margin-top:10px;">
+        Arrange in editor changes the selected clip timeline data (not preview only). It moves Shoulder_R and Elbo_R into an arm stack and shifts their internal contents so their pivot is at the top.
+      </div>
     </div>
 
-    <div class="row">
-      <button id="btnInject" type="button" class="primary">Inject arm rig into update script</button>
-      <button id="btnRestore" type="button">Restore previous update script</button>
+    <div class="card">
+      <div class="row" style="align-items:flex-end;">
+        <div class="grow">
+          <div class="label">Shoulder rotation</div>
+          <div class="row">
+            <input id="shSlider" type="range" min="-180" max="180" step="1" value="0">
+            <span class="pill"><span id="shVal">0</span> deg</span>
+          </div>
+        </div>
+
+        <div class="grow">
+          <div class="label">Elbow rotation</div>
+          <div class="row">
+            <input id="elSlider" type="range" min="-180" max="180" step="1" value="0">
+            <span class="pill"><span id="elVal">0</span> deg</span>
+          </div>
+        </div>
+
+        <div>
+          <button class="primary" id="btnInjectUpdate">Inject update script</button>
+        </div>
+      </div>
+
+      <div class="muted" style="font-size:12px;margin-top:10px;">
+        Inject update script writes an update script to the selected clip that reads these slider values from localStorage and rotates Shoulder_R and Elbo_R every frame.
+      </div>
     </div>
 
-    <div class="row muted">
-      Tip. Open Biped. Select the Arm clip. Run Inject. Close the popup. The rig panel will appear on the left.
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div class="label">Log</div>
+        <div>
+          <button id="btnClear">Clear</button>
+        </div>
+      </div>
+      <div id="log" class="log"></div>
     </div>
-  </div>
-
-  <div class="box">
-    <div class="row"><span class="label">Log</span></div>
-    <pre id="log"></pre>
   </div>
 
 <script>
 (function () {
   "use strict";
 
-  function el(id){ return document.getElementById(id); }
-  var logEl = el("log");
+  var KEY_RIG_SHOULDER = "LukeToolsRigShoulderDeg";
+  var KEY_RIG_ELBOW = "LukeToolsRigElbowDeg";
 
-  function clearLog(){ logEl.textContent = ""; }
-  function logLine(t){ logEl.textContent += String(t === undefined ? "" : t) + "\n"; }
+  function $(id) { return document.getElementById(id); }
 
-  function s(v){ if (v === null || v === undefined) return ""; return String(v); }
-  function tidy(v){ return s(v).replace(/\s+/g, " ").trim(); }
+  var logEl = $("log");
 
-  function getBridge(){
-    try{ if (window.LukeToolsBridge) return window.LukeToolsBridge; }catch(e1){}
-    try{ if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; }catch(e2){}
+  function log() {
+    var parts = [];
+    for (var i = 0; i < arguments.length; i += 1) parts.push(String(arguments[i]));
+    var line = parts.join(" ");
+    logEl.textContent += line + "\n";
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function getBridge() {
+    try {
+      if (window.LukeToolsBridge) return window.LukeToolsBridge;
+    } catch (e1) {}
+    try {
+      if (parent && parent.LukeToolsBridge) return parent.LukeToolsBridge;
+    } catch (e2) {}
     return null;
   }
 
-  function getParentWindow(){
-    try{ if (window.parent) return window.parent; }catch(e){ return null; }
-    return null;
-  }
-
-  function getParentDocument(){
-    var pw = getParentWindow();
-    if (!pw) return null;
-    try{ return pw.document; }catch(e){ return null; }
-  }
-
-  function safeLocalSet(key, value){
-    try{ localStorage.setItem(key, s(value)); }catch(e){}
-    try{
-      var pw = getParentWindow();
-      if (pw && pw.localStorage) pw.localStorage.setItem(key, s(value));
-    }catch(e2){}
-  }
-
-  function safeLocalGet(key){
-    try{
+  function readLocalNumber(key, fallback) {
+    try {
       var v = localStorage.getItem(key);
-      if (v !== null && v !== undefined) return s(v);
-    }catch(e1){}
-    try{
-      var pw = getParentWindow();
-      if (pw && pw.localStorage){
-        var v2 = pw.localStorage.getItem(key);
-        if (v2 !== null && v2 !== undefined) return s(v2);
-      }
-    }catch(e2){}
-    return "";
+      if (v === null || v === undefined || v === "") return fallback;
+      var n = Number(v);
+      if (!isFinite(n)) return fallback;
+      return n;
+    } catch (e) {
+      return fallback;
+    }
   }
 
-  function readNumber(key, fallback){
-    var v = safeLocalGet(key);
-    if (!v) return fallback;
-    var n = Number(v);
-    if (!isFinite(n)) return fallback;
-    return n;
+  function writeLocalNumber(key, val) {
+    try { localStorage.setItem(key, String(val)); } catch (e) {}
   }
 
-  function getSelectionInfo(){
-    var br = getBridge();
-    var name = "";
-    var uuid = "";
-
-    if (!br){
-      return { ok: false, name: "", uuid: "" };
+  function refreshSelection() {
+    var bridge = getBridge();
+    if (!bridge) {
+      $("selName").textContent = "(LukeToolsBridge missing)";
+      log("LukeToolsBridge missing. The userscript must be running in the Wick Editor tab.");
+      return;
     }
 
-    try{ if (typeof br.captureSelectionNow === "function") br.captureSelectionNow(); }catch(e1){}
+    var info = null;
+    try {
+      info = bridge.captureSelectionNow ? bridge.captureSelectionNow() : null;
+    } catch (e1) {
+      info = null;
+    }
 
-    try{ if (typeof br.getSelectedClipName === "function") name = tidy(br.getSelectedClipName()); }catch(e2){}
-    try{ if (typeof br.getSelectedClipUUID === "function") uuid = tidy(br.getSelectedClipUUID()); }catch(e3){}
+    var nm = "";
+    try { nm = bridge.getSelectedClipName ? bridge.getSelectedClipName() : ""; } catch (e2) { nm = ""; }
 
-    return { ok: true, name: name, uuid: uuid };
+    $("selName").textContent = nm ? nm : "(no selection)";
+    if (info && info.uuid) log("Selection uuid", info.uuid);
+    log("Selection name", nm ? nm : "(blank)");
   }
 
-  function refreshSelectionUI(){
-    var info = getSelectionInfo();
-    el("selName").textContent = info.ok ? (info.name || "(none)") : "(bridge missing)";
-    el("selUUID").textContent = info.ok ? (info.uuid || "(none)") : "(bridge missing)";
-    return info;
-  }
+  function buildArmRigUpdateScript(shoulderIdentifier, elbowIdentifier) {
+    shoulderIdentifier = String(shoulderIdentifier || "").trim() || "Shoulder_R";
+    elbowIdentifier = String(elbowIdentifier || "").trim() || "Elbo_R";
 
-  // Persistent rig panel installed into parent document
-  var PANEL_ID = "LukeToolsRigPanelPersistent";
-  var KEY_SHOULDER_DEG = "LukeToolsRigShoulderDeg";
-  var KEY_ELBOW_DEG = "LukeToolsRigElbowDeg";
-  var KEY_PREV_UPDATE_PREFIX = "LukeToolsPrevUpdateScriptFor_";
+    function esc(s) {
+      return String(s).replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+    }
 
-  function ensureAnglesObject(){
-    var pw = getParentWindow();
-    if (!pw) return null;
-
-    var sd = readNumber(KEY_SHOULDER_DEG, 0);
-    var ed = readNumber(KEY_ELBOW_DEG, 0);
-
-    try{
-      if (!pw.LukeToolsArmRigAngles) pw.LukeToolsArmRigAngles = { shoulder: 0, elbow: 0 };
-      pw.LukeToolsArmRigAngles.shoulder = sd;
-      pw.LukeToolsArmRigAngles.elbow = ed;
-    }catch(e1){}
-
-    try{
-      if (pw.project){
-        if (!pw.project.LukeToolsArmRigAngles) pw.project.LukeToolsArmRigAngles = pw.LukeToolsArmRigAngles || { shoulder: 0, elbow: 0 };
-        pw.project.LukeToolsArmRigAngles.shoulder = sd;
-        pw.project.LukeToolsArmRigAngles.elbow = ed;
-      }
-    }catch(e2){}
-
-    try{
-      if (typeof project !== "undefined" && project){
-        if (!project.LukeToolsArmRigAngles) project.LukeToolsArmRigAngles = pw.LukeToolsArmRigAngles || { shoulder: 0, elbow: 0 };
-        project.LukeToolsArmRigAngles.shoulder = sd;
-        project.LukeToolsArmRigAngles.elbow = ed;
-      }
-    }catch(e3){}
-
-    return pw.LukeToolsArmRigAngles || null;
-  }
-
-  function rotateVector(x, y, deg){
-    var r = Number(deg);
-    if (!isFinite(r)) r = 0;
-    var a = r * Math.PI / 180;
-    var c = Math.cos(a);
-    var si = Math.sin(a);
-    return { x: (x * c) - (y * si), y: (x * si) + (y * c) };
-  }
-
-  function buildArmRigUpdateScript(shoulderIdentifier, elbowIdentifier){
-    shoulderIdentifier = tidy(shoulderIdentifier) || "Shoulder_R";
-    elbowIdentifier = tidy(elbowIdentifier) || "Elbo_R";
-
-    // Runs every tick in the selected clip update tab.
-    // Forces shoulder at pivot, forces elbow at shoulder end, simulates parenting by placing elbow end using rotation.
     return (
-      "/* LukeTools ArmRig START */\n" +
-      "var shoulderId = \"" + shoulderIdentifier.replace(/"/g, "\\\"") + "\";\n" +
-      "var elbowId = \"" + elbowIdentifier.replace(/"/g, "\\\"") + "\";\n" +
+      "/* LukeTools ArmRig Update START */\n" +
+      "var KEY_SH = \"" + esc(KEY_RIG_SHOULDER) + "\";\n" +
+      "var KEY_EL = \"" + esc(KEY_RIG_ELBOW) + "\";\n" +
       "\n" +
-      "function getAngles(){\n" +
-      "  try { if (typeof project !== \"undefined\" && project && project.LukeToolsArmRigAngles) return project.LukeToolsArmRigAngles; } catch (e1) {}\n" +
-      "  try { if (typeof window !== \"undefined\" && window && window.LukeToolsArmRigAngles) return window.LukeToolsArmRigAngles; } catch (e2) {}\n" +
-      "  return { shoulder: 0, elbow: 0 };\n" +
+      "function readNum(key, fallback) {\n" +
+      "  try {\n" +
+      "    var v = localStorage.getItem(key);\n" +
+      "    if (v === null || v === undefined || v === \"\") return fallback;\n" +
+      "    var n = Number(v);\n" +
+      "    if (!isFinite(n)) return fallback;\n" +
+      "    return n;\n" +
+      "  } catch (e) { return fallback; }\n" +
       "}\n" +
       "\n" +
-      "function getSize(o){\n" +
-      "  var w = 0;\n" +
-      "  var h = 0;\n" +
-      "  try { if (typeof o.width === \"number\") w = o.width; } catch (e1) {}\n" +
-      "  try { if (typeof o.height === \"number\") h = o.height; } catch (e2) {}\n" +
-      "  try { if (!w && typeof o._width === \"number\") w = o._width; } catch (e3) {}\n" +
-      "  try { if (!h && typeof o._height === \"number\") h = o._height; } catch (e4) {}\n" +
-      "  if ((!w || !h) && o && typeof o.getBounds === \"function\") {\n" +
-      "    try {\n" +
-      "      var b = o.getBounds();\n" +
-      "      if (b) {\n" +
-      "        if (!w && typeof b.width === \"number\") w = b.width;\n" +
-      "        if (!h && typeof b.height === \"number\") h = b.height;\n" +
-      "        if ((!w || !h) && typeof b.left === \"number\" && typeof b.right === \"number\") w = b.right - b.left;\n" +
-      "        if ((!w || !h) && typeof b.top === \"number\" && typeof b.bottom === \"number\") h = b.bottom - b.top;\n" +
+      "function findChildByIdentifier(container, wanted) {\n" +
+      "  if (!container || !wanted) return null;\n" +
+      "  try {\n" +
+      "    for (var k in container) {\n" +
+      "      if (!Object.prototype.hasOwnProperty.call(container, k)) continue;\n" +
+      "      if (k === wanted) return container[k];\n" +
+      "    }\n" +
+      "  } catch (e1) {}\n" +
+      "  try {\n" +
+      "    var kids = null;\n" +
+      "    if (typeof container.getChildren === \"function\") kids = container.getChildren();\n" +
+      "    else if (Array.isArray(container.children)) kids = container.children;\n" +
+      "    else if (Array.isArray(container._children)) kids = container._children;\n" +
+      "    if (kids && kids.length) {\n" +
+      "      for (var i = 0; i < kids.length; i += 1) {\n" +
+      "        var c = kids[i];\n" +
+      "        if (!c) continue;\n" +
+      "        if (c._identifier === wanted) return c;\n" +
+      "        if (c._cachedSerializeData && c._cachedSerializeData.identifier === wanted) return c;\n" +
+      "        if (c.name === wanted) return c;\n" +
       "      }\n" +
-      "    } catch (e5) {}\n" +
-      "  }\n" +
-      "  return { w: w, h: h };\n" +
+      "    }\n" +
+      "  } catch (e2) {}\n" +
+      "  return null;\n" +
       "}\n" +
       "\n" +
-      "function setOriginTopCenter(o){\n" +
-      "  if (!o) return;\n" +
-      "  var size = getSize(o);\n" +
-      "  if (!size || !size.h) return;\n" +
-      "  var oy = size.h / 2;\n" +
-      "  try { if (typeof o.originX === \"number\") o.originX = 0; } catch (e1) {}\n" +
-      "  try { if (typeof o.originY === \"number\") o.originY = oy; } catch (e2) {}\n" +
-      "  try { if (typeof o._originX === \"number\") o._originX = 0; } catch (e3) {}\n" +
-      "  try { if (typeof o._originY === \"number\") o._originY = oy; } catch (e4) {}\n" +
-      "  try { if (o._cachedSerializeData) { o._cachedSerializeData.originX = 0; o._cachedSerializeData.originY = oy; } } catch (e5) {}\n" +
-      "  try { if (o.transformation) { o.transformation.originX = 0; o.transformation.originY = oy; } } catch (e6) {}\n" +
-      "}\n" +
-      "\n" +
-      "function setPos(o, x, y){\n" +
-      "  if (!o) return;\n" +
-      "  try { if (typeof o.setPosition === \"function\") { o.setPosition(x, y); return; } } catch (e1) {}\n" +
-      "  try { if (typeof o.x === \"number\") o.x = x; if (typeof o.y === \"number\") o.y = y; } catch (e2) {}\n" +
-      "  try { if (typeof o._x === \"number\") o._x = x; if (typeof o._y === \"number\") o._y = y; } catch (e3) {}\n" +
-      "  try { if (o.transformation) { o.transformation.x = x; o.transformation.y = y; } } catch (e4) {}\n" +
-      "  try { if (o._cachedSerializeData) { o._cachedSerializeData.x = x; o._cachedSerializeData.y = y; } } catch (e5) {}\n" +
-      "}\n" +
-      "\n" +
-      "function setRot(o, deg){\n" +
+      "function setRot(o, deg) {\n" +
       "  if (!o) return;\n" +
       "  var r = Number(deg);\n" +
       "  if (!isFinite(r)) r = 0;\n" +
       "  try { if (typeof o.setRotation === \"function\") { o.setRotation(r); return; } } catch (e1) {}\n" +
-      "  try { if (typeof o.rotation === \"number\") { o.rotation = r; return; } } catch (e2) {}\n" +
-      "  try { if (typeof o._rotation === \"number\") { o._rotation = r; return; } } catch (e3) {}\n" +
-      "  try { if (o.transformation && typeof o.transformation.rotation !== \"undefined\") { o.transformation.rotation = r; return; } } catch (e4) {}\n" +
-      "  try { if (o._cachedSerializeData && typeof o._cachedSerializeData.rotation !== \"undefined\") { o._cachedSerializeData.rotation = r; return; } } catch (e5) {}\n" +
-      "}\n" +
-      "\n" +
-      "function rotateVec(x, y, deg){\n" +
-      "  var a = (Number(deg) || 0) * Math.PI / 180;\n" +
-      "  var c = Math.cos(a);\n" +
-      "  var si = Math.sin(a);\n" +
-      "  return { x: (x * c) - (y * si), y: (x * si) + (y * c) };\n" +
+      "  try { if (typeof o.rotation === \"number\") { o.rotation = r; } } catch (e2) {}\n" +
+      "  try { if (typeof o._rotation === \"number\") { o._rotation = r; } } catch (e3) {}\n" +
+      "  try { if (o.transformation && typeof o.transformation.rotation === \"number\") { o.transformation.rotation = r; } } catch (e4) {}\n" +
+      "  try { if (o._cachedSerializeData && typeof o._cachedSerializeData.rotation === \"number\") { o._cachedSerializeData.rotation = r; } } catch (e5) {}\n" +
       "}\n" +
       "\n" +
       "var shoulder = null;\n" +
       "var elbow = null;\n" +
-      "try { shoulder = this[shoulderId]; } catch (e1) { shoulder = null; }\n" +
-      "try { elbow = this[elbowId]; } catch (e2) { elbow = null; }\n" +
-      "if (!shoulder || !elbow) { return; }\n" +
+      "try { shoulder = this[\"" + esc(shoulderIdentifier) + "\"]; } catch (e1) { shoulder = null; }\n" +
+      "try { elbow = this[\"" + esc(elbowIdentifier) + "\"]; } catch (e2) { elbow = null; }\n" +
+      "if (!shoulder) shoulder = findChildByIdentifier(this, \"" + esc(shoulderIdentifier) + "\");\n" +
+      "if (!elbow) elbow = findChildByIdentifier(this, \"" + esc(elbowIdentifier) + "\");\n" +
       "\n" +
-      "var angles = getAngles();\n" +
-      "var shRot = (angles && isFinite(Number(angles.shoulder))) ? Number(angles.shoulder) : 0;\n" +
-      "var elRot = (angles && isFinite(Number(angles.elbow))) ? Number(angles.elbow) : 0;\n" +
-      "\n" +
-      "setOriginTopCenter(shoulder);\n" +
-      "setPos(shoulder, 0, 0);\n" +
-      "setRot(shoulder, shRot);\n" +
-      "\n" +
-      "var shSize = getSize(shoulder);\n" +
-      "var shLen = (shSize && shSize.h) ? shSize.h : 120;\n" +
-      "var end = rotateVec(0, shLen, shRot);\n" +
-      "\n" +
-      "setOriginTopCenter(elbow);\n" +
-      "setPos(elbow, end.x, end.y);\n" +
-      "setRot(elbow, shRot + elRot);\n" +
-      "/* LukeTools ArmRig END */\n"
+      "var shDeg = readNum(KEY_SH, 0);\n" +
+      "var elDeg = readNum(KEY_EL, 0);\n" +
+      "if (shoulder) setRot(shoulder, shDeg);\n" +
+      "if (elbow) setRot(elbow, elDeg);\n" +
+      "/* LukeTools ArmRig Update END */\n"
     );
   }
 
-  function findSelfIframe(){
-    var pd = getParentDocument();
-    if (!pd) return null;
-    var iframes = pd.querySelectorAll("iframe");
-    for (var i = 0; i < iframes.length; i += 1){
-      var f = iframes[i];
-      try{
-        if (f && f.contentWindow === window) return f;
-      }catch(e){}
+  function doArrange() {
+    var bridge = getBridge();
+    if (!bridge) { log("LukeToolsBridge missing"); return; }
+
+    var sh = $("shoulderId").value;
+    var el = $("elbowId").value;
+
+    if (!bridge.arrangeArmRigInSelectedClip) {
+      log("Bridge function arrangeArmRigInSelectedClip missing.");
+      log("You need the updated userscript that adds arrangeArmRigInSelectedClip.");
+      return;
     }
-    return null;
+
+    var res = null;
+    try { res = bridge.arrangeArmRigInSelectedClip(sh, el); } catch (e1) { res = null; log("Arrange error", e1); }
+
+    log("Arrange result", JSON.stringify(res || {}, null, 2));
   }
 
-  function hookPopupCloseToShowPanel(){
-    var pd = getParentDocument();
-    if (!pd) return false;
+  function doInjectUpdate() {
+    var bridge = getBridge();
+    if (!bridge) { log("LukeToolsBridge missing"); return; }
 
-    var selfFrame = findSelfIframe();
-    if (!selfFrame) return false;
+    var sh = $("shoulderId").value;
+    var el = $("elbowId").value;
 
-    var overlay = selfFrame.parentElement;
-    if (!overlay) return false;
+    var src = buildArmRigUpdateScript(sh, el);
 
-    // Find a button inside overlay that looks like the close button
-    var btns = overlay.querySelectorAll("button");
-    var closeBtn = null;
-
-    for (var i = 0; i < btns.length; i += 1){
-      var t = tidy(btns[i].textContent).toLowerCase();
-      if (t === "close"){
-        closeBtn = btns[i];
-        break;
-      }
+    if (!bridge.setScriptOnSelection) {
+      log("Bridge function setScriptOnSelection missing");
+      return;
     }
 
-    if (!closeBtn) return false;
+    var ok = false;
+    try { ok = bridge.setScriptOnSelection("update", src); } catch (e1) { ok = false; log("Inject error", e1); }
 
-    if (closeBtn.__LukeToolsRigHooked) return true;
-    closeBtn.__LukeToolsRigHooked = true;
+    log("Inject update ok", ok);
+  }
 
-    closeBtn.addEventListener("click", function(){
-      try{
-        var pw = getParentWindow();
-        if (pw && pw.LukeToolsRigPanelApi && typeof pw.LukeToolsRigPanelApi.show === "function"){
-          pw.LukeToolsRigPanelApi.show(true);
-        }
-      }catch(e1){}
+  function wireSliders() {
+    var shS = $("shSlider");
+    var elS = $("elSlider");
+
+    var shV = $("shVal");
+    var elV = $("elVal");
+
+    var shInit = readLocalNumber(KEY_RIG_SHOULDER, 0);
+    var elInit = readLocalNumber(KEY_RIG_ELBOW, 0);
+
+    shS.value = String(shInit);
+    elS.value = String(elInit);
+
+    shV.textContent = String(shInit);
+    elV.textContent = String(elInit);
+
+    shS.addEventListener("input", function () {
+      shV.textContent = String(shS.value);
+      writeLocalNumber(KEY_RIG_SHOULDER, shS.value);
     });
 
-    return true;
-  }
-
-  function installRigPanel(){
-    var pw = getParentWindow();
-    var pd = getParentDocument();
-    if (!pw || !pd){
-      logLine("Cannot access parent window or document");
-      return false;
-    }
-
-    // If already installed, just return
-    var existing = null;
-    try{ existing = pd.getElementById(PANEL_ID); }catch(e1){ existing = null; }
-
-    if (existing){
-      logLine("Rig panel already installed");
-      try{
-        if (pw.LukeToolsRigPanelApi && typeof pw.LukeToolsRigPanelApi.show === "function"){
-          pw.LukeToolsRigPanelApi.show(true);
-        }
-      }catch(e2){}
-      ensureAnglesObject();
-      hookPopupCloseToShowPanel();
-      return true;
-    }
-
-    // Panel root
-    var panel = pd.createElement("div");
-    panel.id = PANEL_ID;
-    panel.style.position = "fixed";
-    panel.style.left = "10px";
-    panel.style.top = "90px";
-    panel.style.width = "240px";
-    panel.style.zIndex = "999998";
-    panel.style.background = "rgba(255,255,255,0.98)";
-    panel.style.border = "1px solid rgba(0,0,0,0.15)";
-    panel.style.borderRadius = "12px";
-    panel.style.boxShadow = "0 6px 18px rgba(0,0,0,0.18)";
-    panel.style.padding = "12px";
-    panel.style.fontFamily = "Arial, sans serif";
-    panel.style.color = "#111";
-    panel.style.userSelect = "none";
-
-    var header = pd.createElement("div");
-    header.style.display = "flex";
-    header.style.alignItems = "center";
-    header.style.justifyContent = "space-between";
-    header.style.cursor = "move";
-    header.style.marginBottom = "10px";
-
-    var title = pd.createElement("div");
-    title.textContent = "Rig panel";
-    title.style.fontWeight = "700";
-    title.style.fontSize = "13px";
-
-    var hideBtn = pd.createElement("button");
-    hideBtn.type = "button";
-    hideBtn.textContent = "Hide";
-    hideBtn.style.border = "0";
-    hideBtn.style.borderRadius = "10px";
-    hideBtn.style.padding = "6px 10px";
-    hideBtn.style.cursor = "pointer";
-    hideBtn.style.background = "rgba(0,0,0,0.08)";
-    hideBtn.style.fontSize = "12px";
-
-    header.appendChild(title);
-    header.appendChild(hideBtn);
-    panel.appendChild(header);
-
-    var selRow = pd.createElement("div");
-    selRow.style.fontSize = "12px";
-    selRow.style.marginBottom = "10px";
-    selRow.textContent = "Selected ";
-    var selSpan = pd.createElement("span");
-    selSpan.id = "LukeToolsRigPanelSelName";
-    selSpan.style.fontWeight = "700";
-    selSpan.textContent = "(none)";
-    selRow.appendChild(selSpan);
-    panel.appendChild(selRow);
-
-    function mkSliderRow(labelText, keyStore){
-      var wrap = pd.createElement("div");
-      wrap.style.marginBottom = "12px";
-
-      var top = pd.createElement("div");
-      top.style.display = "flex";
-      top.style.alignItems = "center";
-      top.style.justifyContent = "space-between";
-      top.style.marginBottom = "4px";
-
-      var lab = pd.createElement("div");
-      lab.textContent = labelText;
-      lab.style.fontSize = "12px";
-
-      var val = pd.createElement("div");
-      val.style.fontSize = "12px";
-      val.style.fontWeight = "700";
-
-      var initial = readNumber(keyStore, 0);
-      val.textContent = s(initial);
-
-      top.appendChild(lab);
-      top.appendChild(val);
-      wrap.appendChild(top);
-
-      var slider = pd.createElement("input");
-      slider.type = "range";
-      slider.min = "-180";
-      slider.max = "180";
-      slider.step = "1";
-      slider.value = s(initial);
-      slider.style.width = "100%";
-      slider.addEventListener("input", function(){
-        val.textContent = s(slider.value);
-        safeLocalSet(keyStore, slider.value);
-
-        var ang = ensureAnglesObject();
-        if (ang){
-          if (keyStore === KEY_SHOULDER_DEG) ang.shoulder = Number(slider.value);
-          if (keyStore === KEY_ELBOW_DEG) ang.elbow = Number(slider.value);
-        }
-      });
-
-      wrap.appendChild(slider);
-
-      return { wrap: wrap, slider: slider, val: val };
-    }
-
-    var shRow = mkSliderRow("Shoulder rotation", KEY_SHOULDER_DEG);
-    var elRow = mkSliderRow("Elbow rotation", KEY_ELBOW_DEG);
-
-    panel.appendChild(shRow.wrap);
-    panel.appendChild(elRow.wrap);
-
-    var zeroBtn = pd.createElement("button");
-    zeroBtn.type = "button";
-    zeroBtn.textContent = "Zero";
-    zeroBtn.style.width = "100%";
-    zeroBtn.style.padding = "10px 12px";
-    zeroBtn.style.border = "0";
-    zeroBtn.style.borderRadius = "12px";
-    zeroBtn.style.cursor = "pointer";
-    zeroBtn.style.background = "rgba(0,0,0,0.85)";
-    zeroBtn.style.color = "#fff";
-    zeroBtn.style.fontSize = "12px";
-
-    zeroBtn.addEventListener("click", function(){
-      safeLocalSet(KEY_SHOULDER_DEG, "0");
-      safeLocalSet(KEY_ELBOW_DEG, "0");
-      shRow.slider.value = "0";
-      shRow.val.textContent = "0";
-      elRow.slider.value = "0";
-      elRow.val.textContent = "0";
-      var ang = ensureAnglesObject();
-      if (ang){
-        ang.shoulder = 0;
-        ang.elbow = 0;
-      }
+    elS.addEventListener("input", function () {
+      elV.textContent = String(elS.value);
+      writeLocalNumber(KEY_RIG_ELBOW, elS.value);
     });
-
-    panel.appendChild(zeroBtn);
-
-    var note = pd.createElement("div");
-    note.style.marginTop = "10px";
-    note.style.fontSize = "11px";
-    note.style.color = "rgba(0,0,0,0.65)";
-    note.textContent = "Use sliders during preview for real time rotation.";
-    panel.appendChild(note);
-
-    pd.body.appendChild(panel);
-
-    // drag support
-    (function(){
-      var dragging = false;
-      var startX = 0;
-      var startY = 0;
-      var startLeft = 0;
-      var startTop = 0;
-
-      header.addEventListener("mousedown", function(ev){
-        dragging = true;
-        startX = ev.clientX;
-        startY = ev.clientY;
-
-        var rect = panel.getBoundingClientRect();
-        startLeft = rect.left;
-        startTop = rect.top;
-
-        ev.preventDefault();
-      });
-
-      pd.addEventListener("mousemove", function(ev){
-        if (!dragging) return;
-        var dx = ev.clientX - startX;
-        var dy = ev.clientY - startY;
-
-        panel.style.left = (startLeft + dx) + "px";
-        panel.style.top = (startTop + dy) + "px";
-      });
-
-      pd.addEventListener("mouseup", function(){
-        dragging = false;
-      });
-    })();
-
-    // expose api
-    pw.LukeToolsRigPanelApi = {
-      show: function(show){
-        panel.style.display = show ? "block" : "none";
-      },
-      remove: function(){
-        try{ panel.remove(); }catch(e){}
-        try{ delete pw.LukeToolsRigPanelApi; }catch(e2){}
-      },
-      refreshSelection: function(){
-        try{
-          var br = pw.LukeToolsBridge;
-          if (br && typeof br.getSelectedClipName === "function"){
-            selSpan.textContent = tidy(br.getSelectedClipName()) || "(none)";
-          }
-        }catch(e){}
-      }
-    };
-
-    hideBtn.addEventListener("click", function(){
-      pw.LukeToolsRigPanelApi.show(false);
-    });
-
-    ensureAnglesObject();
-    pw.LukeToolsRigPanelApi.refreshSelection();
-    hookPopupCloseToShowPanel();
-
-    logLine("Rig panel installed");
-    return true;
   }
 
-  function showRigPanel(show){
-    var pw = getParentWindow();
-    if (!pw || !pw.LukeToolsRigPanelApi){
-      logLine("Rig panel not installed");
-      return false;
-    }
-    try{ pw.LukeToolsRigPanelApi.show(!!show); }catch(e){}
-    return true;
-  }
+  $("btnRefresh").addEventListener("click", refreshSelection);
+  $("btnArrange").addEventListener("click", doArrange);
+  $("btnInjectUpdate").addEventListener("click", doInjectUpdate);
+  $("btnClear").addEventListener("click", function(){ logEl.textContent = ""; });
 
-  function removeRigPanel(){
-    var pw = getParentWindow();
-    if (!pw || !pw.LukeToolsRigPanelApi){
-      logLine("Rig panel not installed");
-      return false;
-    }
-    try{ pw.LukeToolsRigPanelApi.remove(); }catch(e){}
-    logLine("Rig panel removed");
-    return true;
-  }
-
-  function savePrevUpdate(uuid, prev){
-    if (!uuid) return;
-    safeLocalSet(KEY_PREV_UPDATE_PREFIX + uuid, prev || "");
-  }
-
-  function loadPrevUpdate(uuid){
-    if (!uuid) return "";
-    return safeLocalGet(KEY_PREV_UPDATE_PREFIX + uuid) || "";
-  }
-
-  function bridgeGetScript(scriptName){
-    var br = getBridge();
-    if (!br) return "";
-    scriptName = tidy(scriptName) || "update";
-
-    // Newer bridge
-    try{
-      if (typeof br.getScriptOnSelection === "function"){
-        return s(br.getScriptOnSelection(scriptName));
-      }
-    }catch(e1){}
-
-    // Older bridge fallback
-    if (scriptName === "default"){
-      try{
-        if (typeof br.getDefaultScriptOnSelection === "function"){
-          return s(br.getDefaultScriptOnSelection());
-        }
-      }catch(e2){}
-    }
-
-    return "";
-  }
-
-  function bridgeSetScript(scriptName, source){
-    var br = getBridge();
-    if (!br) return false;
-    scriptName = tidy(scriptName) || "update";
-
-    // Newer bridge
-    try{
-      if (typeof br.setScriptOnSelection === "function"){
-        return !!br.setScriptOnSelection(scriptName, source);
-      }
-    }catch(e1){}
-
-    // Older bridge fallback
-    if (scriptName === "default"){
-      try{
-        if (typeof br.setDefaultScriptOnSelection === "function"){
-          return !!br.setDefaultScriptOnSelection(source);
-        }
-      }catch(e2){}
-    }
-
-    return false;
-  }
-
-  function injectRig(){
-    clearLog();
-
-    var info = refreshSelectionUI();
-    if (!info.ok){
-      logLine("Bridge missing. This tool must be opened inside the LukeTools popup.");
-      return;
-    }
-
-    if (!info.uuid){
-      logLine("No selected clip uuid found");
-      return;
-    }
-
-    var shoulderId = tidy(el("shoulderId").value) || "Shoulder_R";
-    var elbowId = tidy(el("elbowId").value) || "Elbo_R";
-
-    // Backup previous update script
-    var prevUpdate = bridgeGetScript("update");
-    savePrevUpdate(info.uuid, prevUpdate);
-
-    var updateScript = buildArmRigUpdateScript(shoulderId, elbowId);
-
-    var ok = bridgeSetScript("update", updateScript);
-
-    if (!ok){
-      logLine("Update script write failed via bridge");
-      logLine("If your bridge only supports default script, switch to injecting default instead.");
-      return;
-    }
-
-    ensureAnglesObject();
-    installRigPanel();
-
-    logLine("Injected update script into selected clip");
-    logLine("Shoulder id " + shoulderId);
-    logLine("Elbow id " + elbowId);
-    logLine("Now close the popup. The rig panel will show on the left.");
-  }
-
-  function restoreRig(){
-    clearLog();
-    var info = refreshSelectionUI();
-    if (!info.ok){
-      logLine("Bridge missing");
-      return;
-    }
-    if (!info.uuid){
-      logLine("No selected clip uuid found");
-      return;
-    }
-
-    var prev = loadPrevUpdate(info.uuid);
-    var ok = bridgeSetScript("update", prev);
-
-    logLine(ok ? "Restored previous update script" : "Restore failed");
-  }
-
-  // Wire buttons
-  el("btnRefresh").addEventListener("click", function(){
-    clearLog();
-    refreshSelectionUI();
-    try{
-      var pw = getParentWindow();
-      if (pw && pw.LukeToolsRigPanelApi) pw.LukeToolsRigPanelApi.refreshSelection();
-    }catch(e){}
-    logLine("Refreshed");
-  });
-
-  el("btnInstallPanel").addEventListener("click", function(){
-    clearLog();
-    refreshSelectionUI();
-    installRigPanel();
-  });
-
-  el("btnShowPanel").addEventListener("click", function(){
-    clearLog();
-    refreshSelectionUI();
-    showRigPanel(true);
-  });
-
-  el("btnHidePanel").addEventListener("click", function(){
-    clearLog();
-    refreshSelectionUI();
-    showRigPanel(false);
-  });
-
-  el("btnRemovePanel").addEventListener("click", function(){
-    clearLog();
-    refreshSelectionUI();
-    removeRigPanel();
-  });
-
-  el("btnInject").addEventListener("click", function(){
-    injectRig();
-  });
-
-  el("btnRestore").addEventListener("click", function(){
-    restoreRig();
-  });
-
-  // Init
-  refreshSelectionUI();
-  ensureAnglesObject();
-
-  // Install panel but keep hidden until close is clicked
-  try{
-    installRigPanel();
-    showRigPanel(false);
-    hookPopupCloseToShowPanel();
-  }catch(e2){}
-
+  wireSliders();
+  refreshSelection();
+  log("Tool ready.");
 })();
 </script>
 </body>
