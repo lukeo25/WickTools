@@ -1,121 +1,236 @@
 <!doctype html>
 <html>
-  <head>
-    <title>Biped</title>
-    <style>
-      body { margin: 0; font-family: Arial, sans serif; background: #f6f6f6; }
-      .wrap { padding: 18px; max-width: 900px; margin: 0 auto; }
-      .card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 8px 22px rgba(0,0,0,0.12); }
-      h1 { margin: 0 0 12px 0; font-size: 18px; }
-      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-      .field { display: flex; flex-direction: column; gap: 6px; }
-      label { font-size: 12px; opacity: 0.75; }
-      input { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.18); min-width: 220px; }
-      button { padding: 10px 12px; border: 0; border-radius: 12px; cursor: pointer; background: rgba(0,0,0,0.82); color: white; font-size: 13px; }
-      button.secondary { background: rgba(0,0,0,0.12); color: black; }
-      .note { margin-top: 10px; font-size: 12px; opacity: 0.75; line-height: 1.4; }
-      .log { margin-top: 12px; font-family: Consolas, monospace; font-size: 12px; white-space: pre-wrap; background: rgba(0,0,0,0.06); padding: 10px; border-radius: 10px; }
-      .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,0.08); font-size: 12px; }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <div class="card">
-        <h1>Biped</h1>
-        <div class="row" style="margin-bottom:12px;">
-          <div class="pill" id="selName">Selected: </div>
-        </div>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NewBiped</title>
+  <style>
+    :root{
+      --bg:#1b1f24;
+      --panel:#252b31;
+      --panel2:#1f242a;
+      --stroke:#343c44;
+      --stroke2:#2b323a;
+      --text:#e7eef6;
+      --muted:rgba(231,238,246,0.72);
+      --muted2:rgba(231,238,246,0.55);
+      --accent:#18c4a6;
+      --danger:#ff5a52;
+    }
 
-        <div class="row">
-          <div class="field">
-            <label>Shoulder id</label>
-            <input id="shoulderId" value="Shoulder_R" />
-          </div>
-          <div class="field">
-            <label>Elbow id</label>
-            <input id="elbowId" value="Elbow_R" />
-          </div>
-        </div>
+    html, body{
+      margin:0;
+      padding:0;
+      height:100%;
+      background:var(--bg);
+      color:var(--text);
+      font-family: Arial, sans serif;
+    }
 
-        <div class="row" style="margin-top:12px;">
-          <button id="btnArrange">Arrange</button>
-          <button class="secondary" id="btnRefresh">Refresh selection</button>
-          <button class="secondary" id="btnClearLog">Clear log</button>
-        </div>
+    .wrap{
+      height:100%;
+      display:flex;
+      align-items:flex-start;
+      justify-content:center;
+      padding:16px;
+      box-sizing:border-box;
+    }
 
-        <div class="note">
-          Arrange moves Shoulder and Elbow inside the selected clip. Close this tool to show the pose panel in Wick Editor.
-        </div>
+    .panel{
+      width:560px;
+      max-width:calc(100vw - 32px);
+      background:var(--panel);
+      border:1px solid var(--stroke);
+      border-radius:6px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.45);
+      overflow:hidden;
+    }
 
-        <div class="log" id="log"></div>
-      </div>
-    </div>
+    .hdr{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:10px 12px;
+      background:var(--panel2);
+      border-bottom:1px solid var(--stroke);
+    }
 
-    <script>
-      function s(v) { return (v === null || v === undefined) ? "" : String(v); }
+    .hdrLeft{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
+    }
 
-      function logLine(t) {
-        var el = document.getElementById("log");
-        el.textContent = (el.textContent ? el.textContent + "\n" : "") + t;
-      }
+    .brand{
+      width:24px;
+      height:24px;
+      border-radius:4px;
+      background:rgba(255,255,255,0.06);
+      border:1px solid var(--stroke2);
+      object-fit:contain;
+      flex:0 0 auto;
+    }
 
-      function getBridge() {
-        try { if (window.LukeToolsBridge) return window.LukeToolsBridge; } catch (e1) {}
-        try { if (parent && parent.LukeToolsBridge) return parent.LukeToolsBridge; } catch (e2) {}
-        return null;
-      }
+    .titleBlock{
+      display:flex;
+      flex-direction:column;
+      min-width:0;
+    }
 
-      function refreshSelection() {
-        var bridge = getBridge();
-        if (!bridge) {
-          document.getElementById("selName").textContent = "Selected: bridge missing";
-          return;
-        }
-        try {
-          var info = bridge.captureSelectionNow();
-          var nm = (info && info.name) ? info.name : bridge.getSelectedClipName();
-          document.getElementById("selName").textContent = "Selected: " + s(nm);
-        } catch (e) {
-          document.getElementById("selName").textContent = "Selected: error";
-          logLine("Selection error " + s(e));
-        }
-      }
+    .title{
+      font-size:14px;
+      font-weight:700;
+      letter-spacing:0.2px;
+      line-height:1.1;
+    }
 
-      function arrange() {
-        var bridge = getBridge();
-        if (!bridge) { logLine("Bridge missing"); return; }
+    .sub{
+      margin-top:2px;
+      font-size:11px;
+      color:var(--muted2);
+      line-height:1.25;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:420px;
+    }
 
-        var sh = s(document.getElementById("shoulderId").value).trim();
-        var el = s(document.getElementById("elbowId").value).trim();
+    .pill{
+      font-size:11px;
+      color:var(--muted);
+      background:rgba(255,255,255,0.06);
+      border:1px solid var(--stroke2);
+      border-radius:4px;
+      padding:5px 8px;
+      white-space:nowrap;
+    }
 
-        refreshSelection();
+    .body{
+      padding:12px;
+    }
 
-        if (typeof bridge.arrangeArmRigOnSelection !== "function") {
-          logLine("Arrange missing on bridge");
-          return;
-        }
+    .fieldRow{
+      margin-top:0;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
 
-        try {
-          var res = bridge.arrangeArmRigOnSelection(sh, el);
-          if (res && res.ok) {
-            logLine("Arrange ok");
-            if (res.shoulderLength !== undefined) logLine("Shoulder length " + s(res.shoulderLength));
-          } else {
-            logLine("Arrange failed " + s(res && res.error ? res.error : "unknown"));
-          }
-        } catch (e) {
-          logLine("Arrange error " + s(e));
-        }
-      }
+    .field{
+      background:rgba(0,0,0,0.12);
+      border:1px solid var(--stroke2);
+      border-radius:6px;
+      padding:10px;
+    }
 
-      document.getElementById("btnArrange").addEventListener("click", arrange);
-      document.getElementById("btnRefresh").addEventListener("click", refreshSelection);
-      document.getElementById("btnClearLog").addEventListener("click", function () {
-        document.getElementById("log").textContent = "";
-      });
+    .field label{
+      display:block;
+      font-size:11px;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
 
-      refreshSelection();
-      logLine("Ready");
-    </script>
-  </body>
-</html>
+    input[type="text"]{
+      width:100%;
+      box-sizing:border-box;
+      padding:9px 10px;
+      border-radius:5px;
+      border:1px solid var(--stroke);
+      background:rgba(0,0,0,0.20);
+      color:var(--text);
+      outline:none;
+      font-size:12px;
+    }
+
+    input[type="text"]:focus{
+      border-color:rgba(24,196,166,0.85);
+      box-shadow:0 0 0 2px rgba(24,196,166,0.18);
+    }
+
+    .btnRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+
+    button{
+      appearance:none;
+      border:1px solid var(--stroke);
+      background:rgba(255,255,255,0.06);
+      color:var(--text);
+      padding:9px 10px;
+      border-radius:6px;
+      cursor:pointer;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    button.primary{
+      background:rgba(24,196,166,0.18);
+      border-color:rgba(24,196,166,0.50);
+    }
+
+    button:active{
+      transform:translateY(1px);
+    }
+
+    .status{
+      margin-top:12px;
+      border:1px solid var(--stroke2);
+      background:rgba(0,0,0,0.16);
+      border-radius:6px;
+      padding:10px;
+      font-family:Consolas, monospace;
+      font-size:12px;
+      color:rgba(231,238,246,0.85);
+      white-space:pre-wrap;
+      line-height:1.4;
+      min-height:42px;
+    }
+
+    .foot{
+      margin-top:10px;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      justify-content:space-between;
+    }
+
+    .hint{
+      font-size:11px;
+      color:var(--muted2);
+      line-height:1.45;
+      flex:1 1 auto;
+    }
+
+    .hintCode{
+      font-family:Consolas, monospace;
+      font-size:11px;
+      color:rgba(231,238,246,0.8);
+      margin-top:6px;
+      padding:6px 8px;
+      border-radius:6px;
+      border:1px solid var(--stroke2);
+      background:rgba(0,0,0,0.14);
+      display:inline-block;
+    }
+
+    .brandMini{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex:0 0 auto;
+      color:var(--muted2);
+      font-size:11px;
+      white-space:nowrap;
+    }
+
+    .brandMini img{
+      width:16px;
+      height:16px;
+      border-radius:3px;
+      border:1px solid var(--stroke2);
+      background:rgba(255,255,
