@@ -526,7 +526,7 @@
 
       <div class="group">
         <span class="label">Wick clip</span>
-        <input id="inp-clipname" type="text" value="" placeholder="MouthShapes or Head.MouthShapes">
+        <input id="inp-clipname" type="text" value="" placeholder="Clip name">
       </div>
 
       <button class="btn small" id="btn-download">Save Project</button>
@@ -2370,8 +2370,8 @@ App.ui.btnSend.addEventListener("click", function(){
     }
 
     function buildDriverScript() {
-        // Build a Wick default-script driver that syncs a named MouthShapes clip
-        // to the Lip Service timeline blocks (using frame names like A, B, C... Rest).
+        // Build a Wick update script that syncs MouthShapes inside the selected clip
+        // to the Lip Service blocks using readable if else ranges.
 
         var mouthPath = "";
         try {
@@ -2381,15 +2381,10 @@ App.ui.btnSend.addEventListener("click", function(){
         }
         mouthPath = String(mouthPath || "").trim();
 
-        // Default path is selection relative: MouthShapes inside the selected clip
+        // Default is selection relative MouthShapes
         if (!mouthPath) mouthPath = "MouthShapes";
 
-        var total = 0;
-        try {
-          total = Number(App.totalFrames || 0);
-        } catch (e1) {
-          total = 0;
-        }
+        var total = Number(App.totalFrames || 0);
         if (!isFinite(total) || total < 1) total = 1;
 
         // Use the existing frameMap if present, otherwise rebuild a simple map from blocks
@@ -2417,7 +2412,7 @@ App.ui.btnSend.addEventListener("click", function(){
           }
         }
 
-        // Convert the per-frame map into compact segments of {s,e,m} using 1-based frame numbers.
+        // Convert the per frame map into compact segments of {s,e,m} using 1 based frame numbers.
         var segments = [];
         var cur = mouthLabel(fm[0] || "rest");
         var segStart = 1;
@@ -2432,66 +2427,61 @@ App.ui.btnSend.addEventListener("click", function(){
         }
         segments.push({ s: segStart, e: total + 1, m: cur });
 
-                        var mouthExpr = String(mouthPath || "").trim();
-                if (!mouthExpr) mouthExpr = "MouthShapes";
-                if (mouthExpr.indexOf("this.") !== 0) mouthExpr = "this." + mouthExpr;
+        // Build the update script
+        var scriptLines = [];
+        scriptLines.push("/* LukeTools LipService START */");
+        scriptLines.push("// Runs every frame in the update script of the selected clip");
+        scriptLines.push("var frame = 0;");
+        scriptLines.push("try { frame = project.currentFrameNumber; } catch (e0) { frame = 0; }");
+        scriptLines.push("if (!frame || !isFinite(frame)) frame = 1;");
+        scriptLines.push("");
+        scriptLines.push("function resolvePath(root, path) {");
+        scriptLines.push("  if (!root) return null;");
+        scriptLines.push("  path = String(path || \"\").trim();");
+        scriptLines.push("  if (!path) return null;");
+        scriptLines.push("  var parts = path.split(\".\");");
+        scriptLines.push("  var cur = root;");
+        scriptLines.push("  for (var i = 0; i < parts.length; i += 1) {");
+        scriptLines.push("    var p = String(parts[i] || \"\").trim();");
+        scriptLines.push("    if (!p) continue;");
+        scriptLines.push("    if (!cur) return null;");
+        scriptLines.push("    cur = cur[p];");
+        scriptLines.push("  }");
+        scriptLines.push("  return cur || null;");
+        scriptLines.push("}");
+        scriptLines.push("");
+        scriptLines.push("var mouthPath = " + JSON.stringify(mouthPath) + ";");
+        scriptLines.push("var mouth = null;");
+        scriptLines.push("try { mouth = resolvePath(this, mouthPath); } catch (e1) { mouth = null; }");
+        scriptLines.push("if (!mouth) { try { mouth = this.MouthShapes; } catch (e2) { mouth = null; } }");
+        scriptLines.push("");
+        scriptLines.push("if (mouth && typeof mouth.gotoAndStop === \"function\") {");
+        scriptLines.push("  var label = \"Rest\";");
 
-                var scriptLines = [];
-                scriptLines.push("/* LukeTools LipService START */");
-                scriptLines.push("(function () {");
-                scriptLines.push("  if (!this.LukeToolsLipServiceState) {");
-                scriptLines.push("    this.LukeToolsLipServiceState = { lastFrame: 0, lastLabel: \"\" , inited: false };");
-                scriptLines.push("  }");
-                scriptLines.push("  var state = this.LukeToolsLipServiceState;");
-                scriptLines.push("  var frameNum = 1;");
-                scriptLines.push("  try {");
-                scriptLines.push("    if (typeof project !== \"undefined\" && project && typeof project.currentFrameNumber === \"number\") frameNum = project.currentFrameNumber;");
-                scriptLines.push("  } catch (e1) {}");
-                scriptLines.push("  if (!frameNum || !isFinite(frameNum)) frameNum = 1;");
-                scriptLines.push("  if (state.lastFrame === frameNum) return;");
-                scriptLines.push("  if (state.lastFrame && frameNum < state.lastFrame) state.inited = false;");
-                scriptLines.push("  state.lastFrame = frameNum;");
-                scriptLines.push("  var mouth = null;");
-                scriptLines.push("  try { mouth = " + mouthExpr + "; } catch (e2) { mouth = null; }");
-                scriptLines.push("  if (!mouth || typeof mouth.gotoAndStop !== \"function\") return;");
-                scriptLines.push("  if (!state.inited) {");
-                scriptLines.push("    var initLabel = \"\";");
+        for (var si = 0; si < segments.length; si += 1) {
+          var seg = segments[si];
+          if (!seg) continue;
+          var s2 = Number(seg.s);
+          var e2 = Number(seg.e);
+          if (!isFinite(s2) || !isFinite(e2)) continue;
 
-                for (var i = 0; i < segments.length; i += 1) {
-                  var seg = segments[i];
-                  if (!seg) continue;
-                  var s = Number(seg.s);
-                  var e = Number(seg.e);
-                  if (!isFinite(s) || !isFinite(e)) continue;
-                  var lab = JSON.stringify(String(seg.m || ""));
-                  var prefix = (i === 0) ? "    if" : "    else if";
-                  scriptLines.push(prefix + " (frameNum >= " + s + " && frameNum < " + e + ") initLabel = " + lab + ";");
-                }
+          var open = (si === 0 ? "  if" : "  else if") + " (frame >= " + s2 + " && frame < " + e2 + ") {";
+          scriptLines.push(open);
+          scriptLines.push("    label = " + JSON.stringify(String(seg.m || "Rest")) + ";");
+          scriptLines.push("  }");
+        }
 
-                scriptLines.push("    if (initLabel) { state.lastLabel = initLabel; mouth.gotoAndStop(initLabel); }");
-                scriptLines.push("    state.inited = true;");
-                scriptLines.push("  }");
+        scriptLines.push("  if (!this.LukeToolsLipServiceState) this.LukeToolsLipServiceState = { lastLabel: \"\" };");
+        scriptLines.push("  if (label !== this.LukeToolsLipServiceState.lastLabel) {");
+        scriptLines.push("    this.LukeToolsLipServiceState.lastLabel = label;");
+        scriptLines.push("    mouth.gotoAndStop(label);");
+        scriptLines.push("  }");
+        scriptLines.push("}");
+        scriptLines.push("/* LukeTools LipService END */");
 
-                for (var j = 0; j < segments.length; j += 1) {
-                  var seg2 = segments[j];
-                  if (!seg2) continue;
-                  var ss = Number(seg2.s);
-                  if (!isFinite(ss)) continue;
-                  var lab2 = JSON.stringify(String(seg2.m || ""));
-                  scriptLines.push("  if (frameNum === " + ss + ") {");
-                  scriptLines.push("    var nextLabel = " + lab2 + ";");
-                  scriptLines.push("    if (nextLabel && nextLabel !== state.lastLabel) { state.lastLabel = nextLabel; mouth.gotoAndStop(nextLabel); }");
-                  scriptLines.push("    return;");
-                  scriptLines.push("  }");
-                }
-
-                scriptLines.push("})();");
-                scriptLines.push("/* LukeTools LipService END */");
-
-                return scriptLines.join("\n");
-      }
-
-function upsertLipServiceBlock(current, block) {
+        return scriptLines.join("
+");
+      }function upsertLipServiceBlock(current, block) {
       var startMarker = "/* LukeTools LipService START */";
       var endMarker = "/* LukeTools LipService END */";
 
@@ -2515,13 +2505,175 @@ function upsertLipServiceBlock(current, block) {
       return;
     }
 
-    if (typeof b.getDefaultScriptOnSelection !== "function" || typeof b.setDefaultScriptOnSelection !== "function") {
-      console.log("[LipService] bridge missing getDefaultScriptOnSelection or setDefaultScriptOnSelection");
+    if (typeof b.captureSelectionNow !== "function") {
+      console.log("[LipService] bridge missing captureSelectionNow");
       return;
     }
 
-    var current = "";
-    try { current = String(b.getDefaultScriptOnSelection() || ""); } catch (e1) { current = ""; }
+    function getEditor() {
+      try { if (window.wickEditor) return window.wickEditor; } catch (e1) {}
+      try { if (window.parent && window.parent.wickEditor) return window.parent.wickEditor; } catch (e2) {}
+      try { if (window.WickEditor && window.WickEditor.editor) return window.WickEditor.editor; } catch (e3) {}
+      try { if (window.parent && window.parent.WickEditor && window.parent.WickEditor.editor) return window.parent.WickEditor.editor; } catch (e4) {}
+      try { if (window.editor) return window.editor; } catch (e5) {}
+      try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e6) {}
+      try { if (window.app) return window.app; } catch (e7) {}
+      try { if (window.parent && window.parent.app) return window.parent.app; } catch (e8) {}
+      return null;
+    }
+
+    function markDirty(ed) {
+      try {
+        if (ed && ed.project && typeof ed.project.markAsModified === "function") {
+          ed.project.markAsModified();
+        }
+      } catch (e1) {}
+      try {
+        if (ed && ed.project) {
+          ed.project.unsavedChanges = true;
+        }
+      } catch (e2) {}
+    }
+
+    function isScriptable(obj) {
+      if (!obj) return false;
+      if (typeof obj.addScript === "function") return true;
+      if (typeof obj.getScript === "function") return true;
+      if (obj.scripts && typeof obj.scripts === "object") return true;
+      return false;
+    }
+
+    function resolveScriptTarget(obj) {
+      var cur = obj;
+      var guard = 0;
+
+      while (cur && guard < 80) {
+        if (isScriptable(cur)) return cur;
+
+        if (cur.clipAsset && isScriptable(cur.clipAsset)) return cur.clipAsset;
+
+        cur = cur.parentClip || cur.parent || cur._parent || null;
+        guard += 1;
+      }
+
+      return null;
+    }
+
+    function readScriptFromTarget(target, scriptName) {
+      if (!target) return "";
+      var name = String(scriptName || "");
+
+      try {
+        if (typeof target.getScript === "function") {
+          var gs = target.getScript(name);
+          if (typeof gs === "string") return gs;
+
+          if (gs && typeof gs === "object") {
+            if (typeof gs.source === "string") return gs.source;
+            if (typeof gs.code === "string") return gs.code;
+            if (typeof gs.text === "string") return gs.text;
+            if (typeof gs.src === "string") return gs.src;
+          }
+        }
+      } catch (e1) {}
+
+      try {
+        var sc = target.scripts;
+
+        if (typeof sc === "string") return sc;
+
+        if (sc && typeof sc === "object") {
+          if (typeof sc[name] === "string") return sc[name];
+
+          if (sc[name] && typeof sc[name] === "object") {
+            if (typeof sc[name].source === "string") return sc[name].source;
+            if (typeof sc[name].code === "string") return sc[name].code;
+            if (typeof sc[name].text === "string") return sc[name].text;
+            if (typeof sc[name].src === "string") return sc[name].src;
+          }
+
+          if (Array.isArray(sc)) {
+            for (var i = 0; i < sc.length; i += 1) {
+              var item = sc[i];
+              if (!item) continue;
+              if (item.name === name) {
+                if (typeof item.source === "string") return item.source;
+                if (typeof item.code === "string") return item.code;
+                if (typeof item.text === "string") return item.text;
+                if (typeof item.src === "string") return item.src;
+              }
+            }
+          }
+        }
+      } catch (e2) {}
+
+      try {
+        var k = name + "Script";
+        if (typeof target[k] === "string") return target[k];
+      } catch (e3) {}
+
+      return "";
+    }
+
+    function writeScriptToTarget(target, scriptName, source, ed) {
+      var name = String(scriptName || "");
+      var src = String(source || "");
+
+      if (!target) {
+        console.log("[LipService] write failed target null");
+        return false;
+      }
+
+      try {
+        if (typeof target.removeScript === "function") {
+          target.removeScript(name);
+        }
+      } catch (e1) {}
+
+      try {
+        if (typeof target.addScript === "function") {
+          target.addScript(name, src);
+          markDirty(ed);
+          return true;
+        }
+      } catch (e2) {}
+
+      try {
+        if (target.scripts && typeof target.scripts === "object") {
+          target.scripts[name] = src;
+          markDirty(ed);
+          return true;
+        }
+      } catch (e3) {}
+
+      try {
+        var k = name + "Script";
+        target[k] = src;
+        markDirty(ed);
+        return true;
+      } catch (e4) {}
+
+      console.log("[LipService] write failed no supported script api");
+      return false;
+    }
+
+    var sel = null;
+    try { sel = b.captureSelectionNow(); } catch (e0) { sel = null; }
+    var raw = sel && sel.raw ? sel.raw : null;
+
+    if (!raw) {
+      console.log("[LipService] no selected object to write");
+      return;
+    }
+
+    var target = resolveScriptTarget(raw);
+    if (!target) {
+      console.log("[LipService] selected object is not scriptable");
+      return;
+    }
+
+    var scriptName = "update";
+    var current = readScriptFromTarget(target, scriptName);
 
     var driverBlock = buildDriverScript();
     var next = upsertLipServiceBlock(current, driverBlock);
@@ -2530,11 +2682,10 @@ function upsertLipServiceBlock(current, block) {
     console.log("[LipService] validate ok", v.ok, v.error);
     if (!v.ok) return;
 
-    var ok = false;
-    try { ok = !!b.setDefaultScriptOnSelection(next); } catch (e2) { ok = false; }
+    var ed = getEditor();
+    var ok = writeScriptToTarget(target, scriptName, next, ed);
     console.log("[LipService] update wick write ok", ok);
-  })();
-});
+  })();});
 
 
 App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
