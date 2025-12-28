@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Move Contents Pivot To Top</title>
+  <title>Arrange Arm Rig</title>
   <style>
     body{
       font-family: Arial, sans serif;
@@ -29,6 +29,12 @@
       margin-right: 8px;
     }
     button:active{ transform: translateY(1px); }
+    input{
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      width: 180px;
+    }
     .label{ font-weight: bold; }
     .muted{ color: #444; font-size: 13px; }
     pre{
@@ -38,36 +44,42 @@
       word-break: break-word;
       margin: 0;
     }
-    select{
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      background: #fff;
+    .grid{
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 10px;
+      align-items: center;
     }
   </style>
 </head>
 <body>
-  <h1>Move Contents so Pivot is at Top</h1>
+  <h1>Arrange Arm Rig inside Selected Clip</h1>
 
   <div class="row box">
     <div class="row"><span class="label">Selected clip</span>: <span id="selName">(none)</span></div>
     <div class="row muted">
-      This does NOT move the crosshair (0,0). Instead it shifts everything INSIDE the selected clip so the chosen anchor lands on 0,0.
-      Then when you go back to the main timeline and rotate the clip instance, it rotates around that anchor.
+      Select the container clip instance (for example Arm_R) then press Arrange.
+      This will:
+      1) Find children named Shoulder_R and Elbow_R inside the selected clip.
+      2) Move the CONTENTS inside those clips so their top center is at 0,0.
+      3) Place Shoulder_R at 0,0 and Elbow_R at 0, shoulderHeight (optionally minus overlap).
+      Then the arm rotates around the crosshair at 0,0 (shoulder joint).
     </div>
 
-    <div class="row">
-      <span class="label">Anchor</span>
-      <select id="anchor">
-        <option value="topCenter" selected>Top center</option>
-        <option value="topLeft">Top left</option>
-        <option value="center">Center</option>
-      </select>
+    <div class="row grid">
+      <div class="label">Shoulder name</div>
+      <div><input id="shoulderName" value="Shoulder_R"></div>
+
+      <div class="label">Elbow name</div>
+      <div><input id="elbowName" value="Elbow_R"></div>
+
+      <div class="label">Overlap px</div>
+      <div><input id="overlap" value="0"></div>
     </div>
 
     <div class="row">
       <button id="btnRefresh" type="button">Refresh selection</button>
-      <button id="btnApply" type="button">Move contents</button>
+      <button id="btnArrange" type="button">Arrange</button>
     </div>
   </div>
 
@@ -91,8 +103,18 @@
     return String(v);
   }
 
+  function tidy(v){
+    return s(v).replace(/\s+/g, " ").trim();
+  }
+
   function isNum(n){
     return typeof n === "number" && isFinite(n);
+  }
+
+  function toNum(v, fallback){
+    var n = Number(v);
+    if (!isFinite(n)) return fallback;
+    return n;
   }
 
   function getBridge(){
@@ -116,6 +138,15 @@
     try{ if (ed && ed.renderer && typeof ed.renderer.requestRender === "function") ed.renderer.requestRender(); }catch(e4){}
   }
 
+  function getObjName(obj){
+    if (!obj) return "";
+    try{
+      if (typeof obj.name === "string") return tidy(obj.name);
+      if (typeof obj.getName === "function") return tidy(obj.getName());
+    }catch(e1){}
+    return "";
+  }
+
   function refreshSelection(){
     var bridge = getBridge();
     if (!bridge){
@@ -126,7 +157,7 @@
     try{ if (typeof bridge.captureSelectionNow === "function") bridge.captureSelectionNow(); }catch(e1){}
 
     var name = "";
-    try{ if (typeof bridge.getSelectedClipName === "function") name = s(bridge.getSelectedClipName()).trim(); }catch(e2){}
+    try{ if (typeof bridge.getSelectedClipName === "function") name = tidy(bridge.getSelectedClipName()); }catch(e2){}
     el("selName").textContent = name || "(none)";
 
     try{
@@ -250,7 +281,6 @@
     if (!tl) return [];
     try{ if (Array.isArray(tl.layers)) return tl.layers; }catch(e1){}
     try{ if (Array.isArray(tl._layers)) return tl._layers; }catch(e2){}
-    try{ if (Array.isArray(tl.layer)) return tl.layer; }catch(e3){}
     return [];
   }
 
@@ -258,7 +288,6 @@
     if (!layer) return [];
     try{ if (Array.isArray(layer.frames)) return layer.frames; }catch(e1){}
     try{ if (Array.isArray(layer._frames)) return layer._frames; }catch(e2){}
-    try{ if (Array.isArray(layer.frame)) return layer.frame; }catch(e3){}
     return [];
   }
 
@@ -297,7 +326,7 @@
     return null;
   }
 
-  function collectPlacedObjects(frames){
+  function collectPlacedObjectsFromFrames(frames){
     var out = [];
     var seen = new Set();
 
@@ -311,13 +340,14 @@
       for (var k = 0; k < objs.length; k += 1){
         var o = objs[k];
         if (!o) continue;
-        if (seen.has(o)) continue;
 
         var xy = getXY(o);
         if (!xy) continue;
 
-        seen.add(o);
-        out.push({ obj: o, mode: xy.mode });
+        if (!seen.has(o)){
+          seen.add(o);
+          out.push({ obj: o, mode: xy.mode });
+        }
       }
     }
 
@@ -343,71 +373,23 @@
     return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
   }
 
-  function moveContents(){
-    clearLog();
-
-    var raw = refreshSelection();
-    if (!raw){
-      logLine("No selection found. Select a clip instance and try again.");
-      return;
-    }
-
-    var asset = resolveClipAssetFromSelection(raw);
-    if (!asset){
-      logLine("Selection does not look like a clip. (No clipAsset or timeline found)");
-      return;
-    }
-
+  function moveContentsOfClipAssetToTopCenter(asset){
     var tl = getTimelineFromAsset(asset);
-    if (!tl){
-      logLine("Clip asset timeline not found.");
-      return;
-    }
+    if (!tl) return { ok: false, reason: "no timeline" };
 
     var frames = collectFramesFromTimeline(tl);
-    logLine("Frames found: " + frames.length);
+    if (!frames.length) return { ok: false, reason: "no frames" };
 
-    if (!frames.length){
-      logLine("No frames were found. Wick internal structure may have changed.");
-      return;
-    }
-
-    var placed = collectPlacedObjects(frames);
-    logLine("Placed objects found: " + placed.length);
-
-    if (!placed.length){
-      logLine("No positioned objects found inside frames.");
-      return;
-    }
+    var placed = collectPlacedObjectsFromFrames(frames);
+    if (!placed.length) return { ok: false, reason: "no objects" };
 
     var bounds = computeBounds(placed);
-    if (!bounds){
-      logLine("Could not compute bounds.");
-      return;
-    }
+    if (!bounds) return { ok: false, reason: "no bounds" };
 
-    var anchorMode = el("anchor").value;
-
-    var anchorX = 0;
-    var anchorY = 0;
-
-    if (anchorMode === "topLeft"){
-      anchorX = bounds.minX;
-      anchorY = bounds.minY;
-    } else if (anchorMode === "center"){
-      anchorX = (bounds.minX + bounds.maxX) / 2;
-      anchorY = (bounds.minY + bounds.maxY) / 2;
-    } else { // topCenter
-      anchorX = (bounds.minX + bounds.maxX) / 2;
-      anchorY = bounds.minY;
-    }
-
+    var anchorX = (bounds.minX + bounds.maxX) / 2;
+    var anchorY = bounds.minY;
     var dx = -anchorX;
     var dy = -anchorY;
-
-    logLine("Bounds minX " + bounds.minX + " minY " + bounds.minY + " maxX " + bounds.maxX + " maxY " + bounds.maxY);
-    logLine("Anchor " + anchorMode + " at " + anchorX + ", " + anchorY);
-    logLine("Shift dx " + dx + " dy " + dy);
 
     var moved = 0;
     for (var i = 0; i < placed.length; i += 1){
@@ -417,10 +399,169 @@
       if (setXY(o, xy.x + dx, xy.y + dy, xy.mode)) moved += 1;
     }
 
-    logLine("Objects moved: " + moved);
+    return {
+      ok: true,
+      moved: moved,
+      before: bounds,
+      dx: dx,
+      dy: dy
+    };
+  }
+
+  function computeClipAssetBounds(asset){
+    var tl = getTimelineFromAsset(asset);
+    if (!tl) return null;
+    var frames = collectFramesFromTimeline(tl);
+    if (!frames.length) return null;
+    var placed = collectPlacedObjectsFromFrames(frames);
+    if (!placed.length) return null;
+    return computeBounds(placed);
+  }
+
+  function findNamedInstancesInClipAsset(containerAsset, targetName){
+    var tl = getTimelineFromAsset(containerAsset);
+    if (!tl) return [];
+    var frames = collectFramesFromTimeline(tl);
+    var matches = [];
+    var seen = new Set();
+
+    for (var i = 0; i < frames.length; i += 1){
+      var objs = getObjectsFromFrame(frames[i]);
+      for (var k = 0; k < objs.length; k += 1){
+        var o = objs[k];
+        if (!o) continue;
+
+        var n = getObjName(o);
+        if (!n) continue;
+
+        if (n === targetName){
+          if (!seen.has(o)){
+            seen.add(o);
+            matches.push(o);
+          }
+        }
+      }
+    }
+
+    return matches;
+  }
+
+  function setInstancesPosition(containerAsset, targetName, x, y){
+    var tl = getTimelineFromAsset(containerAsset);
+    if (!tl) return { ok: false, reason: "no timeline" };
+    var frames = collectFramesFromTimeline(tl);
+    if (!frames.length) return { ok: false, reason: "no frames" };
+
+    var changed = 0;
+
+    for (var i = 0; i < frames.length; i += 1){
+      var objs = getObjectsFromFrame(frames[i]);
+      for (var k = 0; k < objs.length; k += 1){
+        var o = objs[k];
+        if (!o) continue;
+        if (getObjName(o) !== targetName) continue;
+
+        var xy = getXY(o);
+        if (!xy) continue;
+
+        if (setXY(o, x, y, xy.mode)) changed += 1;
+      }
+    }
+
+    return { ok: true, changed: changed };
+  }
+
+  function arrange(){
+    clearLog();
+
+    var raw = refreshSelection();
+    if (!raw){
+      logLine("No selection found. Select the container clip instance (Arm_R) and try again.");
+      return;
+    }
+
+    var containerAsset = resolveClipAssetFromSelection(raw);
+    if (!containerAsset){
+      logLine("Selection does not look like a clip instance. (No clipAsset / timeline)");
+      return;
+    }
+
+    var shoulderName = tidy(el("shoulderName").value);
+    var elbowName = tidy(el("elbowName").value);
+    var overlap = toNum(el("overlap").value, 0);
+
+    if (!shoulderName || !elbowName){
+      logLine("Please enter both Shoulder and Elbow names.");
+      return;
+    }
+
+    logLine("Shoulder: " + shoulderName);
+    logLine("Elbow: " + elbowName);
+    logLine("Overlap: " + overlap);
+
+    var shoulderInstances = findNamedInstancesInClipAsset(containerAsset, shoulderName);
+    var elbowInstances = findNamedInstancesInClipAsset(containerAsset, elbowName);
+
+    if (!shoulderInstances.length){
+      logLine("Could not find any instance named " + shoulderName + " inside the selected clip.");
+      return;
+    }
+    if (!elbowInstances.length){
+      logLine("Could not find any instance named " + elbowName + " inside the selected clip.");
+      return;
+    }
+
+    var shoulderAsset = resolveClipAssetFromSelection(shoulderInstances[0]) || shoulderInstances[0].clipAsset || null;
+    var elbowAsset = resolveClipAssetFromSelection(elbowInstances[0]) || elbowInstances[0].clipAsset || null;
+
+    if (!shoulderAsset){
+      logLine("Shoulder instance found but could not resolve its clip asset.");
+      return;
+    }
+    if (!elbowAsset){
+      logLine("Elbow instance found but could not resolve its clip asset.");
+      return;
+    }
+
+    logLine("Shifting Shoulder contents to top center...");
+    var shMove = moveContentsOfClipAssetToTopCenter(shoulderAsset);
+    if (!shMove.ok){
+      logLine("Shoulder shift failed: " + shMove.reason);
+      return;
+    }
+    logLine("Shoulder objects moved: " + shMove.moved);
+
+    logLine("Shifting Elbow contents to top center...");
+    var elMove = moveContentsOfClipAssetToTopCenter(elbowAsset);
+    if (!elMove.ok){
+      logLine("Elbow shift failed: " + elMove.reason);
+      return;
+    }
+    logLine("Elbow objects moved: " + elMove.moved);
+
+    var shBounds = computeClipAssetBounds(shoulderAsset);
+    if (!shBounds){
+      logLine("Could not compute shoulder bounds after shift.");
+      return;
+    }
+
+    var shoulderHeight = shBounds.maxY - shBounds.minY;
+    if (!isFinite(shoulderHeight)) shoulderHeight = 0;
+
+    logLine("Shoulder height: " + shoulderHeight);
+
+    var elbowY = shoulderHeight - overlap;
+
+    logLine("Placing Shoulder at 0,0");
+    var shSet = setInstancesPosition(containerAsset, shoulderName, 0, 0);
+    logLine("Shoulder instances updated: " + (shSet.ok ? shSet.changed : 0));
+
+    logLine("Placing Elbow at 0," + elbowY);
+    var elSet = setInstancesPosition(containerAsset, elbowName, 0, elbowY);
+    logLine("Elbow instances updated: " + (elSet.ok ? elSet.changed : 0));
 
     markDirty(getEditor());
-    logLine("Done. Leave the clip and rotate the clip instance on the main timeline.");
+    logLine("Done. Exit the clip and rotate the Arm_R instance to test the new pivot positions.");
   }
 
   el("btnRefresh").addEventListener("click", function(){
@@ -429,8 +570,8 @@
     logLine("Refreshed");
   });
 
-  el("btnApply").addEventListener("click", function(){
-    moveContents();
+  el("btnArrange").addEventListener("click", function(){
+    arrange();
   });
 
   refreshSelection();
