@@ -1,115 +1,100 @@
 <!doctype html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Biped</title>
-  <style>
-    html, body { margin:0; padding:0; width:100%; height:100%; background:#0f0f0f; color:#ffffff; font-family:Arial, sans serif; }
-    .wrap { display:flex; flex-direction:column; height:100%; }
-    .top { padding:18px 22px; background:#1c1c1c; border-bottom:1px solid rgba(255,255,255,0.08); }
-    .title { font-size:20px; font-weight:700; margin:0 0 6px 0; }
-    .sub { font-size:13px; opacity:0.85; }
-    .content { flex:1; padding:22px; display:flex; gap:18px; align-items:flex-start; }
-    .card { width:420px; max-width:calc(100vw - 44px); background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); border-radius:14px; box-shadow:0 10px 24px rgba(0,0,0,0.35); padding:18px; }
-    .card h3 { margin:0 0 10px 0; font-size:16px; }
-    .row { margin-top:10px; }
-    .btn { width:100%; padding:14px 12px; border:0; border-radius:12px; background:rgba(0,148,255,0.78); color:#fff; font-size:15px; font-weight:700; cursor:pointer; }
-    .btn:active { transform:translateY(1px); }
-    .muted { font-size:12px; opacity:0.75; margin-top:10px; line-height:1.35; }
-    .log { margin-top:12px; font-family:Consolas, monospace; font-size:12px; white-space:pre-wrap; background:#101010; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:12px; min-height:84px; }
-    .kv { font-family:Consolas, monospace; font-size:12px; opacity:0.9; background:#101010; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:12px; }
-    .kv div { margin:4px 0; }
-    .mini { font-size:11px; opacity:0.7; margin-top:10px; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="top">
-      <div class="title">Biped</div>
-      <div class="sub">Select Arm_R then click Arrange. Close this tool to show the pose panel in Wick.</div>
-    </div>
-
-    <div class="content">
+  <head>
+    <title>Biped</title>
+    <style>
+      body { margin: 0; font-family: Arial, sans serif; background: #f6f6f6; }
+      .wrap { padding: 18px; max-width: 900px; margin: 0 auto; }
+      .card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 8px 22px rgba(0,0,0,0.12); }
+      h1 { margin: 0 0 12px 0; font-size: 18px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+      .field { display: flex; flex-direction: column; gap: 6px; }
+      label { font-size: 12px; opacity: 0.75; }
+      input { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.18); min-width: 220px; }
+      button { padding: 10px 12px; border: 0; border-radius: 12px; cursor: pointer; background: rgba(0,0,0,0.82); color: white; font-size: 13px; }
+      button.secondary { background: rgba(0,0,0,0.12); color: black; }
+      .note { margin-top: 10px; font-size: 12px; opacity: 0.75; line-height: 1.4; }
+      .log { margin-top: 12px; font-family: Consolas, monospace; font-size: 12px; white-space: pre-wrap; background: rgba(0,0,0,0.06); padding: 10px; border-radius: 10px; }
+      .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,0.08); font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
       <div class="card">
-        <h3>Arrange</h3>
-        <div class="kv" id="selBox">
-          <div>Selected clip <span id="selName"></span></div>
-          <div>Selected uuid <span id="selUuid"></span></div>
+        <h1>Biped</h1>
+        <div class="row" style="margin-bottom:12px;">
+          <div class="pill" id="selName">Selected: </div>
         </div>
 
         <div class="row">
-          <button class="btn" id="arrangeBtn">Arrange Arm</button>
-          <div class="muted">Expected nesting Arm_R contains Shoulder_R and Shoulder_R contains Elbo_R</div>
+          <div class="field">
+            <label>Shoulder id</label>
+            <input id="shoulderId" value="Shoulder_R" />
+          </div>
+          <div class="field">
+            <label>Elbow id</label>
+            <input id="elbowId" value="Elbo_R" />
+          </div>
         </div>
 
-        <div class="log" id="logBox"></div>
-        <div class="mini">If Arrange says missing something, check your identifiers exactly match Shoulder_R and Elbo_R</div>
+        <div class="row" style="margin-top:12px;">
+          <button id="btnArrange">Arrange</button>
+          <button class="secondary" id="btnRefresh">Refresh selection</button>
+        </div>
+
+        <div class="note">
+          Arrange moves Shoulder and Elbow inside the selected clip. Close this tool to show the pose panel in Wick Editor.
+        </div>
+
+        <div class="log" id="log"></div>
       </div>
     </div>
-  </div>
 
-  <script>
-    (function () {
+    <script>
       function s(v) { return (v === null || v === undefined) ? "" : String(v); }
+      function logLine(t) {
+        var el = document.getElementById("log");
+        el.textContent = (el.textContent ? el.textContent + "\n" : "") + t;
+      }
 
       function getBridge() {
         try { if (window.LukeToolsBridge) return window.LukeToolsBridge; } catch (e1) {}
-        try { if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; } catch (e2) {}
+        try { if (parent && parent.LukeToolsBridge) return parent.LukeToolsBridge; } catch (e2) {}
         return null;
-      }
-
-      var logBox = document.getElementById("logBox");
-      var selName = document.getElementById("selName");
-      var selUuid = document.getElementById("selUuid");
-      var arrangeBtn = document.getElementById("arrangeBtn");
-
-      function log(msg) {
-        logBox.textContent = s(msg);
       }
 
       function refreshSelection() {
         var bridge = getBridge();
         if (!bridge) {
-          selName.textContent = "";
-          selUuid.textContent = "";
+          document.getElementById("selName").textContent = "Selected: bridge missing";
           return;
         }
         try {
-          selName.textContent = s(bridge.getSelectedClipName ? bridge.getSelectedClipName() : "");
-        } catch (e1) { selName.textContent = ""; }
-        try {
-          selUuid.textContent = s(bridge.getSelectedClipUUID ? bridge.getSelectedClipUUID() : "");
-        } catch (e2) { selUuid.textContent = ""; }
+          var info = bridge.captureSelectionNow();
+          document.getElementById("selName").textContent = "Selected: " + s(info && info.name ? info.name : bridge.getSelectedClipName());
+        } catch (e) {
+          document.getElementById("selName").textContent = "Selected: error";
+          logLine("Selection error " + s(e));
+        }
       }
 
-      arrangeBtn.addEventListener("click", function () {
+      function arrange() {
         var bridge = getBridge();
-        if (!bridge) {
-          log("Bridge not found");
-          return;
-        }
-        if (typeof bridge.arrangeArmRigOnSelection !== "function") {
-          log("arrangeArmRigOnSelection missing on bridge");
-          return;
-        }
+        if (!bridge) { logLine("Bridge missing"); return; }
 
-        log("Arranging");
-        try {
-          var res = bridge.arrangeArmRigOnSelection({ shoulderId: "Shoulder_R", elbowId: "Elbo_R" });
-          if (!res || res.ok !== true) {
-            log("Arrange failed " + s(res && res.error ? res.error : "unknown"));
-            return;
-          }
-          log("Arrange ok\njoinY " + s(res.joinY) + "\nshoulder moved " + s(res.shoulderNormalized && res.shoulderNormalized.moved) + "\nelbow moved " + s(res.elbowNormalized && res.elbowNormalized.moved));
-        } catch (e) {
-          log("Arrange failed " + s(e));
-        }
-      });
+        var sh = document.getElementById("shoulderId").value;
+        var el = document.getElementById("elbowId").value;
+
+        var ok = false;
+        try { ok = bridge.arrangeArmRigOnSelection(sh, el); } catch (e) { ok = false; logLine("Arrange error " + s(e)); }
+
+        logLine("Arrange " + (ok ? "ok" : "failed"));
+      }
+
+      document.getElementById("btnArrange").addEventListener("click", arrange);
+      document.getElementById("btnRefresh").addEventListener("click", refreshSelection);
 
       refreshSelection();
-      setInterval(refreshSelection, 350);
-    })();
-  </script>
-</body>
+    </script>
+  </body>
 </html>
