@@ -33,13 +33,14 @@
           </div>
           <div class="field">
             <label>Elbow id</label>
-            <input id="elbowId" value="Elbo_R" />
+            <input id="elbowId" value="Elbow_R" />
           </div>
         </div>
 
         <div class="row" style="margin-top:12px;">
           <button id="btnArrange">Arrange</button>
           <button class="secondary" id="btnRefresh">Refresh selection</button>
+          <button class="secondary" id="btnClearLog">Clear log</button>
         </div>
 
         <div class="note">
@@ -52,6 +53,7 @@
 
     <script>
       function s(v) { return (v === null || v === undefined) ? "" : String(v); }
+
       function logLine(t) {
         var el = document.getElementById("log");
         el.textContent = (el.textContent ? el.textContent + "\n" : "") + t;
@@ -71,7 +73,8 @@
         }
         try {
           var info = bridge.captureSelectionNow();
-          document.getElementById("selName").textContent = "Selected: " + s(info && info.name ? info.name : bridge.getSelectedClipName());
+          var nm = (info && info.name) ? info.name : bridge.getSelectedClipName();
+          document.getElementById("selName").textContent = "Selected: " + s(nm);
         } catch (e) {
           document.getElementById("selName").textContent = "Selected: error";
           logLine("Selection error " + s(e));
@@ -82,19 +85,37 @@
         var bridge = getBridge();
         if (!bridge) { logLine("Bridge missing"); return; }
 
-        var sh = document.getElementById("shoulderId").value;
-        var el = document.getElementById("elbowId").value;
+        var sh = s(document.getElementById("shoulderId").value).trim();
+        var el = s(document.getElementById("elbowId").value).trim();
 
-        var ok = false;
-        try { ok = bridge.arrangeArmRigOnSelection(sh, el); } catch (e) { ok = false; logLine("Arrange error " + s(e)); }
+        refreshSelection();
 
-        logLine("Arrange " + (ok ? "ok" : "failed"));
+        if (typeof bridge.arrangeArmRigOnSelection !== "function") {
+          logLine("Arrange missing on bridge");
+          return;
+        }
+
+        try {
+          var res = bridge.arrangeArmRigOnSelection(sh, el);
+          if (res && res.ok) {
+            logLine("Arrange ok");
+            if (res.shoulderLength !== undefined) logLine("Shoulder length " + s(res.shoulderLength));
+          } else {
+            logLine("Arrange failed " + s(res && res.error ? res.error : "unknown"));
+          }
+        } catch (e) {
+          logLine("Arrange error " + s(e));
+        }
       }
 
       document.getElementById("btnArrange").addEventListener("click", arrange);
       document.getElementById("btnRefresh").addEventListener("click", refreshSelection);
+      document.getElementById("btnClearLog").addEventListener("click", function () {
+        document.getElementById("log").textContent = "";
+      });
 
       refreshSelection();
+      logLine("Ready");
     </script>
   </body>
 </html>
