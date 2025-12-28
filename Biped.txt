@@ -1,696 +1,329 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Arrange Shoulder and Elbow (v3)</title>
-  <style>
-    body{
-      font-family: Arial, sans serif;
-      margin: 0;
-      padding: 16px;
-      background: #ffffff;
-      color: #111;
-    }
-    h1{ font-size: 18px; margin: 0 0 10px 0; }
-    .row{ margin: 10px 0; }
-    .box{
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      padding: 12px;
-      background: #fafafa;
-    }
-    button{
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      background: #fff;
-      cursor: pointer;
-      margin-right: 8px;
-    }
-    button:active{ transform: translateY(1px); }
-    input{
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      width: 180px;
-    }
-    .label{ font-weight: bold; }
-    .muted{ color: #444; font-size: 13px; }
-    pre{
-      font-family: Consolas, Menlo, Monaco, monospace;
-      font-size: 12px;
-      white-space: pre-wrap;
-      word-break: break-word;
-      margin: 0;
-    }
-    .grid{
-      display: grid;
-      grid-template-columns: 170px 1fr;
-      gap: 10px;
-      align-items: center;
-    }
-  </style>
+  <title>Inspect selected clip contents</title>
 </head>
 <body>
-  <h1>Arrange Shoulder_R and Elbow_R inside the Selected Clip</h1>
-
-  <div class="row box">
-    <div class="row"><span class="label">Selected clip</span>: <span id="selName">(none)</span></div>
-    <div class="row muted">
-      Targets ONLY the currently selected clip in Wick.
-      Then finds the two child clip instances by either their instance name OR their clip asset name.
-      Moves contents inside each child so top center becomes 0,0, then stacks:
-      Shoulder at 0,0 and Elbow below it.
-    </div>
-
-    <div class="row grid">
-      <div class="label">Shoulder name</div>
-      <div><input id="shoulderName" value="Shoulder_R"></div>
-
-      <div class="label">Elbow name</div>
-      <div><input id="elbowName" value="Elbow_R"></div>
-
-      <div class="label">Overlap px</div>
-      <div><input id="overlap" value="0"></div>
-    </div>
-
-    <div class="row">
-      <button id="btnRefresh" type="button">Refresh selection</button>
-      <button id="btnArrange" type="button">Arrange</button>
-    </div>
-  </div>
-
-  <div class="row box">
-    <div class="row"><span class="label">Log</span></div>
-    <pre id="log"></pre>
-  </div>
+  <div id="wrap"></div>
 
 <script>
 (function () {
   "use strict";
 
-  function el(id){ return document.getElementById(id); }
-  var logEl = el("log");
+  function make(tag) { return document.createElement(tag); }
 
-  function clearLog(){ logEl.textContent = ""; }
-  function logLine(msg){ logEl.textContent += String(msg === undefined ? "" : msg) + "\n"; }
+  var wrap = document.getElementById("wrap");
+  wrap.style.fontFamily = "Arial, sans serif";
+  wrap.style.padding = "16px";
+  wrap.style.color = "#111";
+  wrap.style.backgroundColor = "#fff";
 
-  function s(v){
+  var h = make("div");
+  h.textContent = "Inspect selected clip contents";
+  h.style.fontSize = "18px";
+  h.style.fontWeight = "700";
+  h.style.marginBottom = "10px";
+  wrap.appendChild(h);
+
+  var info = make("div");
+  info.style.marginBottom = "10px";
+  wrap.appendChild(info);
+
+  var selectedLabel = make("span");
+  selectedLabel.textContent = "Selected clip name: ";
+  selectedLabel.style.fontWeight = "700";
+  info.appendChild(selectedLabel);
+
+  var selectedName = make("span");
+  selectedName.id = "selectedName";
+  selectedName.textContent = "(none)";
+  info.appendChild(selectedName);
+
+  var controls = make("div");
+  controls.style.marginBottom = "10px";
+  wrap.appendChild(controls);
+
+  function makeBtn(text) {
+    var b = make("button");
+    b.type = "button";
+    b.textContent = text;
+    b.style.padding = "10px 12px";
+    b.style.borderRadius = "10px";
+    b.style.border = "1px solid #ddd";
+    b.style.backgroundColor = "#fff";
+    b.style.cursor = "pointer";
+    b.style.marginRight = "8px";
+    return b;
+  }
+
+  var btnRefresh = makeBtn("Refresh selection");
+  var btnInspect = makeBtn("Inspect children");
+  controls.appendChild(btnRefresh);
+  controls.appendChild(btnInspect);
+
+  var logBox = make("pre");
+  logBox.style.whiteSpace = "pre-wrap";
+  logBox.style.wordBreak = "break-word";
+  logBox.style.border = "1px solid #ddd";
+  logBox.style.borderRadius = "10px";
+  logBox.style.padding = "12px";
+  logBox.style.backgroundColor = "#fafafa";
+  logBox.style.margin = "0";
+  logBox.style.fontFamily = "Consolas, Menlo, Monaco, monospace";
+  logBox.style.fontSize = "12px";
+  wrap.appendChild(logBox);
+
+  function clearLog() { logBox.textContent = ""; }
+  function logLine(t) { logBox.textContent += String(t === undefined ? "" : t) + "\n"; }
+
+  function s(v) {
     if (v === null || v === undefined) return "";
     return String(v);
   }
 
-  function tidy(v){
+  function tidy(v) {
     return s(v).replace(/\s+/g, " ").trim();
   }
 
-  function toFiniteNumber(v){
-    var n = Number(v);
-    if (!isFinite(n)) return null;
-    return n;
+  function isFiniteNumber(v) {
+    return typeof v === "number" && isFinite(v);
   }
 
-  function toNum(v, fallback){
-    var n = toFiniteNumber(v);
-    if (n === null) return fallback;
-    return n;
-  }
-
-  function getBridge(){
-    try{ if (window.LukeToolsBridge) return window.LukeToolsBridge; }catch(e1){}
-    try{ if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; }catch(e2){}
+  function getBridge() {
+    try { if (window.LukeToolsBridge) return window.LukeToolsBridge; } catch (e1) {}
+    try { if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; } catch (e2) {}
     return null;
   }
 
-  function getEditor(){
-    try { if (window.wickEditor) return window.wickEditor; } catch (e1) {}
-    try { if (window.WickEditor && window.WickEditor.editor) return window.WickEditor.editor; } catch (e2) {}
-    try { if (window.editor) return window.editor; } catch (e3) {}
-    try { if (window.app) return window.app; } catch (e4) {}
-
-    // iframe case: editor lives on parent window
-    try { if (window.parent && window.parent.wickEditor) return window.parent.wickEditor; } catch (e5) {}
-    try { if (window.parent && window.parent.WickEditor && window.parent.WickEditor.editor) return window.parent.WickEditor.editor; } catch (e6) {}
-    try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e7) {}
-    try { if (window.parent && window.parent.app) return window.parent.app; } catch (e8) {}
-
-    return null;
-  }
-
-  function markDirty(ed){
-    try{ if (ed && ed.project && typeof ed.project.markAsModified === "function") ed.project.markAsModified(); }catch(e1){}
-    try{ if (ed && ed.project) ed.project.unsavedChanges = true; }catch(e2){}
-    try{ if (ed && typeof ed.requestRender === "function") ed.requestRender(); }catch(e3){}
-    try{ if (ed && ed.renderer && typeof ed.renderer.requestRender === "function") ed.renderer.requestRender(); }catch(e4){}
-  }
-
-  function getObjName(obj){
+  function getObjName(obj) {
     if (!obj) return "";
-    try{
+    try {
       if (typeof obj.name === "string") return tidy(obj.name);
       if (typeof obj.getName === "function") return tidy(obj.getName());
-    }catch(e1){}
+    } catch (e1) {}
     return "";
   }
 
-  function getAssetName(obj){
+  function getObjUUID(obj) {
     if (!obj) return "";
-    try{
-      if (obj.clipAsset){
+    try { if (typeof obj.uuid === "string") return tidy(obj.uuid); } catch (e1) {}
+    try { if (typeof obj.UUID === "string") return tidy(obj.UUID); } catch (e2) {}
+    try { if (typeof obj.id === "string") return tidy(obj.id); } catch (e3) {}
+    return "";
+  }
+
+  function getAssetNameFromObj(obj) {
+    if (!obj) return "";
+    try {
+      if (obj.clipAsset) {
         if (typeof obj.clipAsset.name === "string") return tidy(obj.clipAsset.name);
         if (typeof obj.clipAsset.getName === "function") return tidy(obj.clipAsset.getName());
       }
-    }catch(e1){}
-    try{
-      if (obj.asset){
+    } catch (e1) {}
+    try {
+      if (obj.asset) {
         if (typeof obj.asset.name === "string") return tidy(obj.asset.name);
         if (typeof obj.asset.getName === "function") return tidy(obj.asset.getName());
       }
-    }catch(e2){}
+    } catch (e2) {}
     return "";
   }
 
-  function matchesTarget(obj, targetName){
-    var t = tidy(targetName);
-    if (!t) return false;
-
-    var n1 = getObjName(obj);
-    if (n1 && n1 === t) return true;
-
-    var n2 = getAssetName(obj);
-    if (n2 && n2 === t) return true;
-
-    return false;
-  }
-
-  function refreshSelection(){
-    var bridge = getBridge();
-    if (!bridge){
-      el("selName").textContent = "(bridge missing)";
-      return null;
-    }
-
-    try{ if (typeof bridge.captureSelectionNow === "function") bridge.captureSelectionNow(); }catch(e1){}
-
-    var name = "";
-    try{ if (typeof bridge.getSelectedClipName === "function") name = tidy(bridge.getSelectedClipName()); }catch(e2){}
-    el("selName").textContent = name || "(none)";
-
-    try{
-      if (typeof bridge.captureSelectionNow === "function"){
-        var sel = bridge.captureSelectionNow();
-        if (sel && sel.raw) return sel.raw;
-      }
-    }catch(e3){}
-
-    return null;
-  }
-
-  function getTimelineFromAsset(asset){
+  function getTimelineFromAsset(asset) {
     if (!asset) return null;
-    try{ if (asset.timeline) return asset.timeline; }catch(e1){}
-    try{ if (asset._timeline) return asset._timeline; }catch(e2){}
+    try { if (asset.timeline) return asset.timeline; } catch (e1) {}
+    try { if (asset._timeline) return asset._timeline; } catch (e2) {}
     return null;
   }
 
-  function resolveClipAssetFromObject(obj){
+  function resolveClipAssetFromObject(obj) {
     if (!obj) return null;
-
-    try{ if (obj.clipAsset) return obj.clipAsset; }catch(e1){}
-    try{ if (obj.asset) return obj.asset; }catch(e2){}
-
+    try { if (obj.clipAsset) return obj.clipAsset; } catch (e1) {}
+    try { if (obj.asset) return obj.asset; } catch (e2) {}
     if (getTimelineFromAsset(obj)) return obj;
     return null;
   }
 
-  function getLayersFromTimeline(tl){
+  function getLayersFromTimeline(tl) {
     if (!tl) return [];
-    try{ if (Array.isArray(tl.layers)) return tl.layers; }catch(e1){}
-    try{ if (Array.isArray(tl._layers)) return tl._layers; }catch(e2){}
+    try { if (Array.isArray(tl.layers)) return tl.layers; } catch (e1) {}
+    try { if (Array.isArray(tl._layers)) return tl._layers; } catch (e2) {}
     return [];
   }
 
-  function getFramesFromLayer(layer){
+  function getFramesFromLayer(layer) {
     if (!layer) return [];
-    try{ if (Array.isArray(layer.frames)) return layer.frames; }catch(e1){}
-    try{ if (Array.isArray(layer._frames)) return layer._frames; }catch(e2){}
-    try{ if (Array.isArray(layer.frame)) return layer.frame; }catch(e3){}
+    try { if (Array.isArray(layer.frames)) return layer.frames; } catch (e1) {}
+    try { if (Array.isArray(layer._frames)) return layer._frames; } catch (e2) {}
+    try { if (Array.isArray(layer.frame)) return layer.frame; } catch (e3) {}
     return [];
   }
 
-  function getObjectsFromFrame(fr){
+  function getObjectsFromFrame(fr) {
     if (!fr) return [];
-    try{ if (Array.isArray(fr.wickObjects)) return fr.wickObjects; }catch(e1){}
-    try{ if (Array.isArray(fr.objects)) return fr.objects; }catch(e2){}
-    try{ if (Array.isArray(fr.children)) return fr.children; }catch(e3){}
-    try{ if (Array.isArray(fr._children)) return fr._children; }catch(e4){}
+    try { if (Array.isArray(fr.wickObjects)) return fr.wickObjects; } catch (e1) {}
+    try { if (Array.isArray(fr.objects)) return fr.objects; } catch (e2) {}
+    try { if (Array.isArray(fr.children)) return fr.children; } catch (e3) {}
+    try { if (Array.isArray(fr._children)) return fr._children; } catch (e4) {}
     return [];
   }
 
-  function collectFramesFromTimeline(tl){
+  function collectFramesFromTimeline(tl) {
     var frames = [];
     var layers = getLayersFromTimeline(tl);
-    for (var i = 0; i < layers.length; i += 1){
+    for (var i = 0; i < layers.length; i += 1) {
       var frs = getFramesFromLayer(layers[i]);
-      for (var j = 0; j < frs.length; j += 1){
+      for (var j = 0; j < frs.length; j += 1) {
         if (frs[j]) frames.push(frs[j]);
       }
     }
     return frames;
   }
 
-  function gatherAllObjectsDeep(list){
-    var out = [];
-    var stack = Array.isArray(list) ? list.slice() : [];
-    var seen = new Set();
-
-    function pushIf(o){
-      if (!o) return;
-      if (seen.has(o)) return;
-      seen.add(o);
-      out.push(o);
-      stack.push(o);
-    }
-
-    // seed
-    for (var i = 0; i < stack.length; i += 1){
-      // nothing
-    }
-
-    // We use stack as a queue of "nodes to expand"
-    var idx = 0;
-    while (idx < stack.length){
-      var cur = stack[idx];
-      idx += 1;
-      if (!cur) continue;
-
-      // Expand common child collections
-      try{
-        if (Array.isArray(cur.children)){
-          for (var c1 = 0; c1 < cur.children.length; c1 += 1) pushIf(cur.children[c1]);
-        }
-      }catch(e1){}
-
-      try{
-        if (Array.isArray(cur.wickObjects)){
-          for (var c2 = 0; c2 < cur.wickObjects.length; c2 += 1) pushIf(cur.wickObjects[c2]);
-        }
-      }catch(e2){}
-
-      try{
-        if (Array.isArray(cur.objects)){
-          for (var c3 = 0; c3 < cur.objects.length; c3 += 1) pushIf(cur.objects[c3]);
-        }
-      }catch(e3){}
-
-      try{
-        if (Array.isArray(cur._children)){
-          for (var c4 = 0; c4 < cur._children.length; c4 += 1) pushIf(cur._children[c4]);
-        }
-      }catch(e4){}
-    }
-
-    // include original list items, preserving order
-    var ordered = [];
-    var seen2 = new Set();
-    for (var j = 0; j < (Array.isArray(list) ? list.length : 0); j += 1){
-      var o2 = list[j];
-      if (!o2) continue;
-      if (seen2.has(o2)) continue;
-      seen2.add(o2);
-      ordered.push(o2);
-    }
-    // then any extras discovered
-    for (var k = 0; k < out.length; k += 1){
-      if (!out[k]) continue;
-      if (seen2.has(out[k])) continue;
-      seen2.add(out[k]);
-      ordered.push(out[k]);
-    }
-
-    return ordered;
-  }
-
-  function collectAllObjectsInClipAsset(asset){
-    var tl = getTimelineFromAsset(asset);
-    if (!tl) return [];
-    var frames = collectFramesFromTimeline(tl);
-    var all = [];
-    for (var i = 0; i < frames.length; i += 1){
-      var objs = getObjectsFromFrame(frames[i]);
-      if (objs && objs.length){
-        var deep = gatherAllObjectsDeep(objs);
-        for (var j = 0; j < deep.length; j += 1) all.push(deep[j]);
-      }
-    }
-    return all;
-  }
-
-  function getXY(obj){
-    if (!obj) return null;
-
-    // direct x/y
-    var x1 = toFiniteNumber(obj.x);
-    var y1 = toFiniteNumber(obj.y);
-    if (x1 !== null && y1 !== null) return { x: x1, y: y1, mode: "xy" };
-
-    // transformation
-    try{
-      if (obj.transformation){
-        var x2 = toFiniteNumber(obj.transformation.x);
-        var y2 = toFiniteNumber(obj.transformation.y);
-        if (x2 !== null && y2 !== null) return { x: x2, y: y2, mode: "transformation" };
-      }
-    }catch(e1){}
-
-    // transform
-    try{
-      if (obj.transform){
-        var x3 = toFiniteNumber(obj.transform.x);
-        var y3 = toFiniteNumber(obj.transform.y);
-        if (x3 !== null && y3 !== null) return { x: x3, y: y3, mode: "transform" };
-      }
-    }catch(e2){}
-
-    return null;
-  }
-
-  function setXY(obj, x, y, mode){
+  function looksLikeClipInstance(obj) {
     if (!obj) return false;
-    var nx = toFiniteNumber(x);
-    var ny = toFiniteNumber(y);
-    if (nx === null || ny === null) return false;
-
-    if (mode === "xy"){
-      obj.x = nx;
-      obj.y = ny;
-      return true;
-    }
-
-    if (mode === "transformation"){
-      if (!obj.transformation) obj.transformation = {};
-      obj.transformation.x = nx;
-      obj.transformation.y = ny;
-      return true;
-    }
-
-    if (mode === "transform"){
-      if (!obj.transform) obj.transform = {};
-      obj.transform.x = nx;
-      obj.transform.y = ny;
-      return true;
-    }
-
+    try { if (obj.clipAsset) return true; } catch (e1) {}
+    try { if (obj.asset && getTimelineFromAsset(obj.asset)) return true; } catch (e2) {}
+    try { if (getTimelineFromAsset(obj)) return true; } catch (e3) {}
     return false;
   }
 
-  function normalizeBounds(b){
-    function n(v){ return toFiniteNumber(v); }
-
-    if (!b) return null;
-
-    if (n(b.x) !== null && n(b.y) !== null && n(b.width) !== null && n(b.height) !== null){
-      var bx = n(b.x), by = n(b.y), bw = n(b.width), bh = n(b.height);
-      return { minX: bx, minY: by, maxX: bx + bw, maxY: by + bh };
-    }
-
-    if (n(b.minX) !== null && n(b.minY) !== null && n(b.maxX) !== null && n(b.maxY) !== null){
-      return { minX: n(b.minX), minY: n(b.minY), maxX: n(b.maxX), maxY: n(b.maxY) };
-    }
-
-    if (n(b.left) !== null && n(b.top) !== null && n(b.right) !== null && n(b.bottom) !== null){
-      return { minX: n(b.left), minY: n(b.top), maxX: n(b.right), maxY: n(b.bottom) };
-    }
-
-    if (Array.isArray(b) && b.length >= 4 && n(b[0]) !== null && n(b[1]) !== null && n(b[2]) !== null && n(b[3]) !== null){
-      return { minX: n(b[0]), minY: n(b[1]), maxX: n(b[2]), maxY: n(b[3]) };
-    }
-
-    return null;
-  }
-
-  function getObjectBounds(obj){
+  function getXY(obj) {
     if (!obj) return null;
+    var x = null;
+    var y = null;
 
-    try{
-      if (typeof obj.getBounds === "function"){
-        var b1 = normalizeBounds(obj.getBounds());
-        if (b1) return b1;
+    try {
+      if (isFiniteNumber(obj.x) && isFiniteNumber(obj.y)) {
+        x = obj.x; y = obj.y;
+        return { x: x, y: y, mode: "xy" };
       }
-    }catch(e1){}
+    } catch (e1) {}
 
-    try{
-      if (typeof obj.getBoundingBox === "function"){
-        var b2 = normalizeBounds(obj.getBoundingBox());
-        if (b2) return b2;
+    try {
+      if (obj.transformation && isFiniteNumber(obj.transformation.x) && isFiniteNumber(obj.transformation.y)) {
+        x = obj.transformation.x; y = obj.transformation.y;
+        return { x: x, y: y, mode: "transformation" };
       }
-    }catch(e2){}
+    } catch (e2) {}
 
-    try{
-      var b3 = normalizeBounds(obj.bounds);
-      if (b3) return b3;
-    }catch(e3){}
-
-    try{
-      var b4 = normalizeBounds(obj._bounds);
-      if (b4) return b4;
-    }catch(e4){}
-
-    // fallback: treat as a point at its x/y
-    var xy = getXY(obj);
-    if (xy) return { minX: xy.x, minY: xy.y, maxX: xy.x, maxY: xy.y };
+    try {
+      if (obj.transform && isFiniteNumber(obj.transform.x) && isFiniteNumber(obj.transform.y)) {
+        x = obj.transform.x; y = obj.transform.y;
+        return { x: x, y: y, mode: "transform" };
+      }
+    } catch (e3) {}
 
     return null;
   }
 
-  function computeBounds(objs){
-    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    var count = 0;
-
-    for (var i = 0; i < objs.length; i += 1){
-      var b = getObjectBounds(objs[i]);
-      if (!b) continue;
-      count += 1;
-      if (b.minX < minX) minX = b.minX;
-      if (b.minY < minY) minY = b.minY;
-      if (b.maxX > maxX) maxX = b.maxX;
-      if (b.maxY > maxY) maxY = b.maxY;
+  function refreshSelectionRaw() {
+    var bridge = getBridge();
+    if (!bridge) {
+      selectedName.textContent = "(bridge missing)";
+      return null;
     }
 
-    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) return null;
-    return { minX: minX, minY: minY, maxX: maxX, maxY: maxY, counted: count };
+    try { if (typeof bridge.captureSelectionNow === "function") bridge.captureSelectionNow(); } catch (e1) {}
+
+    var nm = "";
+    try { if (typeof bridge.getSelectedClipName === "function") nm = tidy(bridge.getSelectedClipName()); } catch (e2) {}
+    selectedName.textContent = nm || "(none)";
+
+    try {
+      if (typeof bridge.captureSelectionNow === "function") {
+        var sel = bridge.captureSelectionNow();
+        if (sel && sel.raw) return sel.raw;
+      }
+    } catch (e3) {}
+
+    return null;
   }
 
-  function moveContentsOfClipAssetToTopCenter(asset){
-    var objs = collectAllObjectsInClipAsset(asset);
-    if (!objs.length) return { ok: false, reason: "no objects found in clip" };
+  function inspectChildren() {
+    clearLog();
 
-    var bounds = computeBounds(objs);
-    if (!bounds) return { ok: false, reason: "no bounds" };
-
-    var anchorX = (bounds.minX + bounds.maxX) / 2;
-    var anchorY = bounds.minY;
-    var dx = -anchorX;
-    var dy = -anchorY;
-
-    var moved = 0;
-    for (var i = 0; i < objs.length; i += 1){
-      var xy = getXY(objs[i]);
-      if (!xy) continue;
-      if (setXY(objs[i], xy.x + dx, xy.y + dy, xy.mode)) moved += 1;
+    var rawSel = refreshSelectionRaw();
+    if (!rawSel) {
+      logLine("No selection found");
+      return;
     }
 
-    return { ok: true, moved: moved, dx: dx, dy: dy, counted: bounds.counted };
-  }
-
-  function computeClipAssetBounds(asset){
-    var objs = collectAllObjectsInClipAsset(asset);
-    if (!objs.length) return null;
-    return computeBounds(objs);
-  }
-
-  function findInstances(containerAsset, targetName){
-    var objs = collectAllObjectsInClipAsset(containerAsset);
-    var matches = [];
-    var seen = new Set();
-
-    for (var i = 0; i < objs.length; i += 1){
-      var o = objs[i];
-      if (!o) continue;
-      if (!matchesTarget(o, targetName)) continue;
-      if (seen.has(o)) continue;
-      seen.add(o);
-      matches.push(o);
+    var containerAsset = resolveClipAssetFromObject(rawSel);
+    if (!containerAsset) {
+      logLine("Selection is not a clip or clip asset");
+      return;
     }
 
-    return matches;
-  }
-
-  function listAvailableNames(containerAsset, limit){
-    limit = limit || 50;
-    var objs = collectAllObjectsInClipAsset(containerAsset);
-    var names = [];
-    var seen = new Set();
-
-    function addName(n){
-      n = tidy(n);
-      if (!n) return;
-      if (seen.has(n)) return;
-      seen.add(n);
-      names.push(n);
-    }
-
-    for (var i = 0; i < objs.length; i += 1){
-      addName(getObjName(objs[i]));
-      addName(getAssetName(objs[i]));
-      if (names.length >= limit) break;
-    }
-
-    return names;
-  }
-
-  function setInstancesPosition(containerAsset, targetName, x, y){
     var tl = getTimelineFromAsset(containerAsset);
-    if (!tl) return { ok: false, reason: "no timeline" };
+    if (!tl) {
+      logLine("Selected clip has no timeline");
+      return;
+    }
 
     var frames = collectFramesFromTimeline(tl);
-    if (!frames.length) return { ok: false, reason: "no frames" };
+    if (!frames.length) {
+      logLine("Selected clip has no frames");
+      return;
+    }
 
-    var changed = 0;
+    var found = [];
+    var seen = new Set();
 
-    for (var i = 0; i < frames.length; i += 1){
-      var baseObjs = getObjectsFromFrame(frames[i]);
-      var objs = gatherAllObjectsDeep(baseObjs);
-
-      for (var k = 0; k < objs.length; k += 1){
-        var o = objs[k];
+    for (var i = 0; i < frames.length; i += 1) {
+      var objs = getObjectsFromFrame(frames[i]);
+      for (var j = 0; j < objs.length; j += 1) {
+        var o = objs[j];
         if (!o) continue;
-        if (!matchesTarget(o, targetName)) continue;
-
-        var xy = getXY(o);
-        if (!xy) continue;
-
-        if (setXY(o, x, y, xy.mode)) changed += 1;
+        if (!looksLikeClipInstance(o)) continue;
+        if (seen.has(o)) continue;
+        seen.add(o);
+        found.push(o);
       }
     }
 
-    return { ok: true, changed: changed };
-  }
-
-  function arrange(){
-    clearLog();
-
-    var selectionObj = refreshSelection();
-    if (!selectionObj){
-      logLine("No selection found. Select Arm_R and try again.");
+    if (!found.length) {
+      logLine("No child clips found on the timeline of the selected clip");
       return;
     }
 
-    var containerAsset = resolveClipAssetFromObject(selectionObj);
-    if (!containerAsset){
-      logLine("Your selection does not look like a clip (no clipAsset / asset / timeline).");
-      return;
-    }
+    logLine("Child clips found: " + found.length);
+    logLine("");
 
-    var containerName = getObjName(selectionObj) || getAssetName(selectionObj) || "(selected clip)";
-    logLine("Targeting selected clip: " + containerName);
+    for (var k = 0; k < found.length; k += 1) {
+      var child = found[k];
+      var instanceName = getObjName(child);
+      var assetName = getAssetNameFromObj(child);
+      var uuid = getObjUUID(child);
+      var xy = getXY(child);
 
-    var shoulderName = tidy(el("shoulderName").value);
-    var elbowName = tidy(el("elbowName").value);
-    var overlap = toNum(el("overlap").value, 0);
-
-    if (!shoulderName || !elbowName){
-      logLine("Please enter both Shoulder and Elbow names.");
-      return;
-    }
-
-    logLine("Finding: " + shoulderName + " and " + elbowName + " (instance name OR asset name)");
-
-    var shoulderInstances = findInstances(containerAsset, shoulderName);
-    var elbowInstances = findInstances(containerAsset, elbowName);
-
-    if (!shoulderInstances.length || !elbowInstances.length){
-      if (!shoulderInstances.length) logLine("Not found: " + shoulderName);
-      if (!elbowInstances.length) logLine("Not found: " + elbowName);
-
-      var avail = listAvailableNames(containerAsset, 80);
-      if (avail.length){
-        logLine("");
-        logLine("Names I CAN see inside this selected clip (first 80):");
-        logLine(avail.join(", "));
+      logLine("Index " + (k + 1));
+      logLine("Instance name " + (instanceName || "(blank)"));
+      logLine("Asset name " + (assetName || "(blank)"));
+      logLine("UUID " + (uuid || "(blank)"));
+      if (xy) {
+        logLine("X " + xy.x);
+        logLine("Y " + xy.y);
+        logLine("Position mode " + xy.mode);
       } else {
-        logLine("");
-        logLine("No readable names found inside this selected clip.");
+        logLine("X and Y not found");
       }
-      return;
+      logLine("");
     }
-
-    // Resolve clip assets for Shoulder and Elbow (the child clips)
-    var shoulderAsset = resolveClipAssetFromObject(shoulderInstances[0]);
-    var elbowAsset = resolveClipAssetFromObject(elbowInstances[0]);
-
-    if (!shoulderAsset){
-      logLine("Found " + shoulderName + " but could not resolve its clip asset.");
-      return;
-    }
-    if (!elbowAsset){
-      logLine("Found " + elbowName + " but could not resolve its clip asset.");
-      return;
-    }
-
-    logLine("Shift contents of " + shoulderName + " so top center becomes 0,0");
-    var shMove = moveContentsOfClipAssetToTopCenter(shoulderAsset);
-    if (!shMove.ok){
-      logLine("Shoulder shift failed: " + shMove.reason);
-      return;
-    }
-    logLine("  moved objects: " + shMove.moved + " (bounds counted: " + shMove.counted + ")");
-
-    logLine("Shift contents of " + elbowName + " so top center becomes 0,0");
-    var elMove = moveContentsOfClipAssetToTopCenter(elbowAsset);
-    if (!elMove.ok){
-      logLine("Elbow shift failed: " + elMove.reason);
-      return;
-    }
-    logLine("  moved objects: " + elMove.moved + " (bounds counted: " + elMove.counted + ")");
-
-    var shBounds = computeClipAssetBounds(shoulderAsset);
-    if (!shBounds){
-      logLine("Could not compute shoulder bounds after shifting.");
-      return;
-    }
-
-    var shoulderHeight = shBounds.maxY - shBounds.minY;
-    if (!isFinite(shoulderHeight)) shoulderHeight = 0;
-
-    var elbowY = shoulderHeight - overlap;
-
-    logLine("Place " + shoulderName + " instance at 0,0");
-    var shSet = setInstancesPosition(containerAsset, shoulderName, 0, 0);
-
-    logLine("Place " + elbowName + " instance at 0," + elbowY);
-    var elSet = setInstancesPosition(containerAsset, elbowName, 0, elbowY);
-
-    markDirty(getEditor());
-    logLine("Done.");
-    logLine("Shoulder instances updated: " + (shSet.ok ? shSet.changed : 0));
-    logLine("Elbow instances updated: " + (elSet.ok ? elSet.changed : 0));
   }
 
-  el("btnRefresh").addEventListener("click", function(){
+  btnRefresh.addEventListener("click", function () {
     clearLog();
-    refreshSelection();
+    refreshSelectionRaw();
     logLine("Refreshed");
   });
 
-  el("btnArrange").addEventListener("click", function(){
-    arrange();
+  btnInspect.addEventListener("click", function () {
+    inspectChildren();
   });
 
-  refreshSelection();
+  refreshSelectionRaw();
 })();
 </script>
-
 </body>
 </html>
