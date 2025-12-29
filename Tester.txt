@@ -1,0 +1,55 @@
+window.LukeToolsBridge = {
+    // 1. ENGINE & PROJECT ACCESS
+    getEditor: () => window.wickEditor?.editor || window.WickEditor?.editor,
+    getProject: () => window.LukeToolsBridge.getEditor()?.project,
+
+    // 2. TIMELINE & HIERARCHY CONTROLS
+    // Finds a clip by traversing layers/frames
+    findNested: function(parent, name) {
+        const tl = parent.clipAsset?.timeline || parent.timeline;
+        if (!tl) return null;
+        for (const layer of (tl.layers || [])) {
+            for (const frame of (layer.frames || [])) {
+                const found = frame.children.find(c => c.name === name || c._identifier === name);
+                if (found) return found;
+            }
+        }
+        return null;
+    },
+
+    // 3. EDIT-MODE MANIPULATION
+    // Changes properties and forces the Editor to save/refresh
+    editProperty: function(path, prop, value) {
+        const project = this.getProject();
+        let target = project?.selection?.getSelectedObjects()[0]; // Start at current selection
+        
+        if (!target) return console.warn("Nothing selected");
+
+        // Traverse path: e.g., ["Shoulder", "Elbow"]
+        for (const segment of path) {
+            target = this.findNested(target, segment);
+            if (!target) break;
+        }
+
+        if (target) {
+            target[prop] = value;
+            project.markAsModified(); // Enables the save button
+            window.dispatchEvent(new Event('resize')); // Forces canvas update
+        }
+    },
+
+    // 4. ASSET LIBRARY CONTROLS
+    // Interacts with the library shown in your screenshot
+    getAssets: () => window.LukeToolsBridge.getProject()?.assets || [],
+    
+    replaceAsset: function(instanceUUID, assetName) {
+        const project = this.getProject();
+        const newAsset = project.assets.find(a => a.name === assetName);
+        const obj = project.getObjectByUUID(instanceUUID);
+        
+        if (obj && newAsset) {
+            obj.clipAsset = newAsset; // Swaps the underlying drawing/symbol
+            project.markAsModified();
+        }
+    }
+};
