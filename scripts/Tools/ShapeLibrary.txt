@@ -1,0 +1,628 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Shape Library</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin:0; padding:0; height:100%; background:#111; color:#eee; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+  .wrap { height:100%; display:flex; flex-direction:column; }
+  .top { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .title { font-size:16px; font-weight:700; letter-spacing:0.3px; }
+  .mode { display:inline-flex; align-items:center; gap:10px; font-size:13px; opacity:0.95; user-select:none; }
+  .seg { display:inline-flex; border:1px solid rgba(255,255,255,0.12); border-radius:10px; overflow:hidden; }
+  .seg button { appearance:none; border:0; background:transparent; color:#ddd; padding:7px 10px; font-size:13px; cursor:pointer; }
+  .seg button.active { background:rgba(255,255,255,0.10); color:#fff; }
+  .grid { flex:1 1 auto; min-height:0; padding:12px; overflow:auto; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; }
+  .shapeBtn { border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); border-radius:12px; padding:10px 8px; cursor:pointer; display:flex; align-items:center; justify-content:center; min-height:54px; }
+  .shapeBtn:hover { background:rgba(255,255,255,0.07); }
+  .shapeBtn svg { width:28px; height:28px; }
+  .bottom { padding:10px 12px; border-top:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .status { font-size:12px; opacity:0.85; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  details { margin-left:10px; user-select:none; }
+  summary { cursor:pointer; font-size:12px; opacity:0.85; }
+  textarea#debugLog { margin-top:6px; width:260px; height:140px; box-sizing:border-box; background:#0b0b0b; color:#d7d7d7; border:1px solid #333; border-radius:8px; padding:8px; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Courier New',monospace; font-size:11px; line-height:1.3; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="title">Shape Library (6× size)</div>
+    <div class="mode">
+      <div class="seg" role="group" aria-label="Place mode">
+        <button id="modeSvg" class="segBtn" type="button">SVG</button>
+        <button id="modeClip" class="segBtn active" type="button">Clip</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="grid" class="grid" aria-label="Shapes"></div>
+
+  <div class="bottom">
+    <div id="status" class="status">Ready</div>
+    <details id="dbgWrap">
+      <summary>Details</summary>
+      <textarea id="debugLog" readonly></textarea>
+    </details>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const SHAPES = [
+    {"name": "Circle", "file": "circle.svg"},
+    {"name": "Square", "file": "square.svg"},
+    {"name": "Rounded Square", "file": "rounded_square.svg"},
+    {"name": "Triangle", "file": "triangle.svg"},
+    {"name": "Triangle Right", "file": "triangle_right.svg"},
+    {"name": "Diamond", "file": "diamond.svg"},
+    {"name": "Pentagon", "file": "pentagon.svg"},
+    {"name": "Hexagon", "file": "hexagon.svg"},
+    {"name": "Octagon", "file": "octagon.svg"},
+    {"name": "Star 4", "file": "star_4.svg"},
+    {"name": "Star 5", "file": "star_5.svg"},
+    {"name": "Star 6", "file": "star_6.svg"},
+    {"name": "Heart", "file": "heart.svg"},
+    {"name": "Plus", "file": "plus.svg"},
+    {"name": "Minus", "file": "minus.svg"},
+    {"name": "Cross", "file": "cross.svg"},
+    {"name": "Check", "file": "check.svg"},
+    {"name": "Arrow Up", "file": "arrow_up.svg"},
+    {"name": "Arrow Down", "file": "arrow_down.svg"},
+    {"name": "Arrow Left", "file": "arrow_left.svg"},
+    {"name": "Arrow Right", "file": "arrow_right.svg"},
+    {"name": "Chevron Up", "file": "chevron_up.svg"},
+    {"name": "Chevron Down", "file": "chevron_down.svg"},
+    {"name": "Chevron Left", "file": "chevron_left.svg"},
+    {"name": "Chevron Right", "file": "chevron_right.svg"},
+    {"name": "Play", "file": "play.svg"},
+    {"name": "Pause", "file": "pause.svg"},
+    {"name": "Stop", "file": "stop.svg"},
+    {"name": "Fast Forward", "file": "fast_forward.svg"},
+    {"name": "Rewind", "file": "rewind.svg"},
+    {"name": "Speech Bubble", "file": "speech_bubble.svg"},
+    {"name": "Thought Bubble", "file": "thought_bubble.svg"},
+    {"name": "Cloud", "file": "cloud.svg"},
+    {"name": "Lightning", "file": "lightning.svg"},
+    {"name": "Drop", "file": "drop.svg"},
+    {"name": "Leaf", "file": "leaf.svg"},
+    {"name": "Flower", "file": "flower.svg"},
+    {"name": "Sun", "file": "sun.svg"},
+    {"name": "Moon", "file": "moon.svg"},
+    {"name": "Ring", "file": "ring.svg"},
+    {"name": "Spiral", "file": "spiral.svg"},
+    {"name": "Wave", "file": "wave.svg"},
+    {"name": "Zigzag", "file": "zigzag.svg"},
+    {"name": "Capsule", "file": "capsule.svg"},
+    {"name": "Rounded Rect", "file": "rounded_rect.svg"},
+    {"name": "Bracket", "file": "bracket.svg"},
+    {"name": "Frame Corner", "file": "frame_corner.svg"},
+    {"name": "Shield", "file": "shield.svg"},
+    {"name": "Keyhole", "file": "keyhole.svg"},
+    {"name": "Tag", "file": "tag.svg"}
+  ];
+
+  const BASE_PATH = "/scripts/Panel_SVG/Shapes";
+  const SCALE = 6; // Changed to 6× as requested
+
+  const elGrid   = document.getElementById("grid");
+  const elStatus = document.getElementById("status");
+  let placeAsClip = true;
+
+  const modeSvgBtn  = document.getElementById("modeSvg");
+  const modeClipBtn = document.getElementById("modeClip");
+
+  function setPlaceMode(makeClip) {
+    placeAsClip = !!makeClip;
+    modeClipBtn?.classList.toggle("active", placeAsClip);
+    modeSvgBtn?.classList.toggle("active", !placeAsClip);
+  }
+
+  if (modeSvgBtn && modeClipBtn) {
+    modeSvgBtn.addEventListener("click", () => setPlaceMode(false));
+    modeClipBtn.addEventListener("click", () => setPlaceMode(true));
+    setPlaceMode(true);
+  }
+
+  function setStatus(msg) {
+    elStatus.textContent = msg || "";
+  }
+
+  function debugLog(msg, data) {
+    try {
+      const line = "[" + new Date().toISOString() + "] " + String(msg);
+      const extra = data !== undefined ? " " + JSON.stringify(data, null, 2) : "";
+      console.log("ShapeLibrary", line + extra);
+      const ta = document.getElementById("debugLog");
+      if (ta) {
+        ta.value += line + extra + "\n";
+        ta.scrollTop = ta.scrollHeight;
+      }
+    } catch (e) {}
+  }
+
+  function parseSvg(svgText) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgText, "image/svg+xml");
+    const error = doc.getElementsByTagName("parsererror")[0];
+    if (error) throw new Error("SVG parse error");
+    return doc;
+  }
+
+  function isBadUrlValue(v) {
+    const s = String(v || "").trim().toLowerCase();
+    return s.startsWith("javascript:") || s.startsWith("http:") || s.startsWith("https:") || s.startsWith("//");
+  }
+
+  function stripBadCssUrls(css) {
+    return String(css || "")
+      .replace(/@import\s+[^;]+;/gi, "")
+      .replace(/url\(\s*(['"]?)\s*javascript:[^)]*\)/gi, "url()")
+      .replace(/url\(\s*(['"]?)\s*https?:[^)]*\)/gi, "url()")
+      .replace(/url\(\s*(['"]?)\s*\/\/[^)]*\)/gi, "url()");
+  }
+
+  function sanitizeSvg(svgText) {
+    const doc = parseSvg(svgText);
+    const svg = doc.documentElement;
+
+    if (svg.nodeName.toLowerCase() !== "svg") throw new Error("Not an SVG root");
+
+    let removedNodes = 0;
+    let removedAttrs = 0;
+
+    const bannedTags = [
+      "script", "foreignobject", "iframe", "object", "embed",
+      "audio", "video", "canvas", "set", "animate", "animatetransform", "animatemotion", "image"
+    ];
+
+    function removeAllByTag(tag) {
+      const nodes = [...doc.getElementsByTagName(tag)];
+      nodes.forEach(n => {
+        if (n.parentNode) {
+          n.parentNode.removeChild(n);
+          removedNodes++;
+        }
+      });
+    }
+
+    bannedTags.forEach(removeAllByTag);
+    removeAllByTag("defs");
+    removeAllByTag("style");
+
+    const walker = doc.createTreeWalker(svg, NodeFilter.SHOW_ELEMENT);
+    while (walker.nextNode()) {
+      const el = walker.currentNode;
+      if (!el.attributes) continue;
+
+      [...el.attributes].forEach(attr => {
+        const name = attr.name.toLowerCase();
+        const value = attr.value;
+
+        if (name.startsWith("on")) {
+          el.removeAttribute(attr.name);
+          removedAttrs++;
+          return;
+        }
+
+        if (name === "href" || name === "xlink:href") {
+          if (isBadUrlValue(value)) {
+            el.removeAttribute(attr.name);
+            removedAttrs++;
+          }
+        }
+
+        if (name === "style") {
+          const cleaned = stripBadCssUrls(value);
+          if (cleaned !== value) el.setAttribute("style", cleaned);
+        }
+
+        if (["filter", "clip-path", "mask", "fill", "stroke"].includes(name)) {
+          if (String(value).toLowerCase().includes("url(")) {
+            const cleaned = stripBadCssUrls(value);
+            if (cleaned !== value) el.setAttribute(name, cleaned);
+          }
+        }
+      });
+    }
+
+    if (!svg.getAttribute("viewBox")) {
+      let vb = "0 0 100 100";
+      svg.setAttribute("viewBox", vb);
+      debugLog("Added fallback viewBox", vb);
+    }
+
+    svg.setAttribute("preserveAspectRatio", "none");
+
+    const serializer = new XMLSerializer();
+    return {
+      text: serializer.serializeToString(doc),
+      removedNodes,
+      removedAttrs
+    };
+  }
+
+  function getEditor() {
+    const p = window.parent || null;
+    if (!p) return null;
+    try {
+      if (p.wickEditor?.project) return p.wickEditor;
+      if (p.wickEditor?.editor?.project) return p.wickEditor.editor;
+      if (p.WickEditor?.editor?.project) return p.WickEditor.editor;
+      if (p.editor?.project) return p.editor;
+      if (p.app?.project) return p.app;
+      if (p.app?.editor?.project) return p.app.editor;
+    } catch (e) {}
+    return null;
+  }
+
+  function safeName(s) {
+    return String(s || "Shape").replace(/[^a-zA-Z0-9_\s]/g, "").trim().slice(0, 40) || "Shape";
+  }
+
+  function listAssetUUIDs(project) {
+    try {
+      const assets = project?.assets || [];
+      if (Array.isArray(assets)) return assets.map(a => a?.uuid).filter(Boolean);
+      const out = [];
+      for (const k in assets) if (assets[k]?.uuid) out.push(assets[k].uuid);
+      return out;
+    } catch (e) { return []; }
+  }
+
+  function findAssetByName(project, name) {
+    try {
+      const assets = project?.assets || [];
+      if (Array.isArray(assets)) {
+        return assets.find(a => a?.name === name || a?.filename === name || a?.identifier === name || a?._identifier === name) || null;
+      }
+      for (const k in assets) {
+        const a = assets[k];
+        if (a?.name === name || a?.filename === name || a?.identifier === name || a?._identifier === name) return a;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function getStageCenter(editor) {
+    try {
+      const p = editor?.project;
+      const w = p?.width || p?.stage?.width || 1920;
+      const h = p?.height || p?.stage?.height || 1080;
+      return { x: Math.round(w / 2), y: Math.round(h / 2) };
+    } catch (e) {}
+    return { x: 960, y: 540 };
+  }
+
+  function selectSingleObject(editor, obj) {
+    try {
+      const sel = editor?.selection || editor?.project?.selection;
+      if (!sel) return;
+      if (typeof sel.clear === 'function') sel.clear();
+      if (typeof sel.setSelectedObjects === 'function') return sel.setSelectedObjects([obj]);
+      if (Array.isArray(sel.selectedObjects)) sel.selectedObjects = [obj];
+    } catch (e) {}
+  }
+
+  function setSelectedNameOrIdentifier(editor, name) {
+    const n = safeName(name);
+    try {
+      const sel = editor?.selection || editor?.project?.selection;
+      const obj = sel?.selectedObjects?.[0];
+      if (!obj) return;
+      if ("name"        in obj) obj.name        = n;
+      if ("_name"       in obj) obj._name       = n;
+      if ("identifier"  in obj) obj.identifier  = n;
+      if ("_identifier" in obj) obj._identifier = n;
+    } catch (e) {}
+  }
+
+  function getCurrentFrameNumber(editor) {
+    try {
+      const p = editor?.project;
+      if (typeof p?.currentFrameNumber === "number") return Math.max(1, Math.floor(p.currentFrameNumber));
+      const tl = p?.activeTimeline || p?.timeline;
+      if (tl?.playheadPosition != null) return Math.max(1, Math.floor(tl.playheadPosition));
+    } catch (e) {}
+    return 1;
+  }
+
+  function setPlayhead(editor, n) {
+    n = Math.max(1, Number(n) || 1);
+    try {
+      const p = editor?.project;
+      if (p) p.currentFrameNumber = n;
+      const tl = p?.activeTimeline || p?.timeline;
+      if (tl) tl.playheadPosition = n;
+    } catch (e) {}
+  }
+
+  function forceEnsureActiveFrame(editor, desiredFrameNum) {
+    try {
+      const project = editor?.project;
+      let timeline = project?.activeTimeline || project?.timeline || project?.root?.timeline;
+      if (!timeline) return null;
+
+      let layer = timeline.activeLayer;
+
+      if (typeof layer === 'number') {
+        const idx = layer;
+        if (timeline.layers && Array.isArray(timeline.layers)) {
+          layer = timeline.layers[idx] || timeline.layers[0];
+        }
+      }
+
+      if (!layer || typeof layer !== 'object') return null;
+
+      const n = Math.max(1, Number(desiredFrameNum) || 1);
+
+      let frame = null;
+
+      if (typeof layer.getFrame === 'function') {
+        frame = layer.getFrame(n);
+      }
+
+      if (!frame && typeof layer.addFrame === 'function') {
+        layer.addFrame(n);
+        if (typeof layer.getFrame === 'function') frame = layer.getFrame(n);
+      }
+
+      if (!frame && layer.frames && Array.isArray(layer.frames)) {
+        frame = layer.frames.find(f => f?.start === n);
+        if (!frame) {
+          frame = { start: n, end: n, content: [] };
+          layer.frames.push(frame);
+          layer.frames.sort((a,b) => a.start - b.start);
+        }
+      }
+
+      if (frame && typeof timeline.setActiveFrame === 'function') {
+        timeline.setActiveFrame(frame);
+      }
+
+      return frame;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async function withSuppressedToasts(editor, fn) {
+    if (!editor) return await fn();
+    const orig = { toast: editor.toast, updateToast: editor.updateToast };
+    try {
+      editor.toast = () => {};
+      editor.updateToast = () => {};
+      return await fn();
+    } finally {
+      Object.assign(editor, orig);
+    }
+  }
+
+  async function waitForNewAsset(project, beforeUUIDs, expectedName, timeoutMs = 12000) {
+    const start = Date.now();
+    const before = new Set(beforeUUIDs || []);
+
+    while (Date.now() - start < timeoutMs) {
+      try {
+        const assets = project?.assets || [];
+        let newAssets = [];
+
+        if (Array.isArray(assets)) {
+          newAssets = assets.filter(a => a?.uuid && !before.has(a.uuid));
+        } else {
+          for (const k in assets) {
+            const a = assets[k];
+            if (a?.uuid && !before.has(a.uuid)) newAssets.push(a);
+          }
+        }
+
+        if (newAssets.length > 0) {
+          if (expectedName) {
+            const match = newAssets.find(a => a.name === expectedName || a.filename === expectedName);
+            if (match) return match;
+          }
+          return newAssets[newAssets.length - 1];
+        }
+      } catch (e) {}
+      await new Promise(r => setTimeout(r, 80));
+    }
+    throw new Error(`Timeout waiting for "${expectedName}"`);
+  }
+
+  function placeImagePathFromAsset(project, assetUuid, x, y) {
+    return new Promise((resolve, reject) => {
+      try {
+        const Wick = window.Wick || window.parent?.Wick;
+        if (!Wick || !Wick.ObjectCache || typeof Wick.ObjectCache.getObjectByUUID !== "function") {
+          return reject(new Error("Wick.ObjectCache not available"));
+        }
+
+        const assetObj = Wick.ObjectCache.getObjectByUUID(assetUuid);
+        if (!assetObj) return reject(new Error("Asset not found in cache"));
+
+        if (typeof project.createImagePathFromAsset !== "function") {
+          return reject(new Error("createImagePathFromAsset not available"));
+        }
+
+        project.createImagePathFromAsset(assetObj, x, y, (path) => {
+          resolve(path);
+        });
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  async function placeSvgAssetOnStage(editor, assetRecord, frameNum, displayName, makeClip = false) {
+    debugLog("placeSvgAssetOnStage START", { assetName: assetRecord?.name, frame: frameNum });
+
+    try {
+      const project = editor?.project;
+      if (!project || !assetRecord) throw new Error("missing project or asset");
+
+      const uuid = assetRecord.uuid || assetRecord._uuid;
+      if (!uuid) throw new Error("asset missing uuid");
+
+      const targetFrameNum = Math.max(1, Number(frameNum) || 1);
+      setPlayhead(editor, targetFrameNum);
+
+      const activeFrame = forceEnsureActiveFrame(editor, targetFrameNum);
+      if (!activeFrame) debugLog("Frame ensure failed - proceeding anyway");
+
+      const center = getStageCenter(editor);
+      debugLog("Placing clip at stage center", { x: center.x, y: center.y });
+
+      const placed = await placeImagePathFromAsset(project, uuid, center.x, center.y);
+
+      if (!placed) throw new Error("Placement returned null/undefined");
+
+      debugLog("Clip placed", { type: placed.constructor?.name || typeof placed });
+
+      selectSingleObject(editor, placed);
+      if (displayName) setSelectedNameOrIdentifier(editor, displayName);
+
+      // ── CENTER INNER CONTENTS ──
+      const bridge = window.parent?.LukeToolsBridge;
+      if (bridge && bridge.recenterClipContentsOnSelection) {
+        debugLog("Calling recenterClipContentsOnSelection...");
+        const res = bridge.recenterClipContentsOnSelection();
+        debugLog("Recentering result", res || "called (no return value)");
+      } else {
+        debugLog("WARNING: recenterClipContentsOnSelection not available");
+      }
+
+      try {
+        if (project.markAsModified) project.markAsModified();
+        if (editor.canvas?.render) editor.canvas.render();
+        if (editor.projectDidChange) editor.projectDidChange();
+      } catch (e) {
+        debugLog("Refresh failed", e.message);
+      }
+
+      debugLog("Placement & centering COMPLETE");
+      return placed;
+
+    } catch (err) {
+      debugLog("Placement FAILED", { message: err.message || String(err) });
+      return null;
+    }
+  }
+
+  async function importSvgTextToStage(svgText, displayName, makeClip) {
+    makeClip = !!makeClip;
+    const editor = getEditor();
+    if (!editor) return setStatus('Error: editor not found');
+
+    const project = editor.project;
+    if (!project) return setStatus('Error: project not found');
+
+    try {
+      setStatus('Sanitizing & importing...');
+
+      const sanitizedResult = sanitizeSvg(svgText);
+
+      debugLog("Sanitized", {
+        removedNodes: sanitizedResult.removedNodes,
+        removedAttrs: sanitizedResult.removedAttrs
+      });
+
+      const base = (displayName || 'Shape').replace(/[^a-z0-9_\-]/gi, '_').replace(/_+/g, '_');
+      const fileName = base + '.svg';
+
+      let importedAsset = findAssetByName(project, fileName);
+
+      if (!importedAsset) {
+        const blob = new Blob([sanitizedResult.text], { type: 'image/svg+xml' });
+        const file = new File([blob], fileName, { type: 'image/svg+xml' });
+
+        const beforeUUIDs = listAssetUUIDs(project);
+
+        await withSuppressedToasts(editor, async () => {
+          if (typeof editor.createAssets === 'function') {
+            await editor.createAssets([file], []);
+          } else if (typeof project.createAssets === 'function') {
+            await project.createAssets([file], []);
+          } else {
+            throw new Error('No createAssets method');
+          }
+        });
+
+        importedAsset = await waitForNewAsset(project, beforeUUIDs, fileName);
+      }
+
+      if (!importedAsset) throw new Error('Asset import failed');
+
+      const frameNumber = getCurrentFrameNumber(editor) || 1;
+
+      const placed = await placeSvgAssetOnStage(editor, importedAsset, frameNumber, base, makeClip);
+
+      if (!placed) {
+        setStatus('Imported to assets only (placement failed – check debug)');
+        return;
+      }
+
+      setStatus(`Done – ${displayName} added as clip. Double-click to edit inner paths.`);
+    } catch (err) {
+      setStatus('Error: ' + (err?.message || String(err)));
+      debugLog("Import failed", err);
+    }
+  }
+
+  async function fetchSvg(file) {
+    const url = BASE_PATH.replace(/\/$/, "") + "/" + encodeURIComponent(file);
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+    return await res.text();
+  }
+
+  function makeButton(shape) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "shapeBtn";
+    btn.title = shape.name;
+
+    btn.addEventListener("click", async () => {
+      try {
+        setStatus(`Importing ${shape.name}...`);
+        btn.disabled = true;
+        const rawSvg = await fetchSvg(shape.file);
+        await importSvgTextToStage(rawSvg, shape.name, placeAsClip);
+      } catch (e) {
+        setStatus(`Error: ${e?.message || String(e)}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    fetchSvg(shape.file).then(svgText => {
+      const holder = document.createElement("div");
+      holder.innerHTML = svgText;
+      const svg = holder.querySelector("svg");
+      if (svg) {
+        svg.setAttribute("width", "28");
+        svg.setAttribute("height", "28");
+        btn.appendChild(svg);
+      } else {
+        btn.textContent = shape.name;
+      }
+    }).catch(() => {
+      btn.textContent = shape.name;
+    });
+
+    return btn;
+  }
+
+  function init() {
+    elGrid.innerHTML = "";
+    SHAPES.forEach(s => elGrid.appendChild(makeButton(s)));
+    setStatus("Ready – click a shape");
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

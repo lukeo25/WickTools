@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Luke Tools SVG Sanitize Import On Stage</title>
+  <style>
+    body { margin: 0; padding: 14px; background: #222; color: #eaeaea; font-family: Arial, sans-serif; }
+    .panel { border: 1px solid #444; background: rgba(0,0,0,0.35); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .title { font-size: 12px; color: #9aa; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 5px; display:flex; align-items:center; gap:10px; }
+    .brand { width: 22px; height: 22px; border-radius: 4px; background:#111; border:1px solid #333; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .brand img { width:100%; height:100%; object-fit:cover; display:block; }
+    input[type="file"] { width: 100%; padding: 10px; background: #1a1a1a; color: #aaa; border: 1px dashed #555; border-radius: 6px; box-sizing:border-box; }
+    button { width: 100%; padding: 12px; border: none; border-radius: 6px; background: #21b26b; color: #fff; font-weight: bold; cursor: pointer; }
+    button.secondary { background:#3a3a3a; }
+    button:disabled { opacity: 0.55; cursor: default; }
+    #consoleLog { background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; font-family: monospace; font-size: 11px; color: #0f0; height: 220px; overflow-y: auto; white-space: pre-wrap; }
+    .settings { font-size: 11px; color: #cfcfcf; display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .settings input[type="number"] { width: 70px; background:#111; color:white; border:1px solid #444; border-radius: 4px; padding: 4px 6px; }
+    .chk { display:flex; align-items:center; gap:8px; }
+    .hint { font-size: 11px; color: #aaa; opacity: 0.9; line-height: 1.35; }
+    .row { display:flex; gap:10px; }
+    .row > * { flex:1; }
+    textarea { width:100%; min-height: 120px; background:#111; color:#ddd; border:1px solid #333; border-radius:6px; padding:8px; box-sizing:border-box; font-family: monospace; font-size: 11px; white-space: pre; overflow:auto; }
+    a { color:#7fd; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="title">
+      <span class="brand" title="Luke Tools">
+        <img alt="Luke Tools" src="https://raw.githubusercontent.com/lukeo25/WickTools/main/LukeToolsBrand.png">
+      </span>
+      <span>SVG Importer With Sanitizer Import To Assets Then Place On Stage</span>
+    </div>
+
+    <input type="file" id="svgFile" accept=".svg,image/svg+xml">
+
+    <div class="settings">
+      <span>Frame: <input type="number" id="frameNum" value="1" min="1"></span>
+
+      <span class="chk">
+        <input type="checkbox" id="wrapAsClip" checked>
+        <label for="wrapAsClip">Wrap placed SVG as Clip</label>
+      </span>
+
+      <span class="chk">
+        <input type="checkbox" id="nameClipFromFile" checked>
+        <label for="nameClipFromFile">Name clip from filename</label>
+      </span>
+
+      <span class="chk">
+        <input type="checkbox" id="keepDefs" checked>
+        <label for="keepDefs">Keep defs</label>
+      </span>
+
+      <span class="chk">
+        <input type="checkbox" id="removeImages">
+        <label for="removeImages">Remove image tags</label>
+      </span>
+
+      <span class="chk">
+        <input type="checkbox" id="stripAllStyleTags">
+        <label for="stripAllStyleTags">Strip style tags</label>
+      </span>
+
+      <span class="chk">
+        <input type="checkbox" id="suppressToasts" checked>
+        <label for="suppressToasts">Suppress Wick import toasts</label>
+      </span>
+    </div>
+
+    <div class="row">
+      <button id="importBtn">Import Sanitized SVG And Place On Stage</button>
+      <button id="clearLogBtn" class="secondary" type="button">Clear Log</button>
+    </div>
+
+    <div class="hint">
+      Flow matches your asset loader: createAssets, wait for asset, move playhead, ensure frame, createImagePathFromAsset, select, optional clip.
+    </div>
+
+    <div class="row">
+      <div style="flex:1;">
+        <div class="hint">Original preview</div>
+        <textarea id="origPreview" readonly></textarea>
+      </div>
+      <div style="flex:1;">
+        <div class="hint">Sanitized preview</div>
+        <textarea id="sanPreview" readonly></textarea>
+      </div>
+    </div>
+
+    <div id="consoleLog">Ready.</div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var logEl = document.getElementById("consoleLog");
+      var btn = document.getElementById("importBtn");
+      var clearBtn = document.getElementById("clearLogBtn");
+      var fileInput = document.getElementById("svgFile");
+
+      var origPreview = document.getElementById("origPreview");
+      var sanPreview = document.getElementById("sanPreview");
+
+      function log(msg) {
+        logEl.textContent += (logEl.textContent ? "\n" : "") + msg;
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function setLog(msg) {
+        logEl.textContent = msg || "";
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      clearBtn.addEventListener("click", function () {
+        setLog("Ready.");
+      });
+
+      function getBridge() {
+        try {
+          return window.LukeToolsBridge ||
+                 (window.parent && window.parent.LukeToolsBridge) ||
+                 window.LukeToolsLocalPanelBridge ||
+                 (window.parent && window.parent.LukeToolsLocalPanelBridge) ||
+                 null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function getEditor(bridge) {
+        try { if (bridge && typeof bridge.getEditor === "function") return bridge.getEditor(); } catch (e1) {}
+        try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e2) {}
+        try { if (window.editor) return window.editor; } catch (e3) {}
+        return null;
+      }
+
+      function getProject(bridge, ed) {
+        try { if (bridge && typeof bridge.getProject === "function") return bridge.getProject(); } catch (e1) {}
+        try { if (ed && ed.project) return ed.project; } catch (e2) {}
+        return null;
+      }
+
+      function getWickRoot() {
+        try { return window.wickEditor || (window.parent && window.parent.wickEditor) || null; } catch (e) { return null; }
+      }
+
+      function getWickNS() {
+        try { return (window.Wick || (window.parent && window.parent.Wick)) || null; } catch (e) { return null; }
+      }
+
+      function stripExtension(name) {
+        var s = String(name || "");
+        var lastDot = s.lastIndexOf(".");
+        if (lastDot > 0) return s.slice(0, lastDot);
+        return s;
+      }
+
+      function listAssetUUIDs(project) {
+        try {
+          var assets = (project && typeof project.getAssets === "function") ? project.getAssets() : (project && project.assets) ? project.assets : [];
+          return (assets || []).map(function (a) { return a && a.uuid; }).filter(Boolean);
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function waitForNewAsset(project, beforeUUIDs, expectedName, timeoutMs) {
+        var start = Date.now();
+        var beforeSet = {};
+        for (var i = 0; i < beforeUUIDs.length; i++) beforeSet[beforeUUIDs[i]] = true;
+
+        return new Promise(function (resolve, reject) {
+          (function tick() {
+            try {
+              var assets = (project && typeof project.getAssets === "function") ? project.getAssets() : (project && project.assets) ? project.assets : [];
+              assets = assets || [];
+
+              for (var j = 0; j < assets.length; j++) {
+                var a = assets[j];
+                if (!a || !a.uuid) continue;
+                if (beforeSet[a.uuid]) continue;
+                var nm = a.name || a.filename || "";
+                if (String(nm) === String(expectedName)) return resolve(a);
+              }
+
+              var newOnes = [];
+              for (var k = 0; k < assets.length; k++) {
+                var b = assets[k];
+                if (b && b.uuid && !beforeSet[b.uuid]) newOnes.push(b);
+              }
+              if (newOnes.length === 1) return resolve(newOnes[0]);
+
+            } catch (err) {}
+
+            if (Date.now() - start > timeoutMs) {
+              return reject(new Error("Timeout waiting for new asset: " + expectedName));
+            }
+            setTimeout(tick, 100);
+          })();
+        });
+      }
+
+      function getActiveLayer(project) {
+        try { if (project && project.activeLayer) return project.activeLayer; } catch (e1) {}
+        try { if (project && project.focus && project.focus.timeline && project.focus.timeline.activeLayer) return project.focus.timeline.activeLayer; } catch (e2) {}
+        try { if (project && project.activeTimeline && project.activeTimeline.activeLayer) return project.activeTimeline.activeLayer; } catch (e3) {}
+        try { if (project && project.timeline && project.timeline.activeLayer) return project.timeline.activeLayer; } catch (e4) {}
+        return null;
+      }
+
+      function setPlayhead(project, frameNumber) {
+        try {
+          if (project && project.focus && project.focus.timeline) {
+            project.focus.timeline.playheadPosition = frameNumber;
+            return true;
+          }
+        } catch (e1) {}
+        try {
+          if (project && project.activeTimeline) {
+            project.activeTimeline.playheadPosition = frameNumber;
+            return true;
+          }
+        } catch (e2) {}
+        try {
+          if (project && project.timeline) {
+            project.timeline.playheadPosition = frameNumber;
+            return true;
+          }
+        } catch (e3) {}
+        return false;
+      }
+
+      function getFrameAt(layer, frameNumber) {
+        try {
+          if (layer && typeof layer.getFrameAtPlayheadPosition === "function") {
+            return layer.getFrameAtPlayheadPosition(frameNumber);
+          }
+        } catch (e1) {}
+        try {
+          if (layer && typeof layer.getFrameAt === "function") return layer.getFrameAt(frameNumber);
+        } catch (e2) {}
+        return null;
+      }
+
+      function ensureBlankFrameAt(layer, frameNumber) {
+        try {
+          if (!layer) return null;
+          var existing = getFrameAt(layer, frameNumber);
+          if (existing) return existing;
+
+          if (typeof layer.insertBlankFrame === "function") {
+            return layer.insertBlankFrame(frameNumber);
+          }
+          if (typeof layer.createFrameAt === "function") {
+            return layer.createFrameAt(frameNumber);
+          }
+        } catch (e) {}
+        return null;
+      }
+
+      function selectionClear(project, ed) {
+        try { if (project && project.selection && typeof project.selection.clear === "function") project.selection.clear(); } catch (e1) {}
+        try { if (ed && typeof ed.clearSelection === "function") ed.clearSelection(); } catch (e2) {}
+      }
+
+      function selectionSelectSingle(project, ed, obj) {
+        selectionClear(project, ed);
+
+        try {
+          if (project && project.selection) {
+            if (typeof project.selection.select === "function") {
+              project.selection.select(obj);
+              return true;
+            }
+            if (typeof project.selection.selectMultipleObjects === "function") {
+              project.selection.selectMultipleObjects([obj]);
+              return true;
+            }
+          }
+        } catch (e1) {}
+
+        try {
+          if (ed && typeof ed.selectObjects === "function") {
+            ed.selectObjects([obj]);
+            return true;
+          }
+        } catch (e2) {}
+
+        return false;
+      }
+
+      function getSelectedObject(project, ed) {
+        try { if (project && project.selection && typeof project.selection.getSelectedObject === "function") return project.selection.getSelectedObject(); } catch (e1) {}
+        try {
+          if (ed && ed.selectedObjects && ed.selectedObjects.length) return ed.selectedObjects[0];
+        } catch (e2) {}
+        return null;
+      }
+
+      function createClipFromSelection(project, ed, identifier) {
+        try {
+          if (project && typeof project.createClipFromSelection === "function") {
+            project.createClipFromSelection({ identifier: String(identifier || "Clip"), type: "Clip" });
+            return { ok: true, via: "project.createClipFromSelection" };
+          }
+        } catch (e1) {}
+
+        try {
+          if (ed && typeof ed.createClipFromSelection === "function") {
+            ed.createClipFromSelection(String(identifier || "Clip"), true);
+            return { ok: true, via: "ed.createClipFromSelection" };
+          }
+        } catch (e2) {}
+
+        try {
+          if (ed && ed.actionManager && typeof ed.actionManager.doAction === "function") {
+            ed.actionManager.doAction(["createClipFromSelection"], [String(identifier || "Clip")]);
+            return { ok: true, via: "actionManager.createClipFromSelection" };
+          }
+        } catch (e3) {}
+
+        return { ok: false, reason: "No clip conversion API found" };
+      }
+
+      function setSelectedNameOrIdentifier(project, ed, name) {
+        var obj = getSelectedObject(project, ed);
+        if (!obj) return false;
+
+        var v = String(name || "");
+        var changed = false;
+
+        try { if ("identifier" in obj) { obj.identifier = v; changed = true; } } catch (e1) {}
+        try { if ("name" in obj) { obj.name = v; changed = true; } } catch (e2) {}
+
+        return changed;
+      }
+
+      function placeImagePathFromAsset(project, assetUuid, x, y) {
+        return new Promise(function (resolve, reject) {
+          try {
+            var Wick = getWickNS();
+            if (!Wick || !Wick.ObjectCache || typeof Wick.ObjectCache.getObjectByUUID !== "function") {
+              return reject(new Error("Wick.ObjectCache not available"));
+            }
+
+            var assetObj = Wick.ObjectCache.getObjectByUUID(assetUuid);
+            if (!assetObj) return reject(new Error("Asset not found in ObjectCache: " + assetUuid));
+
+            if (typeof project.createImagePathFromAsset !== "function") {
+              return reject(new Error("project.createImagePathFromAsset is not available"));
+            }
+
+            project.createImagePathFromAsset(assetObj, x, y, function (path) {
+              resolve(path);
+            });
+
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }
+
+      function forceRefresh(ed, project) {
+        try { if (ed && typeof ed.projectDidChange === "function") ed.projectDidChange({ actionName: "LukeTools" }); } catch (e1) {}
+        try { if (ed && typeof ed.syncInterfaces === "function") ed.syncInterfaces(); } catch (e2) {}
+        try { if (ed && typeof ed.updateUI === "function") ed.updateUI(); } catch (e3) {}
+        try { if (ed && typeof ed.refresh === "function") ed.refresh(); } catch (e4) {}
+        try { if (ed && ed.canvas && typeof ed.canvas.redraw === "function") ed.canvas.redraw(); } catch (e5) {}
+        try { if (ed && typeof ed.refreshCanvas === "function") ed.refreshCanvas(); } catch (e6) {}
+
+        try {
+          var root = getWickRoot();
+          if (root && typeof root.projectDidChange === "function") root.projectDidChange();
+        } catch (e7) {}
+
+        try {
+          if (project && project.view && project.view.paper && project.view.paper.view && typeof project.view.paper.view.update === "function") {
+            project.view.paper.view.update();
+          }
+        } catch (e8) {}
+      }
+
+      function withSuppressedToasts(ed, enabled, fn) {
+        if (!enabled || !ed) return fn();
+
+        var origToast = ed.toast;
+        var origUpdateToast = ed.updateToast;
+
+        try { ed.toast = function(){ return null; }; } catch (e1) {}
+        try { ed.updateToast = function(){ return null; }; } catch (e2) {}
+
+        return Promise.resolve()
+          .then(fn)
+          .finally(function () {
+            try { ed.toast = origToast; } catch (e3) {}
+            try { ed.updateToast = origUpdateToast; } catch (e4) {}
+          });
+      }
+
+      function parseSvg(svgText) {
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(svgText, "image/svg+xml");
+        var parseError = doc.getElementsByTagName("parsererror")[0];
+        if (parseError) throw new Error("SVG parse error");
+        return doc;
+      }
+
+      function isBadUrlValue(v) {
+        var s = String(v || "").trim().toLowerCase();
+        if (!s) return false;
+        if (s.indexOf("javascript:") === 0) return true;
+        if (s.indexOf("http:") === 0) return true;
+        if (s.indexOf("https:") === 0) return true;
+        if (s.indexOf("//") === 0) return true;
+        return false;
+      }
+
+      function stripBadCssUrls(cssText) {
+        var t = String(cssText || "");
+        t = t.replace(/@import\s+[^;]+;/gi, "");
+        t = t.replace(/url\(\s*(['"]?)\s*javascript:[^)]*\)/gi, "url()");
+        t = t.replace(/url\(\s*(['"]?)\s*https?:[^)]*\)/gi, "url()");
+        t = t.replace(/url\(\s*(['"]?)\s*\/\/[^)]*\)/gi, "url()");
+        return t;
+      }
+
+      function sanitizeSvg(svgText, options) {
+        var doc = parseSvg(svgText);
+        var svg = doc.documentElement;
+
+        if (!svg || svg.nodeName.toLowerCase() !== "svg") {
+          throw new Error("Not an svg root element");
+        }
+
+        var removedNodes = 0;
+        var removedAttrs = 0;
+
+        var bannedTags = [
+          "script",
+          "foreignobject",
+          "iframe",
+          "object",
+          "embed",
+          "audio",
+          "video",
+          "canvas",
+          "set",
+          "animate",
+          "animatetransform",
+          "animatemotion"
+        ];
+
+        if (options && options.removeImages) bannedTags.push("image");
+
+        function removeAllByTag(tagName) {
+          var nodes = doc.getElementsByTagName(tagName);
+          var list = [];
+          for (var i = 0; i < nodes.length; i++) list.push(nodes[i]);
+          for (var j = 0; j < list.length; j++) {
+            var n = list[j];
+            if (n && n.parentNode) {
+              n.parentNode.removeChild(n);
+              removedNodes++;
+            }
+          }
+        }
+
+        for (var b = 0; b < bannedTags.length; b++) removeAllByTag(bannedTags[b]);
+
+        if (!(options && options.keepDefs)) removeAllByTag("defs");
+        if (options && options.stripAllStyleTags) removeAllByTag("style");
+
+        var walker = doc.createTreeWalker(svg, NodeFilter.SHOW_ELEMENT, null, false);
+        var nodesToProcess = [];
+        while (walker.nextNode()) nodesToProcess.push(walker.currentNode);
+
+        for (var nidx = 0; nidx < nodesToProcess.length; nidx++) {
+          var el = nodesToProcess[nidx];
+          if (!el || !el.attributes) continue;
+
+          var attrs = [];
+          for (var a = 0; a < el.attributes.length; a++) attrs.push(el.attributes[a]);
+
+          for (var k = 0; k < attrs.length; k++) {
+            var attr = attrs[k];
+            var name = attr.name;
+            var value = attr.value;
+
+            var lower = name.toLowerCase();
+
+            if (lower.indexOf("on") === 0) {
+              el.removeAttribute(name);
+              removedAttrs++;
+              continue;
+            }
+
+            if (lower === "href" || lower === "xlink:href") {
+              if (isBadUrlValue(value)) {
+                el.removeAttribute(name);
+                removedAttrs++;
+                continue;
+              }
+            }
+
+            if (lower === "style") {
+              var cleaned = stripBadCssUrls(value);
+              if (cleaned !== value) el.setAttribute(name, cleaned);
+            }
+
+            if (lower === "filter" || lower === "clip-path" || lower === "mask" || lower === "fill" || lower === "stroke") {
+              if (String(value || "").toLowerCase().indexOf("url(") >= 0) {
+                var vv = String(value || "");
+                var cssClean = stripBadCssUrls(vv);
+                if (cssClean !== vv) el.setAttribute(name, cssClean);
+              }
+            }
+          }
+        }
+
+        if (!options || !options.stripAllStyleTags) {
+          var styleNodes = doc.getElementsByTagName("style");
+          for (var sidx = 0; sidx < styleNodes.length; sidx++) {
+            var st = styleNodes[sidx];
+            if (st && st.textContent) {
+              var before = st.textContent;
+              var after = stripBadCssUrls(before);
+              if (after !== before) st.textContent = after;
+            }
+          }
+        }
+
+        if (!svg.getAttribute("viewBox")) {
+          var w = svg.getAttribute("width");
+          var h = svg.getAttribute("height");
+          var wf = parseFloat(w);
+          var hf = parseFloat(h);
+          if (isFinite(wf) && isFinite(hf) && wf > 0 && hf > 0) {
+            svg.setAttribute("viewBox", "0 0 " + wf + " " + hf);
+          }
+        }
+
+        var serializer = new XMLSerializer();
+        var out = serializer.serializeToString(doc);
+
+        return { text: out, removedNodes: removedNodes, removedAttrs: removedAttrs };
+      }
+
+      function safeFileBaseName(name) {
+        var n = String(name || "ImportedSVG");
+        n = n.replace(/\\/g, "/");
+        n = n.split("/").pop();
+        n = n.replace(/\.[^.]+$/, "");
+        n = n.replace(/[^\w\s().,]/g, "_");
+        n = n.replace(/\s+/g, " ").trim();
+        if (!n) n = "ImportedSVG";
+        return n;
+      }
+
+      async function importSanitizedSvgOnStage() {
+        var bridge = getBridge();
+        if (!bridge) { setLog("Bridge not found. Make sure Luke Tools bridge is loaded."); return; }
+
+        if (!fileInput.files || !fileInput.files.length) { setLog("Select an SVG file first."); return; }
+
+        var ed = getEditor(bridge);
+        var project = getProject(bridge, ed);
+
+        if (!ed) { setLog("Editor not found from bridge."); return; }
+        if (!project) { setLog("Project not found from bridge."); return; }
+        if (typeof ed.createAssets !== "function") { setLog("editor.createAssets is not available in this build."); return; }
+
+        var layer = getActiveLayer(project);
+        if (!layer) { setLog("No active layer detected. Click the layer you want to import into, then try again."); return; }
+
+        var frameNum = parseInt(document.getElementById("frameNum").value, 10);
+        if (!frameNum || frameNum < 1) frameNum = 1;
+
+        var keepDefs = !!document.getElementById("keepDefs").checked;
+        var removeImages = !!document.getElementById("removeImages").checked;
+        var stripAllStyleTags = !!document.getElementById("stripAllStyleTags").checked;
+
+        var wrapAsClip = !!document.getElementById("wrapAsClip").checked;
+        var nameClipFromFile = !!document.getElementById("nameClipFromFile").checked;
+
+        var suppressToasts = !!document.getElementById("suppressToasts").checked;
+
+        var file = fileInput.files[0];
+
+        btn.disabled = true;
+        setLog("Starting SVG import...");
+
+        return withSuppressedToasts(ed, suppressToasts, async function () {
+          try {
+            log("Reading file: " + file.name);
+            var original = await file.text();
+            origPreview.value = original.slice(0, 25000);
+
+            log("Sanitizing...");
+            var result = sanitizeSvg(original, {
+              keepDefs: keepDefs,
+              removeImages: removeImages,
+              stripAllStyleTags: stripAllStyleTags
+            });
+
+            sanPreview.value = result.text.slice(0, 25000);
+            log("Sanitized. Removed nodes: " + result.removedNodes + " Removed attrs: " + result.removedAttrs);
+
+            var base = safeFileBaseName(file.name);
+            var outName = base + "_sanitized.svg";
+
+            var blob = new Blob([result.text], { type: "image/svg+xml" });
+            var outFile = new File([blob], outName, { type: "image/svg+xml" });
+
+            var beforeUUIDs = listAssetUUIDs(project);
+
+            log("Importing to assets: " + outFile.name);
+            ed.createAssets([outFile], []);
+
+            var asset = await waitForNewAsset(project, beforeUUIDs, outFile.name, 25000);
+            if (!asset || !asset.uuid) throw new Error("New asset not found for: " + outFile.name);
+
+            log("Asset imported uuid: " + asset.uuid);
+
+            var centerX = (project.width || 0) / 2;
+            var centerY = (project.height || 0) / 2;
+
+            setPlayhead(project, frameNum);
+            ensureBlankFrameAt(layer, frameNum);
+
+            log("Placing on stage at center frame: " + frameNum);
+            var path = await placeImagePathFromAsset(project, asset.uuid, centerX, centerY);
+
+            selectionSelectSingle(project, ed, path);
+
+            if (wrapAsClip) {
+              var clipName = nameClipFromFile ? stripExtension(file.name) : "SVG_Clip";
+              var r = createClipFromSelection(project, ed, clipName);
+
+              if (!r || !r.ok) {
+                log("WARN: Could not convert selection to clip (" + (r && r.reason ? r.reason : "unknown") + ")");
+              } else {
+                if (nameClipFromFile) setSelectedNameOrIdentifier(project, ed, stripExtension(file.name));
+                log("Placed on frame " + frameNum + " (clip)");
+              }
+            } else {
+              log("Placed on frame " + frameNum);
+            }
+
+            forceRefresh(ed, project);
+            log("DONE");
+          } catch (err) {
+            log("ERROR: " + (err && err.message ? err.message : String(err)));
+            try { console.error(err); } catch (e) {}
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      }
+
+      btn.addEventListener("click", function () {
+        importSanitizedSvgOnStage();
+      });
+
+      fileInput.addEventListener("change", function () {
+        try {
+          origPreview.value = "";
+          sanPreview.value = "";
+        } catch (e) {}
+      });
+
+    })();
+  </script>
+</body>
+</html>

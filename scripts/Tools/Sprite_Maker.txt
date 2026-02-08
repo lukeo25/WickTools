@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Luke Tools - Sprite Sheet to Animated Clip</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body { margin:0; padding:14px; background:#1f1f1f; color:#eaeaea; font-family: Arial, sans-serif; }
+    .panel { border:1px solid #444; background: rgba(0,0,0,0.35); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+    .title { font-size:12px; color:#9aa; text-transform:uppercase; border-bottom:1px solid #444; padding-bottom:6px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    label { font-size:11px; color:#cfcfcf; }
+    input[type="file"] { width:100%; padding:10px; background:#141414; color:#bbb; border:1px dashed #555; border-radius:8px; }
+    input[type="number"], input[type="text"] {
+      background:#111; color:#fff; border:1px solid #444; border-radius:6px;
+      padding:8px 10px; font-size:12px;
+    }
+    input[type="number"] { width:90px; }
+    input[type="text"] { width:220px; }
+    button {
+      width:100%; padding:12px; border:none; border-radius:8px;
+      background:#21b26b; color:#fff; font-weight:bold; cursor:pointer;
+    }
+    button:disabled { opacity:0.55; cursor:default; }
+    .hint { font-size:11px; color:#aaa; line-height:1.35; }
+    #consoleLog {
+      background:#0f0f0f; border:1px solid #333; border-radius:8px;
+      padding:10px; font-family: monospace; font-size:11px; color:#88ff88;
+      height:190px; overflow-y:auto; white-space:pre-wrap;
+    }
+    .warn { color:#ffd86b; }
+    .err { color:#ff6b6b; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="title">Sprite Sheet to Animated Clip (One Clip, One Frame per Sprite)</div>
+
+    <input type="file" id="sheetFile" accept="image/*">
+
+    <div class="row">
+      <label>Rows<br><input type="number" id="rows" min="1" value="4"></label>
+      <label>Columns<br><input type="number" id="cols" min="1" value="4"></label>
+      <label>Clip Name<br><input type="text" id="clipName" value="SpriteClip"></label>
+    </div>
+
+    <button id="buildBtn">Build Animated Clip</button>
+
+    <div class="hint">
+      Creates <b>one</b> clip on the stage, then ingests every tile from the sprite sheet into <b>successive frames inside that clip</b>.
+      Every sprite is placed at the <b>exact same position</b> inside the clip (origin), so it animates like a proper sprite.
+    </div>
+
+    <div id="consoleLog">Ready.</div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    var logEl = document.getElementById("consoleLog");
+    var btn = document.getElementById("buildBtn");
+
+    function log(msg, cls) {
+      var line = String(msg || "");
+      if (cls === "warn") line = "⚠ " + line;
+      if (cls === "err") line = "❌ " + line;
+      logEl.textContent += (logEl.textContent ? "\n" : "") + line;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function isFn(f) { return typeof f === "function"; }
+
+    function getBridge() {
+      try {
+        return window.LukeToolsBridge ||
+               (window.parent && window.parent.LukeToolsBridge) ||
+               window.LukeToolsLocalPanelBridge ||
+               (window.parent && window.parent.LukeToolsLocalPanelBridge) ||
+               null;
+      } catch (e) { return null; }
+    }
+
+    function getEditor(bridge) {
+      try { if (bridge && isFn(bridge.getEditor)) return bridge.getEditor(); } catch (e1) {}
+      try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e2) {}
+      try { if (window.editor) return window.editor; } catch (e3) {}
+      return null;
+    }
+
+    function getProject(bridge, ed) {
+      try { if (bridge && isFn(bridge.getProject)) return bridge.getProject(); } catch (e1) {}
+      try { if (ed && ed.project) return ed.project; } catch (e2) {}
+      return null;
+    }
+
+    function stripExtension(name) {
+      var s = String(name || "");
+      var dot = s.lastIndexOf(".");
+      if (dot > 0) return s.slice(0, dot);
+      return s;
+    }
+
+    function pad4(n) {
+      var s = String(n);
+      while (s.length < 4) s = "0" + s;
+      return s;
+    }
+
+    function forceRefresh(ed, project) {
+      try { if (ed && isFn(ed.projectDidChange)) ed.projectDidChange(); } catch (e1) {}
+      try { if (ed && isFn(ed.syncInterfaces)) ed.syncInterfaces(); } catch (e2) {}
+      try { if (ed && isFn(ed.updateUI)) ed.updateUI(); } catch (e3) {}
+      try { if (ed && isFn(ed.refresh)) ed.refresh(); } catch (e4) {}
+      try { if (ed && ed.canvas && isFn(ed.canvas.redraw)) ed.canvas.redraw(); } catch (e5) {}
+      try { if (ed && isFn(ed.refreshCanvas)) ed.refreshCanvas(); } catch (e6) {}
+      try { if (project && isFn(project.resetCache)) project.resetCache(); } catch (e7) {}
+      try { if (project && project.view && isFn(project.view.render)) project.view.render(); } catch (e8) {}
+      try {
+        var root = null;
+        try { root = window.wickEditor || (window.parent && window.parent.wickEditor) || null; } catch (e9) { root = null; }
+        if (root && isFn(root.projectDidChange)) root.projectDidChange();
+      } catch (e10) {}
+    }
+
+    function listAssetUUIDs(project) {
+      try {
+        var assets = (project && isFn(project.getAssets)) ? project.getAssets() : (project && project.assets) ? project.assets : [];
+        return (assets || []).map(function (a) { return a && a.uuid; }).filter(Boolean);
+      } catch (e) { return []; }
+    }
+
+    function waitForAssetsByNames(project, names, timeoutMs) {
+      var start = Date.now();
+      var target = {};
+      (names || []).forEach(function (n) { target[String(n)] = true; });
+
+      return new Promise(function (resolve, reject) {
+        (function tick() {
+          try {
+            var assets = (project && isFn(project.getAssets)) ? project.getAssets() : (project && project.assets) ? project.assets : [];
+            assets = assets || [];
+
+            var found = {};
+            for (var i = 0; i < assets.length; i++) {
+              var a = assets[i];
+              if (!a) continue;
+              var nm = a.name || a.filename || "";
+              nm = String(nm);
+              if (target[nm]) found[nm] = a;
+            }
+
+            var missing = [];
+            for (var k in target) {
+              if (!found[k]) missing.push(k);
+            }
+
+            if (missing.length === 0) return resolve(found);
+
+          } catch (e1) {
+            // keep polling
+          }
+
+          if (Date.now() - start > timeoutMs) {
+            return reject(new Error("Timeout waiting for imported assets (" + names.length + ")."));
+          }
+          setTimeout(tick, 120);
+        })();
+      });
+    }
+
+    function loadImageFromFile(file) {
+      return new Promise(function (resolve, reject) {
+        try {
+          var url = URL.createObjectURL(file);
+          var img = new Image();
+          img.onload = function () {
+            try { URL.revokeObjectURL(url); } catch (e1) {}
+            resolve(img);
+          };
+          img.onerror = function () {
+            try { URL.revokeObjectURL(url); } catch (e2) {}
+            reject(new Error("Could not load image."));
+          };
+          img.src = url;
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
+
+    function canvasToBlob(canvas) {
+      return new Promise(function (resolve, reject) {
+        try {
+          canvas.toBlob(function (blob) {
+            if (!blob) return reject(new Error("Canvas toBlob failed."));
+            resolve(blob);
+          }, "image/png");
+        } catch (e) { reject(e); }
+      });
+    }
+
+    async function cutSpriteSheetToFiles(img, rows, cols, baseName) {
+      var w = img.naturalWidth || img.width || 0;
+      var h = img.naturalHeight || img.height || 0;
+      if (!w || !h) throw new Error("Sprite sheet has invalid size.");
+
+      var tileWExact = w / cols;
+      var tileHExact = h / rows;
+
+      var tileW = Math.floor(tileWExact);
+      var tileH = Math.floor(tileHExact);
+
+      if (tileW <= 0 || tileH <= 0) throw new Error("Calculated tile size is invalid.");
+
+      var warn = false;
+      if ((tileW * cols) !== w || (tileH * rows) !== h) warn = true;
+
+      var files = [];
+      var canvas = document.createElement("canvas");
+      canvas.width = tileW;
+      canvas.height = tileH;
+      var ctx = canvas.getContext("2d");
+
+      var idx = 0;
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          ctx.clearRect(0, 0, tileW, tileH);
+          var sx = c * tileW;
+          var sy = r * tileH;
+          ctx.drawImage(img, sx, sy, tileW, tileH, 0, 0, tileW, tileH);
+
+          var blob = await canvasToBlob(canvas);
+          idx++;
+          var fname = baseName + "_" + pad4(idx) + ".png";
+          files.push(new File([blob], fname, { type: "image/png" }));
+        }
+      }
+
+      return { files: files, tileW: tileW, tileH: tileH, warning: warn, sheetW: w, sheetH: h, tileWExact: tileWExact, tileHExact: tileHExact };
+    }
+
+    function promiseCreateImagePath(project, asset, x, y) {
+      return new Promise(function (resolve, reject) {
+        try {
+          if (!project || !isFn(project.createImagePathFromAsset)) {
+            return reject(new Error("project.createImagePathFromAsset is not available."));
+          }
+          project.createImagePathFromAsset(asset, x, y, function (path) {
+            resolve(path);
+          });
+        } catch (e) { reject(e); }
+      });
+    }
+
+    function clearFrame(frame) {
+      if (!frame) return;
+      try {
+        if (frame.paths && frame.paths.length) {
+          frame.paths.slice().forEach(function (p) {
+            try { if (isFn(frame.removePath)) frame.removePath(p); else if (p && isFn(p.remove)) p.remove(); } catch (e1) {}
+          });
+        }
+      } catch (e2) {}
+
+      try {
+        if (frame.clips && frame.clips.length) {
+          frame.clips.slice().forEach(function (c) {
+            try { if (isFn(frame.removeClip)) frame.removeClip(c); else if (c && isFn(c.remove)) c.remove(); } catch (e3) {}
+          });
+        }
+      } catch (e4) {}
+
+      try {
+        if (frame.tweens && frame.tweens.length) {
+          frame.tweens.slice().forEach(function (t) {
+            try { if (isFn(frame.removeTween)) frame.removeTween(t); } catch (e5) {}
+          });
+        }
+      } catch (e6) {}
+    }
+
+    function clearFocusedTimelineToSingleFrame(project) {
+      if (!project || !project.focus || !project.focus.timeline) return false;
+      var tl = project.focus.timeline;
+      var layer = null;
+
+      try { layer = tl.activeLayer; } catch (e1) { layer = null; }
+      if (!layer) {
+        try { layer = tl.layers && tl.layers[0]; } catch (e2) { layer = null; }
+      }
+      if (!layer) return false;
+
+      // Keep the frame at position 1 (or create one if needed)
+      var keep = null;
+      try { if (isFn(layer.getFrameAtPlayheadPosition)) keep = layer.getFrameAtPlayheadPosition(1); } catch (e3) { keep = null; }
+      if (!keep) {
+        try {
+          if (isFn(layer.insertBlankFrame)) {
+            tl.playheadPosition = 1;
+            layer.insertBlankFrame(1);
+            if (isFn(layer.getFrameAtPlayheadPosition)) keep = layer.getFrameAtPlayheadPosition(1);
+          }
+        } catch (e4) {}
+      }
+
+      if (!keep) return false;
+
+      // Clear keep frame contents and normalize to 1..1
+      try { clearFrame(keep); } catch (e5) {}
+      try { keep.start = 1; keep.end = 1; } catch (e6) {}
+
+      // Remove all other frames
+      try {
+        var frames = layer.frames ? layer.frames.slice() : [];
+        frames.forEach(function (fr) {
+          if (fr === keep) return;
+          try { if (isFn(layer.removeFrame)) layer.removeFrame(fr); } catch (e7) {}
+        });
+      } catch (e8) {}
+
+      // Ensure playhead is at 1
+      try { tl.playheadPosition = 1; } catch (e9) {}
+
+      return true;
+    }
+
+    async function buildAnimatedClip() {
+      var bridge = getBridge();
+      if (!bridge) throw new Error("Bridge not found. Make sure Luke Tools bridge is loaded.");
+
+      var ed = getEditor(bridge);
+      var project = getProject(bridge, ed);
+
+      if (!ed) throw new Error("Editor not found.");
+      if (!project) throw new Error("Project not found.");
+      if (!isFn(ed.createAssets)) throw new Error("editor.createAssets is not available in this build.");
+      if (!project || !project.root) throw new Error("Project root clip not found.");
+
+      var fileInput = document.getElementById("sheetFile");
+      if (!fileInput.files || !fileInput.files.length) throw new Error("Select a sprite sheet image first.");
+
+      var rows = parseInt(document.getElementById("rows").value, 10);
+      var cols = parseInt(document.getElementById("cols").value, 10);
+      if (!rows || rows < 1) throw new Error("Rows must be 1 or more.");
+      if (!cols || cols < 1) throw new Error("Columns must be 1 or more.");
+
+      var clipName = String(document.getElementById("clipName").value || "SpriteClip").trim() || "SpriteClip";
+
+      logEl.textContent = "";
+      log("Loading sprite sheet...");
+      var sheetFile = fileInput.files[0];
+
+      var img = await loadImageFromFile(sheetFile);
+
+      log("Cutting sheet into tiles (" + rows + "x" + cols + ")...");
+      var baseName = stripExtension(sheetFile.name || "sheet");
+      var cut = await cutSpriteSheetToFiles(img, rows, cols, baseName);
+
+      if (cut.warning) {
+        log("Sprite sheet size (" + cut.sheetW + "x" + cut.sheetH + ") does not divide perfectly by rows/cols. Using tile size " + cut.tileW + "x" + cut.tileH + " and cropping the remainder.", "warn");
+      } else {
+        log("Tile size: " + cut.tileW + "x" + cut.tileH);
+      }
+
+      var tileFiles = cut.files;
+      if (!tileFiles.length) throw new Error("No tiles were created.");
+
+      log("Importing " + tileFiles.length + " tiles into Asset Library...");
+      var beforeUUIDs = listAssetUUIDs(project);
+
+      // Create assets (batch)
+      ed.createAssets(tileFiles, []);
+
+      // Wait for assets by filename
+      var names = tileFiles.map(function (f) { return f.name; });
+      var assetsByName = await waitForAssetsByNames(project, names, 30000);
+
+      // Resolve assets in import order
+      var assets = names.map(function (nm) { return assetsByName[String(nm)]; });
+
+      var stageX = (project.width || 0) / 2;
+      var stageY = (project.height || 0) / 2;
+
+      // Ensure root focus
+      try { project.focus = project.root; } catch (e1) {}
+
+      // Place a temporary first tile on stage to create the clip from selection
+      log("Creating clip on stage: " + clipName);
+      try { if (project.focus && project.focus.timeline) project.focus.timeline.playheadPosition = 1; } catch (e2) {}
+
+      var firstAsset = assets[0];
+      if (!firstAsset) throw new Error("First tile asset not found after import.");
+
+      var firstPath = await promiseCreateImagePath(project, firstAsset, stageX, stageY);
+
+      // Select it
+      try {
+        if (project.selection) {
+          project.selection.clear();
+          project.selection.select(firstPath);
+        }
+      } catch (e3) {}
+
+      // Convert to clip using engine API if present, else bridge
+      var madeClip = false;
+      try {
+        if (isFn(project.createClipFromSelection)) {
+          project.createClipFromSelection({ identifier: clipName, type: "Clip" });
+          madeClip = true;
+        }
+      } catch (e4) { madeClip = false; }
+
+      if (!madeClip) {
+        try {
+          if (bridge && isFn(bridge.createClipFromSelection)) {
+            bridge.createClipFromSelection();
+            madeClip = true;
+          }
+        } catch (e5) { madeClip = false; }
+      }
+
+      if (!madeClip) throw new Error("Could not create clip from selection.");
+
+      // Selected object should now be the new clip instance
+      var clipObj = null;
+      try { if (project.selection && isFn(project.selection.getSelectedObject)) clipObj = project.selection.getSelectedObject(); } catch (e6) { clipObj = null; }
+      if (!clipObj) {
+        try { if (ed && ed.selectedObjects && ed.selectedObjects.length) clipObj = ed.selectedObjects[0]; } catch (e7) { clipObj = null; }
+      }
+      if (!clipObj) throw new Error("Clip was created but could not be retrieved from selection.");
+
+      // Focus into the clip timeline
+      var focused = false;
+      try { if (isFn(project.focusTimelineOfSelectedClip)) focused = project.focusTimelineOfSelectedClip(); } catch (e8) { focused = false; }
+      if (!focused) {
+        // Fallback: set focus directly if possible
+        try { project.focus = clipObj; focused = true; } catch (e9) { focused = false; }
+      }
+      if (!focused || !project.focus || !project.focus.timeline) throw new Error("Could not focus into the new clip timeline.");
+
+      // Clear the clip timeline to a single empty frame so we control all frames
+      var cleared = clearFocusedTimelineToSingleFrame(project);
+      if (!cleared) log("Could not fully reset clip timeline; continuing anyway.", "warn");
+
+      // Place each tile into successive frames INSIDE the clip, at the same origin point
+      log("Ingesting tiles into frames inside the clip...");
+      var tl = project.focus.timeline;
+      var placeX = 0;
+      var placeY = 0;
+
+      for (var i = 0; i < assets.length; i++) {
+        var frameNum = i + 1;
+        var asset = assets[i];
+        if (!asset) throw new Error("Missing tile asset at index " + i);
+
+        try { tl.playheadPosition = frameNum; } catch (e10) {}
+
+        // Ensure current frame is empty (if any overlaps due to gaps/extends)
+        try { if (project.activeFrame) clearFrame(project.activeFrame); } catch (e11) {}
+
+        await promiseCreateImagePath(project, asset, placeX, placeY);
+
+        log("Frame " + frameNum + " ✓");
+      }
+
+      // Exit back to parent (root) timeline
+      try {
+        if (isFn(project.focusTimelineOfParentClip)) {
+          while (project.focus && !project.focus.isRoot) {
+            if (!project.focusTimelineOfParentClip()) break;
+          }
+        }
+      } catch (e12) {}
+
+      // Ensure the stage clip remains selected for convenience
+      try {
+        if (project.selection) {
+          project.selection.clear();
+          project.selection.select(clipObj);
+        }
+      } catch (e13) {}
+
+      forceRefresh(ed, project);
+
+      log("Done. One clip created on stage, " + assets.length + " frames inside the clip.");
+    }
+
+    btn.addEventListener("click", function () {
+      btn.disabled = true;
+      buildAnimatedClip()
+        .catch(function (err) {
+          log(String(err && err.message ? err.message : err), "err");
+          try { console.error(err); } catch (e1) {}
+        })
+        .finally(function () {
+          btn.disabled = false;
+        });
+    });
+
+  })();
+  </script>
+</body>
+</html>

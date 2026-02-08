@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            padding: 15px;
+            color: #eaeaea;
+            font-family: Arial, sans-serif;
+            background: transparent;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .info-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        button {
+            padding: 8px;
+            border-radius: 6px;
+            border: none;
+            background: #21b26b;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #1a8e56; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="info-box" id="selectionDisplay">
+            No clip captured. Click "Capture Selection" below.
+        </div>
+
+        <div class="control-group">
+            <div class="label-row">
+                <span>Rotation</span>
+                <span id="angleValue">0°</span>
+            </div>
+            <input type="range" id="rotateSlider" min="0" max="360" value="0">
+        </div>
+
+        <button id="captureBtn">Capture Selected Clip</button>
+    </div>
+
+    <script>
+        const bridge = window.LukeToolsBridge;
+        const slider = document.getElementById('rotateSlider');
+        const angleDisplay = document.getElementById('angleValue');
+        const selectionDisplay = document.getElementById('selectionDisplay');
+        const captureBtn = document.getElementById('captureBtn');
+	var F_Screen = 0;
+
+        let lastAngle = 0;
+
+        function updateSelectionInfo() {
+            // Use the bridge to get the currently selected clip info [cite: 504, 516]
+            const info = bridge.getSelectionInfo();
+            if (info && info.ok) {
+                selectionDisplay.innerHTML = `<strong>Selected:</strong> ${info.name || 'Unnamed'}<br><small>UUID: ${info.uuid}</small>`;
+                return info;
+            } else {
+                selectionDisplay.innerText = "Nothing selected in editor.";
+                return null;
+            }
+        }
+
+        slider.addEventListener('input', () => {
+            const currentAngle = parseInt(slider.value);
+            const delta = currentAngle - lastAngle;
+            angleDisplay.innerText = `${currentAngle}°`;
+
+            // Rotate the selection via the bridge [cite: 518, 520]
+            // We use viaInspector: false for direct property manipulation to keep focus 
+            bridge.rotateSelection(delta, { 
+                viaInspector: false, 
+                keyframe: true 
+            });
+
+            lastAngle = currentAngle;
+        });
+
+        captureBtn.addEventListener('click', () => {
+            // Force bridge to capture and store selection in localStorage [cite: 505, 512]
+            const result = bridge.captureSelectionNow();
+            if (result.ok) {
+                updateSelectionInfo();
+                slider.value = 0;
+                lastAngle = 0;
+                angleDisplay.innerText = "0°";
+            }
+        });
+
+        // Initial check
+        updateSelectionInfo();
+    </script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+    <style>
+        body { padding: 15px; color: #eaeaea; font-family: Arial, sans-serif; background: transparent; }
+        .box { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; gap: 10px; }
+        input { background: #1a1a1a; border: 1px solid #333; color: white; padding: 8px; border-radius: 4px; }
+        button { padding: 10px; border-radius: 6px; border: none; background: #21b26b; color: white; cursor: pointer; font-weight: bold; width: 100%; }
+        button:hover { background: #1e9a5f; }
+        .label { font-size: 11px; text-transform: uppercase; color: #888; }
+        #status { font-size: 11px; text-align: center; margin-top: 5px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <div class="label">Frames to Add</div>
+        <input type="number" id="frameCount" value="1" min="1">
+
+        <div class="label">Start Position (Frame #)</div>
+        <input type="number" id="startPos" value="1" min="1">
+
+        <button id="addFramesBtn">Add to Selected Layer</button>
+        <div id="status">Ready</div>
+    </div>
+
+    <script>
+        const bridge = window.LukeToolsBridge;
+	var F_Screen = 0;
+
+        document.getElementById('addFramesBtn').addEventListener('click', () => {
+            const status = document.getElementById('status');
+            const project = bridge.getProject();
+            const ed = bridge.getEditor();
+            const Wick = window.parent.Wick;
+
+            if (!project) {
+                status.innerText = "Error: Project not found";
+                return;
+            }
+
+            try {
+                // 1. Identify the SELECTED layer
+                const targetLayer = project.activeLayer;
+
+                if (!targetLayer) {
+                    throw new Error("No layer selected. Click a layer in the timeline first.");
+                }
+
+                const count = parseInt(document.getElementById('frameCount').value);
+                const start = parseInt(document.getElementById('startPos').value);
+
+                // 2. Add Frames
+                for (let i = 0; i < count; i++) {
+                    targetLayer.addFrame(new Wick.Frame({
+                        start: start + i
+                    }));
+                }
+
+                // 3. Update the Serialized Cache (The Forum Fix)
+                const arrayUUID = [];
+                targetLayer.frames.map(function(f) {
+                    arrayUUID.push(f.uuid);
+                });
+
+                if (targetLayer._cachedSerializeData) {
+                    targetLayer._cachedSerializeData.children = arrayUUID;
+                }
+
+                // 4. Mark Project as Modified
+                if (project.markAsModified) {
+                    project.markAsModified();
+                } else {
+                    project.dirty = true;
+                }
+
+                // 5. Refresh UI
+                if (ed && ed.refresh) ed.refresh();
+
+                status.innerText = "Added " + count + " frames to '" + targetLayer.name + "'";
+                status.style.color = "#8f8";
+
+                // 6. POPUP MESSAGE
+                alert("Frames have been created.");
+
+            } catch (err) {
+                console.error(err);
+                status.innerText = "Error: " + err.message;
+                status.style.color = "#f88";
+            }
+        });
+    </script>
+</body>
+</html>

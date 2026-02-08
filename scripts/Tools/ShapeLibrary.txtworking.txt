@@ -1,0 +1,235 @@
+
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Import & Flatten SVG</title>
+<style>
+  :root { --fg:#eaeaea; --bg:#111; --mut:#9fb0ba; --btn:#222; --btnH:#333; --accent:#21b26b; }
+  html,body{margin:0;background:var(--bg);color:var(--fg);font-family:Arial,Helvetica,sans-serif}
+  .wrap{padding:14px; max-width:720px}
+  h2{margin:0 0 10px 0;font-size:16px}
+  .row{display:flex;align-items:center;gap:10px;margin:10px 0;flex-wrap:wrap}
+  .hint{font-size:12px;color:var(--mut)}
+  .btn{padding:10px 14px;background:var(--btn);border:1px solid #555;color:var(--fg);font-weight:700;
+       cursor:pointer;border-radius:0}
+  .btn:hover{background:var(--btnH)}
+  /* Make the input ALWAYS visible, even if host CSS is aggressive */
+  #file{display:block !important; position:relative !important; opacity:1 !important;
+        pointer-events:auto !important; color:#ccc !important; width:100% !important; max-width:100% !important;
+        padding:8px 0}
+  .zone{border:2px dashed rgba(255,255,255,.25); padding:18px; text-align:center; margin-top:6px;
+        color:#cfd6db; user-select:none}
+  .zone.hover{border-color:var(--accent); color:#fff; background:rgba(33,178,107,.08)}
+  .checks label{font-size:13px}
+  pre{white-space:pre-wrap;background:#0d0d0d;border:1px solid rgba(255,255,255,0.08);padding:10px;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h2>Import & Flatten SVG</h2>
+
+  <div class="row">
+    <button id="btnPick" class="btn" type="button">Choose SVG…</button>
+    <span class="hint">or drag & drop below — the file input is also visible under this line.</span>
+  </div>
+
+  <!-- The file input is visible and clickable -->
+  <input id="file" type="file" accept=".svg" />
+
+  <div id="drop" class="zone">Drop SVG here</div>
+
+  <div class="row checks">
+    <label><input id="clean" type="checkbox" checked> Remove background rectangle(s)</label>
+    <label><input id="flatten" type="checkbox" checked> Flatten Clip to raw curves</label>
+  </div>
+
+  <div class="row">
+    <button id="runBtn" class="btn" type="button">Import SVG</button>
+  </div>
+
+  <div class="hint">
+    Tip: Run this in the <b>panel</b> (not fullscreen) so browsers fully allow file picking.
+  </div>
+
+  <pre id="log"></pre>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = id=>document.getElementById(id);
+  const log = m => { $("log").textContent += String(m) + "\\n"; };
+
+  // Bridge access (provided by your BridgeTool.js / Luke Tools)
+  const B = () => { try { return parent && parent.LukeToolsBridge ? parent.LukeToolsBridge : null; } catch(e){ return null; } };
+
+  // Make picking frictionless
+  $("btnPick").addEventListener("click", ()=>{
+    try { $("file").value = ""; $("file").click(); } catch(e){}
+  });
+
+  // Drag & drop
+  const drop = $("drop");
+  ["dragenter","dragover"].forEach(ev=>{
+    drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); drop.classList.add("hover"); });
+  });
+  ["dragleave","dragend","drop"].forEach(ev=>{
+    drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); drop.classList.remove("hover"); });
+  });
+  drop.addEventListener("drop", e=>{
+    const f = (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) || null;
+    if (!f){ log("No file dropped."); return; }
+    $("file").files = e.dataTransfer.files; // attach so same flow runs
+    log("File dropped: " + (f.name||""));
+  });
+
+  // Helpers (loose bounds)
+  function getBounds(o){
+    try{ if(o && o.bounds && typeof o.bounds.x==="number") return {x:o.bounds.x,y:o.bounds.y,w:o.bounds.width||0,h:o.bounds.height||0}; }catch(e){}
+    try{ if(o && typeof o.getBounds==="function"){ const b=o.getBounds(); if(b && typeof b.x==="number") return {x:b.x,y:b.y,w:b.width||0,h:b.height||0}; } }catch(e){}
+    return null;
+  }
+
+  function removeBigRectsFromClipInstance(clipInst){
+    const ca = clipInst && clipInst.clipAsset;
+    if(!ca || !ca.timeline || !Array.isArray(ca.timeline.layers)) return {removed:0,checked:0};
+    let removed = 0, checked = 0;
+
+    // Compute union bounds
+    let minX=+Infinity,minY=+Infinity,maxX=-Infinity,maxY=-Infinity, any=false;
+    ca.timeline.layers.forEach(L=>L.frames && L.frames.forEach(F=>F.children && F.children.forEach(ch=>{
+      const b=getBounds(ch); if(!b) return;
+      any=true; minX=Math.min(minX,b.x); minY=Math.min(minY,b.y);
+      maxX=Math.max(maxX,b.x+b.w); maxY=Math.max(maxY,b.y+b.h);
+    })));
+    const union = any?{x:minX,y:minY,w:Math.max(0,maxX-minX),h:Math.max(0,maxY-minY)}:null;
+
+    ca.timeline.layers.forEach(L=>L.frames && L.frames.forEach(F=>{
+      const list = F.children ? [...F.children] : [];
+      list.forEach(ch=>{
+        checked++;
+        if(!union) return;
+        const b = getBounds(ch); if(!b) return;
+        const coverage = (b.w*b.h)/Math.max(1, union.w*union.h);
+        // treat near-full coverage as background
+        if(coverage >= 0.9){
+          try {
+            if (F.removeChild) F.removeChild(ch);
+            else if (ch.parent && ch.parent.removeChild) ch.parent.removeChild(ch);
+            removed++;
+          } catch(e){}
+        }
+      });
+    }));
+    return {removed,checked};
+  }
+
+  function promoteToParent(clipInst){
+    const parent = clipInst && (clipInst.parent || clipInst._parent);
+    const ca = clipInst && clipInst.clipAsset;
+    if(!parent || !ca) return {ok:false,moved:0,reason:"no parent or clipAsset"};
+
+    let moved = 0;
+    try {
+      if (typeof parent.addChild === "function" || typeof parent.add === "function") {
+        ca.timeline.layers.forEach(L=>L.frames && L.frames.forEach(F=>{
+          const toMove = F.children ? [...F.children] : [];
+          toMove.forEach(ch=>{
+            // Preserve approximate stage position
+            try { ch.x = (ch.x||0) + (clipInst.x||0); ch.y = (ch.y||0) + (clipInst.y||0); } catch(e){}
+            try { F.removeChild ? F.removeChild(ch) : (ch.parent && ch.parent.removeChild && ch.parent.removeChild(ch)); } catch(e){}
+            try {
+              if (parent.addChild) parent.addChild(ch); else if (parent.add) parent.add(ch);
+              moved++;
+            } catch(e){}
+          });
+        }));
+        // Remove empty clip
+        try {
+          if (clipInst.parent && clipInst.parent.removeChild) clipInst.parent.removeChild(clipInst);
+          else if (clipInst._parent && clipInst._parent.removeChild) clipInst._parent.removeChild(clipInst);
+        } catch(e){}
+        return {ok:true,moved,via:"addChild/removeChild"};
+      }
+    } catch(e){}
+
+    // Fallback (best‑effort) via actionManager — may not exist on all builds
+    const ed = (function(){ try{ return B().getEditor(); } catch(e){ return null; } })();
+    try {
+      if (ed && ed.actionManager && typeof ed.actionManager.doAction === "function") {
+        try { ed.actionManager.doAction(["select"], [[clipInst]]); } catch(e){}
+        try { ed.actionManager.doAction(["enterClip"], []); } catch(e){}
+        try { ed.actionManager.doAction(["selectAll"], []); } catch(e){}
+        try { ed.actionManager.doAction(["cutSelection"], []); } catch(e){}
+        try { ed.actionManager.doAction(["exitClip"], []); } catch(e){}
+        try { ed.actionManager.doAction(["pasteInPlace"], []); moved = -1; } catch(e){}
+        return {ok:true,moved,via:"actionManager (best‑effort)"};
+      }
+    } catch(e){}
+
+    return {ok:false,moved:0,reason:"no reparent API"};
+  }
+
+  async function runImport(svgText){
+    const bridge = B();
+    if (!bridge){ log("LukeTools bridge not found."); return; }
+    const project = (function(){ try{ return bridge.getProject(); }catch(e){ return null; } })();
+    if (!project){ log("No project found."); return; }
+
+    if (typeof project.importSVG !== "function"){
+      log("This Wick build has no project.importSVG().");
+      return;
+    }
+
+    log("Importing SVG…");
+    project.importSVG(svgText);
+    try {
+      project.markAsModified && project.markAsModified();
+      parent && parent.dispatchEvent && parent.dispatchEvent(new Event("resize"));
+    } catch(e){}
+
+    // Wait briefly for the import to create and select the clip instance
+    setTimeout(()=>{
+      const sel = bridge.getSelectedObject ? bridge.getSelectedObject() : null;
+      if (!sel){ log("SVG imported but selection is empty."); return; }
+      const isClip = !!(sel && sel.clipAsset);
+      log("Imported as: " + (isClip ? "Clip" : "Object"));
+
+      if ($("clean").checked && isClip){
+        const res = removeBigRectsFromClipInstance(sel);
+        log("Background cleanup — checked: " + res.checked + ", removed: " + res.removed);
+      }
+
+      if ($("flatten").checked && isClip){
+        const res = promoteToParent(sel);
+        if (res.ok){
+          log("Flatten complete. " + (res.moved>=0? (res.moved+" moved.") : "Moved (count unknown).") + (res.via? " via " + res.via : ""));
+        } else {
+          log("Flatten skipped: " + (res.reason||"unknown") + ". You can still Cut inside the Clip & Paste‑in‑Place on stage.");
+        }
+      }
+
+      // Refresh
+      try {
+        const ed = bridge.getEditor();
+        ed && ed.canvas && ed.canvas.render && ed.canvas.render();
+        ed && ed.project && ed.project.markAsModified && ed.project.markAsModified();
+      } catch(e){}
+
+      log("Done.");
+    }, 150);
+  }
+
+  $("runBtn").addEventListener("click", async ()=>{
+    const f = $("file").files && $("file").files[0];
+    if (!f){ log("No file selected."); return; }
+    if (!/\.svg$/i.test(f.name||"")) log("Warning: the file does not have a .svg extension.");
+    const txt = await f.text();
+    await runImport(txt);
+  });
+})();
+</script>
+</body>
+</html>
+``

@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Luke Tools - Multi-Image Sequence Importer (Each Image as Clip)</title>
+  <style>
+    body { margin: 0; padding: 14px; background: #222; color: #eaeaea; font-family: Arial, sans-serif; }
+    .panel { border: 1px solid #444; background: rgba(0,0,0,0.35); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .title { font-size: 12px; color: #9aa; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 5px; display:flex; align-items:center; gap:10px; }
+    .brand { width: 22px; height: 22px; border-radius: 4px; background:#111; border:1px solid #333; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .brand img { width:100%; height:100%; object-fit:cover; display:block; }
+    input[type="file"] { width: 100%; padding: 10px; background: #1a1a1a; color: #aaa; border: 1px dashed #555; border-radius: 6px; box-sizing:border-box; }
+    button { width: 100%; padding: 12px; border: none; border-radius: 6px; background: #21b26b; color: #fff; font-weight: bold; cursor: pointer; }
+    button.secondary { background:#3a3a3a; }
+    button:disabled { opacity: 0.55; cursor: default; }
+    #consoleLog { background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; font-family: monospace; font-size: 11px; color: #0f0; height: 220px; overflow-y: auto; white-space: pre-wrap; }
+    .settings { font-size: 11px; color: #cfcfcf; display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .settings input[type="number"] { width: 70px; background:#111; color:white; border:1px solid #444; border-radius: 4px; padding: 4px 6px; }
+    .chk { display:flex; align-items:center; gap:8px; }
+    .hint { font-size: 11px; color: #aaa; opacity: 0.9; line-height: 1.35; }
+    .row { display:flex; gap:10px; }
+    .row > * { flex:1; }
+    a { color:#7fd; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="title">
+      <span class="brand" title="Luke Tools">
+        <img alt="Luke Tools" src="https://raw.githubusercontent.com/lukeo25/WickTools/main/LukeToolsBrand.png">
+      </span>
+      <span>Sequence Importer (New Frame per Image) + Wrap Each As Clip</span>
+    </div>
+
+    <input type="file" id="desktopFiles" accept="image/*" multiple>
+
+    <div class="settings">
+      <span>Start Frame: <input type="number" id="startFrame" value="1" min="1"></span>
+
+      <span class="chk">
+        <input type="checkbox" id="wrapAsClip" checked>
+        <label for="wrapAsClip">Wrap each PNG as its own Clip</label>
+      </span>
+
+      <span class="chk">
+        <input type="checkbox" id="nameClipFromFile" checked>
+        <label for="nameClipFromFile">Name clip from filename</label>
+      </span>
+
+      <span class="chk">
+        <input type="checkbox" id="clearFramesInRange" checked>
+        <label for="clearFramesInRange">Clear existing frame contents in range</label>
+      </span>
+
+      <span class="chk">
+        <input type="checkbox" id="insertBlankFrames" checked>
+        <label for="insertBlankFrames">Ensure blank frame at each position</label>
+      </span>
+
+      <span class="chk">
+        <input type="checkbox" id="suppressToasts" checked>
+        <label for="suppressToasts">Suppress Wick import toasts</label>
+      </span>
+    </div>
+
+    <div class="row">
+      <button id="importBtn">Build Animation Sequence</button>
+      <button id="clearLogBtn" class="secondary" type="button">Clear Log</button>
+    </div>
+
+    <div class="hint">
+      What this does per image: imports PNG into the asset library, places it on its own frame, selects it, then creates a Clip from selection.<br>
+      This tool avoids browser alerts and forces a UI refresh so the stage updates without clicking frame 1.
+    </div>
+
+    <div id="consoleLog">Ready.</div>
+  </div>
+
+  <script>
+var F_Screen = 0;
+    (function () {
+      "use strict";
+
+      var logEl = document.getElementById("consoleLog");
+      var btn = document.getElementById("importBtn");
+      var clearBtn = document.getElementById("clearLogBtn");
+
+      function log(msg) {
+        logEl.textContent += (logEl.textContent ? "\n" : "") + msg;
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function setLog(msg) {
+        logEl.textContent = msg || "";
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      clearBtn.addEventListener("click", function () {
+        setLog("Ready.");
+      });
+
+      function getBridge() {
+        try {
+          return window.LukeToolsBridge ||
+                 (window.parent && window.parent.LukeToolsBridge) ||
+                 window.LukeToolsLocalPanelBridge ||
+                 (window.parent && window.parent.LukeToolsLocalPanelBridge) ||
+                 null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function getEditor(bridge) {
+        try { if (bridge && typeof bridge.getEditor === "function") return bridge.getEditor(); } catch (e1) {}
+        try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e2) {}
+        try { if (window.editor) return window.editor; } catch (e3) {}
+        return null;
+      }
+
+      function getProject(bridge, ed) {
+        try { if (bridge && typeof bridge.getProject === "function") return bridge.getProject(); } catch (e1) {}
+        try { if (ed && ed.project) return ed.project; } catch (e2) {}
+        return null;
+      }
+
+      function getWickRoot() {
+        try { return window.wickEditor || (window.parent && window.parent.wickEditor) || null; } catch (e) { return null; }
+      }
+
+      function getWickNS() {
+        try { return (window.Wick || (window.parent && window.parent.Wick)) || null; } catch (e) { return null; }
+      }
+
+      function stripExtension(name) {
+        var s = String(name || "");
+        var lastDot = s.lastIndexOf(".");
+        if (lastDot > 0) return s.slice(0, lastDot);
+        return s;
+      }
+
+      function listAssetUUIDs(project) {
+        try {
+          var assets = (project && typeof project.getAssets === "function") ? project.getAssets() : (project && project.assets) ? project.assets : [];
+          return (assets || []).map(function (a) { return a && a.uuid; }).filter(Boolean);
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function waitForNewAsset(project, beforeUUIDs, expectedName, timeoutMs) {
+        var start = Date.now();
+        var beforeSet = {};
+        for (var i = 0; i < beforeUUIDs.length; i++) beforeSet[beforeUUIDs[i]] = true;
+
+        return new Promise(function (resolve, reject) {
+          (function tick() {
+            try {
+              var assets = (project && typeof project.getAssets === "function") ? project.getAssets() : (project && project.assets) ? project.assets : [];
+              assets = assets || [];
+
+              // Prefer new asset matching the filename
+              for (var j = 0; j < assets.length; j++) {
+                var a = assets[j];
+                if (!a || !a.uuid) continue;
+                if (beforeSet[a.uuid]) continue;
+                var nm = a.name || a.filename || "";
+                if (String(nm) === String(expectedName)) return resolve(a);
+              }
+
+              // Fallback: if only one new asset exists, take it
+              var newOnes = [];
+              for (var k = 0; k < assets.length; k++) {
+                var b = assets[k];
+                if (b && b.uuid && !beforeSet[b.uuid]) newOnes.push(b);
+              }
+              if (newOnes.length === 1) return resolve(newOnes[0]);
+
+            } catch (err) {
+              // keep polling
+            }
+
+            if (Date.now() - start > timeoutMs) {
+              return reject(new Error("Timeout waiting for new asset: " + expectedName));
+            }
+            setTimeout(tick, 100);
+          })();
+        });
+      }
+
+      function getActiveLayer(project) {
+        try { if (project && project.activeLayer) return project.activeLayer; } catch (e1) {}
+        try { if (project && project.focus && project.focus.timeline && project.focus.timeline.activeLayer) return project.focus.timeline.activeLayer; } catch (e2) {}
+        try { if (project && project.activeTimeline && project.activeTimeline.activeLayer) return project.activeTimeline.activeLayer; } catch (e3) {}
+        try { if (project && project.timeline && project.timeline.activeLayer) return project.timeline.activeLayer; } catch (e4) {}
+        return null;
+      }
+
+      function setPlayhead(project, frameNumber) {
+        try {
+          if (project && project.focus && project.focus.timeline) {
+            project.focus.timeline.playheadPosition = frameNumber;
+            return true;
+          }
+        } catch (e1) {}
+        try {
+          if (project && project.activeTimeline) {
+            project.activeTimeline.playheadPosition = frameNumber;
+            return true;
+          }
+        } catch (e2) {}
+        try {
+          if (project && project.timeline) {
+            project.timeline.playheadPosition = frameNumber;
+            return true;
+          }
+        } catch (e3) {}
+        return false;
+      }
+
+      function getFrameAt(layer, frameNumber) {
+        try {
+          if (layer && typeof layer.getFrameAtPlayheadPosition === "function") {
+            return layer.getFrameAtPlayheadPosition(frameNumber);
+          }
+        } catch (e1) {}
+        try {
+          if (layer && typeof layer.getFrameAt === "function") return layer.getFrameAt(frameNumber);
+        } catch (e2) {}
+        return null;
+      }
+
+      function ensureBlankFrameAt(layer, frameNumber) {
+        try {
+          if (!layer) return null;
+          var existing = getFrameAt(layer, frameNumber);
+          if (existing) return existing;
+
+          if (typeof layer.insertBlankFrame === "function") {
+            return layer.insertBlankFrame(frameNumber);
+          }
+          if (typeof layer.createFrameAt === "function") {
+            return layer.createFrameAt(frameNumber);
+          }
+        } catch (e) {}
+        return null;
+      }
+
+      function clearFrameContents(frame) {
+        if (!frame) return;
+
+        // Wick engine frames usually have .paths and .clips arrays
+        try {
+          if (frame.paths && frame.paths.length) {
+            var paths = frame.paths.slice();
+            for (var i = 0; i < paths.length; i++) {
+              var p = paths[i];
+              try { if (p && typeof p.remove === "function") p.remove(); } catch (e1) {}
+              try { if (frame.removePath && typeof frame.removePath === "function") frame.removePath(p); } catch (e2) {}
+            }
+          }
+        } catch (e3) {}
+
+        try {
+          if (frame.clips && frame.clips.length) {
+            var clips = frame.clips.slice();
+            for (var j = 0; j < clips.length; j++) {
+              var c = clips[j];
+              try { if (c && typeof c.remove === "function") c.remove(); } catch (e4) {}
+              try { if (frame.removeClip && typeof frame.removeClip === "function") frame.removeClip(c); } catch (e5) {}
+            }
+          }
+        } catch (e6) {}
+
+        // Some builds have getChildren / removeChild
+        try {
+          if (typeof frame.getChildren === "function") {
+            var kids = frame.getChildren() || [];
+            kids = Array.prototype.slice.call(kids);
+            for (var k = 0; k < kids.length; k++) {
+              var child = kids[k];
+              if (!child) continue;
+              try { if (typeof child.remove === "function") child.remove(); } catch (e7) {}
+              try { if (frame.removeChild && typeof frame.removeChild === "function") frame.removeChild(child); } catch (e8) {}
+            }
+          }
+        } catch (e9) {}
+      }
+
+      function clearLayerContentsInRange(layer, startFrame, endFrame) {
+        if (!layer) return;
+        for (var f = startFrame; f <= endFrame; f++) {
+          var fr = getFrameAt(layer, f);
+          if (fr) clearFrameContents(fr);
+        }
+      }
+
+      function selectionClear(project, ed) {
+        try { if (project && project.selection && typeof project.selection.clear === "function") project.selection.clear(); } catch (e1) {}
+        try { if (ed && typeof ed.clearSelection === "function") ed.clearSelection(); } catch (e2) {}
+      }
+
+      function selectionSelectSingle(project, ed, obj) {
+        selectionClear(project, ed);
+
+        try {
+          if (project && project.selection) {
+            if (typeof project.selection.select === "function") {
+              project.selection.select(obj);
+              return true;
+            }
+            if (typeof project.selection.selectMultipleObjects === "function") {
+              project.selection.selectMultipleObjects([obj]);
+              return true;
+            }
+          }
+        } catch (e1) {}
+
+        try {
+          if (ed && typeof ed.selectObjects === "function") {
+            ed.selectObjects([obj]);
+            return true;
+          }
+        } catch (e2) {}
+
+        return false;
+      }
+
+      function getSelectedObject(project, ed) {
+        try { if (project && project.selection && typeof project.selection.getSelectedObject === "function") return project.selection.getSelectedObject(); } catch (e1) {}
+        try {
+          if (ed && ed.selectedObjects && ed.selectedObjects.length) return ed.selectedObjects[0];
+        } catch (e2) {}
+        return null;
+      }
+
+      function createClipFromSelection(project, ed, identifier) {
+        // Wick engine expects an args object: { identifier, type: "Clip" }  (see wickengine.js)
+        // https://github.com/lukeo25/WickTools  (icon above)
+
+        try {
+          if (project && typeof project.createClipFromSelection === "function") {
+            project.createClipFromSelection({ identifier: String(identifier || "Clip"), type: "Clip" });
+            return { ok: true, via: "project.createClipFromSelection" };
+          }
+        } catch (e1) {}
+
+        try {
+          if (ed && typeof ed.createClipFromSelection === "function") {
+            // Some builds take (identifier, toggleExisting = true)
+            ed.createClipFromSelection(String(identifier || "Clip"), true);
+            return { ok: true, via: "ed.createClipFromSelection" };
+          }
+        } catch (e2) {}
+
+        // Some builds expose actionManager (React editor)
+        try {
+          if (ed && ed.actionManager && typeof ed.actionManager.doAction === "function") {
+            ed.actionManager.doAction(["createClipFromSelection"], [String(identifier || "Clip")]);
+            return { ok: true, via: "actionManager.createClipFromSelection" };
+          }
+        } catch (e3) {}
+
+        return { ok: false, reason: "No clip conversion API found" };
+      }
+
+      function setSelectedNameOrIdentifier(project, ed, name) {
+        var obj = getSelectedObject(project, ed);
+        if (!obj) return false;
+
+        var v = String(name || "");
+        var changed = false;
+
+        try { if ("identifier" in obj) { obj.identifier = v; changed = true; } } catch (e1) {}
+        try { if ("name" in obj) { obj.name = v; changed = true; } } catch (e2) {}
+
+        return changed;
+      }
+
+      function placeImagePathFromAsset(project, assetUuid, x, y) {
+        return new Promise(function (resolve, reject) {
+          try {
+            var Wick = getWickNS();
+            if (!Wick || !Wick.ObjectCache || typeof Wick.ObjectCache.getObjectByUUID !== "function") {
+              return reject(new Error("Wick.ObjectCache not available"));
+            }
+
+            var assetObj = Wick.ObjectCache.getObjectByUUID(assetUuid);
+            if (!assetObj) return reject(new Error("Asset not found in ObjectCache: " + assetUuid));
+
+            if (typeof project.createImagePathFromAsset !== "function") {
+              return reject(new Error("project.createImagePathFromAsset is not available"));
+            }
+
+            // Wick engine: createImagePathFromAsset inserts a blank frame if needed, then calls callback(path).
+            // (see wickengine.js)
+            project.createImagePathFromAsset(assetObj, x, y, function (path) {
+              resolve(path);
+            });
+
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }
+
+      function forceRefresh(ed, project) {
+        // Fast UI refresh across different Wick builds
+        try { if (ed && typeof ed.projectDidChange === "function") ed.projectDidChange({ actionName: "LukeTools" }); } catch (e1) {}
+        try { if (ed && typeof ed.syncInterfaces === "function") ed.syncInterfaces(); } catch (e2) {}
+        try { if (ed && typeof ed.updateUI === "function") ed.updateUI(); } catch (e3) {}
+        try { if (ed && typeof ed.refresh === "function") ed.refresh(); } catch (e4) {}
+        try { if (ed && ed.canvas && typeof ed.canvas.redraw === "function") ed.canvas.redraw(); } catch (e5) {}
+        try { if (ed && typeof ed.refreshCanvas === "function") ed.refreshCanvas(); } catch (e6) {}
+
+        // Sometimes wickEditor.projectDidChange exists (outer)
+        try {
+          var root = getWickRoot();
+          if (root && typeof root.projectDidChange === "function") root.projectDidChange();
+        } catch (e7) {}
+
+        // Engine view redraw
+        try {
+          if (project && project.view && project.view.paper && project.view.paper.view && typeof project.view.paper.view.update === "function") {
+            project.view.paper.view.update();
+          }
+        } catch (e8) {}
+      }
+
+      function withSuppressedToasts(ed, enabled, fn) {
+        if (!enabled || !ed) return fn();
+
+        var origToast = ed.toast;
+        var origUpdateToast = ed.updateToast;
+
+        try { ed.toast = function(){ return null; }; } catch (e1) {}
+        try { ed.updateToast = function(){ return null; }; } catch (e2) {}
+
+        return Promise.resolve()
+          .then(fn)
+          .finally(function () {
+            try { ed.toast = origToast; } catch (e3) {}
+            try { ed.updateToast = origUpdateToast; } catch (e4) {}
+          });
+      }
+
+      btn.addEventListener("click", function () {
+        var fileInput = document.getElementById("desktopFiles");
+        var bridge = getBridge();
+        if (!bridge) {
+          setLog("Bridge not found. Make sure Luke Tools bridge is loaded.");
+          return;
+        }
+        if (!fileInput.files || !fileInput.files.length) {
+          setLog("Select one or more image files first.");
+          return;
+        }
+
+        var ed = getEditor(bridge);
+        var project = getProject(bridge, ed);
+
+        if (!ed) { setLog("Editor not found from bridge."); return; }
+        if (!project) { setLog("Project not found from bridge."); return; }
+        if (typeof ed.createAssets !== "function") { setLog("editor.createAssets is not available in this build."); return; }
+
+        var wrapAsClip = !!document.getElementById("wrapAsClip").checked;
+        var nameClipFromFile = !!document.getElementById("nameClipFromFile").checked;
+        var clearFramesInRange = !!document.getElementById("clearFramesInRange").checked;
+        var insertBlankFrames = !!document.getElementById("insertBlankFrames").checked;
+        var suppressToasts = !!document.getElementById("suppressToasts").checked;
+
+        var files = Array.prototype.slice.call(fileInput.files);
+        files.sort(function (a, b) {
+          return a.name.localeCompare(b.name, undefined, { numeric: true });
+        });
+
+        var startFrameNum = parseInt(document.getElementById("startFrame").value, 10);
+        if (!startFrameNum || startFrameNum < 1) startFrameNum = 1;
+
+        var endFrameNum = startFrameNum + files.length - 1;
+
+        var centerX = (project.width || 0) / 2;
+        var centerY = (project.height || 0) / 2;
+
+        var layer = getActiveLayer(project);
+        if (!layer) {
+          setLog("No active layer detected. Click the layer you want to import into, then try again.");
+          return;
+        }
+
+        btn.disabled = true;
+        setLog("Starting sequence import...");
+
+        withSuppressedToasts(ed, suppressToasts, function () {
+          // Optional: clear any existing content so re-import does not stack.
+          if (clearFramesInRange) {
+            log("Clearing frame contents in range " + startFrameNum + " to " + endFrameNum + "...");
+            try {
+              clearLayerContentsInRange(layer, startFrameNum, endFrameNum);
+            } catch (e0) {}
+            forceRefresh(ed, project);
+          }
+
+          var currentFrameNum = startFrameNum;
+          var chain = Promise.resolve();
+
+          files.forEach(function (file, idx) {
+            chain = chain.then(function () {
+              log("--- [" + (idx + 1) + "/" + files.length + "] " + file.name);
+
+              var beforeUUIDs = listAssetUUIDs(project);
+
+              // 1) Import PNG as asset (this is exactly what "Add to Canvas" uses for files)
+              ed.createAssets([file], []);
+
+              // 2) Wait for the asset to appear in the project
+              return waitForNewAsset(project, beforeUUIDs, file.name, 25000).then(function (asset) {
+                if (!asset || !asset.uuid) throw new Error("New asset not found for: " + file.name);
+
+                // 3) Move playhead + ensure frame exists
+                setPlayhead(project, currentFrameNum);
+
+                if (insertBlankFrames) {
+                  ensureBlankFrameAt(layer, currentFrameNum);
+                }
+
+                // 4) Place the image on this frame using the engine call that returns the created Path,
+                //    then explicitly select it (so clip conversion always works).
+                return placeImagePathFromAsset(project, asset.uuid, centerX, centerY).then(function (path) {
+                  selectionSelectSingle(project, ed, path);
+
+                  // 5) Convert the placed image to a clip (optional)
+                  if (wrapAsClip) {
+                    var clipName = nameClipFromFile ? stripExtension(file.name) : ("Clip_" + (idx + 1));
+                    var r = createClipFromSelection(project, ed, clipName);
+
+                    if (!r || !r.ok) {
+                      log("WARN: Could not convert selection to clip for " + file.name + " (" + (r && r.reason ? r.reason : "unknown") + ")");
+                    } else {
+                      // Ensure displayed name matches file even if Wick uses identifier vs name internally
+                      if (nameClipFromFile) setSelectedNameOrIdentifier(project, ed, stripExtension(file.name));
+                      log("Placed on frame " + currentFrameNum + " (clip)");
+                    }
+                  } else {
+                    log("Placed on frame " + currentFrameNum);
+                  }
+
+                  // 6) Refresh so you do not need to click frame 1
+                  forceRefresh(ed, project);
+
+                  currentFrameNum++;
+                });
+              });
+            });
+          });
+
+          return chain.then(function () {
+            forceRefresh(ed, project);
+            log("SUCCESS: Sequence complete.");
+          }).catch(function (err) {
+            log("ERROR: " + (err && err.message ? err.message : String(err)));
+            try { console.error(err); } catch (e) {}
+          }).finally(function () {
+            btn.disabled = false;
+          });
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

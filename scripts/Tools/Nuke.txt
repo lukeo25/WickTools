@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Luke Tools - Purge Assets + Remove Slides (Fast Refresh v1.2)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { margin: 0; padding: 14px; background: #222; color: #eaeaea; font-family: Arial, sans-serif; }
+    .panel { border: 1px solid #c0392b; background: rgba(0,0,0,0.35); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .title { font-size: 11px; color: #e74c3c; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #c0392b; padding-bottom: 6px; display:flex; align-items:center; gap:10px; }
+    .title img { width: 20px; height: 20px; border-radius: 4px; border: 1px solid #333; background:#111; }
+    .row { display:flex; gap:10px; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 180px; }
+    button { width: 100%; padding: 14px; border: none; border-radius: 8px; background: #e74c3c; color: #fff; font-weight: bold; cursor: pointer; }
+    button.alt { background: #f39c12; }
+    button.safe { background: #21b26b; }
+    button:disabled { opacity: 0.55; cursor: default; }
+    .opts { display:flex; gap:12px; flex-wrap: wrap; align-items:center; font-size: 11px; color:#ddd; }
+    .chk { display:flex; gap:8px; align-items:center; }
+    .hint { font-size: 11px; color: #bbb; line-height: 1.35; }
+    #consoleLog { background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 11px; color: #0f0; height: 170px; overflow-y: auto; white-space: pre-wrap; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="title">
+      <img alt="Luke Tools" src="https://raw.githubusercontent.com/lukeo25/WickTools/main/LukeToolsBrand.png">
+      <span>Library + Timeline Purge (Fast Refresh)</span>
+    </div>
+
+    <div class="opts">
+      <span class="chk"><input type="checkbox" id="doAssets" checked> <label for="doAssets">Delete all assets</label></span>
+      <span class="chk"><input type="checkbox" id="doSlides" checked> <label for="doSlides">Remove slides (frames) on current timeline</label></span>
+      <span class="chk"><input type="checkbox" id="keepFrame1" checked> <label for="keepFrame1">Keep frame 1</label></span>
+      <span class="chk"><input type="checkbox" id="hardClearFrame1" checked> <label for="hardClearFrame1">Also clear contents on frame 1</label></span>
+    </div>
+
+    <div class="row">
+      <button id="nukeBtn">NUKE: Delete Assets + Remove Slides</button>
+      <button id="slidesBtn" class="alt">Remove Slides Only</button>
+      <button id="assetsBtn" class="alt">Delete Assets Only</button>
+      <button id="refreshBtn" class="safe">Refresh Now</button>
+    </div>
+
+    <div class="hint">
+      v1.2: Frame clearing now uses Wick's <b>getChildren()</b> and <b>removeChild()</b> (works on modern WickEngine builds),
+      and slide removal uses <b>layer.removeFrame(frameObj)</b> (not index), so the stage content actually disappears.
+    </div>
+
+    <div id="consoleLog">Ready...</div>
+  </div>
+
+  <script>
+var F_Screen = 0;
+    (function () {
+      "use strict";
+
+      var logEl = document.getElementById("consoleLog");
+      var nukeBtn = document.getElementById("nukeBtn");
+      var slidesBtn = document.getElementById("slidesBtn");
+      var assetsBtn = document.getElementById("assetsBtn");
+      var refreshBtn = document.getElementById("refreshBtn");
+
+      function log(msg) {
+        logEl.textContent += (logEl.textContent ? "\n" : "") + msg;
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function getBridge() {
+        try {
+          return window.LukeToolsBridge ||
+                 (window.parent && window.parent.LukeToolsBridge) ||
+                 window.LukeToolsLocalPanelBridge ||
+                 (window.parent && window.parent.LukeToolsLocalPanelBridge) ||
+                 null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function getEditor(bridge) {
+        try { if (bridge && typeof bridge.getEditor === "function") return bridge.getEditor(); } catch (e1) {}
+        try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e2) {}
+        try { if (window.editor) return window.editor; } catch (e3) {}
+        try { if (window.parent && window.parent.wickEditor) return window.parent.wickEditor; } catch (e4) {}
+        try { if (window.wickEditor) return window.wickEditor; } catch (e5) {}
+        return null;
+      }
+
+      function getProject(bridge, ed) {
+        try { if (bridge && typeof bridge.getProject === "function") return bridge.getProject(); } catch (e1) {}
+        try { if (ed && ed.project) return ed.project; } catch (e2) {}
+        try { if (window.parent && window.parent.project) return window.parent.project; } catch (e3) {}
+        try { if (window.project) return window.project; } catch (e4) {}
+        return null;
+      }
+
+      function patchProject(project) {
+        if (!project) return;
+        try {
+          if (typeof project.markAsModified !== "function") {
+            project.markAsModified = function () { };
+          }
+        } catch (e1) {}
+      }
+
+      function fastRefresh(ed, project, label) {
+        try { if (project && project.view && typeof project.view.applyChanges === "function") project.view.applyChanges(); } catch (e1) {}
+        try { if (project && project.guiElement && typeof project.guiElement.draw === "function") project.guiElement.draw(); } catch (e2) {}
+
+        try { if (project && typeof project.markAsModified === "function") project.markAsModified(); } catch (e3) {}
+
+        try { if (ed && typeof ed.projectDidChange === "function") ed.projectDidChange({ actionName: label || "LukeTools Refresh" }); } catch (e4) {}
+        try {
+          var root = null;
+          try { root = window.wickEditor || (window.parent && window.parent.wickEditor) || null; } catch (e5) { root = null; }
+          if (root && typeof root.projectDidChange === "function") root.projectDidChange({ actionName: label || "LukeTools Refresh (root)" });
+        } catch (e6) {}
+
+        try { if (ed && typeof ed.refresh === "function") ed.refresh(); } catch (e7) {}
+        try { if (ed && typeof ed.refreshCanvas === "function") ed.refreshCanvas(); } catch (e8) {}
+        try { if (ed && typeof ed.syncInterfaces === "function") ed.syncInterfaces(); } catch (e9) {}
+        try { if (ed && typeof ed.updateUI === "function") ed.updateUI(); } catch (e10) {}
+        try { if (ed && ed.canvas && typeof ed.canvas.redraw === "function") ed.canvas.redraw(); } catch (e11) {}
+
+        try {
+          var p = null;
+          try { p = window.paper || (window.parent && window.parent.paper) || null; } catch (e12) { p = null; }
+          if (p && p.view && typeof p.view.update === "function") p.view.update();
+        } catch (e13) {}
+
+        try {
+          var passes = 4;
+          function rafTick() {
+            passes--;
+            try { if (project && project.view && typeof project.view.applyChanges === "function") project.view.applyChanges(); } catch (e14) {}
+            try { if (project && project.guiElement && typeof project.guiElement.draw === "function") project.guiElement.draw(); } catch (e15) {}
+            try { if (ed && ed.canvas && typeof ed.canvas.redraw === "function") ed.canvas.redraw(); } catch (e16) {}
+            try {
+              var p2 = null;
+              try { p2 = window.paper || (window.parent && window.parent.paper) || null; } catch (e17) { p2 = null; }
+              if (p2 && p2.view && typeof p2.view.update === "function") p2.view.update();
+            } catch (e18) {}
+            if (passes > 0) requestAnimationFrame(rafTick);
+          }
+          requestAnimationFrame(rafTick);
+        } catch (e19) {}
+      }
+
+      function getAssets(project) {
+        try { if (project && typeof project.getAssets === "function") return project.getAssets() || []; } catch (e1) {}
+        try { if (project && project.assets) return project.assets; } catch (e2) {}
+        return [];
+      }
+
+      function deleteAsset(ed, project, asset) {
+        if (!asset || !asset.uuid) return false;
+
+        try { if (ed && typeof ed.deleteAsset === "function") { ed.deleteAsset(asset); return true; } } catch (e1) {}
+        try { if (project && typeof project.removeAsset === "function") { project.removeAsset(asset); return true; } } catch (e2) {}
+        try { if (project && typeof project.deleteAsset === "function") { project.deleteAsset(asset); return true; } } catch (e3) {}
+
+        try {
+          if (project && project.assets && project.assets.length) {
+            for (var i = project.assets.length - 1; i >= 0; i--) {
+              var a = project.assets[i];
+              if (a && a.uuid === asset.uuid) { project.assets.splice(i, 1); return true; }
+            }
+          }
+        } catch (e4) {}
+
+        return false;
+      }
+
+      function purgeAllAssets(ed, project) {
+        var assets = getAssets(project);
+        var count = assets.length;
+        if (count === 0) return { ok: true, count: 0, deleted: 0 };
+
+        var copy = assets.slice();
+        var deleted = 0;
+
+        for (var i = 0; i < copy.length; i++) {
+          if (deleteAsset(ed, project, copy[i])) deleted++;
+        }
+
+        return { ok: true, count: count, deleted: deleted };
+      }
+
+      function getCurrentTimeline(project) {
+        try { if (project && project.focus && project.focus.timeline) return project.focus.timeline; } catch (e1) {}
+        try { if (project && project.activeTimeline) return project.activeTimeline; } catch (e2) {}
+        try { if (project && project.timeline) return project.timeline; } catch (e3) {}
+        return null;
+      }
+
+      function getTimelineLayers(tl) {
+        try { if (tl && tl.layers && tl.layers.length) return tl.layers; } catch (e1) {}
+        return [];
+      }
+
+      function ensureFrameAt1(layer) {
+        try {
+          if (!layer) return null;
+          // If there's already a frame at 1, use it
+          if (typeof layer.getFrameAtPlayheadPosition === "function") {
+            var f = layer.getFrameAtPlayheadPosition(1);
+            if (f) return f;
+          }
+          // Otherwise insert a blank frame at 1 (engine method)
+          if (typeof layer.insertBlankFrame === "function") {
+            return layer.insertBlankFrame(1);
+          }
+        } catch (e1) {}
+        return null;
+      }
+
+      function clearFrameContents(frame) {
+        if (!frame) return;
+
+        // Remove ALL children via Wick.Base API
+        try {
+          if (typeof frame.getChildren === "function" && typeof frame.removeChild === "function") {
+            var kids = frame.getChildren();
+            // clone before removing
+            kids = kids ? kids.slice() : [];
+            for (var i = 0; i < kids.length; i++) {
+              try { frame.removeChild(kids[i]); } catch (e2) {}
+            }
+          }
+        } catch (e1) {}
+
+        // Clear sound fields (if present)
+        try { if ("_soundAssetUUID" in frame) frame._soundAssetUUID = null; } catch (e3) {}
+        try { if ("_soundID" in frame) frame._soundID = null; } catch (e4) {}
+        try { if ("_soundVolume" in frame) frame._soundVolume = 1.0; } catch (e5) {}
+        try { if ("_soundLoop" in frame) frame._soundLoop = false; } catch (e6) {}
+        try { if ("_soundStart" in frame) frame._soundStart = 0; } catch (e7) {}
+      }
+
+      function removeSlides(project, keepFrame1, hardClearFrame1) {
+        var tl = getCurrentTimeline(project);
+        if (!tl) return { ok: false, reason: "No timeline found" };
+
+        var layers = getTimelineLayers(tl);
+        if (!layers || !layers.length) return { ok: false, reason: "No layers found" };
+
+        // Prevent auto-extend from keeping the timeline long while we prune
+        var oldFill = null;
+        try { oldFill = tl.fillGapsMethod; } catch (e0) { oldFill = null; }
+        try { tl.fillGapsMethod = "blank_frames"; } catch (e1) {}
+
+        var removedFrames = 0;
+        var clearedFrames = 0;
+
+        for (var li = 0; li < layers.length; li++) {
+          var layer = layers[li];
+          if (!layer) continue;
+
+          // layer.frames is a getter -> returns array of Frame children
+          var frames = [];
+          try { frames = layer.frames || []; } catch (e2) { frames = []; }
+
+          if (!keepFrame1) {
+            // Remove ALL frames
+            for (var i = frames.length - 1; i >= 0; i--) {
+              var fr = frames[i];
+              if (!fr) continue;
+              try { clearFrameContents(fr); clearedFrames++; } catch (e3) {}
+              try { if (typeof layer.removeFrame === "function") layer.removeFrame(fr); else if (typeof layer.removeChild === "function") layer.removeChild(fr); } catch (e4) {}
+              removedFrames++;
+            }
+            continue;
+          }
+
+          // Keep ONE frame at position 1
+          var keep = null;
+          try {
+            if (typeof layer.getFrameAtPlayheadPosition === "function") keep = layer.getFrameAtPlayheadPosition(1);
+          } catch (e5) { keep = null; }
+
+          if (!keep) keep = ensureFrameAt1(layer);
+
+          // Remove everything else
+          frames = [];
+          try { frames = layer.frames || []; } catch (e6) { frames = []; }
+
+          for (var j = frames.length - 1; j >= 0; j--) {
+            var f = frames[j];
+            if (!f) continue;
+            if (keep && f === keep) continue;
+
+            try { clearFrameContents(f); clearedFrames++; } catch (e7) {}
+            try { if (typeof layer.removeFrame === "function") layer.removeFrame(f); else if (typeof layer.removeChild === "function") layer.removeChild(f); } catch (e8) {}
+            removedFrames++;
+          }
+
+          // Now shrink the kept frame to exactly 1..1, and optionally clear it too
+          if (keep) {
+            try {
+              if (hardClearFrame1) { clearFrameContents(keep); clearedFrames++; }
+            } catch (e9) {}
+
+            try { keep.start = 1; } catch (e10) {}
+            try { keep.end = 1; } catch (e11) {}
+          }
+        }
+
+        // Set playhead to 1
+        try { tl.playheadPosition = 1; } catch (e12) {}
+        try { if (project && project.focus && project.focus.timeline) project.focus.timeline.playheadPosition = 1; } catch (e13) {}
+
+        // Re-resolve frame gaps with blank frame mode (keeps length short)
+        try { if (typeof tl.resolveFrameGaps === "function") tl.resolveFrameGaps(); } catch (e14) {}
+
+        // Restore old gap mode (optional)
+        try { if (oldFill) tl.fillGapsMethod = oldFill; } catch (e15) {}
+
+        return { ok: true, layers: layers.length, removed: removedFrames, cleared: clearedFrames, length: (function(){ try { return tl.length; } catch(e){ return null; } })() };
+      }
+
+      function setButtonsEnabled(on) {
+        nukeBtn.disabled = !on;
+        slidesBtn.disabled = !on;
+        assetsBtn.disabled = !on;
+        refreshBtn.disabled = !on;
+      }
+
+      function doRun(mode) {
+        var bridge = getBridge();
+        if (!bridge) return alert("Bridge not found.");
+
+        var ed = getEditor(bridge);
+        var project = getProject(bridge, ed);
+        if (!project) return alert("Project not found.");
+        patchProject(project);
+
+        var doAssets = document.getElementById("doAssets").checked;
+        var doSlides = document.getElementById("doSlides").checked;
+        var keepFrame1 = document.getElementById("keepFrame1").checked;
+        var hardClearFrame1 = document.getElementById("hardClearFrame1").checked;
+
+        if (mode === "assets") { doAssets = true; doSlides = false; }
+        if (mode === "slides") { doAssets = false; doSlides = true; }
+
+        var confirmText = "";
+        if (doAssets && doSlides) confirmText = "This will DELETE ALL ASSETS and REMOVE SLIDES on the current timeline. Proceed?";
+        else if (doAssets) confirmText = "This will DELETE ALL ASSETS in the library. Proceed?";
+        else if (doSlides) confirmText = "This will REMOVE SLIDES (frames) on the current timeline. Proceed?";
+        else confirmText = "Nothing selected. Proceed anyway?";
+
+        if (!confirm(confirmText)) return;
+
+        setButtonsEnabled(false);
+
+        try {
+          log("----");
+          log("Starting: " + mode);
+
+          if (doAssets) {
+            var pr = purgeAllAssets(ed, project);
+            log("Assets: found " + pr.count + ", deleted " + pr.deleted);
+          } else {
+            log("Assets: skipped");
+          }
+
+          if (doSlides) {
+            var sr = removeSlides(project, keepFrame1, hardClearFrame1);
+            if (!sr.ok) {
+              log("Slides: ERROR " + sr.reason);
+            } else {
+              log("Slides: layers " + sr.layers +
+                  ", frames removed " + sr.removed +
+                  ", frames cleared " + sr.cleared +
+                  (sr.length !== null ? ", timeline length now " + sr.length : ""));
+            }
+          } else {
+            log("Slides: skipped");
+          }
+
+          fastRefresh(ed, project, "LukeTools Purge");
+          log("✅ Done.");
+        } catch (err) {
+          log("❌ ERROR: " + (err && err.message ? err.message : String(err)));
+          try { console.error(err); } catch (e) {}
+        } finally {
+          setButtonsEnabled(true);
+        }
+      }
+
+      nukeBtn.addEventListener("click", function () { doRun("nuke"); });
+      slidesBtn.addEventListener("click", function () { doRun("slides"); });
+      assetsBtn.addEventListener("click", function () { doRun("assets"); });
+      refreshBtn.addEventListener("click", function () {
+        var bridge = getBridge();
+        if (!bridge) return alert("Bridge not found.");
+        var ed = getEditor(bridge);
+        var project = getProject(bridge, ed);
+        patchProject(project);
+        fastRefresh(ed, project, "LukeTools Manual Refresh");
+        log("Manual refresh triggered.");
+      });
+    })();
+  </script>
+</body>
+</html>

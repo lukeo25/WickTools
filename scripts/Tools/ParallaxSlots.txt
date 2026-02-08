@@ -1,0 +1,870 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LukeTools Behaviour Parallax Slots Create Clip</title>
+  <style>
+    html, body { width:100%; height:100%; margin:0; padding:0; background:#0f1114; color:#e9eef5; font-family: Arial, sans-serif; }
+    .wrap { width:100%; height:100%; display:flex; flex-direction:column; box-sizing:border-box; padding:18px; }
+    .panel { flex:1; display:flex; gap:16px; min-height:0; }
+    .left { width: 42%; min-width: 420px; max-width: 640px; display:flex; flex-direction:column; gap:12px; }
+    .right { flex:1; display:flex; flex-direction:column; gap:10px; min-width:0; }
+    .card { background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); border-radius:18px; padding:14px; box-shadow: 0 12px 40px rgba(0,0,0,0.35); }
+    .row { display:flex; gap:12px; align-items:center; }
+    .row.wraprow { flex-wrap:wrap; }
+    .grow { flex:1; min-width:0; }
+    label { font-size:13px; opacity:0.85; display:block; margin-bottom:6px; }
+    select, input[type="number"], input[type="text"] {
+      width:100%; box-sizing:border-box; padding:10px 12px; border-radius:12px;
+      background: rgba(0,0,0,0.30); border:1px solid rgba(255,255,255,0.14); color:#e9eef5; outline:none;
+    }
+    input[type="number"] { -moz-appearance:textfield; }
+    input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin:0; }
+    .toggleRow { display:flex; gap:14px; align-items:center; padding:10px 12px; border-radius:12px; background: rgba(0,0,0,0.22); border:1px solid rgba(255,255,255,0.10); }
+    .toggleRow .spacer { flex:1; }
+    .radioGroup { display:flex; gap:16px; align-items:center; }
+    .radioGroup label { margin:0; display:flex; gap:8px; align-items:center; font-size:13px; }
+    .btnBar { display:flex; gap:10px; align-items:center; }
+    button {
+      border:1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.08);
+      color:#e9eef5; border-radius:14px; padding:10px 14px; cursor:pointer; font-weight:700;
+    }
+    button.primary { background: rgba(59,130,246,0.25); border-color: rgba(59,130,246,0.55); }
+    button.good { background: rgba(16,185,129,0.20); border-color: rgba(16,185,129,0.55); }
+    button.bad { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.55); }
+    button:active { transform: translateY(1px); }
+    .small { font-size:12px; opacity:0.85; }
+    .slotsCard { flex:1; min-height:0; display:flex; flex-direction:column; gap:10px; overflow:hidden; }
+    .slotsHead { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .slotsList { flex:1; overflow:auto; padding-right:6px; display:flex; flex-direction:column; gap:10px; }
+    .slotItem {
+      border-radius:16px; background: rgba(0,0,0,0.22); border:1px solid rgba(255,255,255,0.10);
+      padding:12px;
+      display:grid;
+      grid-template-columns: 92px 1fr 150px;
+      gap:12px;
+      align-items:center;
+    }
+    .slotBadge {
+      width:92px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+      background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); font-weight:800;
+    }
+    .slotPick { display:flex; flex-direction:column; gap:8px; min-width:0; }
+    .slotPick .pickRow { display:flex; gap:10px; align-items:center; min-width:0; }
+    .slotPick .fileName { font-size:12px; opacity:0.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .thumb {
+      width:56px; height:56px; border-radius:12px; background: rgba(0,0,0,0.30);
+      border:1px solid rgba(255,255,255,0.12); overflow:hidden; display:flex; align-items:center; justify-content:center;
+    }
+    .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+    .multBox { display:flex; flex-direction:column; gap:6px; }
+    .multBox input { padding:10px 10px; border-radius:12px; }
+    .actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .status { margin-top:8px; padding:10px 12px; border-radius:14px; background: rgba(0,0,0,0.22); border:1px solid rgba(255,255,255,0.10); font-size:13px; }
+    .status.err { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.45); }
+    .previewTop { display:flex; gap:10px; align-items:center; justify-content:flex-start; flex-wrap:wrap; }
+    .previewTop .hint { margin-left:8px; opacity:0.8; font-size:13px; }
+    .previewWrap { flex:1; min-height:0; border-radius:20px; background: rgba(0,0,0,0.45); border:2px solid rgba(34,197,94,0.55); overflow:hidden; position:relative; }
+    canvas { width:100%; height:100%; display:block; }
+    .previewFooter { font-size:12px; opacity:0.8; padding:4px 2px 0 2px; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <div class="left">
+        <div class="card">
+          <div class="row wraprow">
+            <div class="grow">
+              <label>Number of slots</label>
+              <select id="slotsCount">
+                <option value="1">1</option>
+                <option value="2" selected>2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+              </select>
+            </div>
+            <div class="grow">
+              <label>Scroll speed pixels per step</label>
+              <input id="scrollSpeed" type="number" min="1" max="60" value="6">
+            </div>
+            
+            <div class="grow">
+              <label>Seam nudge pixels</label>
+              <input id="seamNudge" type="number" min="-50" max="50" value="0">
+            </div>
+
+            <div class="grow">
+              <label>New clip name</label>
+              <input id="clipName" type="text" value="BG">
+            </div>
+          </div>
+
+          <div class="toggleRow" style="margin-top:10px;">
+            <div class="radioGroup">
+              <label><input type="radio" name="parallaxMode" value="on" checked> Parallax on</label>
+              <label><input type="radio" name="parallaxMode" value="off"> Parallax off</label>
+            </div>
+            <div class="spacer"></div>
+            <div class="small">Slot 1 is foreground</div>
+          </div>
+        </div>
+
+        <div class="card slotsCard">
+          <div class="slotsHead">
+            <div style="font-weight:900; letter-spacing:0.5px;">Slots</div>
+            <div class="small">Choose one image per slot</div>
+          </div>
+          <div id="slotsList" class="slotsList"></div>
+
+          <div class="actions">
+            <button id="btnInject" class="primary">Inject Images And Script</button>
+            <button id="btnInjectScriptOnly" class="good">Inject Scroll Script Only</button>
+          </div>
+
+          <div id="status" class="status">Ready.</div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="card">
+          <div class="previewTop">
+            <button id="btnStop" class="bad">Stop</button>
+            <button id="btnLeft">Left</button>
+            <button id="btnRight">Right</button>
+            <div class="hint">Preview starts automatically and keeps moving. Left and Right change direction.</div>
+          </div>
+        </div>
+
+        <div class="previewWrap">
+          <canvas id="cv"></canvas>
+        </div>
+        <div class="previewFooter">Injected clip uses keyboard arrows in play mode. Right arrow moves the background left.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function clamp(n,a,b){ n=Number(n)||0; return Math.max(a, Math.min(b,n)); }
+  function isNum(x){ return typeof x === "number" && !isNaN(x) && isFinite(x); }
+
+  var slotsCountEl = $("slotsCount");
+  var scrollSpeedEl = $("scrollSpeed");
+  var seamNudgeEl = $("seamNudge"); // FIX
+  var clipNameEl = $("clipName");
+  var slotsListEl = $("slotsList");
+  var statusEl = $("status");
+
+  var btnInject = $("btnInject");
+  var btnInjectScriptOnly = $("btnInjectScriptOnly");
+
+  var btnStop = $("btnStop");
+  var btnLeft = $("btnLeft");
+  var btnRight = $("btnRight");
+
+  var cv = $("cv");
+  var ctx = cv.getContext("2d");
+
+  var slotState = [];
+  var preview = {
+    running: false,
+    dir: 1,
+    world: 0,
+    lastT: 0,
+    raf: 0
+  };
+
+  function setStatus(msg, isErr){
+    statusEl.textContent = msg;
+    statusEl.className = "status" + (isErr ? " err" : "");
+  }
+
+  function getParallaxEnabled(){
+    var r = document.querySelector('input[name="parallaxMode"]:checked');
+    return (r && r.value === "on");
+  }
+
+  function resizeCanvas(){
+    var r = cv.getBoundingClientRect();
+    var w = Math.max(1, Math.floor(r.width));
+    var h = Math.max(1, Math.floor(r.height));
+    if (cv.width !== w) cv.width = w;
+    if (cv.height !== h) cv.height = h;
+  }
+
+  function ensureSlotStateCount(n){
+    n = clamp(n,1,12);
+    while(slotState.length < n){
+      slotState.push({
+        file: null,
+        url: "",
+        img: null,
+        name: "",
+        mult: 1,
+        input: null,
+        thumbEl: null,
+        fileNameEl: null,
+        multEl: null
+      });
+    }
+    while(slotState.length > n){
+      var s = slotState.pop();
+      try{ if(s.url) URL.revokeObjectURL(s.url); }catch(e){}
+    }
+  }
+
+  function buildSlotsUI(){
+    var n = parseInt(slotsCountEl.value,10) || 1;
+    ensureSlotStateCount(n);
+
+    slotsListEl.innerHTML = "";
+    for(var i=0;i<n;i++){
+      (function(idx){
+        var s = slotState[idx];
+
+        if(!isNum(s.mult)) s.mult = 1;
+        if(idx === 0 && (!isNum(s.mult) || s.mult === 0)) s.mult = 1;
+        if(idx === 1 && (!isNum(s.mult) || s.mult === 1)) s.mult = 0.35;
+
+        var item = document.createElement("div");
+        item.className = "slotItem";
+
+        var badge = document.createElement("div");
+        badge.className = "slotBadge";
+        badge.textContent = "Slot " + (idx+1);
+
+        var pick = document.createElement("div");
+        pick.className = "slotPick";
+
+        var pickRow = document.createElement("div");
+        pickRow.className = "pickRow";
+
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "Choose Image";
+
+        var fileName = document.createElement("div");
+        fileName.className = "fileName";
+        fileName.textContent = s.name ? s.name : "No image chosen";
+
+        var thumb = document.createElement("div");
+        thumb.className = "thumb";
+        if(s.img){
+          var imgt = document.createElement("img");
+          imgt.src = s.url || "";
+          thumb.innerHTML = "";
+          thumb.appendChild(imgt);
+        } else {
+          thumb.textContent = "";
+        }
+
+        var input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.style.display = "none";
+
+        btn.addEventListener("click", function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          try{ input.value = ""; }catch(ex){}
+          input.click();
+        });
+
+        input.addEventListener("change", function(){
+          var f = (input.files && input.files[0]) ? input.files[0] : null;
+          if(!f) return;
+
+          try{ if(s.url) URL.revokeObjectURL(s.url); }catch(e){}
+          s.file = f;
+          s.name = String(f.name || ("Slot_"+(idx+1)));
+          s.url = URL.createObjectURL(f);
+          s.img = new Image();
+          s.img.onload = function(){
+            setStatus("Loaded: " + s.name);
+            startPreviewIfNeeded();
+            drawPreview();
+          };
+          s.img.onerror = function(){
+            setStatus("Could not load image for Slot "+(idx+1), true);
+          };
+          s.img.src = s.url;
+
+          if(s.fileNameEl) s.fileNameEl.textContent = s.name;
+          if(s.thumbEl){
+            s.thumbEl.innerHTML = "";
+            var imgt2 = document.createElement("img");
+            imgt2.src = s.url;
+            s.thumbEl.appendChild(imgt2);
+          }
+        });
+
+        pickRow.appendChild(btn);
+        pickRow.appendChild(thumb);
+
+        pick.appendChild(pickRow);
+        pick.appendChild(fileName);
+        pick.appendChild(input);
+
+        var multBox = document.createElement("div");
+        multBox.className = "multBox";
+        var ml = document.createElement("label");
+        ml.textContent = "Layer speed multiplier";
+        var mi = document.createElement("input");
+        mi.type = "number";
+        mi.min = "0";
+        mi.max = "10";
+        mi.step = "0.05";
+        mi.value = String(s.mult);
+
+        mi.addEventListener("input", function(){
+          s.mult = clamp(parseFloat(mi.value), 0, 10);
+          drawPreview();
+        });
+
+        multBox.appendChild(ml);
+        multBox.appendChild(mi);
+
+        item.appendChild(badge);
+        item.appendChild(pick);
+        item.appendChild(multBox);
+
+        slotsListEl.appendChild(item);
+
+        s.input = input;
+        s.thumbEl = thumb;
+        s.fileNameEl = fileName;
+        s.multEl = mi;
+      })(i);
+    }
+    drawPreview();
+  }
+
+  function startPreviewIfNeeded(){
+    if(preview.raf) return;
+    preview.running = true;
+    preview.dir = 1;
+    preview.lastT = 0;
+    preview.world = 0;
+    runPreview();
+  }
+
+  function drawPreview(){
+    resizeCanvas();
+    ctx.clearRect(0,0,cv.width,cv.height);
+
+    var n = slotState.length;
+    if(!n) return;
+
+    for(var i=n-1;i>=0;i--){
+      var s = slotState[i];
+      if(!s || !s.img) continue;
+
+      var img = s.img;
+      var mult = getParallaxEnabled() ? clamp(s.mult,0,10) : 1;
+
+      var w = img.naturalWidth || img.width || 1;
+      var h = img.naturalHeight || img.height || 1;
+
+      var scale = Math.max(cv.height / h, 0.0001);
+      var drawH = cv.height;
+      var drawW = Math.ceil(w * scale);
+      if(drawW < 1) drawW = 1;
+
+      var world = preview.world * mult;
+      var offset = world % drawW;
+      if(offset < 0) offset += drawW;
+
+      var x0 = -offset;
+      while(x0 > -drawW) x0 -= drawW;
+
+      for(var x=x0; x < cv.width + drawW; x += drawW){
+        ctx.drawImage(img, x, 0, drawW, drawH);
+      }
+    }
+  }
+
+  function runPreview(ts){
+    if(!preview.running){
+      preview.lastT = 0;
+      try{ cancelAnimationFrame(preview.raf); }catch(e){}
+      preview.raf = 0;
+      return;
+    }
+    preview.raf = requestAnimationFrame(runPreview);
+
+    if(!ts) ts = performance.now();
+    if(!preview.lastT) preview.lastT = ts;
+    var dt = (ts - preview.lastT) / 16.6667;
+    preview.lastT = ts;
+
+    var speed = clamp(parseFloat(scrollSpeedEl.value),1,200);
+    if(preview.dir !== 0){
+      preview.world += (speed * dt) * (preview.dir);
+    }
+
+    drawPreview();
+  }
+
+  function setDir(d){
+    preview.running = true;
+    preview.dir = d;
+    if(!preview.raf) runPreview();
+  }
+
+  btnStop.addEventListener("click", function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    preview.dir = 0;
+    preview.running = false;
+    try{ cancelAnimationFrame(preview.raf); }catch(ex){}
+    preview.raf = 0;
+    setStatus("Preview stopped.");
+    drawPreview();
+  });
+
+  btnLeft.addEventListener("mousedown", function(){ setDir(-1); });
+  btnRight.addEventListener("mousedown", function(){ setDir(1); });
+  btnLeft.addEventListener("touchstart", function(e){ e.preventDefault(); setDir(-1); }, {passive:false});
+  btnRight.addEventListener("touchstart", function(e){ e.preventDefault(); setDir(1); }, {passive:false});
+
+  window.addEventListener("resize", function(){ drawPreview(); });
+  slotsCountEl.addEventListener("change", function(){ buildSlotsUI(); });
+
+  function getBridge(){
+    try{
+      if(window.LukeToolsBridge) return window.LukeToolsBridge;
+      if(window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge;
+    }catch(e){}
+    return null;
+  }
+
+  function getEditor(){
+    try{
+      if(window.parent && window.parent.wickEditor && window.parent.wickEditor.editor) return window.parent.wickEditor.editor; // FIX
+      if(window.parent && window.parent.WickEditor && window.parent.WickEditor.editor) return window.parent.WickEditor.editor; // FIX
+      if(window.parent && window.parent.editor) return window.parent.editor; // FIX
+      if(window.parent && window.parent.app) return window.parent.app; // FIX
+    }catch(e){}
+    return null;
+  }
+
+  function getProject(){
+    try{
+      var ed = getEditor();
+      if(ed && ed.project) return ed.project;
+    }catch(e){}
+    return null;
+  }
+
+  function requireWick(){
+    try{
+      var p = getProject();
+      if(!p){
+        setStatus("Wick project not found. Open this tool from inside Wick Editor.", true);
+        return false;
+      }
+      return true;
+    }catch(e){
+      setStatus("Wick project not found. Open this tool from inside Wick Editor.", true);
+      return false;
+    }
+  }
+
+  function selectionClear(){
+    try{
+      var p = getProject();
+      if(p && p.selection && p.selection.clear) p.selection.clear();
+    }catch(e){}
+  }
+
+  function selectionSelectMultiple(objs){
+    try{
+      if(!objs || !objs.length) return false;
+      var p = getProject();
+      if(p && p.selection && p.selection.selectMultipleObjects){
+        p.selection.selectMultipleObjects(objs);
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
+
+  function tryNameObject(obj, identifier){
+    if(!obj) return;
+    try{ obj.identifier = identifier; }catch(e){}
+    try{ obj._identifier = identifier; }catch(e2){}
+    try{ obj.name = identifier; }catch(e3){}
+    try{ obj._name = identifier; }catch(e4){}
+  }
+
+  function getBoundsWidth(obj){
+    try{
+      var b = obj && (obj.bounds || (obj.getBounds ? obj.getBounds() : null));
+      if(b && b.width) return b.width;
+    }catch(e){}
+    try{
+      if(obj && obj.view && obj.view.item && obj.view.item.bounds && obj.view.item.bounds.width){
+        return obj.view.item.bounds.width;
+      }
+    }catch(e2){}
+    return 600;
+  }
+
+  function getSelectedObject(){
+    var bridge = getBridge();
+    if(bridge && bridge.getSelectedObject){
+      try{ return bridge.getSelectedObject(); }catch(e){}
+    }
+    try{
+      var p = getProject();
+      if(p && p.selection && p.selection.getSelectedObjects){
+        var arr = p.selection.getSelectedObjects("Clip");
+        if(arr && arr.length) return arr[0];
+      }
+    }catch(e2){}
+    return null;
+  }
+
+  async function importImageAsset(file){
+    // FIX: use engine importFile instead of editor createAssets
+    var p = getProject();
+    if(!p || !p.importFile) return null;
+    return await new Promise(function(resolve){
+      try{
+        p.importFile(file, function(asset){
+          resolve(asset || null);
+        });
+      }catch(e){
+        resolve(null);
+      }
+    });
+  }
+
+  async function createImagePathFromAssetAsync(asset, x, y){
+    // FIX: use engine Wick.Path.createImagePath and activeFrame.addPath, wait for load
+    var p = getProject();
+    if(!p || !p.activeFrame) return null;
+
+    var Wick = null;
+    try{ Wick = window.parent && window.parent.Wick ? window.parent.Wick : (window.Wick || null); }catch(e){}
+    if(!Wick || !Wick.Path || !Wick.Path.createImagePath) return null;
+
+    return await new Promise(function(resolve){
+      try{
+        Wick.Path.createImagePath(asset, function(path){
+          try{
+            p.activeFrame.addPath(path);
+          }catch(e1){
+            resolve(null);
+            return;
+          }
+          try{ path.x = isNum(x) ? x : 0; }catch(e2){}
+          try{ path.y = isNum(y) ? y : 0; }catch(e3){}
+          resolve(path);
+        });
+      }catch(e4){
+        resolve(null);
+      }
+    });
+  }
+
+  function createClipFromSelectionAndGet(identifier){
+    // FIX: use engine createClipFromSelection args object, then read selection
+    var p = getProject();
+    if(!p || !p.createClipFromSelection) return null;
+    try{
+      p.createClipFromSelection({ type: "Clip", identifier: identifier });
+    }catch(e){
+      return null;
+    }
+    return getSelectedObject();
+  }
+
+  function getFilesAndMults(){
+    var files = [];
+    var mults = [];
+    for(var i=0;i<slotState.length;i++){
+      var s = slotState[i];
+      files.push(s && s.file ? s.file : null);
+      mults.push(s && isNum(s.mult) ? s.mult : 1);
+    }
+    return {files:files, mults:mults};
+  }
+
+  function buildUpdateScript(slotCount, speed, parallaxOn, mults){
+    // FIX: proper Wick update script uses isKeyDown('left'|'right') and clip instance context
+    // FIX: access slot clips by identifier mapping this['LT_ParallaxSlot_N'] instead of DOM style traversal
+    // FIX: compute tile width safely and move only while keys are held
+    var lines = [];
+    lines.push("// LukeTools Parallax Slots update script");
+    lines.push("(function(){");
+    lines.push("  var ROOT = this;");
+    lines.push("  var SLOT_COUNT = " + String(slotCount) + ";");
+    lines.push("  var SPEED = " + String(speed) + ";");
+    lines.push("  var PARALLAX_ON = " + (parallaxOn ? "true" : "false") + ";");
+    lines.push("  var MULTS = " + JSON.stringify(mults) + ";");
+    lines.push("");
+    lines.push("  function getSlot(idx){");
+    lines.push("    var id = 'LT_ParallaxSlot_' + idx;");
+    lines.push("    // FIX: primary Wick way: children are attached to parent by identifier");
+    lines.push("    try{ if(ROOT && ROOT[id]) return ROOT[id]; }catch(e0){}");
+    lines.push("");
+    lines.push("    // FIX: fallback: scan common child lists if present");
+    lines.push("    var arr = null;");
+    lines.push("    try{ arr = ROOT.activeNamedChildren; }catch(e1){ arr = null; }");
+    lines.push("    if(!arr){ try{ arr = ROOT.namedChildren; }catch(e2){ arr = null; } }");
+    lines.push("    if(!arr){ try{ arr = ROOT.children; }catch(e3){ arr = null; } }");
+    lines.push("    if(!arr){ try{ arr = ROOT._children; }catch(e4){ arr = null; } }");
+    lines.push("    if(arr && arr.length){");
+    lines.push("      for(var i=0;i<arr.length;i++){");
+    lines.push("        var c = arr[i];");
+    lines.push("        if(!c) continue;");
+    lines.push("        var cid = '';");
+    lines.push("        try{ if(c.identifier !== undefined && c.identifier !== null) cid = String(c.identifier); }catch(e5){}");
+    lines.push("        if(!cid){ try{ if(c._identifier !== undefined && c._identifier !== null) cid = String(c._identifier); }catch(e6){} }");
+    lines.push("        if(cid === id) return c;");
+    lines.push("        try{ if(cid.indexOf(id + '_') === 0) return c; }catch(e7){}");
+    lines.push("      }");
+    lines.push("    }");
+    lines.push("    return null;");
+    lines.push("  }");
+    lines.push("");
+    lines.push("  function getTileWidth(slot){");
+    lines.push("    // FIX: prefer cached width from creation");
+    lines.push("    try{ if(slot && slot._LT_tileW) return Math.max(1, Number(slot._LT_tileW) || 0); }catch(e0){}");
+    lines.push("    try{ if(slot && slot.LT_tileW) return Math.max(1, Number(slot.LT_tileW) || 0); }catch(e1){}");
+    lines.push("");
+    lines.push("    // FIX: slot bounds represent two tiles side by side");
+    lines.push("    try{ if(slot && slot.bounds && slot.bounds.width) return Math.max(1, Number(slot.bounds.width) / 2); }catch(e2){}");
+    lines.push("    try{ if(slot && typeof slot.getBounds === 'function'){ var b = slot.getBounds(); if(b && b.width) return Math.max(1, Number(b.width) / 2); } }catch(e3){}");
+    lines.push("");
+    lines.push("    // FIX: fallback: inspect first path inside slot clip if available");
+    lines.push("    try{");
+    lines.push("      var fr = null;");
+    lines.push("      try{ fr = slot.activeFrame; }catch(e4){ fr = null; }");
+    lines.push("      if(!fr){ try{ fr = slot._activeFrame; }catch(e5){ fr = null; } }");
+    lines.push("      var paths = null;");
+    lines.push("      if(fr){ try{ paths = fr.paths; }catch(e6){ paths = null; } }");
+    lines.push("      if(paths && paths.length){");
+    lines.push("        var p = paths[0];");
+    lines.push("        try{ if(p && p.bounds && p.bounds.width) return Math.max(1, Number(p.bounds.width)); }catch(e7){}");
+    lines.push("        try{ if(p && typeof p.getBounds === 'function'){ var pb = p.getBounds(); if(pb && pb.width) return Math.max(1, Number(pb.width)); } }catch(e8){}");
+    lines.push("      }");
+    lines.push("    }catch(e9){}");
+    lines.push("    return 600;");
+    lines.push("  }");
+    lines.push("");
+    lines.push("  if(ROOT._LT_parallaxWorldX === undefined) ROOT._LT_parallaxWorldX = 0;");
+    lines.push("");
+    lines.push("  // FIX: movement only while the user is holding down left or right");
+    lines.push("  var leftDown = false;");
+    lines.push("  var rightDown = false;");
+    lines.push("  try{ leftDown = !!isKeyDown('left'); }catch(e10){}");
+    lines.push("  try{ rightDown = !!isKeyDown('right'); }catch(e11){}");
+    lines.push("  var dx = 0;");
+    lines.push("  if(leftDown && !rightDown) dx = SPEED;");
+    lines.push("  else if(rightDown && !leftDown) dx = -SPEED;");
+    lines.push("  ROOT._LT_parallaxWorldX += dx;");
+    lines.push("");
+    lines.push("  for(var s=1; s<=SLOT_COUNT; s++){");
+    lines.push("    var slot = getSlot(s);");
+    lines.push("    if(!slot) continue;");
+    lines.push("    var mult = PARALLAX_ON ? (Number(MULTS[s-1]) || 1) : 1;");
+    lines.push("    var tileW = getTileWidth(slot);");
+    lines.push("    var x = (ROOT._LT_parallaxWorldX * mult) % tileW;");
+    lines.push("    if(x > 0) x -= tileW;");
+    lines.push("    try{ slot.x = x; }catch(e12){ try{ if(slot.transformation) slot.transformation.x = x; }catch(e13){} }");
+    lines.push("  }");
+    lines.push("");
+    lines.push("}).call(this);");
+    return lines.join("\n");
+  }
+
+  async function injectCreateNewClip(){
+    if(!requireWick()) return;
+
+    var bridge = getBridge();
+    var count = slotState.length;
+    var speed = clamp(parseFloat(scrollSpeedEl.value),1,200);
+    var parallaxOn = getParallaxEnabled();
+
+    var data = getFilesAndMults();
+    var files = data.files;
+    var mults = data.mults;
+
+    var any = false;
+    for(var i=0;i<files.length;i++){ if(files[i]) { any = true; break; } }
+    if(!any){
+      setStatus("Pick at least one image file.", true);
+      return;
+    }
+
+    setStatus("Importing images...");
+
+    var assetsBySlot = new Array(count);
+    for(var s=1; s<=count; s++){
+      var f = files[s-1];
+      if(!f){ assetsBySlot[s-1] = null; continue; }
+
+      var a = await importImageAsset(f);
+      if(!a){
+        setStatus("Failed importing image for Slot " + s, true);
+        return;
+      }
+      assetsBySlot[s-1] = a;
+    }
+
+    setStatus("Placing images and building clips...");
+
+    var createdSlotClipInstances = [];
+
+    for(var slotIdx=count; slotIdx>=1; slotIdx--){
+      var asset = assetsBySlot[slotIdx-1];
+      if(!asset) continue;
+
+      var slotId = "LT_ParallaxSlot_" + slotIdx;
+
+      selectionClear();
+
+      // FIX: async placement so the image actually exists before we select it
+      var obj1 = await createImagePathFromAssetAsync(asset, 0, 0);
+      if(!obj1){
+        setStatus("Could not place image on canvas for Slot " + slotIdx, true);
+        return;
+      }
+
+      var w1 = getBoundsWidth(obj1);
+      if(!w1 || w1 <= 0) w1 = 600;
+
+      // FIX: read seam nudge from UI (positive nudges tiles closer to remove gaps)
+      var seamNudge = 0; // FIX
+      try{ seamNudge = clamp(parseFloat(seamNudgeEl.value), -200, 200); }catch(eFixN0){ seamNudge = 0; } // FIX
+
+      // FIX: Wick image paths are positioned by their center. Put the first tile's center at w1/2
+      // FIX: so the left edge starts at 0 and tiling is seamless.
+      try{ obj1.x = w1 / 2; }catch(eFixA){}
+
+      // FIX: second tile center is one tile width to the right, adjusted by seam nudge
+      var obj2 = await createImagePathFromAssetAsync(asset, (w1 / 2) + (w1 - seamNudge), 0);
+      if(!obj2){
+        setStatus("Could not place second copy for Slot " + slotIdx, true);
+        return;
+      }
+
+      selectionSelectMultiple([obj1, obj2]);
+
+      // FIX: create clip via engine args object and then pull the selected clip back
+      var slotClipInstance = createClipFromSelectionAndGet(slotId);
+      if(!slotClipInstance){
+        setStatus("Could not create slot clip for Slot " + slotIdx, true);
+        return;
+      }
+      tryNameObject(slotClipInstance, slotId);
+
+      try{ slotClipInstance._LT_tileW = Math.max(1, (w1 - seamNudge)); }catch(e3){} // FIX
+      try{ slotClipInstance.LT_tileW = Math.max(1, (w1 - seamNudge)); }catch(e4){} // FIX
+
+      try{ slotClipInstance.x = 0; }catch(e5){}
+
+      createdSlotClipInstances.push(slotClipInstance);
+    }
+
+    if(!createdSlotClipInstances.length){
+      setStatus("No images chosen. Pick at least one slot image.", true);
+      return;
+    }
+
+    setStatus("Creating master clip...");
+
+    var masterName = String(clipNameEl.value || "BG");
+    selectionClear();
+    selectionSelectMultiple(createdSlotClipInstances);
+
+    // FIX: master clip instance is the selection result
+    var masterClipInstance = createClipFromSelectionAndGet(masterName);
+    if(!masterClipInstance){
+      setStatus("Could not create master clip from slot clips.", true);
+      return;
+    }
+    tryNameObject(masterClipInstance, masterName);
+
+    var updateScript = buildUpdateScript(count, speed, parallaxOn, mults);
+
+    var applied = false;
+    if(bridge && bridge.setUpdateScriptOnSelection){
+      try{
+        // FIX: master clip should already be selected, so set script directly
+        // FIX: ensure master clip is selected before applying update script
+        try{ selectionClear(); }catch(e0){}
+        try{ selectionSelectMultiple([masterClipInstance]); }catch(e1){}
+        bridge.setUpdateScriptOnSelection(updateScript);
+        applied = true;
+      }catch(e7){
+        applied = false;
+      }
+    }
+
+    if(applied){
+      setStatus("Injected: created master clip '" + masterName + "' with " + String(createdSlotClipInstances.length) + " slot clips, and applied update script.");
+    } else {
+      setStatus("Created master clip '" + masterName + "' but could not apply update script.", true);
+    }
+  }
+
+  async function injectScriptOnlyToSelected(){
+    if(!requireWick()) return;
+
+    var bridge = getBridge();
+    if(!bridge || !bridge.setUpdateScriptOnSelection){
+      setStatus("Bridge setUpdateScriptOnSelection not available in this runtime.", true);
+      return;
+    }
+
+    var count = slotState.length;
+    var speed = clamp(parseFloat(scrollSpeedEl.value),1,200);
+    var parallaxOn = getParallaxEnabled();
+    var data = getFilesAndMults();
+    var mults = data.mults;
+
+    var updateScript = buildUpdateScript(count, speed, parallaxOn, mults);
+
+    try{
+      bridge.setUpdateScriptOnSelection(updateScript);
+      setStatus("Injected scroll update script onto the currently selected clip.");
+    }catch(e){
+      setStatus("Could not inject update script onto selection.", true);
+    }
+  }
+
+  btnInject.addEventListener("click", function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    injectCreateNewClip();
+  });
+
+  btnInjectScriptOnly.addEventListener("click", function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    injectScriptOnlyToSelected();
+  });
+
+  ensureSlotStateCount(parseInt(slotsCountEl.value,10) || 2);
+  buildSlotsUI();
+  resizeCanvas();
+  drawPreview();
+
+  preview.running = false;
+  preview.dir = 1;
+  preview.world = 0;
+  preview.lastT = 0;
+  preview.raf = 0;
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,2740 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lip Service</title>
+  <style>
+    :root{
+      --bg0:#0f1217;
+      --bg1:#151a21;
+      --line:#2a3342;
+      --line2:#313c4d;
+      --text:#d7deea;
+      --muted:#9aa6ba;
+      --shadow:0 10px 26px rgba(0,0,0,0.38);
+      --radius:12px;
+      --red:#ff4b4b;
+      --blue:#2f89ff;
+    }
+
+    html, body{
+      height:100%;
+      margin:0;
+      background: radial-gradient(1000px 500px at 40% 0%, rgba(255,255,255,0.05), transparent 60%),
+                  linear-gradient(180deg, var(--bg1), var(--bg0));
+      color:var(--text);
+      font-family: Arial, sans-serif;
+      overflow:hidden;
+    }
+    *{ box-sizing:border-box; }
+
+    .app{
+      height:100vh;
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .menu{
+      height:46px;
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      display:flex;
+      align-items:center;
+      padding:8px 10px;
+      gap:8px;
+      user-select:none;
+    }
+
+    .menu .spacer{ flex:1; }
+
+    .btn{
+      appearance:none;
+      border:1px solid var(--line2);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      color:var(--text);
+      border-radius: 10px;
+      padding:8px 12px;
+      font-size:13px;
+      cursor:pointer;
+      transition: transform 0.05s ease, background 0.15s ease, border 0.15s ease;
+      line-height:1;
+      white-space:nowrap;
+    }
+    .btn:hover{ background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03)); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{ border-color: rgba(255,204,0,0.35); }
+    .btn.danger{ border-color: rgba(255,75,75,0.35); }
+    .btn.small{ padding:7px 10px; border-radius:9px; }
+
+    .btn.darktone{
+      background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03));
+      background-color: rgba(15,18,23,0.92);
+      border-color: rgba(42,51,66,0.95);
+      color: var(--text);
+    }
+    .btn.darktone:hover{
+      background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04));
+      background-color: rgba(15,18,23,0.96);
+    }
+
+    .pill{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line2);
+      background: rgba(0,0,0,0.18);
+      font-size:13px;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .pill input{
+      width:70px;
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border:1px solid var(--line2);
+      border-radius:9px;
+      padding:6px 8px;
+      outline:none;
+      font-size:13px;
+    }
+
+    .panel{
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.12));
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+
+    .timeline-wrap{
+      height:230px;
+      display:flex;
+      flex-direction:column;
+    }
+
+    .timeline-scroll{
+      position:relative;
+      flex:1;
+      overflow-x:auto;
+      overflow-y:hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.18));
+      scrollbar-width:none;
+    }
+    .timeline-scroll::-webkit-scrollbar{ height:0; }
+
+    .timeline-surface{
+      position:relative;
+      height:100%;
+    }
+
+    canvas{ display:block; }
+
+    .playhead{
+      position:absolute;
+      top:0;
+      bottom:0;
+      width:2px;
+      background: var(--red);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.35);
+      pointer-events:none;
+    }
+
+    .layout-mid{
+      display:grid;
+      grid-template-columns: 340px 1fr 420px;
+      gap:12px;
+      align-items:stretch;
+      flex:1 1 auto;
+      min-height:320px;
+      margin:0;
+    }
+
+    .mouth-preview{
+      height:100%;
+      padding:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0.22));
+    }
+
+    /* WHITE BACKGROUND FOR THE MAIN ANIMATED MOUTH AREA */
+    .mouth-preview .svg-host{
+      width:100%;
+      height:100%;
+      max-width:none;
+      max-height:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid rgba(0,0,0,0.25);
+      border-radius: 12px;
+      background: #ffffff;
+      overflow:hidden;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+    }
+
+    .svg-host svg{
+      width:92%;
+      height:92%;
+      background: #ffffff;
+    }
+
+    .mouth-grid{
+      padding:10px;
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-height:0;
+    }
+
+    .hint{
+      color: var(--muted);
+      font-size:12px;
+      opacity:0.9;
+    }
+
+    .grid-scroll{
+      flex:1;
+      min-height:0;
+      overflow-y:auto;
+      overflow-x:hidden;
+      padding-right:6px;
+    }
+    .grid-scroll::-webkit-scrollbar{ width:10px; }
+    .grid-scroll::-webkit-scrollbar-thumb{
+      background: rgba(255,255,255,0.15);
+      border-radius: 999px;
+      border:2px solid rgba(0,0,0,0.25);
+    }
+    .grid-scroll::-webkit-scrollbar-track{ background: rgba(0,0,0,0.15); }
+
+    .mouth-grid .grid{
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap:10px;
+    }
+
+    .mouth-btn{
+      appearance:none;
+      border:1px solid var(--line2);
+      background: rgba(0,0,0,0.18);
+      border-radius: 12px;
+      cursor:pointer;
+      padding:8px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      transition: background 0.15s ease, border 0.15s ease;
+      min-height:92px;
+      user-select:none;
+    }
+    .mouth-btn:hover{ background: rgba(255,255,255,0.06); }
+    .mouth-btn.active{
+      border-color: rgba(255,204,0,0.55);
+      box-shadow: 0 0 0 1px rgba(255,204,0,0.20) inset;
+      background: rgba(255,204,0,0.08);
+    }
+
+    /* WHITE BACKGROUND FOR THUMBNAIL MOUTH TILES */
+    .mouth-btn .mini{
+      width:100%;
+      height:56px;
+      border-radius: 10px;
+      border:1px solid rgba(0,0,0,0.18);
+      background: #ffffff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04);
+    }
+    .mouth-btn .mini svg{
+      width:92%;
+      height:92%;
+      background:#ffffff;
+    }
+
+    .mouth-btn .label{
+      font-size:12px;
+      color: var(--text);
+      opacity:0.9;
+    }
+
+    .script-panel{
+      height:170px;
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .script-panel .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      color: var(--muted);
+      font-size:13px;
+    }
+
+    textarea{
+      width:100%;
+      flex:1;
+      resize:none;
+      background: rgba(0,0,0,0.26);
+      border:1px solid var(--line2);
+      border-radius: 12px;
+      color: var(--text);
+      padding:10px;
+      outline:none;
+      font-size: 11px;
+      line-height:1.35;
+    }
+
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,0.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:14px;
+      z-index:9999;
+    }
+    .modal{
+      width:min(720px, 96vw);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.25));
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .modal .head{
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom:1px solid var(--line);
+      font-weight:700;
+      font-size:13px;
+    }
+    .modal .body{
+      padding:12px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    .modal .foot{
+      padding:10px 12px;
+      border-top:1px solid var(--line);
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+    }
+
+    .status{
+      font-size:12px;
+      color: var(--muted);
+      padding:0 6px;
+      white-space:nowrap;
+    }
+  
+    /* Layout tweaks to match latest reference */
+    /* Two separate menus */
+    .menu{ height:46px; }
+    .menu.secondary{
+      margin-top:0px;
+      height:40px;
+      justify-content:flex-start;
+      gap:10px;
+    }
+    .menu .spacer{ flex:1; }
+
+    /* Mid layout: preview, mouth grid, script corner */
+    .layout-mid{
+      display:grid;
+      grid-template-columns: 340px 1fr 420px;
+      gap:12px;
+      align-items:stretch;
+      flex:1 1 auto;
+      min-height:320px;
+      margin:0;
+    }
+
+    .mouth-preview{ height:100%; }
+    .mouth-preview .svg-host{ height:100%; }
+
+    .mouth-grid{
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    .mouth-grid .hint{
+      font-size:13px;
+      color:rgba(255,255,255,0.75);
+      margin-bottom:8px;
+    }
+    .mouth-grid .grid-scroll{
+      flex:1;
+      overflow:auto;
+      padding-right:6px;
+    }
+    .mouth-grid .grid{
+      display:grid;
+      grid-template-columns: repeat(5, minmax(98px, 1fr));
+      gap:10px;
+    }
+
+    /* Script box in the top right corner */
+    .script-panel{
+      height:100%;
+      min-height:0;
+      background:#bfbfbf;
+      border:1px solid rgba(0,0,0,0.40);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.06) inset;
+      position:relative;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .script-panel textarea{
+      width:100%;
+      flex:1 1 auto;
+      min-height:0;
+      border:0;
+      outline:none;
+      resize:none;
+      padding:16px 18px 46px 18px;
+      background:transparent;
+      color:#1b1b1b;
+      font-size:14px;
+      line-height:1.35;
+      font-family: Arial, sans-serif;
+    }
+    .script-panel textarea::placeholder{
+      color:rgba(0,0,0,0.55);
+    }
+    .script-actions{
+      position:absolute;
+      right:14px;
+      bottom:12px;
+    }
+
+    /* Timeline */
+    .timeline-wrap{ margin-top:0; }
+    .timeline-scroll{ height:250px; }
+    .timeline-surface{ height:230px; }
+
+    /* Playhead: add a draggable handle */
+    .playhead{ pointer-events:none; }
+    .playhead .ph-handle{
+      pointer-events:auto;
+      position:absolute;
+      top:-2px;
+      left:-9px;
+      width:18px;
+      height:26px;
+      border-radius:4px;
+      background: linear-gradient(180deg, #f0b38c, #e08b62);
+      border:1px solid rgba(0,0,0,0.45);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+      cursor:grab;
+    }
+    .playhead .ph-handle:active{ cursor:grabbing; }
+    .playhead .ph-lines{
+      position:absolute;
+      left:4px;
+      right:4px;
+      top:7px;
+      height:12px;
+      opacity:0.75;
+    }
+    .playhead .ph-lines::before{
+      content:"";
+      position:absolute;
+      left:0;
+      right:0;
+      top:0;
+      bottom:0;
+      background:
+        linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)) 0 0/100% 2px no-repeat,
+        linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)) 0 5px/100% 2px no-repeat,
+        linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)) 0 10px/100% 2px no-repeat;
+    }
+
+    /* Context menu */
+    .ctx-menu{
+      position:fixed;
+      display:none;
+      z-index:10000;
+      background: rgba(20,24,30,0.98);
+      border:1px solid rgba(255,255,255,0.14);
+      border-radius:10px;
+      min-width:170px;
+      padding:6px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.55);
+    }
+    .ctx-menu button{
+      width:100%;
+      text-align:left;
+      padding:10px 10px;
+      border:0;
+      border-radius:8px;
+      background:transparent;
+      color:rgba(255,255,255,0.92);
+      cursor:pointer;
+      font-size:14px;
+    }
+    .ctx-menu button:hover{
+      background: rgba(255,255,255,0.10);
+    }
+
+    /* Hide legacy top auto button (kept for wiring) */
+    #btn-auto{ display:none; }
+    .mouth-svg-img{ width:100%; height:100%; object-fit:contain; display:block; }
+
+
+  </style>
+</head>
+
+<body>
+  <div class="app" id="app">
+    <div class="menu" id="menuMain">
+      <button class="btn small" id="btn-load">Load Audio</button>
+      <button class="btn small" id="btn-load-project">Load Project</button>
+
+      <button class="btn small" id="btn-play">Play</button>
+      <button class="btn small danger" id="btn-stop">Stop</button>
+
+      <div class="group">
+        <span class="label">FPS</span>
+        <input id="inp-fps" type="number" min="1" max="120" value="24">
+      </div>
+
+      <div class="group">
+        <span class="label">Wick clip</span>
+        <input id="inp-clipname" type="text" value="" placeholder="Clip name">
+      </div>
+
+      <button class="btn small" id="btn-download">Save Project</button>
+      <button class="btn small" id="btn-send">Update Wick</button>
+
+      <!-- kept hidden for wiring; the visible auto-map is in the script corner -->
+      <button class="btn small" id="btn-auto" style="display:none">Auto map</button>
+
+      <div class="spacer"></div>
+      <div class="status" id="status">Ready</div>
+
+      <input id="file-audio" type="file" accept="audio/*" style="display:none">
+      <input id="file-project" type="file" accept="application/json,.json,.lipproj" style="display:none">
+    </div>
+<div class="layout-mid">
+      <div class="panel mouth-preview">
+        <div class="svg-host" id="currentMouthHost"></div>
+      </div>
+
+      <div class="panel mouth-grid">
+        <div class="hint">Select a mouth, then drag or resize blocks on the timeline. Double click the timeline (or use Add mouth) to insert at the playhead.</div>
+        <div class="grid-scroll">
+          <div class="grid" id="mouthGrid"></div>
+        </div>
+      </div>
+
+      <div class="panel script-panel script-corner">
+        <textarea id="scriptText" spellcheck="false" placeholder="Type the script here..."></textarea>
+        <div class="script-actions">
+          <button class="btn small darktone" id="btn-auto-bottom">Auto map</button>
+        </div>
+
+        <!-- hidden status text used by the JS -->
+        <div style="display:none">
+          <span id="selectedBlockLabel">None</span>
+          <span id="totalBlocks">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="menu secondary" id="menuMouth">
+      <button class="btn small" id="btn-zoom-out">Zoom</button>
+      <button class="btn small" id="btn-zoom-in">Zoom+</button>
+      <button class="btn small" id="btn-clear">Clear</button>
+      <button class="btn small" id="btn-insert">Add mouth</button>
+      <button class="btn small danger" id="btn-delete-block">Delete mouth</button>
+    </div>
+
+<div class="panel timeline-wrap" id="timelinePanel">
+      <div class="timeline-scroll" id="timelineScroll">
+        <div class="timeline-surface" id="timelineSurface">
+          <canvas id="timelineCanvas" width="800" height="230"></canvas>
+          <div class="playhead" id="playhead" style="left:0px"><div class="ph-handle" id="playheadHandle" title="Drag to scrub"><div class="ph-lines"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    
+
+    
+    <div class="ctx-menu" id="ctxMenu">
+      <button id="ctxDeleteMouth">Delete mouth</button>
+    </div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <div class="head">
+        <div>Download</div>
+        <button class="btn small" id="btn-close-modal">Close</button>
+      </div>
+      <div class="body">
+        <button class="btn" id="dl-frame-json">Frame map JSON</button>
+        <button class="btn" id="dl-frame-csv">Frame map CSV</button>
+        <button class="btn" id="dl-blocks-json">Blocks JSON</button>
+        <button class="btn" id="dl-papagayo-dat">Papagayo DAT (simple)</button>
+      </div>
+      <div class="foot">
+        <div class="hint">“Send to Wick” writes to localStorage keys: wick-lipsync-frame-map and wick-lipsync-blocks</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+var F_Screen = 1;
+(function(){
+  "use strict";
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+  function el(q){ return document.querySelector(q); }
+  function setStatus(t){ el("#status").textContent = t; }
+
+  function closeCtxMenu(){
+    if (App.ui && App.ui.ctxMenu) App.ui.ctxMenu.style.display = "none";
+  }
+
+  function openCtxMenu(clientX, clientY){
+    if (!App.ui || !App.ui.ctxMenu) return;
+    const m = App.ui.ctxMenu;
+
+    m.style.display = "block";
+    m.style.left = clientX + "px";
+    m.style.top = clientY + "px";
+
+    const r = m.getBoundingClientRect();
+    let x = clientX;
+    let y = clientY;
+
+    if (x + r.width > window.innerWidth - 6) x = Math.max(6, window.innerWidth - r.width - 6);
+    if (y + r.height > window.innerHeight - 6) y = Math.max(6, window.innerHeight - r.height - 6);
+
+    m.style.left = x + "px";
+    m.style.top = y + "px";
+  }
+
+  function uid(prefix){ return prefix + Math.random().toString(16).slice(2) + Date.now().toString(16); }
+  // (Mouth SVGs are embedded as data URIs in MOUTH_IMAGES)
+
+  // Mouth palette: Disney/Hanna letter order (A–I), with an extra Rest button.
+  // Internally we still keep the existing keys (rest, MBP, O, etc...) so older projects load.
+  const MOUTH_ORDER = ["rest","MBP","O","etc","E","AI","FV","L","U","WQ"]; // A..I..Rest
+
+  const MOUTH_LABELS = {
+    "rest": "A",
+    "MBP": "B",
+    "O": "C",
+    "etc": "D",
+    "E": "E",
+    "AI": "F",
+    "FV": "G",
+    "L": "H",
+    "U": "I",
+    "WQ": "Rest"
+  };
+
+  function mouthLabel(mouthKey){
+    return MOUTH_LABELS[mouthKey] || mouthKey;
+  }
+
+  const App = {
+    fps: 24,
+    pxPerFrame: 10,
+    zoomMin: 4,
+    zoomMax: 28,
+
+    audioCtx: null,
+    audioBuffer: null,
+    audioUrl: "",
+    peaks: [],
+    totalFrames: 300,
+
+    playheadFrame: 0,
+    isPlaying: false,
+    raf: 0,
+    playSource: null,
+    masterVolume: 0.85,
+    masterGain: null,
+
+    scrubEnabled: true,
+    scrubSource: null,
+    scrubLastAt: 0,
+
+    selectedMouth: "rest",
+    blocks: [],
+    selectedBlockId: "",
+    frameMap: [],
+
+    ui: {}
+  };
+
+  function ensureAudioCtx(){
+    if (App.audioCtx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx){
+      setStatus("WebAudio not supported");
+      return;
+    }
+    App.audioCtx = new Ctx();
+
+    // Master output so scrub and play match volume
+    App.masterGain = App.audioCtx.createGain();
+    App.masterGain.gain.value = App.masterVolume;
+    App.masterGain.connect(App.audioCtx.destination);
+  }
+
+  function resumeAudioCtx(){
+    if (!App.audioCtx) return;
+    if (App.audioCtx.state === "suspended"){
+      try{ App.audioCtx.resume(); }catch(e){}
+    }
+  }
+
+  // SVGs embedded as data URIs so they always render inside HTML (no separate files required)
+  const MOUTH_IMAGES = {
+    "rest": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiPgo8cGF0aCBkPSJNMCAwIEM5OSAwIDE5OCAwIDMwMCAwIEMzMDAgOTkgMzAwIDE5OCAzMDAgMzAwIEMyMDEgMzAwIDEwMiAzMDAgMCAzMDAgQzAgMjAxIDAgMTAyIDAgMCBaICIgZmlsbD0iI0ZFRkVGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwwKSIvPgo8cGF0aCBkPSJNMCAwIEMxLjg1MjUzOTA2IDAuMjAxOTA0MyAxLjg1MjUzOTA2IDAuMjAxOTA0MyA0IDEgQzUuMjgwMjczNDQgMy4wNjk1ODAwOCA1LjI4MDI3MzQ0IDMuMDY5NTgwMDggNi4zNTkzNzUgNS43Njk1MzEyNSBDNi43NTI1MzkwNiA2Ljc0MDgzOTg0IDcuMTQ1NzAzMTMgNy43MTIxNDg0NCA3LjU1MDc4MTI1IDguNzEyODkwNjIgQzcuOTQ2NTIzNDQgOS43MzU3NjE3MiA4LjM0MjI2NTYzIDEwLjc1ODYzMjgxIDguNzUgMTEuODEyNSBDOS4xNjEyMTA5NCAxMi44MjM3Njk1MyA5LjU3MjQyMTg4IDEzLjgzNTAzOTA2IDkuOTk2MDkzNzUgMTQuODc2OTUzMTIgQzEzIDIyLjQyNjYzNzc3IDEzIDIyLjQyNjYzNzc3IDEzIDI3IEMxMC43NSAyNyAxMC43NSAyNyA4IDI2IEM2LjMyODAxMjMyIDIzLjQ3MzMyMjEzIDUuMTQxOTQ0MjkgMjAuODAwNjM0MzIgNCAxOCBDMy4xNjk4NDM3NSAxOC40MjQxMDE1NiAyLjMzOTY4NzUgMTguODQ4MjAzMTIgMS40ODQzNzUgMTkuMjg1MTU2MjUgQy0zOS4yNzAxOTk1NCAzOS4wNzA0Nzc2MyAtOTUuMjk3OTUyMTUgNDEuMDUwNjM2NTQgLTEzOC42MzI4MTI1IDI4LjIwMzEyNSBDLTE1NS45OTk1NTUzOSAyMS45OTc4Mzg2OCAtMTU1Ljk5OTU1NTM5IDIxLjk5NzgzODY4IC0xNjIgMTcgQy0xNjEuNTA1IDE1LjUxNSAtMTYxLjUwNSAxNS41MTUgLTE2MSAxNCBDLTE1Ny4zMTA5NTEzNiAxNC4zNzgzNjM5NiAtMTU0LjM0MDQ4MjE4IDE1LjIyNzE4MDI2IC0xNTEuMDMxMjUgMTYuODIwMzEyNSBDLTE0NS40ODg3NzY0OCAxOS4zMzA0NTE5NSAtMTM5Ljc5MjI4OTU1IDIxLjAwMjQ0ODI2IC0xMzMuOTM3NSAyMi42MjUgQy0xMzIuMjg0NzYwNzQgMjMuMDg0NDcwMjEgLTEzMi4yODQ3NjA3NCAyMy4wODQ0NzAyMSAtMTMwLjU5ODYzMjgxIDIzLjU1MzIyMjY2IEMtMTIyLjA0Nzk5Mzk1IDI1Ljg1OTE2NzU1IC0xMTMuODI1OTIwMDggMjcuMzIyNjE1NjEgLTEwNSAyOCBDLTEwMy45ODE2NDA2MiAyOC4xMDgyODEyNSAtMTAyLjk2MzI4MTI1IDI4LjIxNjU2MjUgLTEwMS45MTQwNjI1IDI4LjMyODEyNSBDLTg0LjI2MDU2NzA3IDMwLjA1MjYzMDk4IC02Ni41NjQ1NDAxMyAyOS4xMzMzMDMyMyAtNDkgMjcgQy00OC4yMjEyNDUxMiAyNi45MTQxMTYyMSAtNDcuNDQyNDkwMjMgMjYuODI4MjMyNDIgLTQ2LjY0MDEzNjcyIDI2LjczOTc0NjA5IEMtMzAuMzczMDY0NiAyNC45MDYyMDQzMiAtMTMuNTU2MzQ4MDkgMjAuNTk4NzQ2MTUgMSAxMyBDMS42NiAxMyAyLjMyIDEzIDMgMTMgQzIuNTQ5NDcyNjYgMTIuMDk1MDc4MTMgMi41NDk0NzI2NiAxMi4wOTUwNzgxMyAyLjA4OTg0Mzc1IDExLjE3MTg3NSBDMS41MTk0MzM1OSA5Ljk3MzA0Njg3IDEuNTE5NDMzNTkgOS45NzMwNDY4NyAwLjkzNzUgOC43NSBDMC41NTQ2NDg0NCA3Ljk2MTA5Mzc1IDAuMTcxNzk2ODggNy4xNzIxODc1IC0wLjIyMjY1NjI1IDYuMzU5Mzc1IEMtMS4wODU2NDA5MSAzLjc0MDA2NDc4IC0wLjkzMDQ1OTMzIDIuNTUxNDQ4MjQgMCAwIFogIiBmaWxsPSIjMTAxMDEwIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMjUsMTA5KSIvPgo8L3N2Zz4K",
+    "MBP": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiPgo8cGF0aCBkPSJNMCAwIEM5OSAwIDE5OCAwIDMwMCAwIEMzMDAgOTkgMzAwIDE5OCAzMDAgMzAwIEMyMDEgMzAwIDEwMiAzMDAgMCAzMDAgQzAgMjAxIDAgMTAyIDAgMCBaICIgZmlsbD0iI0ZFRkVGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwwKSIvPgo8cGF0aCBkPSJNMCAwIEMxLjg1MjUzOTA2IDAuMjAxOTA0MyAxLjg1MjUzOTA2IDAuMjAxOTA0MyA0IDEgQzUuMjgwMjczNDQgMy4wNjk1ODAwOCA1LjI4MDI3MzQ0IDMuMDY5NTgwMDggNi4zNTkzNzUgNS43Njk1MzEyNSBDNi43NTI1MzkwNiA2Ljc0MDgzOTg0IDcuMTQ1NzAzMTMgNy43MTIxNDg0NCA3LjU1MDc4MTI1IDguNzEyODkwNjIgQzcuOTQ2NTIzNDQgOS43MzU3NjE3MiA4LjM0MjI2NTYzIDEwLjc1ODYzMjgxIDguNzUgMTEuODEyNSBDOS4xNjEyMTA5NCAxMi44MjM3Njk1MyA5LjU3MjQyMTg4IDEzLjgzNTAzOTA2IDkuOTk2MDkzNzUgMTQuODc2OTUzMTIgQzEzIDIyLjQyNjYzNzc3IDEzIDIyLjQyNjYzNzc3IDEzIDI3IEMxMC42MjUgMjYuNzUgMTAuNjI1IDI2Ljc1IDggMjYgQzYuMjA1ODI0MiAyMy40MzY4OTE3MiA2IDIyLjE2ODgwNjk0IDYgMTkgQzUuMzQgMTkgNC42OCAxOSA0IDE5IEMzLjU2ODkyOTQ0IDE5Ljg2NDc5OTggMy41Njg5Mjk0NCAxOS44NjQ3OTk4IDMuMTI5MTUwMzkgMjAuNzQ3MDcwMzEgQy05LjcyMTkzMzk4IDQ2LjM4ODEwOTU2IC05LjcyMTkzMzk4IDQ2LjM4ODEwOTU2IC0yMi4zMTI1IDUxLjMxMjUgQy0yNC4xOTkyNTY4OCA1MS45MDQ3MzIwMiAtMjYuMDk1NjY0NDYgNTIuNDY2OTkzMDQgLTI4IDUzIEMtMjguOTQ4NzUgNTMuMjg2MTcxODggLTI5Ljg5NzUgNTMuNTcyMzQzNzUgLTMwLjg3NSA1My44NjcxODc1IEMtNDUuNjkyMjI1MzQgNTguMDA0OTc2NDkgLTYxLjQ5MjAwNDU0IDU3LjIzNzAzMTggLTc2Ljc1IDU3LjI1IEMtNzcuNzg4NTkxNjEgNTcuMjUxNjcxNzUgLTc4LjgyNzE4MzIzIDU3LjI1MzM0MzUxIC03OS44OTcyNDczMSA1Ny4yNTUwNjU5MiBDLTEzMC4yNjQyOTExNCA1Ny4yNTk5MjE2NSAtMTMwLjI2NDI5MTE0IDU3LjI1OTkyMTY1IC0xNDMgNDggQy0xNDguMTY4NzE5MzggNDIuMzcxNTYyNzkgLTE1MC44MTA4MTg3MSAzNS4xMzQ4OTE5OCAtMTUzLjYwNTQ2ODc1IDI4LjEzNjcxODc1IEMtMTU0LjgzNTc2NDcyIDI1LjM2OTQxNDM4IC0xNTYuMTYyMzgxNjYgMjMuMzY4ODQ3MjUgLTE1OCAyMSBDLTE1OCAyMC4zNCAtMTU4IDE5LjY4IC0xNTggMTkgQy0xNTkuMzIgMTguMzQgLTE2MC42NCAxNy42OCAtMTYyIDE3IEMtMTYxLjUwNSAxNS41MTUgLTE2MS41MDUgMTUuNTE1IC0xNjEgMTQgQy0xNTYuMzIzMDYyNDIgMTQuNDc5Njg1OTEgLTE1Mi43Mjc5MzQ0IDE1Ljk1MzA1MTkyIC0xNDguNTMwNzYxNzIgMTcuOTA5NDIzODMgQy0xMDYuMTEwOTQzMzggMzYuMTg5MzEyNzUgLTQ5LjU5NDEwMTY1IDMyLjU0MDU4NTk4IC03LjA4NTQ0OTIyIDE2LjgzOTM1NTQ3IEMtNC4zMDc2NDExNCAxNS43MjEzMzgxMiAtMS42NjkyNTIxOSAxNC4zNTMxMzQwMSAxIDEzIEMxLjY2IDEzIDIuMzIgMTMgMyAxMyBDMi41NDk0NzI2NiAxMi4wOTUwNzgxMyAyLjU0OTQ3MjY2IDEyLjA5NTA3ODEzIDIuMDg5ODQzNzUgMTEuMTcxODc1IEMxLjUxOTQzMzU5IDkuOTczMDQ2ODcgMS41MTk0MzM1OSA5Ljk3MzA0Njg3IDAuOTM3NSA4Ljc1IEMwLjU1NDY0ODQ0IDcuOTYxMDkzNzUgMC4xNzE3OTY4OCA3LjE3MjE4NzUgLTAuMjIyNjU2MjUgNi4zNTkzNzUgQy0xLjA4NTY0MDkxIDMuNzQwMDY0NzggLTAuOTMwNDU5MzMgMi41NTE0NDgyNCAwIDAgWiAiIGZpbGw9IiNGQkZCRkIiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIyNSwxMDkpIi8+CjxwYXRoIGQ9Ik0wIDAgQzEuODUyNTM5MDYgMC4yMDE5MDQzIDEuODUyNTM5MDYgMC4yMDE5MDQzIDQgMSBDNS4yODAyNzM0NCAzLjA2OTU4MDA4IDUuMjgwMjczNDQgMy4wNjk1ODAwOCA2LjM1OTM3NSA1Ljc2OTUzMTI1IEM2Ljc1MjUzOTA2IDYuNzQwODM5ODQgNy4xNDU3MDMxMyA3LjcxMjE0ODQ0IDcuNTUwNzgxMjUgOC43MTI4OTA2MiBDNy45NDY1MjM0NCA5LjczNTc2MTcyIDguMzQyMjY1NjMgMTAuNzU4NjMyODEgOC43NSAxMS44MTI1IEM5LjE2MTIxMDk0IDEyLjgyMzc2OTUzIDkuNTcyNDIxODggMTMuODM1MDM5MDYgOS45OTYwOTM3NSAxNC44NzY5NTMxMiBDMTMgMjIuNDI2NjM3NzcgMTMgMjIuNDI2NjM3NzcgMTMgMjcgQzEwLjYyNSAyNi43NSAxMC42MjUgMjYuNzUgOCAyNiBDNi4yMDU4MjQyIDIzLjQzNjg5MTcyIDYgMjIuMTY4ODA2OTQgNiAxOSBDNS4zNCAxOSA0LjY4IDE5IDQgMTkgQzMuNTY4OTI5NDQgMTkuODY0Nzk5OCAzLjU2ODkyOTQ0IDE5Ljg2NDc5OTggMy4xMjkxNTAzOSAyMC43NDcwNzAzMSBDLTkuNzIxOTMzOTggNDYuMzg4MTA5NTYgLTkuNzIxOTMzOTggNDYuMzg4MTA5NTYgLTIyLjMxMjUgNTEuMzEyNSBDLTI0LjE5OTI1Njg4IDUxLjkwNDczMjAyIC0yNi4wOTU2NjQ0NiA1Mi40NjY5OTMwNCAtMjggNTMgQy0yOC45NDg3NSA1My4yODYxNzE4OCAtMjkuODk3NSA1My41NzIzNDM3NSAtMzAuODc1IDUzLjg2NzE4NzUgQy00NS42OTIyMjUzNCA1OC4wMDQ5NzY0OSAtNjEuNDkyMDA0NTQgNTcuMjM3MDMxOCAtNzYuNzUgNTcuMjUgQy03Ny43ODg1OTE2MSA1Ny4yNTE2NzE3NSAtNzguODI3MTgzMjMgNTcuMjUzMzQzNTEgLTc5Ljg5NzI0NzMxIDU3LjI1NTA2NTkyIEMtMTMwLjI2NDI5MTE0IDU3LjI1OTkyMTY1IC0xMzAuMjY0MjkxMTQgNTcuMjU5OTIxNjUgLTE0MyA0OCBDLTE0OC4xNjg3MTkzOCA0Mi4zNzE1NjI3OSAtMTUwLjgxMDgxODcxIDM1LjEzNDg5MTk4IC0xNTMuNjA1NDY4NzUgMjguMTM2NzE4NzUgQy0xNTQuODM1NzY0NzIgMjUuMzY5NDE0MzggLTE1Ni4xNjIzODE2NiAyMy4zNjg4NDcyNSAtMTU4IDIxIEMtMTU4IDIwLjM0IC0xNTggMTkuNjggLTE1OCAxOSBDLTE1OS4zMiAxOC4zNCAtMTYwLjY0IDE3LjY4IC0xNjIgMTcgQy0xNjEuNTA1IDE1LjUxNSAtMTYxLjUwNSAxNS41MTUgLTE2MSAxNCBDLTE1Ni4zMjMwNjI0MiAxNC40Nzk2ODU5MSAtMTUyLjcyNzkzNDQgMTUuOTUzMDUxOTIgLTE0OC41MzA3NjE3MiAxNy45MDk0MjM4MyBDLTEwNi4xMTA5NDMzOCAzNi4xODkzMTI3NSAtNDkuNTk0MTAxNjUgMzIuNTQwNTg1OTggLTcuMDg1NDQ5MjIgMTYuODM5MzU1NDcgQy00LjMwNzY0MTE0IDE1LjcyMTMzODEyIC0xLjY2OTI1MjE5IDE0LjM1MzEzNDAxIDEgMTMgQzEuNjYgMTMgMi4zMiAxMyAzIDEzIEMyLjU0OTQ3MjY2IDEyLjA5NTA3ODEzIDIuNTQ5NDcyNjYgMTIuMDk1MDc4MTMgMi4wODk4NDM3NSAxMS4xNzE4NzUgQzEuNTE5NDMzNTkgOS45NzMwNDY4NyAxLjUxOTQzMzU5IDkuOTczMDQ2ODcgMC45Mzc1IDguNzUgQzAuNTU0NjQ4NDQgNy45NjEwOTM3NSAwLjE3MTc5Njg4IDcuMTcyMTg3NSAtMC4yMjI2NTYyNSA2LjM1OTM3NSBDLTEuMDg1NjQwOTEgMy43NDAwNjQ3OCAtMC45MzA0NTkzMyAyLjU1MTQ0ODI0IDAgMCBaIE0tOS45MjU3ODEyNSAyMi44MDg1OTM3NSBDLTU0LjQ4OTQ1MzY4IDM5LjI2NzIyMTE4IC0xMDMuOTQ4MDcyOCAzNy4wMzUwMjQyNyAtMTQ5IDI0IEMtMTQ2LjAyMjUzMDYgMzMuNzQ0NDQ1MzEgLTE0My40MTMwODk3MyA0MS44NjI2ODE3MiAtMTM0LjA4ODM3ODkxIDQ3LjA2Njg5NDUzIEMtMTI2LjMwODU5Njk5IDUwLjU0Mjk2NzMgLTExNi45OTIwMjYzIDUwLjU4MTM4OTEyIC0xMDguNjI1IDUxLjEyNSBDLTEwNy4zNDM2NzE4NyA1MS4yMDkxOTE4OSAtMTA2LjA2MjM0Mzc1IDUxLjI5MzM4Mzc5IC0xMDQuNzQyMTg3NSA1MS4zODAxMjY5NSBDLTk0LjE2MzgxMTUxIDUyLjAyNjY4OTk3IC04My41OTYyNjEzNCA1Mi4xODgzMjg5OCAtNzMgNTIuMTg3NSBDLTcyLjI1MDk5NDI2IDUyLjE4ODQwNjM3IC03MS41MDE5ODg1MyA1Mi4xODkzMTI3NCAtNzAuNzMwMjg1NjQgNTIuMTkwMjQ2NTggQy01MS44NDQ0Nzc1MSA1Mi4yMzkyNzAzNSAtNTEuODQ0NDc3NTEgNTIuMjM5MjcwMzUgLTMzLjI1IDQ5LjMxMjUgQy0zMi41Mzc1NTEyNyA0OS4xNDA5NzQxMiAtMzEuODI1MTAyNTQgNDguOTY5NDQ4MjQgLTMxLjA5MTA2NDQ1IDQ4Ljc5MjcyNDYxIEMtMjEuOTk5ODg0OTggNDYuNDMxMzkyNyAtMTQuODA4MjcyOTcgNDIuNDY4OTA3MSAtOS45MzYyNzkzIDM0LjE5MzExNTIzIEMtOC44NDU0MTczIDMyLjIwNTAzMDk5IC03Ljc5MTAzNDI0IDMwLjIwMjA5NDA0IC02Ljc1IDI4LjE4NzUgQy02LjM4NjQ4NDM4IDI3LjQ5NDYyODkxIC02LjAyMjk2ODc1IDI2LjgwMTc1NzgxIC01LjY0ODQzNzUgMjYuMDg3ODkwNjIgQy00Ljc2MDgzMTEzIDI0LjM5NDQzMTEgLTMuODc5NzQxMTUgMjIuNjk3NTU4NzYgLTMgMjEgQy01LjYxODY1MjIxIDIxIC03LjQ3NzQ5MDk5IDIxLjg3MDQ5NjczIC05LjkyNTc4MTI1IDIyLjgwODU5Mzc1IFogIiBmaWxsPSIjMEUwRTBFIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMjUsMTA5KSIvPgo8L3N2Zz4K",
+    "O": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiPgo8cGF0aCBkPSJNMCAwIEM5OSAwIDE5OCAwIDMwMCAwIEMzMDAgOTkgMzAwIDE5OCAzMDAgMzAwIEMyMDEgMzAwIDEwMiAzMDAgMCAzMDAgQzAgMjAxIDAgMTAyIDAgMCBaICIgZmlsbD0iI0ZFRkVGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwwKSIvPgo8cGF0aCBkPSJNMCAwIEMxLjg1MjUzOTA2IDAuMjAxOTA0MyAxLjg1MjUzOTA2IDAuMjAxOTA0MyA0IDEgQzUuMjgwMjczNDQgMy4wNjk1ODAwOCA1LjI4MDI3MzQ0IDMuMDY5NTgwMDggNi4zNTkzNzUgNS43Njk1MzEyNSBDNi43NTI1MzkwNiA2Ljc0MDgzOTg0IDcuMTQ1NzAzMTMgNy43MTIxNDg0NCA3LjU1MDc4MTI1IDguNzEyODkwNjIgQzcuOTQ2NTIzNDQgOS43MzU3NjE3MiA4LjM0MjI2NTYzIDEwLjc1ODYzMjgxIDguNzUgMTEuODEyNSBDOS4xNjEyMTA5NCAxMi44MjM3Njk1MyA5LjU3MjQyMTg4IDEzLjgzNTAzOTA2IDkuOTk2MDkzNzUgMTQuODc2OTUzMTIgQzEzIDIyLjQyNjYzNzc3IDEzIDIyLjQyNjYzNzc3IDEzIDI3IEM4LjQxMDU3NjkyIDI2LjUwMzg0NjE1IDguNDEwNTc2OTIgMjYuNTAzODQ2MTUgNi4zMzIwMzEyNSAyMy45NTMxMjUgQzUuNjcyNjc1NzggMjIuOTg2MzI4MTIgNS42NzI2NzU3OCAyMi45ODYzMjgxMiA1IDIyIEM0LjQ0MzEyNSAyMy4wOTk1NzAzMSAzLjg4NjI1IDI0LjE5OTE0MDYyIDMuMzEyNSAyNS4zMzIwMzEyNSBDLTEuMTc4NTM0MjYgMzQuMDgyMDYxMzUgLTUuNzk0OTAxMTIgNDIuMzE4MDg3NTggLTEyIDUwIEMtMTIuNjIzOTA2MjUgNTAuNzg3NjE3MTkgLTEzLjI0NzgxMjUgNTEuNTc1MjM0MzggLTEzLjg5MDYyNSA1Mi4zODY3MTg3NSBDLTI0LjcwNTQ3ODI1IDY1LjMzMzc2ODY3IC0zOC4yMjQ2MjMzOCA3Mi4wNjUwODg5NSAtNTQuODY2MzAyNDkgNzMuODI1MDEyMjEgQy02MS4zNTM0Njc0OSA3NC4zNTcwMzQ1MiAtNjcuODcyODA3MzQgNzQuMjkyMzYyOTQgLTc0LjM3Njk1MzEyIDc0LjI2MDc0MjE5IEMtNzYuOTk2MzI5MTIgNzQuMjUwMDE1MDMgLTc5LjYxNTAxOTU3IDc0LjI2MDcwMzE2IC04Mi4yMzQzNzUgNzQuMjczNDM3NSBDLTk5Ljc2NjI0NDUyIDc0LjI4ODEyMjM3IC0xMjEuNjc2OTQ0MTMgNzMuOTc0ODk3MjggLTEzNS41MTM2NzE4OCA2MS42NDQyODcxMSBDLTE0Mi4xNDY1ODYyNiA1NC4zMDY0NjIxNSAtMTQ1LjkzMTczOTgxIDQ1LjEwNzQxMzk5IC0xNDkuNDM3NSAzNiBDLTE0OS44ODI4NzEwOSAzNC44ODIzODI4MSAtMTUwLjMyODI0MjE5IDMzLjc2NDc2NTYyIC0xNTAuNzg3MTA5MzggMzIuNjEzMjgxMjUgQy0xNTQgMjQuNDMwNTI3NTUgLTE1NCAyNC40MzA1Mjc1NSAtMTU0IDIxIEMtMTU0Ljk0ODc1IDIwLjc1MjUgLTE1NS44OTc1IDIwLjUwNSAtMTU2Ljg3NSAyMC4yNSBDLTE2MCAxOSAtMTYwIDE5IC0xNjEuMzc1IDE2Ljg3NSBDLTE2MS41ODEyNSAxNi4yNTYyNSAtMTYxLjc4NzUgMTUuNjM3NSAtMTYyIDE1IEMtMTU5LjI5NDY0NjAzIDEzLjk0ODYzMDIxIC0xNTguMTM1MTIzNDYgMTMuOTU0ODI2NzYgLTE1NS4zMzU5Mzc1IDE0Ljg5MDYyNSBDLTE1NC4zNTg4MjgxMyAxNS4zMzkyMTg3NSAtMTUzLjM4MTcxODc1IDE1Ljc4NzgxMjUgLTE1Mi4zNzUgMTYuMjUgQy0xMDguODkzMjM0NDYgMzYuMDY3NDI2NjUgLTUxLjExOTc4NTE5IDMzLjEwNDEyMDg4IC03LjA4NTQ0OTIyIDE2LjgzOTM1NTQ3IEMtNC4zMDc2NDExNCAxNS43MjEzMzgxMiAtMS42NjkyNTIxOSAxNC4zNTMxMzQwMSAxIDEzIEMxLjY2IDEzIDIuMzIgMTMgMyAxMyBDMi41NDk0NzI2NiAxMi4wOTUwNzgxMyAyLjU0OTQ3MjY2IDEyLjA5NTA3ODEzIDIuMDg5ODQzNzUgMTEuMTcxODc1IEMxLjUxOTQzMzU5IDkuOTczMDQ2ODcgMS41MTk0MzM1OSA5Ljk3MzA0Njg3IDAuOTM3NSA4Ljc1IEMwLjU1NDY0ODQ0IDcuOTYxMDkzNzUgMC4xNzE3OTY4OCA3LjE3MjE4NzUgLTAuMjIyNjU2MjUgNi4zNTkzNzUgQy0xLjA4NTY0MDkxIDMuNzQwMDY0NzggLTAuOTMwNDU5MzMgMi41NTE0NDgyNCAwIDAgWiAiIGZpbGw9IiMwRjBCMEIiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIyNSwxMDkpIi8+CjxwYXRoIGQ9Ik0wIDAgQzAuOTkgMC40OTUgMC45OSAwLjQ5NSAyIDEgQzAuNTkzMDUzMDggMy45NDQxODM0NyAtMC44ODM3OTA1OCA2Ljg0NzcwNTg1IC0yLjM3NSA5Ljc1IEMtMi45NjQ3NDYwOSAxMC45ODc1IC0yLjk2NDc0NjA5IDEwLjk4NzUgLTMuNTY2NDA2MjUgMTIuMjUgQy02LjU0NDAxMzcyIDE3LjkzMDM1ODg2IC05LjI1NTI3NTk1IDIwLjI4MDAzODAzIC0xNS4zNTg4ODY3MiAyMi4yNjk1MzEyNSBDLTE2LjIzMDQ1NDEgMjIuNTEwNTg1OTQgLTE3LjEwMjAyMTQ4IDIyLjc1MTY0MDYyIC0xOCAyMyBDLTE4LjgwODQwMzMyIDIzLjI0MTA1NDY5IC0xOS42MTY4MDY2NCAyMy40ODIxMDkzNyAtMjAuNDQ5NzA3MDMgMjMuNzMwNDY4NzUgQy01MS4wODI1NzExOCAzMi4zOTI1NTkyIC04NS43NzY4NDE3OCAzMi44MjMwMDcyNiAtMTE3IDI3IEMtMTE3Ljg2NTEyMjA3IDI2LjgzOTUxMTcyIC0xMTguNzMwMjQ0MTQgMjYuNjc5MDIzNDQgLTExOS42MjE1ODIwMyAyNi41MTM2NzE4OCBDLTEyMi4xMjg1NTU4OSAyNi4wMzM2NDMwOSAtMTI0LjYyNzU4NDcxIDI1LjUyNzM4MjMgLTEyNy4xMjUgMjUgQy0xMjcuODU0MDQ1NDEgMjQuODQ2Mjc5MyAtMTI4LjU4MzA5MDgyIDI0LjY5MjU1ODU5IC0xMjkuMzM0MjI4NTIgMjQuNTM0MTc5NjkgQy0xMzMuMzcwOTgwNjMgMjMuNjA0NzMwODYgLTEzNi43NzI1NTI0IDIyLjYzODUzOTQ1IC0xNDAgMjAgQy0xNDEuNTgyMDMxMjUgMTYuOTMzNTkzNzUgLTE0MS41ODIwMzEyNSAxNi45MzM1OTM3NSAtMTQyLjgxMjUgMTMuNDM3NSBDLTE0My40NDA5MTc5NyAxMS43MDMwNjY0MSAtMTQzLjQ0MDkxNzk3IDExLjcwMzA2NjQxIC0xNDQuMDgyMDMxMjUgOS45MzM1OTM3NSBDLTE0NSA3IC0xNDUgNyAtMTQ1IDUgQy0xNDEuOTM0MTgxOTggNS41NTYyOTc2MiAtMTM4Ljk0MjIyMTYxIDYuMjcwNTY1MzIgLTEzNS45Mzc1IDcuMDg1OTM3NSBDLTkzLjc4NDM4MyAxOC4yNzA4MzY5NiAtNDIuMzg2MTEwODkgMTguNjk1ODM0OTQgLTEuOTIxMzg2NzIgMC42NTIwOTk2MSBDLTEuMjg3MzI5MSAwLjQzNjkwNjc0IC0wLjY1MzI3MTQ4IDAuMjIxNzEzODcgMCAwIFogIiBmaWxsPSIjRkFGQUZBIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMjMsMTI5KSIvPgo8cGF0aCBkPSJNMCAwIEMwLjY2MzA2MTUyIDAuMTQwOTkxMjEgMS4zMjYxMjMwNSAwLjI4MTk4MjQyIDIuMDA5Mjc3MzQgMC40MjcyNDYwOSBDNS4xMjkzOTI0NCAxLjA4NTMzMjIxIDguMjUyMTI2MSAxLjczMDEzNzQxIDExLjM3NSAyLjM3NSBDMTIuNDE2NTYyNSAyLjU5NjcxODc1IDEzLjQ1ODEyNSAyLjgxODQzNzUgMTQuNTMxMjUgMy4wNDY4NzUgQzMwLjAwMzEzNzMyIDYuMjE1ODE1NzggNDUuMzU4MTQwMzMgNy4zODYxNzk4MiA2MS4xMjUgNy4zMTI1IEM2MS45MjMzODI4NyA3LjMxMTAwOTUyIDYyLjcyMTc2NTc1IDcuMzA5NTE5MDQgNjMuNTQ0MzQyMDQgNy4zMDc5ODM0IEM4My41MTMwMjYzMyA3LjI0MTQwMzczIDEwMi42MTg2NTkyIDQuODIwODYzODEgMTIyIDAgQzExOS4yMjgxMTI5OSA0LjU4MTk2MjYyIDExNi4yMzI0MDYyNSA3Ljg4Mjk4NTE1IDExMS45Mzc1IDExLjEyNSBDMTExLjA3ODEzODQzIDExLjc3NTY1NDMgMTExLjA3ODEzODQzIDExLjc3NTY1NDMgMTEwLjIwMTQxNjAyIDEyLjQzOTQ1MzEyIEM5NS45ODQ0NjE0MyAyMi44MTM0MDI1NSA3OC40Mjg1ODQzNCAyMi40MDgzNDQyNiA2MS41NjI1IDIyLjM3NSBDNjAuNjI4OTA2NTYgMjIuMzc1MTIwODUgNTkuNjk1MzEzMTEgMjIuMzc1MjQxNyA1OC43MzM0Mjg5NiAyMi4zNzUzNjYyMSBDNDEuNTMxNjE0MjggMjIuMzQzNTc5NzkgMjUuNzI2MTM2MDYgMjEuNDg1MzU2MDQgMTAgMTQgQzEwIDEzLjM0IDEwIDEyLjY4IDEwIDEyIEM5LjQwNzAzMTI1IDExLjc3NTcwMzEzIDguODE0MDYyNSAxMS41NTE0MDYyNSA4LjIwMzEyNSAxMS4zMjAzMTI1IEM1LjM1NDk4NTgzIDkuNjEzNDQ4OTYgNC4zNzE5Nzk4MyA3Ljc1MDMyNzg4IDIuNzUgNC44NzUgQzEuOTY4ODI4MTMgMy41MDk4ODI4MSAxLjk2ODgyODEzIDMuNTA5ODgyODEgMS4xNzE4NzUgMi4xMTcxODc1IEMwLjc4NTE1NjI1IDEuNDE4NTE1NjIgMC4zOTg0Mzc1IDAuNzE5ODQzNzUgMCAwIFogIiBmaWxsPSIjRkI0QzRDIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4NiwxNTYpIi8+Cjwvc3ZnPgo=",
+    "etc": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiPgo8cGF0aCBkPSJNMCAwIEM5OSAwIDE5OCAwIDMwMCAwIEMzMDAgOTkgMzAwIDE5OCAzMDAgMzAwIEMyMDEgMzAwIDEwMiAzMDAgMCAzMDAgQzAgMjAxIDAgMTAyIDAgMCBaICIgZmlsbD0iI0ZFRkVGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwwKSIvPgo8cGF0aCBkPSJNMCAwIEMxLjg1MjUzOTA2IDAuMjAxOTA0MyAxLjg1MjUzOTA2IDAuMjAxOTA0MyA0IDEgQzUuMjgwMjczNDQgMy4wNjk1ODAwOCA1LjI4MDI3MzQ0IDMuMDY5NTgwMDggNi4zNTkzNzUgNS43Njk1MzEyNSBDNi43NTI1MzkwNiA2Ljc0MDgzOTg0IDcuMTQ1NzAzMTMgNy43MTIxNDg0NCA3LjU1MDc4MTI1IDguNzEyODkwNjIgQzcuOTQ2NTIzNDQgOS43MzU3NjE3MiA4LjM0MjI2NTYzIDEwLjc1ODYzMjgxIDguNzUgMTEuODEyNSBDOS4xNjEyMTA5NCAxMi44MjM3Njk1MyA5LjU3MjQyMTg4IDEzLjgzNTAzOTA2IDkuOTk2MDkzNzUgMTQuODc2OTUzMTIgQzEzIDIyLjQyNjYzNzc3IDEzIDIyLjQyNjYzNzc3IDEzIDI3IEMxMC43NSAyNyAxMC43NSAyNyA4IDI2IEM2LjMyODAxMjMyIDIzLjQ3MzMyMjEzIDUuMTQxOTQ0MjkgMjAuODAwNjM0MzIgNCAxOCBDMC4yNzQyMjIyNCAxOS42MzU4NTkwMiAtMC44NDE1NDY2NSAyMC42MjE2ODcyNiAtMi40NDE0MDYyNSAyNC40NDE0MDYyNSBDLTIuODMyNDE2NzUgMjUuODEwMjc2OTEgLTMuMjA1MzE4NzIgMjcuMTg0NDE1MjMgLTMuNTYyNSAyOC41NjI1IEMtMy45ODAyMzYwOCAzMC4wMjQyNTExOCAtNC40MDA4MDMgMzEuNDg1MTk2MzkgLTQuODI0MjE4NzUgMzIuOTQ1MzEyNSBDLTUuMTI0NjUwODggMzQuMDAxNTM4MDkgLTUuMTI0NjUwODggMzQuMDAxNTM4MDkgLTUuNDMxMTUyMzQgMzUuMDc5MTAxNTYgQy02LjM2MzcyNTAyIDM4LjIyODIzNTQxIC03LjU3NzQ3MzUzIDQxLjIyODkzMjk0IC04Ljg0NzY1NjI1IDQ0LjI1MzkwNjI1IEMtOS43ODI0MTQwNyA0Ni40ODE0ODE2NyAtMTAuNjc3OTk3ODYgNDguNzE1NzE4NjggLTExLjU1ODU5Mzc1IDUwLjk2NDg0Mzc1IEMtMTguMTk4NTQzOTYgNjcuNzgxNzcyNzkgLTI2LjUxMjkyNDYgODQuNTI0Mzc1OTMgLTQzLjMxNjQwNjI1IDkzLjE5NTMxMjUgQy01NC42OTg2NTEwOSA5Ny45MDY1NzIxIC02Ni41NjQzNjA4OSA5OC4zNjY0ODQ1MyAtNzguNzUgOTguMzEyNSBDLTgwLjA2NjA1MjI1IDk4LjMwNzU4NTQ1IC04MS4zODIxMDQ0OSA5OC4zMDI2NzA5IC04Mi43MzgwMzcxMSA5OC4yOTc2MDc0MiBDLTk4LjIxMDgwMjU4IDk4LjExMTY0ODE1IC0xMTYuODU2NDA4NTYgOTYuODI4NzM5NjMgLTEyOS40NTMxMjUgODYuNjY0MDYyNSBDLTEzNy43MDA1OTYzNSA3Ny43OTE3ODI3MSAtMTQwLjI1MDczMTM4IDY2LjM5NzExNjU1IC0xNDMgNTUgQy0xNDMuNTM0NzMwNTkgNTIuODQzNjQ0NCAtMTQ0LjA2OTkxMDg4IDUwLjY4NzQwMDI4IC0xNDQuNjA1NDY4NzUgNDguNTMxMjUgQy0xNDkuMTc4NTQwMDkgMjkuOTEzOTU0MjggLTE0OS4xNzg1NDAwOSAyOS45MTM5NTQyOCAtMTUwIDIzIEMtMTUwLjg2NjI1IDIyLjc1MjUgLTE1MS43MzI1IDIyLjUwNSAtMTUyLjYyNSAyMi4yNSBDLTE1Ni4xODMwMjI1NCAyMC45MzIyMTM4NyAtMTU4LjkyMjYxNTUgMTkuMTk4MTMxNzggLTE2MiAxNyBDLTE2MS41MDUgMTUuNTE1IC0xNjEuNTA1IDE1LjUxNSAtMTYxIDE0IEMtMTU2LjMyMzA2MjQyIDE0LjQ3OTY4NTkxIC0xNTIuNzI3OTM0NCAxNS45NTMwNTE5MiAtMTQ4LjUzMDc2MTcyIDE3LjkwOTQyMzgzIEMtMTA2LjExMDk0MzM4IDM2LjE4OTMxMjc1IC00OS41OTQxMDE2NSAzMi41NDA1ODU5OCAtNy4wODU0NDkyMiAxNi44MzkzNTU0NyBDLTQuMzA3NjQxMTQgMTUuNzIxMzM4MTIgLTEuNjY5MjUyMTkgMTQuMzUzMTM0MDEgMSAxMyBDMS42NiAxMyAyLjMyIDEzIDMgMTMgQzIuNTQ5NDcyNjYgMTIuMDk1MDc4MTMgMi41NDk0NzI2NiAxMi4wOTUwNzgxMyAyLjA4OTg0Mzc1IDExLjE3MTg3NSBDMS41MTk0MzM1OSA5Ljk3MzA0Njg3IDEuNTE5NDMzNTkgOS45NzMwNDY4NyAwLjkzNzUgOC43NSBDMC41NTQ2NDg0NCA3Ljk2MTA5Mzc1IDAuMTcxNzk2ODggNy4xNzIxODc1IC0wLjIyMjY1NjI1IDYuMzU5Mzc1IEMtMS4wODU2NDA5MSAzLjc0MDA2NDc4IC0wLjkzMDQ1OTMzIDIuNTUxNDQ4MjQgMCAwIFogIiBmaWxsPSIjMEQwQTBBIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMjUsMTA5KSIvPgo8cGF0aCBkPSJNMCAwIEMtMC41NjU5NzkzOCA1LjIwNzAxMDI3IC0yLjI2Njc5NzY5IDkuMTYwNDI3NjkgLTQuNjI1IDEzLjc1IEMtNS4xNjI0MTgyMSAxNC44MDU2MjEzNCAtNS4xNjI0MTgyMSAxNC44MDU2MjEzNCAtNS43MTA2OTMzNiAxNS44ODI1NjgzNiBDLTExLjY3MDkwNzA2IDI3LjM1OTUwMDA2IC0xOS4xOTYxMzMyNCAzOS4xNjM0OTE3NiAtMzEuOTUxMTcxODggNDMuNjkyODcxMDkgQy0zMy45NTczMzE2MiA0NC4yNzEzNDM0MSAtMzUuOTY3MDA2MTIgNDQuNzc0ODU1ODQgLTM4IDQ1LjI1IEMtMzguNjcyODkwNjMgNDUuNDIyNzM0MzggLTM5LjM0NTc4MTI1IDQ1LjU5NTQ2ODc1IC00MC4wMzkwNjI1IDQ1Ljc3MzQzNzUgQy00NC40NjUzMjc5NCA0Ni44NTAwOTY2NiAtNDguNDQ3NzQ0MTIgNDcuMTY1OTY3NjYgLTUzIDQ3IEMtNTEuNDI4NjI1MjggMzYuOTAwODI3NjcgLTQzLjY5ODk1NDYyIDMwLjA3ODc0NDUxIC0zNiAyNCBDLTMzLjg2ODA3MDUxIDIyLjU5NzMyMjk5IC0zMS43Mzc4Nzc2NiAyMS4yODgxODMwMyAtMjkuNDk2MDkzNzUgMjAuMDcwMzEyNSBDLTI3LjY2ODMwMzQ1IDE4Ljk4NDE5ODA2IC0yNy42NjgzMDM0NSAxOC45ODQxOTgwNiAtMjcgMTYgQy0zOC42MzI2ODQyNCAxOC42OTc0MzQwMyAtNDcuNzUwNzQ4MzkgMjcuMDY4NTI4OTEgLTU0LjI0NjA5Mzc1IDM2Ljg4MjgxMjUgQy01Ni4xNjk4MTQ5MiA0MC4xMzgzNDA2MyAtNTcuNjI5MjI2MjIgNDMuNDg2MjY5ODMgLTU5IDQ3IEMtNjEuOTE2NzI4ODQgNDcuMDI3MDA2NzUgLTY0LjgzMzIwNjc3IDQ3LjA0Njg0MjM3IC02Ny43NSA0Ny4wNjI1IEMtNjguOTg3NSA0Ny4wNzUwNjgzNiAtNjguOTg3NSA0Ny4wNzUwNjgzNiAtNzAuMjUgNDcuMDg3ODkwNjIgQy03MS40NDg4MjgxMyA0Ny4wOTI3MjQ2MSAtNzEuNDQ4ODI4MTMgNDcuMDkyNzI0NjEgLTcyLjY3MTg3NSA0Ny4wOTc2NTYyNSBDLTczLjQwNTAyOTMgNDcuMTAyODkzMDcgLTc0LjEzODE4MzU5IDQ3LjEwODEyOTg4IC03NC44OTM1NTQ2OSA0Ny4xMTM1MjUzOSBDLTc3LjA0NjE4NDkgNDYuOTk3NTEwOSAtNzguOTMxNDEzNSA0Ni41OTA3MzI3MSAtODEgNDYgQy04MS42ODE3NjUyNyAzOC4zMzAxNDA2OCAtNzkuNTE4ODMwMyAzMS41NzA0ODA0MyAtNzUuMDgyMDMxMjUgMjUuMjgxMjUgQy02NS4xMDM5OTY3NyAxMy41NTQ4NTE5NiAtNTMuNzM3MTI2MjYgOS41MjUxNjc4NCAtMzguODIwMzEyNSA3LjkwOTE3OTY5IEMtMzIuNDE5MjI0NjMgNy4xNjM5Njk1NSAtMjYuMTY3NTg2MDIgNS44NzU4MDM3MyAtMTkuODc1IDQuNSBDLTE4Ljg5MTIwMzYxIDQuMjg2MTc2NzYgLTE3LjkwNzQwNzIzIDQuMDcyMzUzNTIgLTE2Ljg5Mzc5ODgzIDMuODUyMDUwNzggQy0xMS4zNjI5NjAzNCAyLjYxODMyNTE4IC01LjYxMDYxMzcyIDAgMCAwIFogIiBmaWxsPSIjQzgwMDAwIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMDksMTU1KSIvPgo8cGF0aCBkPSJNMCAwIEMxLjgxMzk1ODcyIDMuNjI3OTE3NDQgMC4wMjA1Mzg0NCA3LjcwMTMyNzU5IC0xLjE3MTg3NSAxMS4zOTIwODk4NCBDLTIuNTQ5MzUzNDQgMTQuODk0MDI0OTIgLTMuNTU1NzE2NjMgMTYuNjc3ODk0NTUgLTYuNjU2MjUgMTguOTI1NzgxMjUgQy05LjkyMzUwNzM2IDIwLjA5NzU2NjMxIC0xMy4wMjI5ODQxOSAyMC44ODY5NzI2NCAtMTYuNDI4MjIyNjYgMjEuNTE0MTYwMTYgQy0xOS4yNzE4NTI5NSAyMi4wNTEzNTYzMSAtMjIuMDcwODAyMDMgMjIuNzE5Njg0NzIgLTI0Ljg4NjcxODc1IDIzLjM4NjcxODc1IEMtNTMuODkxODM4NDQgMjkuNzQzNzQwMzkgLTg3LjExNTIwNDgyIDMwLjE5NjY3ODYgLTExNiAyMyBDLTExNy4xMzExNTIzNCAyMi43Mjc4NDY2OCAtMTE3LjEzMTE1MjM0IDIyLjcyNzg0NjY4IC0xMTguMjg1MTU2MjUgMjIuNDUwMTk1MzEgQy0xMjkuMjM5MzY3MjIgMTkuNzYwNjMyNzggLTEyOS4yMzkzNjcyMiAxOS43NjA2MzI3OCAtMTMyIDE3IEMtMTMyLjg1MTU2MjUgMTQuNzU3ODEyNSAtMTMyLjg1MTU2MjUgMTQuNzU3ODEyNSAtMTMzLjYyNSAxMi4xMjUgQy0xMzMuODg1MzkwNjMgMTEuMjYxMzI4MTMgLTEzNC4xNDU3ODEyNSAxMC4zOTc2NTYyNSAtMTM0LjQxNDA2MjUgOS41MDc4MTI1IEMtMTM1IDcgLTEzNSA3IC0xMzUgMyBDLTEzMi4xNjcxODcwOSAzLjUzMzg3NjI4IC0xMjkuMzg4NTA1NTggNC4xNTU2Nzg2MiAtMTI2LjU5Mzc1IDQuODY3MTg3NSBDLTkxLjgxNjgyMjg3IDEzLjU5ODMwNTIyIC01Mi43MjE3NDk0NCAxNC40Mjg5NDM1NCAtMTggNSBDLTE2LjY2NTYyODU3IDQuNjUxMzMxODggLTE1LjMzMDk3NTI0IDQuMzAzNzQxNDUgLTEzLjk5NjA5Mzc1IDMuOTU3MDMxMjUgQy02Ljk1MzMzMjg4IDIuMTMxODE0MjcgLTYuOTUzMzMyODggMi4xMzE4MTQyNyAwIDAgWiAiIGZpbGw9IiNGQkZCRkIiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIxNiwxMzIpIi8+CjxwYXRoIGQ9Ik0wIDAgQzMuNTYxMjAzODIgMC42NjgxNTYyMyA3LjA1NjY2Njk4IDEuNTE2NjgzMDEgMTAuNTY3NjI2OTUgMi40MDg5MzU1NSBDMjYuODU3MzY0MTIgNi40NzA1ODI1NiA0My4yNzYyNzcwNiA3LjMzNjYzNzI5IDYwIDggQzU5IDEwIDU5IDEwIDU1Ljg3NSAxMS42ODc1IEM0Ny42NzY0MjgyOSAxNi4yODEzODI3MiA0Mi41MTg3NjggMjMuMzY2MDkwMDEgMzkgMzIgQzM4LjAzNjg4NDg1IDM1Ljk4MTQ5MDM5IDM3LjQxMjMzMjE4IDM5LjkyNjQ0MjQgMzcgNDQgQzI3LjY5OTk0ODU1IDQyLjQ2NjgwMjggMTguMDk0NzAwOSA0MC41NjY5OTU4OCAxMSAzNCBDNC43Nzk5ODQ4NyAyNC44NzkzMDQ3NCAwIDExLjE0ODgxMTE2IDAgMCBaICIgZmlsbD0iI0ZCNEM0QyIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODYsMTU2KSIvPgo8L3N2Zz4K",
+    "E": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiPgo8cGF0aCBkPSJNMCAwIEM5OSAwIDE5OCAwIDMwMCAwIEMzMDAgOTkgMzAwIDE5OCAzMDAgMzAwIEMyMDEgMzAwIDEwMiAzMDAgMCAzMDAgQzAgMjAxIDAgMTAyIDAgMCBaICIgZmlsbD0iI0ZFRkVGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwwKSIvPgo8cGF0aCBkPSJNMCAwIEMxLjg1MjUzOTA2IDAuMjAxOTA0MyAxLjg1MjUzOTA2IDAuMjAxOTA0MyA0IDEgQzUuMjgwMjczNDQgMy4wNjk1ODAwOCA1LjI4MDI3MzQ0IDMuMDY5NTgwMDggNi4zNTkzNzUgNS43Njk1MzEyNSBDNi43NTI1MzkwNiA2Ljc0MDgzOTg0IDcuMTQ1NzAzMTMgNy43MTIxNDg0NCA3LjU1MDc4MTI1IDguNzEyODkwNjIgQzcuOTQ2NTIzNDQgOS43MzU3NjE3MiA4LjM0MjI2NTYzIDEwLjc1ODYzMjgxIDguNzUgMTEuODEyNSBDOS4xNjEyMTA5NCAxMi44MjM3Njk1MyA5LjU3MjQyMTg4IDEzLjgzNTAzOTA2IDkuOTk2MDkzNzUgMTQuODc2OTUzMTIgQzEzIDIyLjQyNjYzNzc3IDEzIDIyLjQyNjYzNzc3IDEzIDI3IEMxMC42ODc1IDI2Ljg3NSAxMC42ODc1IDI2Ljg3NSA4IDI2IEM2LjMzMjAzMTI1IDIyLjk0NTMxMjUgNi4zMzIwMzEyNSAyMi45NDUzMTI1IDUgMjAgQzQuNjc3MjUwOTggMjAuNzE2NTU3NjIgNC4zNTQ1MDE5NSAyMS40MzMxMTUyMyA0LjAyMTk3MjY2IDIyLjE3MTM4NjcyIEMyLjU2MDk4MDU3IDI1LjQwODA1NDE5IDEuMDkzMDg0NTYgMjguNjQxNTQzNzUgLTAuMzc1IDMxLjg3NSBDLTAuODgyODkwNjIgMzMuMDAyOTI5NjkgLTEuMzkwNzgxMjUgMzQuMTMwODU5MzggLTEuOTE0MDYyNSAzNS4yOTI5Njg3NSBDLTIuNDAzOTA2MjUgMzYuMzY5MzM1OTQgLTIuODkzNzUgMzcuNDQ1NzAzMTIgLTMuMzk4NDM3NSAzOC41NTQ2ODc1IEMtMy44NDg4MDM3MSAzOS41NDk2ODI2MiAtNC4yOTkxNjk5MiA0MC41NDQ2Nzc3MyAtNC43NjMxODM1OSA0MS41Njk4MjQyMiBDLTYgNDQgLTYgNDQgLTggNDYgQy0xMC4wMTA1MjQ0MiA0NS43Mzc1MDY4NSAtMTIuMDEwNTIwMjkgNDUuMzkxMjU2NDQgLTE0IDQ1IEMtMjYuODE2Mzk5OTUgNDQuMDIxNTI2NDEgLTM4LjQwMTMyNjMgNDYuNTIyODQ4NTMgLTUwIDUyIEMtNTIuNzcxNTIyMTIgNTQuNTIwNTYwNDUgLTUyLjc3MTUyMjEyIDU0LjUyMDU2MDQ1IC01NSA1NyBDLTU1Ljk5IDU3LjQ5NSAtNTUuOTkgNTcuNDk1IC01NyA1OCBDLTU3LjMzIDU3LjM0IC01Ny42NiA1Ni42OCAtNTggNTYgQy02NC45NTIyOTQ1NiA1MS4zMDU2NDYzIC03MS4yMDI5MzcwNiA1MC4yNTc2NDQ5NyAtNzkuNDM3NSA1MC41IEMtODAuMzk3MjA3MDMgNTAuNDk3NDIxODcgLTgxLjM1NjkxNDA2IDUwLjQ5NDg0Mzc1IC04Mi4zNDU3MDMxMiA1MC40OTIxODc1IEMtOTAuODk3OTU5NjkgNTAuNjA3MzY5NDEgLTk5LjkwOTg2MDI4IDUxLjg2NTc2MDkgLTEwNyA1NyBDLTEwNy40OTg4NjcxOSA1Ni41NDEwOTM3NSAtMTA3Ljk5NzczNDM3IDU2LjA4MjE4NzUgLTEwOC41MTE3MTg3NSA1NS42MDkzNzUgQy0xMTcuNjg0Mjc5MyA0Ny43NzA3MDU2NiAtMTI3LjQxMzM2MDQ5IDQ1LjUxODUwMDc0IC0xMzkuMzIwMzEyNSA0NS42NjQwNjI1IEMtMTQyLjIyMTc0MzQ4IDQ1LjgyNTA3MzE5IC0xNDIuMjIxNzQzNDggNDUuODI1MDczMTkgLTE0NSA0OCBDLTE0OC41MTcyNDEzOCA0Ny40ODI3NTg2MiAtMTQ4LjUxNzI0MTM4IDQ3LjQ4Mjc1ODYyIC0xNTAgNDYgQy0xNTAuMjUwMjg4MTEgNDQuNDE5ODY3ODMgLTE1MC40NzQ0MDk0NiA0Mi44MzU1NzY5NCAtMTUwLjY4NzUgNDEuMjUgQy0xNTEuNzA3ODg5MjQgMzUuMjA2NzY0NSAtMTU0LjAxOTY2NTY2IDMwLjIwMDA5MTMxIC0xNTYuNzU3ODEyNSAyNC43NSBDLTE1OCAyMiAtMTU4IDIyIC0xNTggMTkgQy0xNTkuMzIgMTguMzQgLTE2MC42NCAxNy42OCAtMTYyIDE3IEMtMTYxLjUwNSAxNS41MTUgLTE2MS41MDUgMTUuNTE1IC0xNjEgMTQgQy0xNTYuMzIzMDYyNDIgMTQuNDc5Njg1OTEgLTE1Mi43Mjc5MzQ0IDE1Ljk1MzA1MTkyIC0xNDguNTMwNzYxNzIgMTcuOTA5NDIzODMgQy0xMDYuMTEwOTQzMzggMzYuMTg5MzEyNzUgLTQ5LjU5NDEwMTY1IDMyLjU0MDU4NTk4IC03LjA4NTQ0OTIyIDE2LjgzOTM1NTQ3IEMtNC4zMDc2NDExNCAxNS43MjEzMzgxMiAtMS42NjkyNTIxOSAxNC4zNTMxMzQwMSAxIDEzIEMxLjY2IDEzIDIuMzIgMTMgMyAxMyBDMi41NDk0NzI2NiAxMi4wOTUwNzgxMyAyLjU0OTQ3MjY2IDEyLjA5NTA3ODEzIDIuMDg5ODQzNzUgMTEuMTcxODc1IEMxLjUxOTQzMzU5IDkuOTczMDQ2ODcgMS41MTk0MzM1OSA5Ljk3MzA0Njg3IDAuOTM3NSA4Ljc1IEMwLjU1NDY0ODQ0IDcuOTYxMDkzNzUgMC4xNzE3OTY4OCA3LjE3MjE4NzUgLTAuMjIyNjU2MjUgNi4zNTkzNzUgQy0xLjA4NTY0MDkxIDMuNzQwMDY0NzggLTAuOTMwNDU5MzMgMi41NTE0NDgyNCAwIDAgWiAiIGZpbGw9IiMwRjBGMEYiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIyNSwxMDkpIi8+CjxwYXRoIGQ9Ik0wIDAgQzAgMy4wOTE1MTg3IC0wLjQ0MTQyNzQ2IDQuMjkyMzQxNDMgLTEuNzUgNy4wMTE3MTg3NSBDLTIuMjkxNDA2MjUgOC4xNDc3MDUwOCAtMi4yOTE0MDYyNSA4LjE0NzcwNTA4IC0yLjg0Mzc1IDkuMzA2NjQwNjIgQy0zLjQxNjA5Mzc1IDEwLjQ4NTE2NjAyIC0zLjQxNjA5Mzc1IDEwLjQ4NTE2NjAyIC00IDExLjY4NzUgQy00LjU3MjM0Mzc1IDEyLjg4MzQyNzczIC00LjU3MjM0Mzc1IDEyLjg4MzQyNzczIC01LjE1NjI1IDE0LjEwMzUxNTYyIEMtNi4wOTkwMjI4OCAxNi4wNzE1NTQwMiAtNy4wNDcwOTU2OCAxOC4wMzY4NTIzNiAtOCAyMCBDLTkuNzc4OTA2MjUgMTkuOTMwMzkwNjMgLTkuNzc4OTA2MjUgMTkuOTMwMzkwNjMgLTExLjU5Mzc1IDE5Ljg1OTM3NSBDLTI1Ljc1MjIxNDExIDE5LjQ3NTQ0MTU4IC0zOC40MjQ0MDc1OCAyMC44NTY3ODk2IC01MC45ODQzNzUgMjcuOTQ5MjE4NzUgQy01NC4xMzQyMjE0OSAyOS41OTEyODk4OSAtNTUuOTI2MTA0NjEgMzAuMzMxNzcyNTYgLTU5LjQwMjM0Mzc1IDI5LjI1NzgxMjUgQy02MC4yMzg5NDUzMSAyOC44ODM5ODQzOCAtNjEuMDc1NTQ2ODcgMjguNTEwMTU2MjUgLTYxLjkzNzUgMjguMTI1IEMtNzQuNzE3MzE1MzIgMjIuNDc1ODA4MDcgLTg4LjgwNzM2MTMxIDI0LjkyOTMyOTMzIC0xMDEuNzA3MDMxMjUgMjkuMjM4MjgxMjUgQy0xMDUgMzAgLTEwNSAzMCAtMTA3LjE1MjM0Mzc1IDI5LjIwNzAzMTI1IEMtMTA3Ljc0MTQ0NTMxIDI4Ljc0NjgzNTk0IC0xMDguMzMwNTQ2ODggMjguMjg2NjQwNjIgLTEwOC45Mzc1IDI3LjgxMjUgQy0xMTkuNDE5OTA1MjUgMjAuNDAwMDg2MjcgLTEzMC41NzU0MTg0NyAyMC44NDI5NDc3MSAtMTQzIDIxIEMtMTQ1IDE1IC0xNDcgOSAtMTQ5IDMgQy0xNDguNDU3NjI2OTUgMy4xODc1NTg1OSAtMTQ3LjkxNTI1MzkxIDMuMzc1MTE3MTkgLTE0Ny4zNTY0NDUzMSAzLjU2ODM1OTM4IEMtMTAxLjQzMzEzNzQ3IDE5LjE5NzYzNzc0IC00NC44OTM3NDYzOSAxOS41MDA1MjI2NSAwIDAgWiAiIGZpbGw9IiNGQUZBRkEiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIyMywxMjkpIi8+Cjwvc3ZnPgo=",
+    "AI": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiPgo8cGF0aCBkPSJNMCAwIEM5OSAwIDE5OCAwIDMwMCAwIEMzMDAgOTkgMzAwIDE5OCAzMDAgMzAwIEMyMDEgMzAwIDEwMiAzMDAgMCAzMDAgQzAgMjAxIDAgMTAyIDAgMCBaICIgZmlsbD0iI0ZFRkVGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwwKSIvPgo8cGF0aCBkPSJNMCAwIEMxLjg1MjUzOTA2IDAuMjAxOTA0MyAxLjg1MjUzOTA2IDAuMjAxOTA0MyA0IDEgQzUuMjgwMjczNDQgMy4wNjk1ODAwOCA1LjI4MDI3MzQ0IDMuMDY5NTgwMDggNi4zNTkzNzUgNS43Njk1MzEyNSBDNi43NTI1MzkwNiA2Ljc0MDgzOTg0IDcuMTQ1NzAzMTMgNy43MTIxNDg0NCA3LjU1MDc4MTI1IDguNzEyODkwNjIgQzcuOTQ2NTIzNDQgOS43MzU3NjE3MiA4LjM0MjI2NTYzIDEwLjc1ODYzMjgxIDguNzUgMTEuODEyNSBDOS4xNjEyMTA5NCAxMi44MjM3Njk1MyA5LjU3MjQyMTg4IDEzLjgzNTAzOTA2IDkuOTk2MDkzNzUgMTQuODc2OTUzMTIgQzEzIDIyLjQyNjYzNzc3IDEzIDIyLjQyNjYzNzc3IDEzIDI3IEMxMC43NSAyNyAxMC43NSAyNyA4IDI2IEM2LjMyODAxMjMyIDIzLjQ3MzMyMjEzIDUuMTQxOTQ0MjkgMjAuODAwNjM0MzIgNCAxOCBDMC4yNzQyMjIyNCAxOS42MzU4NTkwMiAtMC44NDE1NDY2NSAyMC42MjE2ODcyNiAtMi40NDE0MDYyNSAyNC40NDE0MDYyNSBDLTIuODMyNDE2NzUgMjUuODEwMjc2OTEgLTMuMjA1MzE4NzIgMjcuMTg0NDE1MjMgLTMuNTYyNSAyOC41NjI1IEMtMy45ODAyMzYwOCAzMC4wMjQyNTExOCAtNC40MDA4MDMgMzEuNDg1MTk2MzkgLTQuODI0MjE4NzUgMzIuOTQ1MzEyNSBDLTUuMTI0NjUwODggMzQuMDAxNTM4MDkgLTUuMTI0NjUwODggMzQuMDAxNTM4MDkgLTUuNDMxMTUyMzQgMzUuMDc5MTAxNTYgQy02LjM2MzcyNTAyIDM4LjIyODIzNTQxIC03LjU3NzQ3MzUzIDQxLjIyODkzMjk0IC04Ljg0NzY1NjI1IDQ0LjI1MzkwNjI1IEMtOS43ODI0MTQwNyA0Ni40ODE0ODE2NyAtMTAuNjc3OTk3ODYgNDguNzE1NzE4NjggLTExLjU1ODU5Mzc1IDUwLjk2NDg0Mzc1IEMtMTguMTk4NTQzOTYgNjcuNzgxNzcyNzkgLTI2LjUxMjkyNDYgODQuNTI0Mzc1OTMgLTQzLjMxNjQwNjI1IDkzLjE5NTMxMjUgQy01NC42OTg2NTEwOSA5Ny45MDY1NzIxIC02Ni41NjQzNjA4OSA5OC4zNjY0ODQ1MyAtNzguNzUgOTguMzEyNSBDLTgwLjA2NjA1MjI1IDk4LjMwNzU4NTQ1IC04MS4zODIxMDQ0OSA5OC4zMDI2NzA5IC04Mi43MzgwMzcxMSA5OC4yOTc2MDc0MiBDLTk4LjIxMDgwMjU4IDk4LjExMTY0ODE1IC0xMTYuODU2NDA4NTYgOTYuODI4NzM5NjMgLTEyOS40NTMxMjUgODYuNjY0MDYyNSBDLTEzNy43MDA1OTYzNSA3Ny43OTE3ODI3MSAtMTQwLjI1MDczMTM4IDY2LjM5NzExNjU1IC0xNDMgNTUgQy0xNDMuNTM0NzMwNTkgNTIuODQzNjQ0NCAtMTQ0LjA2OTkxMDg4IDUwLjY4NzQwMDI4IC0xNDQuNjA1NDY4NzUgNDguNTMxMjUgQy0xNDkuMTc4NTQwMDkgMjkuOTEzOTU0MjggLTE0OS4xNzg1NDAwOSAyOS45MTM5NTQyOCAtMTUwIDIzIEMtMTUwLjg2NjI1IDIyLjc1MjUgLTE1MS43MzI1IDIyLjUwNSAtMTUyLjYyNSAyMi4yNSBDLTE1Ni4xODMwMjI1NCAyMC45MzIyMTM4NyAtMTU4LjkyMjYxNTUgMTkuMTk4MTMxNzggLTE2MiAxNyBDLTE2MS41MDUgMTUuNTE1IC0xNjEuNTA1IDE1LjUxNSAtMTYxIDE0IEMtMTU2LjMyMzA2MjQyIDE0LjQ3OTY4NTkxIC0xNTIuNzI3OTM0NCAxNS45NTMwNTE5MiAtMTQ4LjUzMDc2MTcyIDE3LjkwOTQyMzgzIEMtMTA2LjExMDk0MzM4IDM2LjE4OTMxMjc1IC00OS41OTQxMDE2NSAzMi41NDA1ODU5OCAtNy4wODU0NDkyMiAxNi44MzkzNTU0NyBDLTQuMzA3NjQxMTQgMTUuNzIxMzM4MTIgLTEuNjY5MjUyMTkgMTQuMzUzMTM0MDEgMSAxMyBDMS42NiAxMyAyLjMyIDEzIDMgMTMgQzIuNTQ5NDcyNjYgMTIuMDk1MDc4MTMgMi41NDk0NzI2NiAxMi4wOTUwNzgxMyAyLjA4OTg0Mzc1IDExLjE3MTg3NSBDMS41MTk0MzM1OSA5Ljk3MzA0Njg3IDEuNTE5NDMzNTkgOS45NzMwNDY4NyAwLjkzNzUgOC43NSBDMC41NTQ2NDg0NCA3Ljk2MTA5Mzc1IDAuMTcxNzk2ODggNy4xNzIxODc1IC0wLjIyMjY1NjI1IDYuMzU5Mzc1IEMtMS4wODU2NDA5MSAzLjc0MDA2NDc4IC0wLjkzMDQ1OTMzIDIuNTUxNDQ4MjQgMCAwIFogIiBmaWxsPSIjMEQwQTBBIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMjUsMTA5KSIvPgo8cGF0aCBkPSJNMCAwIEMxLjgxMzk1ODcyIDMuNjI3OTE3NDQgMC4wMjA1Mzg0NCA3LjcwMTMyNzU5IC0xLjE3MTg3NSAxMS4zOTIwODk4NCBDLTIuNTQ5MzUzNDQgMTQuODk0MDI0OTIgLTMuNTU1NzE2NjMgMTYuNjc3ODk0NTUgLTYuNjU2MjUgMTguOTI1NzgxMjUgQy05LjkyMzUwNzM2IDIwLjA5NzU2NjMxIC0xMy4wMjI5ODQxOSAyMC44ODY5NzI2NCAtMTYuNDI4MjIyNjYgMjEuNTE0MTYwMTYgQy0xOS4yNzE4NTI5NSAyMi4wNTEzNTYzMSAtMjIuMDcwODAyMDMgMjIuNzE5Njg0NzIgLTI0Ljg4NjcxODc1IDIzLjM4NjcxODc1IEMtNTMuODkxODM4NDQgMjkuNzQzNzQwMzkgLTg3LjExNTIwNDgyIDMwLjE5NjY3ODYgLTExNiAyMyBDLTExNy4xMzExNTIzNCAyMi43Mjc4NDY2OCAtMTE3LjEzMTE1MjM0IDIyLjcyNzg0NjY4IC0xMTguMjg1MTU2MjUgMjIuNDUwMTk1MzEgQy0xMjkuMjM5MzY3MjIgMTkuNzYwNjMyNzggLTEyOS4yMzkzNjcyMiAxOS43NjA2MzI3OCAtMTMyIDE3IEMtMTMyLjg1MTU2MjUgMTQuNzU3ODEyNSAtMTMyLjg1MTU2MjUgMTQuNzU3ODEyNSAtMTMzLjYyNSAxMi4xMjUgQy0xMzMuODg1MzkwNjMgMTEuMjYxMzI4MTMgLTEzNC4xNDU3ODEyNSAxMC4zOTc2NTYyNSAtMTM0LjQxNDA2MjUgOS41MDc4MTI1IEMtMTM1IDcgLTEzNSA3IC0xMzUgMyBDLTEzMi4xNjcxODcwOSAzLjUzMzg3NjI4IC0xMjkuMzg4NTA1NTggNC4xNTU2Nzg2MiAtMTI2LjU5Mzc1IDQuODY3MTg3NSBDLTkxLjgxNjgyMjg3IDEzLjU5ODMwNTIyIC01Mi43MjE3NDk0NCAxNC40Mjg5NDM1NCAtMTggNSBDLTE2LjY2NTYyODU3IDQuNjUxMzMxODggLTE1LjMzMDk3NTI0IDQuMzAzNzQxNDUgLTEzLjk5NjA5Mzc1IDMuOTU3MDMxMjUgQy02Ljk1MzMzMjg4IDIuMTMxODE0MjcgLTYuOTUzMzMyODggMi4xMzE4MTQyNyAwIDAgWiAiIGZpbGw9IiNGQkZCRkIiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIxNiwxMzIpIi8+CjxwYXRoIGQ9Ik0wIDAgQzE0Ljg1IDAuMzMgMjkuNyAwLjY2IDQ1IDEgQzQ1IDMuOTcgNDUgNi45NCA0NSAxMCBDNDYuNzI1NDAzMDQgMTQuOTg0NDk3NjggNDkuNTQ1NjQ1OTYgMTguMjQwMzM3ODMgNTQgMjEgQzU4LjUzMjQzNTAxIDIzLjEzMzc1Mjk3IDYzLjExNTA1MjkgMjQuODc0NDM2MTUgNjggMjYgQzY1Ljg3ODQ5Mjg1IDMwLjgxNDE4OTMgNjIuNzM3MTI1NzQgMzIuOTQyOTE5MzcgNTggMzUgQzQ2LjY5MjUyMzk5IDM4LjYxOTg5NDU5IDMyLjU3MDE1NzM4IDQxLjk3MDkzNzY4IDIxLjE4NzUgMzcuNDM3NSBDMTAuNDU2Njg1MzggMzEuNzMzMDE0OSAzLjg0ODc2OTkzIDI0LjU0NjMwOTc4IDAgMTMgQzAgOC43MSAwIDQuNDIgMCAwIFogIiBmaWxsPSIjQzkwMDAwIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxMjEsMTYzKSIvPgo8cGF0aCBkPSJNMCAwIEMyLjk5NjQ3MjI0IDAuNTY3Mzc5MzYgNS45NjI0NjM1OCAxLjIxOTgwNDk1IDguOTI1NzgxMjUgMS45Mzc1IEM5Ljk5Nzk1ODk4IDIuMTk2NjAxNTYgOS45OTc5NTg5OCAyLjE5NjYwMTU2IDExLjA5MTc5Njg4IDIuNDYwOTM3NSBDMTIuNTYxMjAxNDMgMi44MTc2MjY3MyAxNC4wMjk5NjYzOCAzLjE3Njk2MjIyIDE1LjQ5ODA0Njg4IDMuNTM5MDYyNSBDMjAuMzIzMzI1NTYgNC42OTg4NjA0MyAyNS4wNjUyNzc4NSA1LjQ2NDcwODExIDMwIDYgQzMwLjAyNTc4MTI1IDYuOTY2Nzk2ODggMzAuMDUxNTYyNSA3LjkzMzU5Mzc1IDMwLjA3ODEyNSA4LjkyOTY4NzUgQzMwLjU5MjkyODMzIDIwLjc0Njc2Mzg2IDMyLjc5NjQxODI1IDMwLjA3NDUwMzA2IDQxIDM5IEM0MS45OSAzOS42NiA0Mi45OCA0MC4zMiA0NCA0MSBDNDQgNDEuNjYgNDQgNDIuMzIgNDQgNDMgQzQ1LjY1IDQzLjY2IDQ3LjMgNDQuMzIgNDkgNDUgQzQyLjc2MDU1Mjg3IDQ4LjExOTcyMzU2IDMxLjU0NDk1NjE0IDQzLjgwOTU0ODY5IDI1LjA2MjUgNDEuNjg3NSBDMTYuOTExNTU5MzYgMzguODM1MTg3MzEgMTIuMTEyMDYzOTkgMzYuNTIyMDQ1IDcuODc1IDI4LjgxMjUgQzMuODYwMTkyMzUgMjAuMTQ2MTI3NTcgMCA5LjYzOTU2MzEyIDAgMCBaICIgZmlsbD0iI0Y5NEI0QiIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODYsMTU2KSIvPgo8cGF0aCBkPSJNMCAwIEMtMi42MzMwMTIzMSAxMC44ODMxMTc1NiAtNy42NjU2ODkzIDIwLjgxMTc2OTEgLTE0IDMwIEMtMjEuMzc4NzI2ODkgMjkuMTk3OTY0NDcgLTMwLjEzMDA5ODE0IDI3LjgwMjY0Njk4IC0zNiAyMyBDLTM4LjkwMDQ2MzM4IDE4LjU5OTI5Njk0IC0zOS40MDE1NjQxOCAxNS4yMjAzMzQ0IC0zOSAxMCBDLTM4LjY3IDkuMzQgLTM4LjM0IDguNjggLTM4IDggQy0zNi4xODA5MDgyIDcuNDY5MjM4MjggLTM2LjE4MDkwODIgNy40NjkyMzgyOCAtMzMuODAwNzgxMjUgNy4wNzAzMTI1IEMtMzIuOTI3MjgwMjcgNi45MTY1OTE4IC0zMi4wNTM3NzkzIDYuNzYyODcxMDkgLTMxLjE1MzgwODU5IDYuNjA0NDkyMTkgQy0yOS43NDczNjA4NCA2LjM2NzE0MzU1IC0yOS43NDczNjA4NCA2LjM2NzE0MzU1IC0yOC4zMTI1IDYuMTI1IEMtMjAuNTY2NTUwOTEgNC43NDc3NjY4MyAtMTMuMTMzMzAyODYgMy4wNzc1Mjg0NyAtNS42MTcxODc1IDAuNzM0Mzc1IEMtMyAwIC0zIDAgMCAwIFogIiBmaWxsPSIjRkE0QjRCIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMDksMTU1KSIvPgo8L3N2Zz4K",
+    "FV": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiPgo8cGF0aCBkPSJNMCAwIEM5OSAwIDE5OCAwIDMwMCAwIEMzMDAgOTkgMzAwIDE5OCAzMDAgMzAwIEMyMDEgMzAwIDEwMiAzMDAgMCAzMDAgQzAgMjAxIDAgMTAyIDAgMCBaICIgZmlsbD0iI0ZFRkVGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwwKSIvPgo8cGF0aCBkPSJNMCAwIEMyLjA3NTc3OTMyIDAuNDU4MTYyMzkgNC4xNTE5NTEwNCAwLjkxNDU1MDYxIDYuMjI4NTE1NjIgMS4zNjkxNDA2MiBDMTEuODQ4MTk0MzggMi42MDY1NTI4MiAxNy40NTgwMjQ1NyAzLjg4MzA0NjUgMjMuMDYyNSA1LjE4NzUgQzIzLjc1MjMwOTU3IDUuMzQ3Nzk2OTQgMjQuNDQyMTE5MTQgNS41MDgwOTM4NyAyNS4xNTI4MzIwMyA1LjY3MzI0ODI5IEM0MC4wMzg0NzgyOSA5LjE2MzQ3ODI5IDQwLjAzODQ3ODI5IDkuMTYzNDc4MjkgNDUuMDYyNSAxNC4xODc1IEM0Ni45NzUzODgyNCAxMy45NTAyMzA1NyA0Ni45NzUzODgyNCAxMy45NTAyMzA1NyA0OS4wNjI1IDEzLjE4NzUgQzQ5Ljg0MTA5Mzc1IDEyLjkzODcxMDk0IDUwLjYxOTY4NzUgMTIuNjg5OTIxODcgNTEuNDIxODc1IDEyLjQzMzU5Mzc1IEM1Mi4yMTA3ODEyNSAxMi4xNjY3NTc4MSA1Mi45OTk2ODc1IDExLjg5OTkyMTg4IDUzLjgxMjUgMTEuNjI1IEM1NC42MTE3MTg3NSAxMS4zNTU1ODU5NCA1NS40MTA5Mzc1IDExLjA4NjE3MTg4IDU2LjIzNDM3NSAxMC44MDg1OTM3NSBDNTYuODM3NjU2MjUgMTAuNjAzNjMyODEgNTcuNDQwOTM3NSAxMC4zOTg2NzE4OCA1OC4wNjI1IDEwLjE4NzUgQzU3LjYxMTk3MjY2IDkuMjgyNTc4MTMgNTcuNjExOTcyNjYgOS4yODI1NzgxMyA1Ny4xNTIzNDM3NSA4LjM1OTM3NSBDNTYuNTgxOTMzNTkgNy4xNjA1NDY4NyA1Ni41ODE5MzM1OSA3LjE2MDU0Njg3IDU2IDUuOTM3NSBDNTUuNjE3MTQ4NDQgNS4xNDg1OTM3NSA1NS4yMzQyOTY4OCA0LjM1OTY4NzUgNTQuODM5ODQzNzUgMy41NDY4NzUgQzUzLjk3Njg1OTA5IDAuOTI3NTY0NzggNTQuMTMyMDQwNjcgLTAuMjYxMDUxNzYgNTUuMDYyNSAtMi44MTI1IEM1Ni45MTUwMzkwNiAtMi42MTA1OTU3IDU2LjkxNTAzOTA2IC0yLjYxMDU5NTcgNTkuMDYyNSAtMS44MTI1IEM2MC4zNDI3NzM0NCAwLjI1NzA4MDA4IDYwLjM0Mjc3MzQ0IDAuMjU3MDgwMDggNjEuNDIxODc1IDIuOTU3MDMxMjUgQzYxLjgxNTAzOTA2IDMuOTI4MzM5ODQgNjIuMjA4MjAzMTMgNC44OTk2NDg0NCA2Mi42MTMyODEyNSA1LjkwMDM5MDYyIEM2My4wMDkwMjM0NCA2LjkyMzI2MTcyIDYzLjQwNDc2NTYzIDcuOTQ2MTMyODEgNjMuODEyNSA5IEM2NC4yMjM3MTA5NCAxMC4wMTEyNjk1MyA2NC42MzQ5MjE4OCAxMS4wMjI1MzkwNiA2NS4wNTg1OTM3NSAxMi4wNjQ0NTMxMiBDNjguMDYyNSAxOS42MTQxMzc3NyA2OC4wNjI1IDE5LjYxNDEzNzc3IDY4LjA2MjUgMjQuMTg3NSBDNjUuODEyNSAyNC4xODc1IDY1LjgxMjUgMjQuMTg3NSA2My4wNjI1IDIzLjE4NzUgQzYxLjM5MDUxMjMyIDIwLjY2MDgyMjEzIDYwLjIwNDQ0NDI5IDE3Ljk4ODEzNDMyIDU5LjA2MjUgMTUuMTg3NSBDNTMuNjc1NDAyNzYgMTYuNzA4OTc5MDIgNDguNjA5ODY5MzQgMTguMTQ5MzQ4ODYgNDUuMTI4OTA2MjUgMjIuNzM0Mzc1IEM0NC4wNTA5OTc4NiAyNC43NjY1NDE0NSA0Mi45OTQ4NTcyIDI2LjgxMDM1NTQ3IDQxLjk1NzAzMTI1IDI4Ljg2MzI4MTI1IEMzOC4zNzMyNDIwNiAzNS4xNTE1MzgxNiAzMy4xNjYwMzMxOSA0MC4xMTA5NjA3MSAyOC4wNjI1IDQ1LjE4NzUgQzI3LjIzNjIxMDk0IDQ2LjAxMzc4OTA2IDI2LjQwOTkyMTg4IDQ2Ljg0MDA3ODEyIDI1LjU1ODU5Mzc1IDQ3LjY5MTQwNjI1IEMxMC45NTUwMzg0NyA2MS41MjUwODcxMiAtNS44MDI4MTU4MyA3MC4wNDAxMzc3NCAtMjYuMDgyMDMxMjUgNjkuNTU4NTkzNzUgQy0zMi45NTE3NDIxMyA2OS4xODI1MTk1NyAtMzguNzQ5MTk3OTQgNjcuMTE4MDUyMjQgLTQ0LjkzNzUgNjQuMTg3NSBDLTQ1Ljg1NzQwNzIzIDYzLjc1MzQwODIgLTQ1Ljg1NzQwNzIzIDYzLjc1MzQwODIgLTQ2Ljc5NTg5ODQ0IDYzLjMxMDU0Njg4IEMtNTguMDkwODM3NjMgNTcuODg0ODI5MDIgLTY4LjEzNzYyNDg4IDUxLjE4OTY3MTA5IC03Ni45Mzc1IDQyLjE4NzUgQy03Ny41MzQzMzU5NCA0MS42MjU0Njg3NSAtNzguMTMxMTcxODggNDEuMDYzNDM3NSAtNzguNzQ2MDkzNzUgNDAuNDg0Mzc1IEMtODQuNDUyNDA3MjIgMzUuMDY1NDI5ODQgLTg5LjczMzM3Njc2IDI5LjE2ODMxNjg0IC05MC45Mzc1IDIxLjE4NzUgQy05Mi4xNDQwNjI1IDIxLjA5NDY4NzUgLTkyLjE0NDA2MjUgMjEuMDk0Njg3NSAtOTMuMzc1IDIxIEMtOTguMTAxMDQ1MSAxOS45MjIxMzAwNyAtMTAxLjgxMjYzNDI3IDE3LjY3MTU4NTgxIC0xMDUuOTM3NSAxNS4xODc1IEMtMTA1LjkzNzUgMTMuODY3NSAtMTA1LjkzNzUgMTIuNTQ3NSAtMTA1LjkzNzUgMTEuMTg3NSBDLTEwMC4xNzcwNTc4OCAxMS43OTM4NjIzMyAtOTUuMjE3MzU2MzEgMTMuOTQ0MDgyNzkgLTg5LjkzNzUgMTYuMTg3NSBDLTg5LjUyMjQyMTg3IDE1Ljc2MzM5ODQ0IC04OS4xMDczNDM3NSAxNS4zMzkyOTY4OCAtODguNjc5Njg3NSAxNC45MDIzNDM3NSBDLTY0LjUxOTU5MjU5IC04LjA5NTIzNjEzIC0yOS45OTk1Mjk0NyAtNi44NTkwMDM4NSAwIDAgWiAiIGZpbGw9IiNGRDRDNEMiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE2OS45Mzc1LDExMS44MTI1KSIvPgo8cGF0aCBkPSJNMCAwIEMyLjA3NTc3OTMyIDAuNDU4MTYyMzkgNC4xNTE5NTEwNCAwLjkxNDU1MDYxIDYuMjI4NTE1NjIgMS4zNjkxNDA2MiBDMTEuODQ4MTk0MzggMi42MDY1NTI4MiAxNy40NTgwMjQ1NyAzLjg4MzA0NjUgMjMuMDYyNSA1LjE4NzUgQzIzLjc1MjMwOTU3IDUuMzQ3Nzk2OTQgMjQuNDQyMTE5MTQgNS41MDgwOTM4NyAyNS4xNTI4MzIwMyA1LjY3MzI0ODI5IEM0MC4wMzg0NzgyOSA5LjE2MzQ3ODI5IDQwLjAzODQ3ODI5IDkuMTYzNDc4MjkgNDUuMDYyNSAxNC4xODc1IEM0Ni45NzUzODgyNCAxMy45NTAyMzA1NyA0Ni45NzUzODgyNCAxMy45NTAyMzA1NyA0OS4wNjI1IDEzLjE4NzUgQzQ5Ljg0MTA5Mzc1IDEyLjkzODcxMDk0IDUwLjYxOTY4NzUgMTIuNjg5OTIxODcgNTEuNDIxODc1IDEyLjQzMzU5Mzc1IEM1Mi4yMTA3ODEyNSAxMi4xNjY3NTc4MSA1Mi45OTk2ODc1IDExLjg5OTkyMTg4IDUzLjgxMjUgMTEuNjI1IEM1NC42MTE3MTg3NSAxMS4zNTU1ODU5NCA1NS40MTA5Mzc1IDExLjA4NjE3MTg4IDU2LjIzNDM3NSAxMC44MDg1OTM3NSBDNTYuODM3NjU2MjUgMTAuNjAzNjMyODEgNTcuNDQwOTM3NSAxMC4zOTg2NzE4OCA1OC4wNjI1IDEwLjE4NzUgQzU3LjYxMTk3MjY2IDkuMjgyNTc4MTMgNTcuNjExOTcyNjYgOS4yODI1NzgxMyA1Ny4xNTIzNDM3NSA4LjM1OTM3NSBDNTYuNTgxOTMzNTkgNy4xNjA1NDY4NyA1Ni41ODE5MzM1OSA3LjE2MDU0Njg3IDU2IDUuOTM3NSBDNTUuNjE3MTQ4NDQgNS4xNDg1OTM3NSA1NS4yMzQyOTY4OCA0LjM1OTY4NzUgNTQuODM5ODQzNzUgMy41NDY4NzUgQzUzLjk3Njg1OTA5IDAuOTI3NTY0NzggNTQuMTMyMDQwNjcgLTAuMjYxMDUxNzYgNTUuMDYyNSAtMi44MTI1IEM1Ni45MTUwMzkwNiAtMi42MTA1OTU3IDU2LjkxNTAzOTA2IC0yLjYxMDU5NTcgNTkuMDYyNSAtMS44MTI1IEM2MC4zNDI3NzM0NCAwLjI1NzA4MDA4IDYwLjM0Mjc3MzQ0IDAuMjU3MDgwMDggNjEuNDIxODc1IDIuOTU3MDMxMjUgQzYxLjgxNTAzOTA2IDMuOTI4MzM5ODQgNjIuMjA4MjAzMTMgNC44OTk2NDg0NCA2Mi42MTMyODEyNSA1LjkwMDM5MDYyIEM2My4wMDkwMjM0NCA2LjkyMzI2MTcyIDYzLjQwNDc2NTYzIDcuOTQ2MTMyODEgNjMuODEyNSA5IEM2NC4yMjM3MTA5NCAxMC4wMTEyNjk1MyA2NC42MzQ5MjE4OCAxMS4wMjI1MzkwNiA2NS4wNTg1OTM3NSAxMi4wNjQ0NTMxMiBDNjguMDYyNSAxOS42MTQxMzc3NyA2OC4wNjI1IDE5LjYxNDEzNzc3IDY4LjA2MjUgMjQuMTg3NSBDNjUuODEyNSAyNC4xODc1IDY1LjgxMjUgMjQuMTg3NSA2My4wNjI1IDIzLjE4NzUgQzYxLjM5MDUxMjMyIDIwLjY2MDgyMjEzIDYwLjIwNDQ0NDI5IDE3Ljk4ODEzNDMyIDU5LjA2MjUgMTUuMTg3NSBDNTMuNjc1NDAyNzYgMTYuNzA4OTc5MDIgNDguNjA5ODY5MzQgMTguMTQ5MzQ4ODYgNDUuMTI4OTA2MjUgMjIuNzM0Mzc1IEM0NC4wNTA5OTc4NiAyNC43NjY1NDE0NSA0Mi45OTQ4NTcyIDI2LjgxMDM1NTQ3IDQxLjk1NzAzMTI1IDI4Ljg2MzI4MTI1IEMzOC4zNzMyNDIwNiAzNS4xNTE1MzgxNiAzMy4xNjYwMzMxOSA0MC4xMTA5NjA3MSAyOC4wNjI1IDQ1LjE4NzUgQzI3LjIzNjIxMDk0IDQ2LjAxMzc4OTA2IDI2LjQwOTkyMTg4IDQ2Ljg0MDA3ODEyIDI1LjU1ODU5Mzc1IDQ3LjY5MTQwNjI1IEMxMC45NTUwMzg0NyA2MS41MjUwODcxMiAtNS44MDI4MTU4MyA3MC4wNDAxMzc3NCAtMjYuMDgyMDMxMjUgNjkuNTU4NTkzNzUgQy0zMi45NTE3NDIxMyA2OS4xODI1MTk1NyAtMzguNzQ5MTk3OTQgNjcuMTE4MDUyMjQgLTQ0LjkzNzUgNjQuMTg3NSBDLTQ1Ljg1NzQwNzIzIDYzLjc1MzQwODIgLTQ1Ljg1NzQwNzIzIDYzLjc1MzQwODIgLTQ2Ljc5NTg5ODQ0IDYzLjMxMDU0Njg4IEMtNTguMDkwODM3NjMgNTcuODg0ODI5MDIgLTY4LjEzNzYyNDg4IDUxLjE4OTY3MTA5IC03Ni45Mzc1IDQyLjE4NzUgQy03Ny41MzQzMzU5NCA0MS42MjU0Njg3NSAtNzguMTMxMTcxODggNDEuMDYzNDM3NSAtNzguNzQ2MDkzNzUgNDAuNDg0Mzc1IEMtODQuNDUyNDA3MjIgMzUuMDY1NDI5ODQgLTg5LjczMzM3Njc2IDI5LjE2ODMxNjg0IC05MC45Mzc1IDIxLjE4NzUgQy05Mi4xNDQwNjI1IDIxLjA5NDY4NzUgLTkyLjE0NDA2MjUgMjEuMDk0Njg3NSAtOTMuMzc1IDIxIEMtOTguMTAxMDQ1MSAxOS45MjIxMzAwNyAtMTAxLjgxMjYzNDI3IDE3LjY3MTU4NTgxIC0xMDUuOTM3NSAxNS4xODc1IEMtMTA1LjkzNzUgMTMuODY3NSAtMTA1LjkzNzUgMTIuNTQ3NSAtMTA1LjkzNzUgMTEuMTg3NSBDLTEwMC4xNzcwNTc4OCAxMS43OTM4NjIzMyAtOTUuMjE3MzU2MzEgMTMuOTQ0MDgyNzkgLTg5LjkzNzUgMTYuMTg3NSBDLTg5LjUyMjQyMTg3IDE1Ljc2MzM5ODQ0IC04OS4xMDczNDM3NSAxNS4zMzkyOTY4OCAtODguNjc5Njg3NSAxNC45MDIzNDM3NSBDLTY0LjUxOTU5MjU5IC04LjA5NTIzNjEzIC0yOS45OTk1Mjk0NyAtNi44NTkwMDM4NSAwIDAgWiBNLTg1LjkzNzUgMTkuMTg3NSBDLTg0Ljk2NTgwMjE3IDI5LjM5NzgwMTggLTc1Ljg1NDc2OTI5IDM2LjczMzUyNDEzIC02OC40NjQ4NDM3NSA0My4xMzI4MTI1IEMtNjQuNDM5OTY1NSA0Ni40MDQ5NzAwOSAtNjAuMjk0MjMxOTggNDkuMzc0MTg0MjggLTU1LjkzNzUgNTIuMTg3NSBDLTU1LjAyMzU1NDY5IDUyLjc4NTYyNSAtNTQuMTA5NjA5MzggNTMuMzgzNzUgLTUzLjE2Nzk2ODc1IDU0IEMtNDAuOTY0MDg4MjMgNjEuNTgwNDU1OSAtMjguNDI1MzIzMjMgNjYuMDU3ODg1NjQgLTEzLjkzNzUgNjQuMTg3NSBDMC43MzU4MjQ1IDYwLjcxNDMzNTI0IDEyLjkyODI0OTkxIDUyLjA0NTc2ODUyIDI0LjA2MjUgNDIuMTg3NSBDMjQuNzcwMTk1MzEgNDEuNTYzNTkzNzUgMjUuNDc3ODkwNjIgNDAuOTM5Njg3NSAyNi4yMDcwMzEyNSA0MC4yOTY4NzUgQzMwLjM1NDcwNzM1IDM2LjQwMjgwNDM0IDMzLjgwMjYwMTMxIDMyLjA5OTQ0OTczIDM3LjEyNSAyNy41IEMzNy41MzE4NjAzNSAyNi45NTMxMTUyMyAzNy45Mzg3MjA3IDI2LjQwNjIzMDQ3IDM4LjM1NzkxMDE2IDI1Ljg0Mjc3MzQ0IEM0MC4xMDY2ODQxNiAyMy4zMjU3MDMxOSA0MS4wOTIwMDUyMyAyMS43Mzc0NDE3NyA0MC45MjUyOTI5NyAxOC42MzAxMjY5NSBDNDAuMjk0MTI3MjEgMTYuMDg4MDUzMzkgNDAuMjk0MTI3MjEgMTYuMDg4MDUzMzkgMzguMjU0MTUwMzkgMTQuOTI1MjkyOTcgQzMxLjExNjQ1MjY5IDEyLjM0MzA2NDA5IDIzLjk0OTYzODM4IDEwLjczMTcxNjU0IDE2LjUgOS4zMTI1IEM3Ljk1MTk3ODk5IDcuNjM2Mzk2MTIgLTAuNTA3MDY2MiA1LjgzODM5Mjc0IC04LjkzMjg2MTMzIDMuNjI1NzMyNDIgQy0zNi40NTQ3MjQwMiAtMy41MjU3ODY3OCAtNjMuNTgwOTA1NTQgMC41NTcwMDQ2MiAtODUuOTM3NSAxOS4xODc1IFogIiBmaWxsPSIjMEUwOTA5IiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxNjkuOTM3NSwxMTEuODEyNSkiLz4KPHBhdGggZD0iTTAgMCBDMC44MDA1MDc4MSAwLjQxMzc4OTA2IDAuODAwNTA3ODEgMC40MTM3ODkwNiAxLjYxNzE4NzUgMC44MzU5Mzc1IEMxMy40MDg5MTk0OSA2LjU5NjQ4ODU0IDIyLjI2MTAzNTMyIDguODU5MjUzNjIgMzQuODcxMDkzNzUgNC44NTE1NjI1IEMzNy4yMzk5NzY3MyAzLjk4ODgwMDg2IDM3LjIzOTk3NjczIDMuOTg4ODAwODYgNDAgMiBDNDIuMTg3NSAyLjM3NSA0Mi4xODc1IDIuMzc1IDQ0IDMgQzQzLjY0MTM2OTcxIDUuNjAwMDY5NiA0My4yNzg3OTkzOSA2Ljc0ODc2MDA5IDQxLjMwMDc4MTI1IDguNTMxMjUgQzM0LjE4ODA1NTY2IDEzLjA3MTgwMTQ4IDI0LjIzNzQ0NjcgMTQuMDMzOTg5MTMgMTYgMTMgQzguODc3Njk5ODMgMTEuMzU0MzUwNTIgMy4xOTg5NDAzNCA5LjE5ODk0MDM0IC0yIDQgQy0xLjM0IDIuNjggLTAuNjggMS4zNiAwIDAgWiAiIGZpbGw9IiMxMTExMTEiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEyNiwxODgpIi8+Cjwvc3ZnPgo=",
+    "L": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiPgo8cGF0aCBkPSJNMCAwIEM5OSAwIDE5OCAwIDMwMCAwIEMzMDAgOTkgMzAwIDE5OCAzMDAgMzAwIEMyMDEgMzAwIDEwMiAzMDAgMCAzMDAgQzAgMjAxIDAgMTAyIDAgMCBaICIgZmlsbD0iI0ZFRkVGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwwKSIvPgo8cGF0aCBkPSJNMCAwIEMxLjg3OTg4MjgxIDAuMjE3NzczNDQgMS44Nzk4ODI4MSAwLjIxNzc3MzQ0IDQgMSBDNS4wOTY2Nzk2OSAyLjk2MTkxNDA2IDUuMDk2Njc5NjkgMi45NjE5MTQwNiA1LjkyMTg3NSA1LjUxNTYyNSBDNi4yMjQ4MDQ2OSA2LjQzNzMwNDY5IDYuNTI3NzM0MzcgNy4zNTg5ODQzOCA2LjgzOTg0Mzc1IDguMzA4NTkzNzUgQzcuMjkwMzcxMDkgOS43NjQ1ODk4NCA3LjI5MDM3MTA5IDkuNzY0NTg5ODQgNy43NSAxMS4yNSBDOC4wNjU4MjAzMSAxMi4yMDUxOTUzMSA4LjM4MTY0MDYyIDEzLjE2MDM5MDYzIDguNzA3MDMxMjUgMTQuMTQ0NTMxMjUgQzEwLjEzNjU0ODg1IDE4LjU5Mzk4MjEyIDExLjE4NzM4NjgyIDIyLjI5MDA2Mzk2IDExIDI3IEM5LjM1IDI2LjY3IDcuNyAyNi4zNCA2IDI2IEM1LjAxIDIyLjA0IDUuMDEgMjIuMDQgNCAxOCBDMy40NjYzMjgxMiAxOC4zMTQ1MzEyNSAyLjkzMjY1NjI1IDE4LjYyOTA2MjUgMi4zODI4MTI1IDE4Ljk1MzEyNSBDLTcuMDQ1MDc0NiAyNC4zNjg0NTExNSAtMTYuNDA3OTAwMjkgMjcuNTk3NjY4MTEgLTI3IDMwIEMtMjcgMzEuMzIgLTI3IDMyLjY0IC0yNyAzNCBDLTI4LjEyODAwMjQ0IDQ1LjMyODM2NzQgLTM1LjUyMDg0MzY2IDU2LjczMzU2NDA1IC00MyA2NSBDLTQzLjU1MzAwNzgxIDY1LjYzMjkyOTY5IC00NC4xMDYwMTU2MiA2Ni4yNjU4NTkzNyAtNDQuNjc1NzgxMjUgNjYuOTE3OTY4NzUgQy01MC41MTE3MDYxMyA3My4yMTAwMzQ4OCAtNTcuNDg2ODQxOTcgNzcuNTgxMTkyMjMgLTY2LjEzNjcxODc1IDc4LjIzODI4MTI1IEMtNzMuNzgzMDQ1NzQgNzguMzk4MTA1NDcgLTc5LjQyMTg1NDU1IDc3Ljk4NjM4MDgyIC04NiA3NCBDLTg2Ljc1OTI1NzgxIDczLjU1MjY5NTMxIC04Ny41MTg1MTU2MiA3My4xMDUzOTA2MiAtODguMzAwNzgxMjUgNzIuNjQ0NTMxMjUgQy0xMDAuNTg0MDI5MDEgNjQuOTQ0Mjc2NzcgLTEwOS4yMjE3NjU4MSA1My42NzY3MTYyMSAtMTE0IDQwIEMtMTE0LjY4NTAyNDI0IDM1Ljk4Mzg3NzUgLTExNC45ODUzMjc4IDMyLjA3MTUzNjA1IC0xMTUgMjggQy0xMTUuNzAyNTM5MDYgMjcuODgyNjk1MzEgLTExNi40MDUwNzgxMyAyNy43NjUzOTA2MyAtMTE3LjEyODkwNjI1IDI3LjY0NDUzMTI1IEMtMTI0LjM0NjI3NTM4IDI2LjAyNDMwNTUzIC0xMzIuMzQ4OTI0NjkgMjIuODY2MjAzNzQgLTEzOCAxOCBDLTEzOCAxNi42OCAtMTM4IDE1LjM2IC0xMzggMTQgQy0xMzIuNzU3NjM2MDMgMTQuNTkyNTQzNDkgLTEyOC41NDg5NjY1MyAxNi4zMjYwMjczNCAtMTIzLjgxMjUgMTguNSBDLTExOC40ODE2NDI3OSAyMC45MzU5OTMxOCAtMTE4LjQ4MTY0Mjc5IDIwLjkzNTk5MzE4IC0xMTMgMjMgQy0xMTIuOTc5Mzc1IDIyLjMxOTM3NSAtMTEyLjk1ODc1IDIxLjYzODc1IC0xMTIuOTM3NSAyMC45Mzc1IEMtMTEwLjc1NjMwMTI5IDE0LjEwMzA3NzM2IC0xMDQuMzU1ODc3NzYgMTAuMjk0MDc3NCAtOTguMzA4NTkzNzUgNy4wNDI5Njg3NSBDLTkyLjMwMzgzMzcxIDQuMzMwMTU4MzggLTg3LjI1OTEzNTM1IDMuNjQ1MTQ5NTUgLTgwLjc1IDMuNjg3NSBDLTc5LjQ2OTk2MDk0IDMuNjkxNjA4ODkgLTc5LjQ2OTk2MDk0IDMuNjkxNjA4ODkgLTc4LjE2NDA2MjUgMy42OTU4MDA3OCBDLTcyLjk2NzUyNDA4IDMuNzgyMjExMTEgLTY4LjY3MDQ4NjU5IDQuMzY1MzEwNzIgLTYzLjc4OTA2MjUgNi4yMTA5Mzc1IEMtNTguOTU4OTM4MiA3LjU3NzQ0MzI1IC01My45NDMwODkxMiA3LjgxMjM1NTgxIC00OC45NDkyMTg3NSA4LjE3NzI0NjA5IEMtNDAuODYxMDkwMzYgOC44NTQwNDE5NiAtMzQuNDY1MDMwMjYgMTAuNTcwNTUyNjMgLTI5IDE3IEMtMjcgMjAgLTI3IDIwIC0yNyAyNCBDLTE3LjI5MzM0NjIxIDIwLjk2NTgzMTU5IC04LjE0NzEzODAzIDE3LjQ4ODczMDQ3IDEgMTMgQzAuNjQ5Mzc1IDExLjc4MzEyNSAwLjI5ODc1IDEwLjU2NjI1IC0wLjA2MjUgOS4zMTI1IEMtMC45MzQ1NjM1MiA1Ljg3OTEzMTA0IC0xLjA3NzAzMTY5IDMuNDQ2NTAxNDEgMCAwIFogIiBmaWxsPSIjRkQ0QzRDIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTQsMTA5KSIvPgo8cGF0aCBkPSJNMCAwIEMxLjg3OTg4MjgxIDAuMjE3NzczNDQgMS44Nzk4ODI4MSAwLjIxNzc3MzQ0IDQgMSBDNS4wOTY2Nzk2OSAyLjk2MTkxNDA2IDUuMDk2Njc5NjkgMi45NjE5MTQwNiA1LjkyMTg3NSA1LjUxNTYyNSBDNi4yMjQ4MDQ2OSA2LjQzNzMwNDY5IDYuNTI3NzM0MzcgNy4zNTg5ODQzOCA2LjgzOTg0Mzc1IDguMzA4NTkzNzUgQzcuMjkwMzcxMDkgOS43NjQ1ODk4NCA3LjI5MDM3MTA5IDkuNzY0NTg5ODQgNy43NSAxMS4yNSBDOC4wNjU4MjAzMSAxMi4yMDUxOTUzMSA4LjM4MTY0MDYyIDEzLjE2MDM5MDYzIDguNzA3MDMxMjUgMTQuMTQ0NTMxMjUgQzEwLjEzNjU0ODg1IDE4LjU5Mzk4MjEyIDExLjE4NzM4NjgyIDIyLjI5MDA2Mzk2IDExIDI3IEM5LjM1IDI2LjY3IDcuNyAyNi4zNCA2IDI2IEM1LjAxIDIyLjA0IDUuMDEgMjIuMDQgNCAxOCBDMy40NjYzMjgxMiAxOC4zMTQ1MzEyNSAyLjkzMjY1NjI1IDE4LjYyOTA2MjUgMi4zODI4MTI1IDE4Ljk1MzEyNSBDLTcuMDQ1MDc0NiAyNC4zNjg0NTExNSAtMTYuNDA3OTAwMjkgMjcuNTk3NjY4MTEgLTI3IDMwIEMtMjcgMzEuMzIgLTI3IDMyLjY0IC0yNyAzNCBDLTI4LjEyODAwMjQ0IDQ1LjMyODM2NzQgLTM1LjUyMDg0MzY2IDU2LjczMzU2NDA1IC00MyA2NSBDLTQzLjU1MzAwNzgxIDY1LjYzMjkyOTY5IC00NC4xMDYwMTU2MiA2Ni4yNjU4NTkzNyAtNDQuNjc1NzgxMjUgNjYuOTE3OTY4NzUgQy01MC41MTE3MDYxMyA3My4yMTAwMzQ4OCAtNTcuNDg2ODQxOTcgNzcuNTgxMTkyMjMgLTY2LjEzNjcxODc1IDc4LjIzODI4MTI1IEMtNzMuNzgzMDQ1NzQgNzguMzk4MTA1NDcgLTc5LjQyMTg1NDU1IDc3Ljk4NjM4MDgyIC04NiA3NCBDLTg2Ljc1OTI1NzgxIDczLjU1MjY5NTMxIC04Ny41MTg1MTU2MiA3My4xMDUzOTA2MiAtODguMzAwNzgxMjUgNzIuNjQ0NTMxMjUgQy0xMDAuNTg0MDI5MDEgNjQuOTQ0Mjc2NzcgLTEwOS4yMjE3NjU4MSA1My42NzY3MTYyMSAtMTE0IDQwIEMtMTE0LjY4NTAyNDI0IDM1Ljk4Mzg3NzUgLTExNC45ODUzMjc4IDMyLjA3MTUzNjA1IC0xMTUgMjggQy0xMTUuNzAyNTM5MDYgMjcuODgyNjk1MzEgLTExNi40MDUwNzgxMyAyNy43NjUzOTA2MyAtMTE3LjEyODkwNjI1IDI3LjY0NDUzMTI1IEMtMTI0LjM0NjI3NTM4IDI2LjAyNDMwNTUzIC0xMzIuMzQ4OTI0NjkgMjIuODY2MjAzNzQgLTEzOCAxOCBDLTEzOCAxNi42OCAtMTM4IDE1LjM2IC0xMzggMTQgQy0xMzIuNzU3NjM2MDMgMTQuNTkyNTQzNDkgLTEyOC41NDg5NjY1MyAxNi4zMjYwMjczNCAtMTIzLjgxMjUgMTguNSBDLTExOC40ODE2NDI3OSAyMC45MzU5OTMxOCAtMTE4LjQ4MTY0Mjc5IDIwLjkzNTk5MzE4IC0xMTMgMjMgQy0xMTIuOTc5Mzc1IDIyLjMxOTM3NSAtMTEyLjk1ODc1IDIxLjYzODc1IC0xMTIuOTM3NSAyMC45Mzc1IEMtMTEwLjc1NjMwMTI5IDE0LjEwMzA3NzM2IC0xMDQuMzU1ODc3NzYgMTAuMjk0MDc3NCAtOTguMzA4NTkzNzUgNy4wNDI5Njg3NSBDLTkyLjMwMzgzMzcxIDQuMzMwMTU4MzggLTg3LjI1OTEzNTM1IDMuNjQ1MTQ5NTUgLTgwLjc1IDMuNjg3NSBDLTc5LjQ2OTk2MDk0IDMuNjkxNjA4ODkgLTc5LjQ2OTk2MDk0IDMuNjkxNjA4ODkgLTc4LjE2NDA2MjUgMy42OTU4MDA3OCBDLTcyLjk2NzUyNDA4IDMuNzgyMjExMTEgLTY4LjY3MDQ4NjU5IDQuMzY1MzEwNzIgLTYzLjc4OTA2MjUgNi4yMTA5Mzc1IEMtNTguOTU4OTM4MiA3LjU3NzQ0MzI1IC01My45NDMwODkxMiA3LjgxMjM1NTgxIC00OC45NDkyMTg3NSA4LjE3NzI0NjA5IEMtNDAuODYxMDkwMzYgOC44NTQwNDE5NiAtMzQuNDY1MDMwMjYgMTAuNTcwNTUyNjMgLTI5IDE3IEMtMjcgMjAgLTI3IDIwIC0yNyAyNCBDLTE3LjI5MzM0NjIxIDIwLjk2NTgzMTU5IC04LjE0NzEzODAzIDE3LjQ4ODczMDQ3IDEgMTMgQzAuNjQ5Mzc1IDExLjc4MzEyNSAwLjI5ODc1IDEwLjU2NjI1IC0wLjA2MjUgOS4zMTI1IEMtMC45MzQ1NjM1MiA1Ljg3OTEzMTA0IC0xLjA3NzAzMTY5IDMuNDQ2NTAxNDEgMCAwIFogTS0xMDUuOTY4NzUgMTguNjQ4NDM3NSBDLTEwOS40NzAyOTQ4NiAyMi43MDIxNDkwNSAtMTEwLjQxNjcwMjg4IDI2LjQyMDQzMzEyIC0xMTAuMjQ2MDkzNzUgMzEuNzY5NTMxMjUgQy0xMDguODA4MjY1NDEgNDQuODAxMjc2OTkgLTEwMC44MjY4ODAxNSA1Ni41MTYxMDg1MSAtOTAuODgyODEyNSA2NC43NTM5MDYyNSBDLTg5LjA5ODMzMzA1IDY2LjE4Mzk2NzQzIC04OS4wOTgzMzMwNSA2Ni4xODM5Njc0MyAtODcgNjYgQy04NyA2Ni42NiAtODcgNjcuMzIgLTg3IDY4IEMtNzkuMDU0Nzk3MDIgNzEuOTQ0NDI3MDEgLTcxLjkyOTIwNDM1IDc0LjY0MzkxOTc0IC02MyA3MyBDLTQ5LjU0MzA2MDc0IDY4LjA0NTk3MjgzIC00MS4wMzMxNTQ0NyA1Ni43NzI0NDQ1OSAtMzUuMTI4MTczODMgNDQuMTM0MDMzMiBDLTMxLjg5NzE2NzMxIDM2LjczMjk4NzczIC0zMS4wMDg0NTA2NyAyOS4wMzM4MDMwOCAtMzIgMjEgQy0zNS4wMTI1MjU3OSAxNi41Njk4MTUwMiAtMzcuOTYxNDEwNzMgMTUuMzkwMzM5MiAtNDMgMTQgQy00Ni44MjA1NjgwNCAxMy4zODkwMzE4MyAtNTAuNjU2Njc2NTUgMTIuOTQyMTUyMjUgLTU0LjUgMTIuNSBDLTYwLjYyNTg1Njc4IDExLjc5NTI1NTQxIC02Ni4xNDI3ODg0MSAxMC45NjA2NzY3NiAtNzIgOSBDLTg1LjY3MzMyMjcgNy44OTg2OTY4MSAtOTUuNjE4OTAzNDcgOS4xMTc0MDc5NCAtMTA1Ljk2ODc1IDE4LjY0ODQzNzUgWiAiIGZpbGw9IiMwRTBBMEEiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIxNCwxMDkpIi8+CjxwYXRoIGQ9Ik0wIDAgQzQuNjQ3Njk5MTMgMC40NjQ3Njk5MSA4LjAzNTkwMjUxIDEuODU4OTY2ODMgMTIuMDcwMzEyNSA0LjA2MjUgQzIwLjA5NzE5NzU0IDcuOTYyMjAxMjQgMjkuODU3MDQyNjQgNi40NzI5ODYzNCAzOC4wMzkwNjI1IDMuODUxNTYyNSBDNDAuMTgwNDQ0MTcgMy4wNjQxNzY2MiA0MC4xODA0NDQxNyAzLjA2NDE3NjYyIDQyIDEgQzQ0LjEyNSAxLjM3NSA0NC4xMjUgMS4zNzUgNDYgMiBDNDUuODc1IDMuNzUgNDUuODc1IDMuNzUgNDUgNiBDMzcuNjIwMTQzNjIgMTIuMjcyODc3OTIgMjguMzAxMzU3MTMgMTIuNjc1MjA5NjMgMTkgMTIgQzEzLjY3MTE4Mjc2IDExLjE2OTQxMzc4IDguODczMzQ1MDQgOS4yMzM2MTY0OCA0IDcgQzQgNi4zNCA0IDUuNjggNCA1IEMyLjY4IDQuMzQgMS4zNiAzLjY4IDAgMyBDMCAyLjAxIDAgMS4wMiAwIDAgWiAiIGZpbGw9IiMwQjBCMEIiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEyMSwyMDApIi8+Cjwvc3ZnPgo=",
+    "U": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiPgo8cGF0aCBkPSJNMCAwIEM5OSAwIDE5OCAwIDMwMCAwIEMzMDAgOTkgMzAwIDE5OCAzMDAgMzAwIEMyMDEgMzAwIDEwMiAzMDAgMCAzMDAgQzAgMjAxIDAgMTAyIDAgMCBaICIgZmlsbD0iI0ZFRkVGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwwKSIvPgo8cGF0aCBkPSJNMCAwIEMxLjg3NSAwLjEyNSAxLjg3NSAwLjEyNSA0IDEgQzYuMjMwMjU0OTcgNS45MTQzODYzOSA3LjA3NjU4Nzg0IDExLjQ4MDE4NTY1IDguMTg3NSAxNi43NSBDOC4zNzc2MzY3MiAxNy42MTIzODI4MSA4LjU2Nzc3MzQ0IDE4LjQ3NDc2NTYzIDguNzYzNjcxODggMTkuMzYzMjgxMjUgQzguOTM4MzM5ODQgMjAuMTg2OTkyMTkgOS4xMTMwMDc4MSAyMS4wMTA3MDMxMiA5LjI5Mjk2ODc1IDIxLjg1OTM3NSBDOS40NTMwNTQyIDIyLjYwNjcwODk4IDkuNjEzMTM5NjUgMjMuMzU0MDQyOTcgOS43NzgwNzYxNyAyNC4xMjQwMjM0NCBDMTAgMjYgMTAgMjYgOSAyOCBDNy42OCAyNy42NyA2LjM2IDI3LjM0IDUgMjcgQzQuMDEgMjMuNTM1IDQuMDEgMjMuNTM1IDMgMjAgQzIuMjUyMzQzNzUgMjAuNDkzNzEwOTQgMS41MDQ2ODc1IDIwLjk4NzQyMTg3IDAuNzM0Mzc1IDIxLjQ5NjA5Mzc1IEMtMC4yNTA0Njg3NSAyMi4xMzY3NTc4MSAtMS4yMzUzMTI1IDIyLjc3NzQyMTg4IC0yLjI1IDIzLjQzNzUgQy0zLjIyNDUzMTI1IDI0LjA3NTU4NTk0IC00LjE5OTA2MjUgMjQuNzEzNjcxODcgLTUuMjAzMTI1IDI1LjM3MTA5Mzc1IEMtNy41ODM4MTYxNSAyNi43NTc2MTM2IC05LjMxNzgwMzA3IDI3LjU0NjU4MSAtMTIgMjggQy0xMS44OTY4NzUgMjkuMTEzNzUgLTExLjc5Mzc1IDMwLjIyNzUgLTExLjY4NzUgMzEuMzc1IEMtMTEuNzUxMjQ0NTIgNDAuNDI2NzIxNTEgLTE3LjY0ODExODE3IDQ3LjQyNTI1OTI2IC0yMy41ODU5Mzc1IDUzLjczMDQ2ODc1IEMtMzAuNjgzODA1OTcgNjAuNDAzMzgzOTMgLTM2Ljg5OTEyMDc2IDYzLjUwMDc0OTEzIC00Ni42Njc5Njg3NSA2My40MDYyNSBDLTU1LjU2MDY4OTM0IDYyLjMyMjAyNjE1IC02NC4xOTU2NTM3MSA1Ni43MjYwNjY1MiAtNzAgNTAgQy03NC44NzgxNTUyNiA0My4yMDQ3NDg3MSAtNzcuODU5NzAxMjQgMzcuNDE3OTI1NSAtNzggMjkgQy03OC43Mjk2MDkzNyAyOC43MzA1ODU5NCAtNzkuNDU5MjE4NzUgMjguNDYxMTcxODcgLTgwLjIxMDkzNzUgMjguMTgzNTkzNzUgQy04Mi45Mjg2ODU2NCAyNy4wMzAyNjM2NiAtODUuMTgyNzEwNSAyNS43MTE2NzQ4NyAtODcuNjI1IDI0LjA2MjUgQy04OC4zODAzOTA2MyAyMy41NTg0NzY1NiAtODkuMTM1NzgxMjUgMjMuMDU0NDUzMTMgLTg5LjkxNDA2MjUgMjIuNTM1MTU2MjUgQy05MS44MjU3Njg4MiAyMS4xMjgyMjYzMiAtOTMuNDc4NTY3MzQgMTkuODIxNzgwMjEgLTk1IDE4IEMtOTQuNjg3NSAxNS44MTI1IC05NC42ODc1IDE1LjgxMjUgLTk0IDE0IEMtOTMuMDEgMTQgLTkyLjAyIDE0IC05MSAxNCBDLTkxIDE0LjY2IC05MSAxNS4zMiAtOTEgMTYgQy05MC40NDgyODEyNSAxNi4yNzU4NTkzOCAtODkuODk2NTYyNSAxNi41NTE3MTg3NSAtODkuMzI4MTI1IDE2LjgzNTkzNzUgQy04NS4yMTg3NSAxOC44OTA2MjUgLTgxLjEwOTM3NSAyMC45NDUzMTI1IC03NyAyMyBDLTc2LjIzNjg3NSAyMS45NDgxMjUgLTc1LjQ3Mzc1IDIwLjg5NjI1IC03NC42ODc1IDE5LjgxMjUgQy02OS42Njk2ODMwMyAxNC4wNzExODM4NCAtNjMuNzI0NTA1OTYgMTEuMzY0MTA2NDkgLTU2LjE2NDA2MjUgMTAuNjI1IEMtNDYuNTUwNzA0NTkgMTAuNDczOTA1OTcgLTQ2LjU1MDcwNDU5IDEwLjQ3MzkwNTk3IC00Mi4xNDQ1MzEyNSAxMS45Njg3NSBDLTM3LjIwODQ3NDU0IDEzLjU4NzUzMTMzIC0zMi4xNDc0NDYwMSAxMy43NDE5MjY2MiAtMjYuOTg4MjgxMjUgMTQuMTIzMDQ2ODggQy0yMi4wNTAzMDQ0MyAxNC41NTg3NTA3MSAtMTguMjczNTg2MDEgMTUuMjYzMDU4MzQgLTE0IDE4IEMtMTMuMDEgMTkuNDg1IC0xMy4wMSAxOS40ODUgLTEyIDIxIEMtNy42MDk4MzQzOCAxOS40NTA1Mjk3OCAtMy4zMzAzMzk5NiAxNy4zMzAzMzk5NiAwIDE0IEMwLjA3MjcxNzQxIDExLjY0Njg2NDQ1IDAuMDgzNzA4NjggOS4yOTE2NjMzMiAwLjA2MjUgNi45Mzc1IEMwLjA1MzQ3NjU2IDUuNjQ3MTQ4NDQgMC4wNDQ0NTMxMyA0LjM1Njc5Njg4IDAuMDM1MTU2MjUgMy4wMjczNDM3NSBDMC4wMjM1NTQ2OSAyLjAyODMyMDMxIDAuMDExOTUzMTIgMS4wMjkyOTY4OCAwIDAgWiAiIGZpbGw9IiNGRDRDNEMiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE4OCwxMTMpIi8+CjxwYXRoIGQ9Ik0wIDAgQzEuODc1IDAuMTI1IDEuODc1IDAuMTI1IDQgMSBDNi4yMzAyNTQ5NyA1LjkxNDM4NjM5IDcuMDc2NTg3ODQgMTEuNDgwMTg1NjUgOC4xODc1IDE2Ljc1IEM4LjM3NzYzNjcyIDE3LjYxMjM4MjgxIDguNTY3NzczNDQgMTguNDc0NzY1NjMgOC43NjM2NzE4OCAxOS4zNjMyODEyNSBDOC45MzgzMzk4NCAyMC4xODY5OTIxOSA5LjExMzAwNzgxIDIxLjAxMDcwMzEyIDkuMjkyOTY4NzUgMjEuODU5Mzc1IEM5LjQ1MzA1NDIgMjIuNjA2NzA4OTggOS42MTMxMzk2NSAyMy4zNTQwNDI5NyA5Ljc3ODA3NjE3IDI0LjEyNDAyMzQ0IEMxMCAyNiAxMCAyNiA5IDI4IEM3LjY4IDI3LjY3IDYuMzYgMjcuMzQgNSAyNyBDNC4wMSAyMy41MzUgNC4wMSAyMy41MzUgMyAyMCBDMi4yNTIzNDM3NSAyMC40OTM3MTA5NCAxLjUwNDY4NzUgMjAuOTg3NDIxODcgMC43MzQzNzUgMjEuNDk2MDkzNzUgQy0wLjI1MDQ2ODc1IDIyLjEzNjc1NzgxIC0xLjIzNTMxMjUgMjIuNzc3NDIxODggLTIuMjUgMjMuNDM3NSBDLTMuMjI0NTMxMjUgMjQuMDc1NTg1OTQgLTQuMTk5MDYyNSAyNC43MTM2NzE4NyAtNS4yMDMxMjUgMjUuMzcxMDkzNzUgQy03LjU4MzgxNjE1IDI2Ljc1NzYxMzYgLTkuMzE3ODAzMDcgMjcuNTQ2NTgxIC0xMiAyOCBDLTExLjg5Njg3NSAyOS4xMTM3NSAtMTEuNzkzNzUgMzAuMjI3NSAtMTEuNjg3NSAzMS4zNzUgQy0xMS43NTEyNDQ1MiA0MC40MjY3MjE1MSAtMTcuNjQ4MTE4MTcgNDcuNDI1MjU5MjYgLTIzLjU4NTkzNzUgNTMuNzMwNDY4NzUgQy0zMC42ODM4MDU5NyA2MC40MDMzODM5MyAtMzYuODk5MTIwNzYgNjMuNTAwNzQ5MTMgLTQ2LjY2Nzk2ODc1IDYzLjQwNjI1IEMtNTUuNTYwNjg5MzQgNjIuMzIyMDI2MTUgLTY0LjE5NTY1MzcxIDU2LjcyNjA2NjUyIC03MCA1MCBDLTc0Ljg3ODE1NTI2IDQzLjIwNDc0ODcxIC03Ny44NTk3MDEyNCAzNy40MTc5MjU1IC03OCAyOSBDLTc4LjcyOTYwOTM3IDI4LjczMDU4NTk0IC03OS40NTkyMTg3NSAyOC40NjExNzE4NyAtODAuMjEwOTM3NSAyOC4xODM1OTM3NSBDLTgyLjkyODY4NTY0IDI3LjAzMDI2MzY2IC04NS4xODI3MTA1IDI1LjcxMTY3NDg3IC04Ny42MjUgMjQuMDYyNSBDLTg4LjM4MDM5MDYzIDIzLjU1ODQ3NjU2IC04OS4xMzU3ODEyNSAyMy4wNTQ0NTMxMyAtODkuOTE0MDYyNSAyMi41MzUxNTYyNSBDLTkxLjgyNTc2ODgyIDIxLjEyODIyNjMyIC05My40Nzg1NjczNCAxOS44MjE3ODAyMSAtOTUgMTggQy05NC42ODc1IDE1LjgxMjUgLTk0LjY4NzUgMTUuODEyNSAtOTQgMTQgQy05My4wMSAxNCAtOTIuMDIgMTQgLTkxIDE0IEMtOTEgMTQuNjYgLTkxIDE1LjMyIC05MSAxNiBDLTkwLjQ0ODI4MTI1IDE2LjI3NTg1OTM4IC04OS44OTY1NjI1IDE2LjU1MTcxODc1IC04OS4zMjgxMjUgMTYuODM1OTM3NSBDLTg1LjIxODc1IDE4Ljg5MDYyNSAtODEuMTA5Mzc1IDIwLjk0NTMxMjUgLTc3IDIzIEMtNzYuMjM2ODc1IDIxLjk0ODEyNSAtNzUuNDczNzUgMjAuODk2MjUgLTc0LjY4NzUgMTkuODEyNSBDLTY5LjY2OTY4MzAzIDE0LjA3MTE4Mzg0IC02My43MjQ1MDU5NiAxMS4zNjQxMDY0OSAtNTYuMTY0MDYyNSAxMC42MjUgQy00Ni41NTA3MDQ1OSAxMC40NzM5MDU5NyAtNDYuNTUwNzA0NTkgMTAuNDczOTA1OTcgLTQyLjE0NDUzMTI1IDExLjk2ODc1IEMtMzcuMjA4NDc0NTQgMTMuNTg3NTMxMzMgLTMyLjE0NzQ0NjAxIDEzLjc0MTkyNjYyIC0yNi45ODgyODEyNSAxNC4xMjMwNDY4OCBDLTIyLjA1MDMwNDQzIDE0LjU1ODc1MDcxIC0xOC4yNzM1ODYwMSAxNS4yNjMwNTgzNCAtMTQgMTggQy0xMy4wMSAxOS40ODUgLTEzLjAxIDE5LjQ4NSAtMTIgMjEgQy03LjYwOTgzNDM4IDE5LjQ1MDUyOTc4IC0zLjMzMDMzOTk2IDE3LjMzMDMzOTk2IDAgMTQgQzAuMDcyNzE3NDEgMTEuNjQ2ODY0NDUgMC4wODM3MDg2OCA5LjI5MTY2MzMyIDAuMDYyNSA2LjkzNzUgQzAuMDUzNDc2NTYgNS42NDcxNDg0NCAwLjA0NDQ1MzEzIDQuMzU2Nzk2ODggMC4wMzUxNTYyNSAzLjAyNzM0Mzc1IEMwLjAyMzU1NDY5IDIuMDI4MzIwMzEgMC4wMTE5NTMxMiAxLjAyOTI5Njg4IDAgMCBaIE0tNzEuMDYyNSAyMi42ODc1IEMtNzMuNjE1NjgwMDkgMjcuMDUyNjE0MzUgLTc0LjExMDE0NTg4IDMwLjA2Nzc4MDQzIC03MyAzNSBDLTY4Ljg2ODM5NDE2IDQ0LjUxNDMzMTc2IC02Mi4xNDIxNDk1NiA1MS4zNDI2Nzg1MyAtNTMgNTYgQy01Mi4zNTY3NTc4MSA1Ni4zNTU3ODEyNSAtNTEuNzEzNTE1NjMgNTYuNzExNTYyNSAtNTEuMDUwNzgxMjUgNTcuMDc4MTI1IEMtNDYuNTg1MzM1ODcgNTkuMDg1NDQ5MDIgLTQyLjAwMjA3MTg1IDU4LjY4MzYzNDI5IC0zNy40Mzc1IDU3LjEyNSBDLTI4LjA5NDE0OTM4IDUyLjc5NTE1NDU5IC0yMi4xODk3MTMxOCA0Ni4zNjYyNTk2MyAtMTggMzcgQy0xNy4wNTg1MjE4NCAzMy45ODI0NDE3OCAtMTYuNzQ4NzQwOTUgMzEuMDkyODk0MjkgLTE2LjYyNSAyNy45Mzc1IEMtMTYuNTc2MDE1NjIgMjcuMDgwMjczNDQgLTE2LjUyNzAzMTI1IDI2LjIyMzA0Njg3IC0xNi40NzY1NjI1IDI1LjMzOTg0Mzc1IEMtMTYuNzk3MjkyMTMgMjIuODU4OTM1MDMgLTE2Ljc5NzI5MjEzIDIyLjg1ODkzNTAzIC0xOC44NjMyODEyNSAyMS4yOTI5Njg3NSBDLTIzLjMzNDg3MDIgMTkuNDQ5NzYwODUgLTI3Ljc4MjIyMjQzIDE4Ljk1MDg1ODIyIC0zMi41NjI1IDE4LjM3NSBDLTM0LjQzOTAyMTUzIDE4LjEzNDUxODcxIC0zNi4zMTUzMzMyNiAxNy44OTIzOTMyOCAtMzguMTkxNDA2MjUgMTcuNjQ4NDM3NSBDLTM5LjAxODQyMDQxIDE3LjU0NzA4NDk2IC0zOS44NDU0MzQ1NyAxNy40NDU3MzI0MiAtNDAuNjk3NTA5NzcgMTcuMzQxMzA4NTkgQy00Mi44NTExOTQ0NSAxNy4wMjIwNTgxMiAtNDQuODkyMTU0MTQgMTYuNTM1MjI1MzcgLTQ3IDE2IEMtNTYuMTIwNjY1OTUgMTUuMTk0ODQ3MTQgLTY0LjMyOTA3NDIzIDE1LjkzNTI2NTc4IC03MS4wNjI1IDIyLjY4NzUgWiAiIGZpbGw9IiMwRjBCMEIiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE4OCwxMTMpIi8+CjxwYXRoIGQ9Ik0wIDAgQzIuMjUgMC4yNSAyLjI1IDAuMjUgNCAxIEMzLjc2NzU4MDA1IDQuMTM3NjY5MzEgMi44MjU3NDAwNCA1LjE4MzQzMTUzIDAuNjI1IDcuNSBDLTcuNDc4NTM2OTQgMTMuODcyNjg0MzkgLTE4Ljk2MDU3MjUxIDE1Ljk4MzI0MjkgLTI5IDE1IEMtMzMuNTEzMjc0NzQgMTMuNzQ2MzEyNTcgLTM3LjgxMDYzNjA4IDEyLjA5NDY4MTk2IC00MiAxMCBDLTQyIDguNjggLTQyIDcuMzYgLTQyIDYgQy0zNC4zNzUgNi44NzUgLTM0LjM3NSA2Ljg3NSAtMzEgOCBDLTIxLjU5MjQ1MDAxIDguNjEyNDQ0NTYgLTEyLjMxNjMxMDE2IDkuMTM1MDE4OTYgLTQgNCBDLTIuNjQ5MDA4OTcgMi42ODQ1NjEzNyAtMS4zMDc5NDMzMSAxLjM1ODI0ODgyIDAgMCBaICIgZmlsbD0iIzE3MTcxNyIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTY2LDE4NCkiLz4KPC9zdmc+Cg==",
+    "WQ": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiPgo8cGF0aCBkPSJNMCAwIEM5OSAwIDE5OCAwIDMwMCAwIEMzMDAgOTkgMzAwIDE5OCAzMDAgMzAwIEMyMDEgMzAwIDEwMiAzMDAgMCAzMDAgQzAgMjAxIDAgMTAyIDAgMCBaICIgZmlsbD0iI0ZFRkVGRSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwwKSIvPgo8cGF0aCBkPSJNMCAwIEMxLjg1MjUzOTA2IDAuMjAxOTA0MyAxLjg1MjUzOTA2IDAuMjAxOTA0MyA0IDEgQzUuMjgwMjczNDQgMy4wNjk1ODAwOCA1LjI4MDI3MzQ0IDMuMDY5NTgwMDggNi4zNTkzNzUgNS43Njk1MzEyNSBDNi43NTI1MzkwNiA2Ljc0MDgzOTg0IDcuMTQ1NzAzMTMgNy43MTIxNDg0NCA3LjU1MDc4MTI1IDguNzEyODkwNjIgQzcuOTQ2NTIzNDQgOS43MzU3NjE3MiA4LjM0MjI2NTYzIDEwLjc1ODYzMjgxIDguNzUgMTEuODEyNSBDOS4xNjEyMTA5NCAxMi44MjM3Njk1MyA5LjU3MjQyMTg4IDEzLjgzNTAzOTA2IDkuOTk2MDkzNzUgMTQuODc2OTUzMTIgQzEzIDIyLjQyNjYzNzc3IDEzIDIyLjQyNjYzNzc3IDEzIDI3IEMxMC43NSAyNyAxMC43NSAyNyA4IDI2IEM2LjMyODAxMjMyIDIzLjQ3MzMyMjEzIDUuMTQxOTQ0MjkgMjAuODAwNjM0MzIgNCAxOCBDMy4xNjk4NDM3NSAxOC40MjQxMDE1NiAyLjMzOTY4NzUgMTguODQ4MjAzMTIgMS40ODQzNzUgMTkuMjg1MTU2MjUgQy0zOS4yNzAxOTk1NCAzOS4wNzA0Nzc2MyAtOTUuMjk3OTUyMTUgNDEuMDUwNjM2NTQgLTEzOC42MzI4MTI1IDI4LjIwMzEyNSBDLTE1NS45OTk1NTUzOSAyMS45OTc4Mzg2OCAtMTU1Ljk5OTU1NTM5IDIxLjk5NzgzODY4IC0xNjIgMTcgQy0xNjEuNTA1IDE1LjUxNSAtMTYxLjUwNSAxNS41MTUgLTE2MSAxNCBDLTE1Ny4zMTA5NTEzNiAxNC4zNzgzNjM5NiAtMTU0LjM0MDQ4MjE4IDE1LjIyNzE4MDI2IC0xNTEuMDMxMjUgMTYuODIwMzEyNSBDLTE0NS40ODg3NzY0OCAxOS4zMzA0NTE5NSAtMTM5Ljc5MjI4OTU1IDIxLjAwMjQ0ODI2IC0xMzMuOTM3NSAyMi42MjUgQy0xMzIuMjg0NzYwNzQgMjMuMDg0NDcwMjEgLTEzMi4yODQ3NjA3NCAyMy4wODQ0NzAyMSAtMTMwLjU5ODYzMjgxIDIzLjU1MzIyMjY2IEMtMTIyLjA0Nzk5Mzk1IDI1Ljg1OTE2NzU1IC0xMTMuODI1OTIwMDggMjcuMzIyNjE1NjEgLTEwNSAyOCBDLTEwMy45ODE2NDA2MiAyOC4xMDgyODEyNSAtMTAyLjk2MzI4MTI1IDI4LjIxNjU2MjUgLTEwMS45MTQwNjI1IDI4LjMyODEyNSBDLTg0LjI2MDU2NzA3IDMwLjA1MjYzMDk4IC02Ni41NjQ1NDAxMyAyOS4xMzMzMDMyMyAtNDkgMjcgQy00OC4yMjEyNDUxMiAyNi45MTQxMTYyMSAtNDcuNDQyNDkwMjMgMjYuODI4MjMyNDIgLTQ2LjY0MDEzNjcyIDI2LjczOTc0NjA5IEMtMzAuMzczMDY0NiAyNC45MDYyMDQzMiAtMTMuNTU2MzQ4MDkgMjAuNTk4NzQ2MTUgMSAxMyBDMS42NiAxMyAyLjMyIDEzIDMgMTMgQzIuNTQ5NDcyNjYgMTIuMDk1MDc4MTMgMi41NDk0NzI2NiAxMi4wOTUwNzgxMyAyLjA4OTg0Mzc1IDExLjE3MTg3NSBDMS41MTk0MzM1OSA5Ljk3MzA0Njg3IDEuNTE5NDMzNTkgOS45NzMwNDY4NyAwLjkzNzUgOC43NSBDMC41NTQ2NDg0NCA3Ljk2MTA5Mzc1IDAuMTcxNzk2ODggNy4xNzIxODc1IC0wLjIyMjY1NjI1IDYuMzU5Mzc1IEMtMS4wODU2NDA5MSAzLjc0MDA2NDc4IC0wLjkzMDQ1OTMzIDIuNTUxNDQ4MjQgMCAwIFogIiBmaWxsPSIjMTAxMDEwIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMjUsMTA5KSIvPgo8L3N2Zz4K"
+  };
+
+  function mountSvg(host, mouthKey){
+    const uri = MOUTH_IMAGES[mouthKey] || MOUTH_IMAGES["rest"];
+    // Use <img> for rock solid SVG rendering (innerHTML SVG parsing is inconsistent across browsers).
+    host.innerHTML = `<img class="mouth-svg-img" draggable="false" alt="${mouthLabel(mouthKey)}" src="${uri}">`;
+  }
+
+  function mouthAtFrame(frame){
+    if (!App.frameMap || App.frameMap.length !== App.totalFrames) return "rest";
+    return App.frameMap[clamp(frame, 0, App.totalFrames-1)] || "rest";
+  }
+
+  function rebuildFrameMapFromBlocks(){
+    const total = App.totalFrames;
+    const map = new Array(total);
+    for (let i=0;i<total;i++) map[i] = "rest";
+
+    for (let i=0;i<App.blocks.length;i++){
+      const b = App.blocks[i];
+      const s = clamp(b.startFrame, 0, total-1);
+      const e = clamp(b.endFrame, 1, total);
+      for (let f=s; f<e; f++){
+        map[f] = b.mouth || "rest";
+      }
+    }
+
+    App.frameMap = map;
+
+    const tb = document.getElementById("totalBlocks");
+    if (tb) tb.textContent = String(App.blocks.length);
+    const sb = document.getElementById("selectedBlockLabel");
+    if (sb) sb.textContent = App.selectedBlockId ? App.selectedBlockId : "None";
+  }
+
+  function clampAllToTimeline(){
+    App.playheadFrame = clamp(App.playheadFrame, 0, Math.max(0, App.totalFrames-1));
+    for (let i=0;i<App.blocks.length;i++){
+      const b = App.blocks[i];
+      b.startFrame = clamp(b.startFrame, 0, Math.max(0, App.totalFrames-1));
+      b.endFrame = clamp(b.endFrame, 1, App.totalFrames);
+      if (b.endFrame <= b.startFrame) b.endFrame = Math.min(App.totalFrames, b.startFrame + 1);
+    }
+  }
+
+  async function loadAudioFile(file){
+    ensureAudioCtx();
+    resumeAudioCtx();
+
+    if (App.audioUrl){
+      try{ URL.revokeObjectURL(App.audioUrl); }catch(e){}
+      App.audioUrl = "";
+    }
+
+    App.audioUrl = URL.createObjectURL(file);
+
+    const buf = await file.arrayBuffer();
+    App.audioFileBytes = buf.slice(0);
+    App.audioFileName = file && file.name ? file.name : "audio";
+    App.audioFileType = file && file.type ? file.type : "";
+    const decoded = await App.audioCtx.decodeAudioData(buf.slice(0));
+    App.audioBuffer = decoded;
+
+    App.totalFrames = Math.max(1, Math.floor(decoded.duration * App.fps));
+    App.playheadFrame = 0;
+
+    clampAllToTimeline();
+    computePeaks();
+    ensureBlocksExist();
+    rebuildFrameMapFromBlocks();
+    redrawAll(true);
+    setStatus("Audio loaded");
+  }
+
+  function computePeaks(){
+    App.peaks = [];
+    if (!App.audioBuffer) return;
+
+    const ch = App.audioBuffer.numberOfChannels > 0 ? App.audioBuffer.getChannelData(0) : null;
+    if (!ch) return;
+
+    const sr = App.audioBuffer.sampleRate;
+    const samplesPerFrame = Math.max(1, Math.floor(sr / App.fps));
+    const total = App.totalFrames;
+
+    App.peaks.length = total;
+
+    for (let f=0; f<total; f++){
+      const start = f * samplesPerFrame;
+      const end = Math.min(ch.length, start + samplesPerFrame);
+      let peak = 0;
+      for (let i=start;i<end;i++){
+        const a = Math.abs(ch[i]);
+        if (a > peak) peak = a;
+      }
+      App.peaks[f] = peak;
+    }
+  }
+
+  function computeSilenceThreshold(){
+    const p = App.peaks.slice(0);
+    p.sort((a,b)=>a-b);
+    if (p.length === 0) return 0.03;
+    const q10 = p[Math.floor(p.length * 0.10)];
+    const q30 = p[Math.floor(p.length * 0.30)];
+    const base = (q10 + q30) * 0.5;
+    return clamp(base * 1.15, 0.005, 0.08);
+  }
+
+  function guessMouthForToken(token){
+    if (!token) return "rest";
+    if (/^\s+$/.test(token)) return "rest";
+
+    const t = token.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g, "");
+    if (!t) return "rest";
+
+    if (/^(ch|sh|th|ts|st|tr|dr|kr|gr|sk)/.test(t)) return "etc";
+    if (/[mbp]/.test(t)) return "MBP";
+    if (/[fv]/.test(t)) return "FV";
+    if (/[l]/.test(t)) return "L";
+    if (/[wq]/.test(t)) return "WQ";
+    if (/[o]/.test(t)) return "O";
+    if (/[u]/.test(t)) return "U";
+    if (/[e]/.test(t)) return "E";
+    if (/[aiy]/.test(t)) return "AI";
+    return "etc";
+  }
+
+  function buildBlocksFromFrameMap(map){
+    const total = map.length;
+    const blocks = [];
+    let runMouth = map[0] || "rest";
+    let runStart = 0;
+
+    function pushRun(endIndex){
+      blocks.push({
+        id: uid("blk"),
+        startFrame: runStart,
+        endFrame: endIndex,
+        mouth: runMouth || "rest",
+        label: runMouth || "rest"
+      });
+    }
+
+    for (let i=1;i<total;i++){
+      const m = map[i] || "rest";
+      if (m !== runMouth){
+        pushRun(i);
+        runMouth = m;
+        runStart = i;
+      }
+    }
+    pushRun(total);
+
+    App.blocks = blocks.filter(b => (b.endFrame - b.startFrame) > 0);
+    App.selectedBlockId = "";
+    rebuildFrameMapFromBlocks();
+  }
+
+  function getBlockIndexById(id){
+    for (let i=0;i<App.blocks.length;i++){
+      if (App.blocks[i].id === id) return i;
+    }
+    return -1;
+  }
+
+  function findBlockAtFrame(frame){
+    for (let i=0;i<App.blocks.length;i++){
+      const b = App.blocks[i];
+      if (frame >= b.startFrame && frame < b.endFrame) return b;
+    }
+    return null;
+  }
+
+  function ensureBlocksExist(){
+    if (!App.audioBuffer) return;
+    if (!App.blocks || App.blocks.length === 0){
+      App.blocks = [{
+        id: uid("blk"),
+        startFrame: 0,
+        endFrame: App.totalFrames,
+        mouth: "rest",
+        label: "rest"
+      }];
+      App.selectedBlockId = App.blocks[0].id;
+      rebuildFrameMapFromBlocks();
+    }
+  }
+
+  function applyMouthRange(startFrame, endFrame, mouth){
+    ensureBlocksExist();
+    if (!App.frameMap || App.frameMap.length !== App.totalFrames) rebuildFrameMapFromBlocks();
+
+    const s = clamp(startFrame, 0, Math.max(0, App.totalFrames - 1));
+    const e = clamp(endFrame, s + 1, App.totalFrames);
+    for (let f=s; f<e; f++){
+      App.frameMap[f] = mouth || "rest";
+    }
+
+    buildBlocksFromFrameMap(App.frameMap);
+  }
+
+  function insertMouthAtFrame(frame){
+    if (!App.audioBuffer){
+      setStatus("Load audio first");
+      return;
+    }
+    ensureBlocksExist();
+
+    const lenFrames = 3;
+    const maxStart = Math.max(0, App.totalFrames - lenFrames);
+    const start = clamp(frame, 0, maxStart);
+
+    const nb = insertBlockAtFrame(start, lenFrames, App.selectedMouth);
+    if (nb) App.selectedBlockId = nb.id;
+
+    rebuildFrameMapFromBlocks();
+    refreshMouthButtons();
+    redrawAll(false);
+    setStatus("Inserted");
+  }
+
+  function insertBlockAtFrame(frame, lenFrames, mouth){
+    const total = App.totalFrames;
+    const blocks = App.blocks;
+
+    blocks.sort((a,b) => a.startFrame - b.startFrame);
+
+    // Find index where this frame belongs (frame equal to a boundary inserts between)
+    let idx = 0;
+    while (idx < blocks.length && frame >= blocks[idx].endFrame) idx++;
+
+    if (idx < blocks.length){
+      const b = blocks[idx];
+
+      // If inside a block, split it so the right side can be pushed
+      if (frame > b.startFrame && frame < b.endFrame){
+        const right = {
+          id: uid("blk"),
+          startFrame: frame,
+          endFrame: b.endFrame,
+          mouth: b.mouth || "rest",
+          label: b.label || (b.mouth || "rest")
+        };
+        b.endFrame = frame;
+        blocks.splice(idx + 1, 0, right);
+        idx = idx + 1;
+      } else if (frame === b.endFrame){
+        idx = idx + 1;
+      }
+    } else {
+      idx = blocks.length;
+    }
+
+    // Push everything from idx to the right
+    for (let i = idx; i < blocks.length; i++){
+      blocks[i].startFrame += lenFrames;
+      blocks[i].endFrame += lenFrames;
+    }
+
+    // Insert new block at the frame
+    const nb = {
+      id: uid("blk"),
+      startFrame: frame,
+      endFrame: frame + lenFrames,
+      mouth: mouth || "rest",
+      label: mouth || "rest"
+    };
+    blocks.splice(idx, 0, nb);
+
+    // Trim overflow at the end so duration stays the same
+    let overflow = blocks.length ? (blocks[blocks.length - 1].endFrame - total) : 0;
+    if (overflow > 0){
+      for (let i = blocks.length - 1; i >= 0 && overflow > 0; i--){
+        const b = blocks[i];
+        const len = b.endFrame - b.startFrame;
+        if (len <= overflow){
+          overflow -= len;
+          blocks.splice(i, 1);
+        } else {
+          b.endFrame -= overflow;
+          overflow = 0;
+        }
+      }
+    }
+
+    // Clamp and ensure continuity
+    if (blocks.length){
+      blocks[0].startFrame = 0;
+      for (let i = 1; i < blocks.length; i++){
+        blocks[i].startFrame = blocks[i - 1].endFrame;
+      }
+      blocks[blocks.length - 1].endFrame = total;
+    }
+
+    // Remove any zero length blocks
+    for (let i = blocks.length - 1; i >= 0; i--){
+      if (blocks[i].endFrame <= blocks[i].startFrame){
+        blocks.splice(i, 1);
+      }
+    }
+
+    return nb;
+  }
+
+  function addMouthAtPlayhead(){
+    insertMouthAtFrame(App.playheadFrame);
+  }
+
+  function mergeAdjacentBlocksInPlace(){
+    App.blocks.sort((a,b) => a.startFrame - b.startFrame);
+    for (let i = 0; i < App.blocks.length - 1; ){
+      const a = App.blocks[i];
+      const b = App.blocks[i + 1];
+      if ((a.mouth || "rest") === (b.mouth || "rest") && a.endFrame === b.startFrame){
+        a.endFrame = b.endFrame;
+        App.blocks.splice(i + 1, 1);
+        continue;
+      }
+      i++;
+    }
+  }
+
+  function deleteSelectedMouthBlock(){
+    if (!App.audioBuffer || App.blocks.length === 0) return false;
+
+    // If nothing is selected, delete the block under the playhead
+    if (!App.selectedBlockId){
+      const under = findBlockAtFrame(App.playheadFrame);
+      if (under) App.selectedBlockId = under.id;
+    }
+
+    const idx = getBlockIndexById(App.selectedBlockId);
+    if (idx < 0) return false;
+
+    const del = App.blocks[idx];
+    const lenFrames = Math.max(1, del.endFrame - del.startFrame);
+    const total = App.totalFrames;
+
+    // Remove the block and close the gap by pulling everything to the left.
+    App.blocks.splice(idx, 1);
+
+    for (let i = idx; i < App.blocks.length; i++){
+      App.blocks[i].startFrame = App.blocks[i].startFrame - lenFrames;
+      App.blocks[i].endFrame = App.blocks[i].endFrame - lenFrames;
+    }
+
+    // Clamp and rebuild continuity (then extend the last block to the end).
+    if (App.blocks.length === 0){
+      App.blocks = [{
+        id: uid("blk"),
+        startFrame: 0,
+        endFrame: total,
+        mouth: "rest",
+        label: "rest"
+      }];
+      App.selectedBlockId = App.blocks[0].id;
+    } else {
+      for (let i=0;i<App.blocks.length;i++){
+        App.blocks[i].startFrame = clamp(App.blocks[i].startFrame, 0, total);
+        App.blocks[i].endFrame = clamp(App.blocks[i].endFrame, 0, total);
+      }
+
+      App.blocks[0].startFrame = 0;
+      for (let i = 1; i < App.blocks.length; i++){
+        const prev = App.blocks[i - 1];
+        const cur = App.blocks[i];
+        cur.startFrame = prev.endFrame;
+        if (cur.endFrame <= cur.startFrame){
+          cur.endFrame = Math.min(total, cur.startFrame + 1);
+        }
+      }
+      App.blocks[App.blocks.length - 1].endFrame = total;
+
+      mergeAdjacentBlocksInPlace();
+      App.selectedBlockId = "";
+    }
+
+    rebuildFrameMapFromBlocks();
+    redrawAll(false);
+    setStatus("Mouth deleted");
+    return true;
+  }
+
+  function applySnapshot(snapshot){
+    if (!snapshot) return;
+    const map = {};
+    for (let i=0;i<snapshot.length;i++){
+      const s = snapshot[i];
+      map[s.id] = s;
+    }
+    for (let i=0;i<App.blocks.length;i++){
+      const b = App.blocks[i];
+      const s = map[b.id];
+      if (s){
+        b.startFrame = s.start;
+        b.endFrame = s.end;
+      }
+    }
+  }
+
+  function linkedResizeLeft(index, newStart){
+    const blocks = App.blocks;
+    const b = blocks[index];
+    const prev = index > 0 ? blocks[index - 1] : null;
+
+    if (!prev){
+      b.startFrame = 0;
+      return;
+    }
+
+    const minStart = prev.startFrame + 1;
+    const maxStart = b.endFrame - 1;
+    const s = clamp(newStart, minStart, maxStart);
+
+    prev.endFrame = s;
+    b.startFrame = s;
+  }
+
+  function linkedResizeRight(index, newEnd){
+    const blocks = App.blocks;
+    const b = blocks[index];
+    const next = index < blocks.length - 1 ? blocks[index + 1] : null;
+
+    if (!next){
+      b.endFrame = App.totalFrames;
+      return;
+    }
+
+    const minEnd = b.startFrame + 1;
+    const maxEnd = next.endFrame - 1;
+    const e = clamp(newEnd, minEnd, maxEnd);
+
+    b.endFrame = e;
+    next.startFrame = e;
+  }
+
+  function linkedMove(index, newStart){
+    const blocks = App.blocks;
+    const b = blocks[index];
+    const len = b.endFrame - b.startFrame;
+
+    const prev = index > 0 ? blocks[index - 1] : null;
+    const next = index < blocks.length - 1 ? blocks[index + 1] : null;
+
+    if (!prev) newStart = 0;
+    if (!next) newStart = App.totalFrames - len;
+
+    const minStart = prev ? (prev.startFrame + 1) : 0;
+    const maxStart = next ? (next.endFrame - len - 1) : (App.totalFrames - len);
+    const s = clamp(newStart, minStart, maxStart);
+
+    b.startFrame = s;
+    b.endFrame = s + len;
+
+    if (prev) prev.endFrame = b.startFrame;
+    if (next) next.startFrame = b.endFrame;
+
+    if (!prev) b.startFrame = 0;
+    if (!next) b.endFrame = App.totalFrames;
+  }
+
+  function autoMapFromScript(){
+    const text = (App.ui.scriptText.value || "");
+    const total = App.totalFrames;
+    if (total <= 0) return;
+
+    const tokens = [];
+    let i=0;
+    while (i < text.length){
+      const ch = text[i];
+      if (/\s/.test(ch)){
+        let j=i+1;
+        while (j < text.length && /\s/.test(text[j])) j++;
+        tokens.push(text.slice(i,j));
+        i=j;
+        continue;
+      }
+      let j=i+1;
+      while (j < text.length && !/\s/.test(text[j])) j++;
+      tokens.push(text.slice(i,j));
+      i=j;
+    }
+
+    if (tokens.length === 0){
+      App.blocks = [];
+      App.selectedBlockId = "";
+      rebuildFrameMapFromBlocks();
+      return;
+    }
+
+    const tokenMouth = tokens.map(t => guessMouthForToken(t));
+    const tokenWeight = tokens.map((t, idx) => {
+      if (/^\s+$/.test(t)) return 1;
+      const m = tokenMouth[idx];
+      if (m === "MBP") return 4;
+      if (m === "AI" || m === "E" || m === "O" || m === "U") return 3;
+      if (m === "FV" || m === "WQ" || m === "L") return 2;
+      return 2;
+    });
+
+    const totalW = tokenWeight.reduce((a,b)=>a+b,0) || 1;
+    const map = new Array(total);
+    for (let f=0; f<total; f++) map[f] = "rest";
+
+    let fpos = 0;
+    for (let t=0; t<tokens.length; t++){
+      const portion = tokenWeight[t] / totalW;
+      let len = Math.max(1, Math.round(portion * total));
+      if (t === tokens.length-1) len = Math.max(1, total - fpos);
+
+      const mouth = tokenMouth[t] || "rest";
+      for (let k=0; k<len && fpos<total; k++, fpos++){
+        map[fpos] = mouth;
+      }
+      if (fpos >= total) break;
+    }
+
+    if (App.peaks && App.peaks.length === total){
+      const thr = computeSilenceThreshold();
+      const minRun = Math.max(2, Math.floor(App.fps * 0.07));
+      let runStart = -1;
+      for (let f=0; f<total; f++){
+        const silent = (App.peaks[f] || 0) < thr;
+        if (silent && runStart < 0) runStart = f;
+        if (!silent && runStart >= 0){
+          const runLen = f - runStart;
+          if (runLen >= minRun){
+            for (let k=runStart; k<f; k++) map[k] = "rest";
+          }
+          runStart = -1;
+        }
+      }
+      if (runStart >= 0){
+        const runLen = total - runStart;
+        if (runLen >= minRun){
+          for (let k=runStart; k<total; k++) map[k] = "rest";
+        }
+      }
+    }
+
+    buildBlocksFromFrameMap(map);
+  }
+
+  function exportFrameMapJSON(){
+    return { fps: App.fps, totalFrames: App.totalFrames, frameMap: App.frameMap.slice(0) };
+  }
+
+  function exportFrameMapCSV(){
+    const lines = [];
+    lines.push("frame,mouth");
+    for (let i=0;i<App.frameMap.length;i++){
+      lines.push(i + "," + (App.frameMap[i] || "rest"));
+    }
+    return lines.join("\n");
+  }
+
+  function exportBlocksJSON(){
+    return {
+      fps: App.fps,
+      totalFrames: App.totalFrames,
+      blocks: App.blocks.map(b => ({
+        id: b.id,
+        startFrame: b.startFrame,
+        endFrame: b.endFrame,
+        mouth: b.mouth,
+        label: b.label
+      }))
+    };
+  }
+
+  function exportPapagayoSimpleDAT(){
+    const out = [];
+    out.push("fps " + App.fps);
+    out.push("frames " + App.totalFrames);
+    for (let i=0;i<App.frameMap.length;i++){
+      out.push("frame " + i + " " + (App.frameMap[i] || "rest"));
+    }
+    return out.join("\n");
+  }
+
+  function downloadText(filename, text, mime){
+    const blob = new Blob([text], {type: mime || "text/plain"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 2500);
+  }
+
+
+  function sanitizeFilename(name){
+    const s = String(name || "").trim();
+    if (!s) return "lipservice_project";
+    return s
+      .replace(/[^\w\s\.]+/g, "")
+      .replace(/\s+/g, "_")
+      .slice(0, 80) || "lipservice_project";
+  }
+
+  function arrayBufferToBase64(buf){
+    const bytes = new Uint8Array(buf);
+    const chunk = 0x8000;
+    let bin = "";
+    for (let i=0; i<bytes.length; i+=chunk){
+      const sub = bytes.subarray(i, i+chunk);
+      bin += String.fromCharCode.apply(null, sub);
+    }
+    return btoa(bin);
+  }
+
+  function base64ToArrayBuffer(b64){
+    const bin = atob(b64);
+    const len = bin.length;
+    const bytes = new Uint8Array(len);
+    for (let i=0;i<len;i++) bytes[i] = bin.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  function getClipName(){
+    const el = document.getElementById("inp-clipname");
+    const v = el ? String(el.value || "").trim() : "";
+    if (v) return v;
+      // Fallback to Wick provided selection via bridge (if available)
+  try{
+    if (window.LukeToolsBridge && typeof window.LukeToolsBridge.getSelectedClipName === "function"){
+      const bname = String(window.LukeToolsBridge.getSelectedClipName() || "").trim();
+      if (bname) return bname;
+    }
+  }catch(e){}
+
+  // Fallback to stored selection (if available)
+  try{
+    return String(localStorage.getItem("LukeToolsSelectedClipName") || "").trim();
+  }catch(e){
+    return "";
+  }
+}
+
+  async function exportProject(){
+    const proj = {
+      version: 1,
+      app: "Lip Service",
+      savedAt: new Date().toISOString(),
+      fps: App.fps,
+      totalFrames: App.totalFrames,
+      audioDuration: App.audioBuffer ? App.audioBuffer.duration : null,
+      pxPerFrame: App.pxPerFrame,
+      playheadFrame: App.playheadFrame,
+      clipName: getClipName(),
+      scriptText: App.ui && App.ui.scriptText ? (App.ui.scriptText.value || "") : "",
+      blocks: exportBlocksJSON().blocks,
+      frameMap: exportFrameMapJSON().frameMap
+    };
+
+    if (App.audioFileBytes && App.audioFileBytes.byteLength){
+      proj.audio = {
+        name: App.audioFileName || "audio",
+        type: App.audioFileType || "",
+        dataBase64: arrayBufferToBase64(App.audioFileBytes)
+      };
+    } else {
+      proj.audio = null;
+    }
+
+    return proj;
+  }
+
+  async function saveProjectToFile(){
+    const proj = await exportProject();
+    const base = sanitizeFilename(proj.clipName || "lipservice_project");
+    downloadText(base + ".json", JSON.stringify(proj, null, 2), "application/json");
+    setStatus("Project saved");
+  }
+
+  async function applyProject(proj){
+    if (!proj || typeof proj !== "object") throw new Error("Invalid project");
+
+    // Clip name + script
+    const clipInp = document.getElementById("inp-clipname");
+    if (clipInp) clipInp.value = proj.clipName ? String(proj.clipName) : "";
+
+    if (App.ui && App.ui.scriptText){
+      App.ui.scriptText.value = proj.scriptText ? String(proj.scriptText) : "";
+    }
+
+    // FPS
+    if (proj.fps && Number.isFinite(Number(proj.fps))){
+      App.fps = Math.max(1, Math.min(120, Math.floor(Number(proj.fps))));
+      if (App.ui && App.ui.inpFps) App.ui.inpFps.value = String(App.fps);
+    }
+
+    // Timeline length (when no audio is embedded/loaded yet)
+    if (!App.audioBuffer && proj.totalFrames && Number.isFinite(Number(proj.totalFrames))){
+      App.totalFrames = Math.max(1, Math.floor(Number(proj.totalFrames)));
+    }
+
+    // Zoom
+    if (proj.pxPerFrame && Number.isFinite(Number(proj.pxPerFrame))){
+      App.pxPerFrame = clamp(Number(proj.pxPerFrame), App.zoomMin, App.zoomMax);
+    }
+
+    // Blocks
+    if (Array.isArray(proj.blocks) && proj.blocks.length){
+      App.blocks = proj.blocks.map(b => ({
+        id: b.id || uid("blk"),
+        startFrame: Math.max(0, Math.floor(Number(b.startFrame || 0))),
+        endFrame: Math.max(1, Math.floor(Number(b.endFrame || 1))),
+        mouth: b.mouth || "rest",
+        label: b.label || (b.mouth || "rest")
+      }));
+      App.selectedBlockId = App.blocks[0].id;
+    } else {
+      App.blocks = [];
+      App.selectedBlockId = "";
+    }
+
+    // Playhead
+    if (Number.isFinite(Number(proj.playheadFrame))){
+      App.playheadFrame = Math.max(0, Math.floor(Number(proj.playheadFrame)));
+    }
+
+    clampAllToTimeline();
+    ensureBlocksExist();
+    rebuildFrameMapFromBlocks();
+    redrawAll(true);
+    mountSvg(App.ui.currentMouthHost, mouthAtFrame(App.playheadFrame));
+    setStatus("Project loaded");
+  }
+
+  async function loadProjectFile(file){
+    const txt = await file.text();
+    const proj = JSON.parse(txt);
+
+    if (proj && proj.audio && proj.audio.dataBase64){
+      try{
+        const ab = base64ToArrayBuffer(proj.audio.dataBase64);
+        const blob = new Blob([ab], {type: proj.audio.type || "audio/*"});
+        const f = new File([blob], proj.audio.name || "audio", {type: proj.audio.type || "audio/*"});
+        await loadAudioFile(f);
+      }catch(e){
+        // If audio fails, still apply everything else
+      }
+    }
+
+    await applyProject(proj);
+  }
+  
+
+function sendToWick(){
+    const fm = exportFrameMapJSON();
+    const bl = exportBlocksJSON();
+    const clipName = getClipName();
+
+    // LocalStorage keys
+    try{
+      localStorage.setItem("wick-lipsync-frame-map", JSON.stringify(fm));
+      localStorage.setItem("wick-lipsync-blocks", JSON.stringify(bl));
+      localStorage.setItem("wick-lipsync-papagayo-simple", exportPapagayoSimpleDAT());
+      localStorage.setItem("wick-lipsync-clip-name", clipName);
+      localStorage.setItem("wick-lipsync-project", JSON.stringify({ clipName, frameMap: fm, blocks: bl }));
+
+      // Underscore variants (optional)
+      localStorage.setItem("wick_lipsync_frame_map", JSON.stringify(fm));
+      localStorage.setItem("wick_lipsync_blocks", JSON.stringify(bl));
+      localStorage.setItem("wick_lipsync_papagayo_simple", exportPapagayoSimpleDAT());
+      localStorage.setItem("wick_lipsync_clip_name", clipName);
+      localStorage.setItem("wick_lipsync_project", JSON.stringify({ clipName, frameMap: fm, blocks: bl }));
+    }catch(e){}
+
+    // BroadcastChannel (old name) + optional underscore channel
+    try{
+      const bc = new BroadcastChannel("wick-lipsync");
+      bc.postMessage({ type:"clip-name", clipName });
+      bc.postMessage({ type:"frame-map", payload: fm, clipName });
+      bc.postMessage({ type:"blocks", payload: bl, clipName });
+      bc.postMessage({ type:"papagayo-simple", payload: exportPapagayoSimpleDAT(), clipName });
+      bc.postMessage({ type:"project", payload: { clipName, frameMap: fm, blocks: bl } });
+      bc.close();
+    }catch(e){}
+
+    try{
+      const bc2 = new BroadcastChannel("wick_lipsync");
+      bc2.postMessage({ type:"clip-name", clipName });
+      bc2.postMessage({ type:"frame-map", payload: fm, clipName });
+      bc2.postMessage({ type:"blocks", payload: bl, clipName });
+      bc2.postMessage({ type:"papagayo-simple", payload: exportPapagayoSimpleDAT(), clipName });
+      bc2.postMessage({ type:"project", payload: { clipName, frameMap: fm, blocks: bl } });
+      bc2.close();
+    }catch(e){}
+
+    setStatus(clipName ? ("Updated Wick: " + clipName) : "Updated Wick");
+  }
+
+  function openModal(){ App.ui.modalBackdrop.style.display = "flex"; }
+  function closeModal(){ App.ui.modalBackdrop.style.display = "none"; }
+
+  function refreshMouthButtons(){
+    const nodes = App.ui.mouthGrid.querySelectorAll(".mouth-btn");
+    for (let i=0;i<nodes.length;i++){
+      const k = nodes[i].dataset.mouth;
+      if (k === App.selectedMouth) nodes[i].classList.add("active");
+      else nodes[i].classList.remove("active");
+    }
+  }
+
+  function findBlockAtFrame(frame){
+    for (let i=0;i<App.blocks.length;i++){
+      const b = App.blocks[i];
+      if (frame >= b.startFrame && frame < b.endFrame) return b;
+    }
+    return null;
+  }
+
+  function updateSelectedBlockMouth(newMouth){
+    if (!App.selectedBlockId) return false;
+    const b = App.blocks.find(x => x.id === App.selectedBlockId);
+    if (!b) return false;
+    b.mouth = newMouth;
+    b.label = newMouth;
+    rebuildFrameMapFromBlocks();
+    return true;
+  }
+
+  function stopScrubSound(){
+    if (App.scrubSource){
+      try{ App.scrubSource.stop(); }catch(e){}
+      App.scrubSource = null;
+    }
+  }
+
+  function scrubAtFrame(frame){
+    if (!App.audioBuffer) return;
+
+    ensureAudioCtx();
+    resumeAudioCtx();
+
+    const now = performance.now();
+    if (now - App.scrubLastAt < 22) return;
+    App.scrubLastAt = now;
+
+    stopScrubSound();
+
+    const t = frame / App.fps;
+    const offset = clamp(t, 0, Math.max(0, App.audioBuffer.duration - 0.001));
+
+    const src = App.audioCtx.createBufferSource();
+    src.buffer = App.audioBuffer;
+
+    const env = App.audioCtx.createGain();
+
+    const ct = App.audioCtx.currentTime;
+    env.gain.setValueAtTime(0.0001, ct);
+    env.gain.linearRampToValueAtTime(1.0, ct + 0.010);
+    env.gain.linearRampToValueAtTime(0.0001, ct + 0.120);
+
+    src.connect(env);
+    env.connect(App.masterGain);
+
+    App.scrubSource = src;
+
+    src.start(0, offset);
+    src.stop(ct + 0.125);
+    src.onended = function(){
+      if (App.scrubSource === src) App.scrubSource = null;
+    };
+  }
+
+  function stopPlayback(){
+    App.isPlaying = false;
+    stopScrubSound();
+    if (App.raf) cancelAnimationFrame(App.raf);
+    App.raf = 0;
+
+    if (App.playSource){
+      try{ App.playSource.stop(); }catch(e){}
+      App.playSource = null;
+    }
+    setStatus("Stopped");
+  }
+
+  function playFromFrame(frame){
+    if (!App.audioBuffer){
+      setStatus("Load audio first");
+      return;
+    }
+
+    stopPlayback();
+    App.isPlaying = true;
+
+    ensureAudioCtx();
+    resumeAudioCtx();
+
+    let startSec = frame / App.fps;
+    if (startSec >= App.audioBuffer.duration) startSec = 0;
+
+    const dur = App.audioBuffer.duration;
+    const offset = clamp(startSec, 0, dur);
+
+    stopScrubSound();
+
+    const src = App.audioCtx.createBufferSource();
+    src.buffer = App.audioBuffer;
+    src.connect(App.masterGain);
+    App.playSource = src;
+
+    const startedAt = App.audioCtx.currentTime;
+    src.start(0, offset);
+
+    src.onended = function(){
+      if (App.isPlaying) stopPlayback();
+    };
+
+    function tick(){
+      if (!App.isPlaying) return;
+      const t = App.audioCtx.currentTime - startedAt + offset;
+      const f = clamp(Math.floor(t * App.fps), 0, Math.max(0, App.totalFrames - 1));
+      App.playheadFrame = f;
+      redrawAll(false);
+      App.raf = requestAnimationFrame(tick);
+    }
+    App.raf = requestAnimationFrame(tick);
+    setStatus("Playing");
+  }
+
+  function togglePlay(){
+    if (!App.audioBuffer){
+      setStatus("Load audio first");
+      return;
+    }
+    if (App.isPlaying){
+      stopPlayback();
+      return;
+    }
+    if (App.playheadFrame >= App.totalFrames - 1) App.playheadFrame = 0;
+    playFromFrame(App.playheadFrame);
+  }
+
+  function bindTimelineInteractions(){
+    const canvas = App.ui.timelineCanvas;
+    const scroll = App.ui.timelineScroll;
+
+    function pxFromClientX(clientX){
+      const rect = canvas.getBoundingClientRect();
+      return clientX - rect.left + scroll.scrollLeft;
+    }
+
+    function yFromClientY(clientY){
+      const rect = canvas.getBoundingClientRect();
+      return clientY - rect.top;
+    }
+
+    function frameFromClientX(clientX, allowEnd){
+      const x = pxFromClientX(clientX);
+      const maxFrame = allowEnd ? App.totalFrames : Math.max(0, App.totalFrames - 1);
+      return clamp(Math.floor(x / App.pxPerFrame), 0, Math.max(0, maxFrame));
+    }
+
+    function hitTestBlock(clientX, clientY){
+      const layout = App.timelineLayout;
+      if (!layout) return null;
+
+      const y = yFromClientY(clientY);
+      if (y < layout.blockY || y > (layout.blockY + layout.blockH)) return null;
+
+      const x = pxFromClientX(clientX);
+      const ppf = App.pxPerFrame;
+      const handleBase = layout.handleW || 10;
+
+      for (let i = App.blocks.length - 1; i >= 0; i--){
+        const b = App.blocks[i];
+        const bx = b.startFrame * ppf;
+        const bw = Math.max(2, (b.endFrame - b.startFrame) * ppf);
+        if (x >= bx && x <= (bx + bw)){
+          const handleW = Math.max(4, Math.min(handleBase, Math.floor(bw / 3)));
+          let part = "body";
+          if (x <= (bx + handleW)) part = "left";
+          else if (x >= (bx + bw - handleW)) part = "right";
+          return { block: b, part: part };
+        }
+      }
+      return null;
+    }
+
+    
+    // Drag handle on the playhead (scrub bar)
+    const phHandle = App.ui.playheadHandle;
+    let phDragging = false;
+
+    if (phHandle){
+      phHandle.addEventListener("pointerdown", function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        closeCtxMenu();
+
+        try { phHandle.setPointerCapture(ev.pointerId); } catch(e){}
+        phDragging = true;
+
+        // Stop playback if it is running so scrubbing is predictable
+        if (App.isPlaying) stopPlayback();
+
+        // Seek immediately to the drag start point
+        App.playheadFrame = frameFromClientX(ev.clientX, false);
+        redrawAll(false);
+        scrubAtFrame(App.playheadFrame);
+      });
+
+      phHandle.addEventListener("pointermove", function(ev){
+        if (!phDragging) return;
+        ev.preventDefault();
+        App.playheadFrame = frameFromClientX(ev.clientX, false);
+        redrawAll(false);
+        scrubAtFrame(App.playheadFrame);
+      });
+
+      const endPhDrag = function(ev){
+        if (!phDragging) return;
+        phDragging = false;
+        stopScrubSound();
+      };
+
+      phHandle.addEventListener("pointerup", endPhDrag);
+      phHandle.addEventListener("pointercancel", endPhDrag);
+      phHandle.addEventListener("lostpointercapture", endPhDrag);
+    }
+
+    // Right click on a block: context menu (delete)
+    canvas.addEventListener("contextmenu", function(ev){
+      ev.preventDefault();
+      const hit = hitTestBlock(ev.clientX, ev.clientY);
+      if (hit && hit.block){
+        App.selectedBlockId = hit.block.id;
+        App.selectedMouth = hit.block.mouth || "rest";
+        refreshMouthButtons();
+        redrawAll(false);
+        openCtxMenu(ev.clientX, ev.clientY);
+      } else {
+        closeCtxMenu();
+      }
+    });
+
+let drag = {
+      active: false,
+      mode: "",
+      startClientX: 0,
+      startScrollLeft: 0,
+      blockId: "",
+      origStart: 0,
+      origEnd: 0,
+      grabOffset: 0,
+      blockIndex: -1,
+      snapshot: null
+    };
+
+    function setCursorForHover(ev){
+      const hit = hitTestBlock(ev.clientX, ev.clientY);
+      if (!hit){
+        canvas.style.cursor = "";
+        return;
+      }
+      if (hit.part === "body") canvas.style.cursor = "grab";
+      else canvas.style.cursor = "ew-resize";
+    }
+
+    function endDrag(){
+      drag.active = false;
+      drag.mode = "";
+      drag.blockId = "";
+      drag.blockIndex = -1;
+      drag.snapshot = null;
+      stopScrubSound();
+    }
+
+    canvas.addEventListener("pointerdown", function(ev){
+      canvas.setPointerCapture(ev.pointerId);
+
+      ensureAudioCtx();
+      resumeAudioCtx();
+      if (App.isPlaying) stopPlayback();
+
+
+      const wantsPan = (ev.button === 1) || ev.altKey;
+
+      drag.active = true;
+      drag.startClientX = ev.clientX;
+      drag.startScrollLeft = scroll.scrollLeft;
+
+      if (wantsPan){
+        drag.mode = "pan";
+        return;
+      }
+
+      const hit = hitTestBlock(ev.clientX, ev.clientY);
+
+      if (hit){
+        App.selectedBlockId = hit.block.id;
+        App.selectedMouth = hit.block.mouth || "rest";
+        refreshMouthButtons();
+
+        drag.blockId = hit.block.id;
+        drag.origStart = hit.block.startFrame;
+        drag.origEnd = hit.block.endFrame;
+        drag.blockIndex = getBlockIndexById(hit.block.id);
+        drag.snapshot = App.blocks.map(bb => ({ id: bb.id, start: bb.startFrame, end: bb.endFrame }));
+
+        const f = frameFromClientX(ev.clientX, true);
+        drag.grabOffset = f - hit.block.startFrame;
+
+        if (hit.part === "left") drag.mode = "resizeL";
+        else if (hit.part === "right") drag.mode = "resizeR";
+        else drag.mode = "move";
+
+        redrawAll(false);
+        return;
+      }
+
+      // Seek
+      drag.mode = "seek";
+      const f = frameFromClientX(ev.clientX, false);
+      App.playheadFrame = f;
+      App.selectedBlockId = "";
+      redrawAll(false);
+      scrubAtFrame(App.playheadFrame);
+    });
+
+    canvas.addEventListener("pointermove", function(ev){
+      if (!drag.active){
+        setCursorForHover(ev);
+        return;
+      }
+
+      if (drag.mode === "pan"){
+        const dx = ev.clientX - drag.startClientX;
+        const maxScroll = Math.max(0, (App.totalFrames * App.pxPerFrame) - scroll.clientWidth);
+        scroll.scrollLeft = clamp(drag.startScrollLeft - dx, 0, maxScroll);
+        return;
+      }
+
+      if (drag.mode === "seek"){
+        const f = frameFromClientX(ev.clientX, false);
+        if (f !== App.playheadFrame){
+          App.playheadFrame = f;
+          redrawAll(false);
+          scrubAtFrame(App.playheadFrame);
+        }
+        return;
+      }
+
+      const b = App.blocks.find(x => x.id === drag.blockId);
+      if (!b) return;
+
+      const total = App.totalFrames;
+
+      applySnapshot(drag.snapshot);
+
+      const idx = drag.blockIndex;
+      if (idx < 0) return;
+
+      if (drag.mode === "move"){
+        const f = frameFromClientX(ev.clientX, true);
+        const newStart = (f - drag.grabOffset);
+        linkedMove(idx, newStart);
+      } else if (drag.mode === "resizeL"){
+        const f = frameFromClientX(ev.clientX, true);
+        linkedResizeLeft(idx, f);
+      } else if (drag.mode === "resizeR"){
+        const x = pxFromClientX(ev.clientX);
+        const f = clamp(Math.ceil(x / App.pxPerFrame), 0, total);
+        linkedResizeRight(idx, f);
+      }
+
+      rebuildFrameMapFromBlocks();
+      redrawAll(false);
+    });
+
+    canvas.addEventListener("pointerup", function(){
+      endDrag();
+    });
+
+    canvas.addEventListener("pointercancel", function(){
+      endDrag();
+    });
+
+    canvas.addEventListener("dblclick", function(ev){
+      if (!App.audioBuffer) return;
+
+      const f = frameFromClientX(ev.clientX, false);
+      App.playheadFrame = clamp(f, 0, Math.max(0, App.totalFrames - 1));
+      movePlayhead();
+
+      insertMouthAtFrame(App.playheadFrame);
+    });
+
+    scroll.addEventListener("scroll", function(){
+      resumeAudioCtx();
+    }, { passive: true });
+  }
+
+  function roundRect(ctx, x, y, w, h, r){
+    const rr = clamp(r, 0, Math.min(w,h)/2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.lineTo(x + w - rr, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    ctx.lineTo(x + rr, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    ctx.lineTo(x, y + rr);
+    ctx.quadraticCurveTo(x, y, x + rr, y);
+    ctx.closePath();
+  }
+
+  function drawWave(ctx, top, height){
+    if (!App.audioBuffer || !App.peaks || App.peaks.length === 0){
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.font = "13px Arial";
+      ctx.fillText("No audio loaded", 12, top + 24);
+      return;
+    }
+
+    const total = App.totalFrames;
+    const ppf = App.pxPerFrame;
+    const mid = top + Math.floor(height / 2);
+
+    let maxPeak = 0;
+    for (let i = 0; i < App.peaks.length; i++){
+      const p = App.peaks[i] || 0;
+      if (p > maxPeak) maxPeak = p;
+    }
+    const gain = maxPeak > 0 ? (0.95 / maxPeak) : 1;
+
+    // Midline
+    ctx.strokeStyle = "rgba(255,255,255,0.10)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, mid + 0.5);
+    ctx.lineTo(App.ui.timelineCanvas.width, mid + 0.5);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(170,240,255,0.95)";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+
+    ctx.beginPath();
+    for (let f = 0; f < total; f++){
+      const raw = (App.peaks[f] || 0) * gain;
+      const peak = raw > 1 ? 1 : raw;
+      const peak2 = Math.pow(peak, 0.55);
+      const amp = Math.max(1.2, peak2 * (height * 0.49));
+      const x = f * ppf + Math.floor(ppf / 2) + 0.5;
+      ctx.moveTo(x, mid - amp);
+      ctx.lineTo(x, mid + amp);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.font = "12px Arial";
+    ctx.fillText("Duration " + App.audioBuffer.duration.toFixed(2) + "s", 12, top - 6);
+  }
+
+  function drawBlocks(ctx, top, height){
+    const ppf = App.pxPerFrame;
+    const layout = App.timelineLayout || {};
+    const handleBase = layout.handleW || 10;
+
+    ctx.font = "12px Arial";
+
+    for (let i = 0; i < App.blocks.length; i++){
+      const b = App.blocks[i];
+      const x = b.startFrame * ppf;
+      const w = Math.max(2, (b.endFrame - b.startFrame) * ppf);
+      const y = top;
+      const h = height;
+
+      const selected = (b.id === App.selectedBlockId);
+
+      const handleW = Math.max(4, Math.min(handleBase, Math.floor(w / 3)));
+
+      // Body
+      ctx.fillStyle = selected ? "rgba(255,204,0,0.78)" : "rgba(255,255,255,0.74)";
+      ctx.strokeStyle = selected ? "rgba(255,204,0,0.98)" : "rgba(255,255,255,0.70)";
+      ctx.lineWidth = selected ? 2 : 1;
+
+      roundRect(ctx, x + 1, y, Math.max(1, w - 2), h, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      // Handles
+      ctx.fillStyle = selected ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.70)";
+      ctx.fillRect(x + 1, y + 1, handleW, h - 2);
+      ctx.fillRect(x + w - handleW - 1, y + 1, handleW, h - 2);
+
+      ctx.strokeStyle = "rgba(0,0,0,0.28)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + 1 + handleW + 0.5, y + 2);
+      ctx.lineTo(x + 1 + handleW + 0.5, y + h - 2);
+      ctx.moveTo(x + w - handleW - 1 + 0.5, y + 2);
+      ctx.lineTo(x + w - handleW - 1 + 0.5, y + h - 2);
+      ctx.stroke();
+
+      // Small grip lines inside each handle
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 1;
+      for (let g = 0; g < 2; g++){
+        const gxL = x + 1 + Math.floor(handleW / 2) + (g === 0 ? -2 : 2) + 0.5;
+        const gxR = x + w - handleW - 1 + Math.floor(handleW / 2) + (g === 0 ? -2 : 2) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(gxL, y + 10);
+        ctx.lineTo(gxL, y + h - 10);
+        ctx.moveTo(gxR, y + 10);
+        ctx.lineTo(gxR, y + h - 10);
+        ctx.stroke();
+      }
+
+      // Label (black for better readability)
+      ctx.fillStyle = "rgba(0,0,0,0.90)";
+      const label = mouthLabel(b.mouth || "rest");
+      const tx = x + handleW + 8;
+      ctx.fillText(label, tx, y + 22);
+
+      // Bottom marker
+      ctx.fillStyle = "rgba(110,210,255,0.80)";
+      ctx.fillRect(tx, y + h - 14, 22, 6);
+    }
+  }
+
+  function drawTimeline(){
+    const ctx = App.ui.timelineCtx;
+    const canvas = App.ui.timelineCanvas;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    ctx.fillRect(0, 0, w, h);
+
+    const rulerH = 28;
+    const waveTop = rulerH + 8;
+    const waveH = 150;
+
+    const blockH = 54;
+    const blockY = waveTop + Math.floor((waveH - blockH) / 2);
+    const handleW = 10;
+
+    App.timelineLayout = {
+      rulerH: rulerH,
+      waveTop: waveTop,
+      waveH: waveH,
+      blockY: blockY,
+      blockH: blockH,
+      handleW: handleW
+    };
+
+    // Ruler background
+    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    ctx.fillRect(0, 0, w, rulerH);
+
+    // Wave area background
+    ctx.fillStyle = "rgba(255,255,255,0.03)";
+    ctx.fillRect(0, waveTop, w, waveH);
+
+    const ppf = App.pxPerFrame;
+    const total = App.totalFrames;
+    const majorEvery = App.fps;
+    const minorEvery = Math.max(1, Math.floor(App.fps / 5));
+
+    // Grid lines
+    for (let f = 0; f <= total; f++){
+      const x = f * ppf + 0.5;
+
+      if (f % majorEvery === 0){
+        ctx.strokeStyle = "rgba(255,255,255,0.16)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,255,255,0.65)";
+        ctx.font = "12px Arial";
+        ctx.fillText(String(Math.floor(f / App.fps)), x + 4, 18);
+
+      } else if (f % minorEvery === 0){
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+
+        if (ppf >= 14){
+          ctx.strokeStyle = "rgba(255,255,255,0.03)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, h);
+          ctx.stroke();
+        }
+      }
+    }
+
+    drawWave(ctx, waveTop, waveH);
+    drawBlocks(ctx, blockY, blockH);
+  }
+
+  function positionPlayhead(){
+    const x = App.playheadFrame * App.pxPerFrame;
+    App.ui.playhead.style.left = x + "px";
+  }
+
+  function redrawAll(resizeCanvas){
+    if (resizeCanvas){
+      const w = Math.max(1, App.totalFrames * App.pxPerFrame);
+      App.ui.timelineCanvas.width = w;
+      App.ui.timelineCanvas.height = 230;
+      App.ui.timelineSurface.style.width = w + "px";
+      App.ui.timelineSurface.style.height = "230px";
+    }
+
+    drawTimeline();
+    positionPlayhead();
+    mountSvg(App.ui.currentMouthHost, mouthAtFrame(App.playheadFrame));
+  }
+
+  function initUi(){
+    App.ui.fileAudio = el("#file-audio");
+    App.ui.fileProject = el("#file-project");
+    App.ui.btnLoad = el("#btn-load");
+    App.ui.btnLoadProject = el("#btn-load-project");
+    App.ui.btnPlay = el("#btn-play");
+    App.ui.btnStop = el("#btn-stop");
+    App.ui.inpFps = el("#inp-fps");
+    App.ui.inpClipName = el("#inp-clipname");
+
+
+    // Pull selected Wick clip name (if Wick has stored it)
+    // You said you already store this key from Wick: LukeToolsSelectedClipName
+    var clipName = localStorage.getItem("LukeToolsSelectedClipName") || "";
+    console.log("Clip name:", clipName);
+    if (App.ui.inpClipName && clipName){
+      // Only auto-fill if empty, so you can still type over it
+      if (!String(App.ui.inpClipName.value || "").trim()) App.ui.inpClipName.value = clipName;
+    }
+
+    App.ui.btnZoomOut = el("#btn-zoom-out");
+    App.ui.btnZoomIn = el("#btn-zoom-in");
+    App.ui.btnClear = el("#btn-clear");
+    App.ui.btnAuto = el("#btn-auto");
+    App.ui.btnInsert = el("#btn-insert");
+    App.ui.btnDownload = el("#btn-download");
+    App.ui.btnSend = el("#btn-send");
+    App.ui.btnDeleteBlock = el("#btn-delete-block");
+
+    App.ui.timelineScroll = el("#timelineScroll");
+    App.ui.timelineSurface = el("#timelineSurface");
+    App.ui.timelineCanvas = el("#timelineCanvas");
+    App.ui.timelineCtx = App.ui.timelineCanvas.getContext("2d");
+    App.ui.playhead = el("#playhead");
+    App.ui.playheadHandle = el("#playheadHandle");
+
+    App.ui.ctxMenu = el("#ctxMenu");
+    App.ui.ctxDeleteMouth = el("#ctxDeleteMouth");
+    App.ui.mouthGrid = el("#mouthGrid");
+    App.ui.currentMouthHost = el("#currentMouthHost");
+
+    App.ui.scriptText = el("#scriptText");
+    App.ui.modalBackdrop = el("#modalBackdrop");
+    App.ui.btnCloseModal = el("#btn-close-modal");
+
+    App.ui.dlFrameJson = el("#dl-frame-json");
+    App.ui.dlFrameCsv = el("#dl-frame-csv");
+    App.ui.dlBlocksJson = el("#dl-blocks-json");
+    App.ui.dlPapagayoDat = el("#dl-papagayo-dat");
+
+    App.ui.mouthGrid.innerHTML = "";
+    for (let i=0;i<MOUTH_ORDER.length;i++){
+      const k = MOUTH_ORDER[i];
+      const b = document.createElement("button");
+      b.className = "mouth-btn" + (k === App.selectedMouth ? " active" : "");
+      b.dataset.mouth = k;
+
+      const mini = document.createElement("div");
+      mini.className = "mini";
+      mountSvg(mini, k);
+
+      const lab = document.createElement("div");
+      lab.className = "label";
+      lab.textContent = mouthLabel(k);
+
+      b.appendChild(mini);
+      b.appendChild(lab);
+
+      b.addEventListener("click", function(){
+        App.selectedMouth = k;
+        const changed = updateSelectedBlockMouth(k);
+        refreshMouthButtons();
+        redrawAll(false);
+        if (changed) setStatus("Block mouth updated");
+      });
+
+      App.ui.mouthGrid.appendChild(b);
+    }
+
+    mountSvg(App.ui.currentMouthHost, mouthAtFrame(App.playheadFrame));
+
+    App.ui.btnLoad.addEventListener("click", function(){ App.ui.fileAudio.click(); });
+
+    App.ui.btnLoadProject.addEventListener("click", function(){ App.ui.fileProject.click(); });
+    App.ui.fileProject.addEventListener("change", async function(){
+      if (!App.ui.fileProject.files || !App.ui.fileProject.files[0]) return;
+      try{
+        await loadProjectFile(App.ui.fileProject.files[0]);
+      }catch(e){
+        setStatus("Project load failed");
+      }
+      App.ui.fileProject.value = "";
+    });
+    App.ui.fileAudio.addEventListener("change", async function(){
+      if (!App.ui.fileAudio.files || !App.ui.fileAudio.files[0]) return;
+      await loadAudioFile(App.ui.fileAudio.files[0]);
+    });
+
+    App.ui.btnPlay.addEventListener("click", function(){ togglePlay(); });
+    App.ui.btnStop.addEventListener("click", function(){ stopPlayback(); });
+
+    App.ui.inpFps.addEventListener("change", function(){
+      const v = Number(App.ui.inpFps.value);
+      if (!Number.isFinite(v) || v <= 0) return;
+      App.fps = Math.floor(v);
+      if (App.audioBuffer){
+        App.totalFrames = Math.max(1, Math.floor(App.audioBuffer.duration * App.fps));
+      }
+      clampAllToTimeline();
+      computePeaks();
+      rebuildFrameMapFromBlocks();
+      redrawAll(true);
+    });
+
+    App.ui.btnZoomOut.addEventListener("click", function(){
+      App.pxPerFrame = clamp(App.pxPerFrame - 2, App.zoomMin, App.zoomMax);
+      redrawAll(true);
+    });
+    App.ui.btnZoomIn.addEventListener("click", function(){
+      App.pxPerFrame = clamp(App.pxPerFrame + 2, App.zoomMin, App.zoomMax);
+      redrawAll(true);
+    });
+
+    App.ui.btnClear.addEventListener("click", function(){
+      if (App.audioBuffer){
+        App.blocks = [{
+          id: uid("blk"),
+          startFrame: 0,
+          endFrame: App.totalFrames,
+          mouth: "rest",
+          label: "rest"
+        }];
+        App.selectedBlockId = App.blocks[0].id;
+      } else {
+        App.blocks = [];
+        App.selectedBlockId = "";
+      }
+      rebuildFrameMapFromBlocks();
+      redrawAll(true);
+      setStatus("Cleared");
+    });
+
+    App.ui.btnAuto.addEventListener("click", function(){
+      autoMapFromScript();
+      redrawAll(true);
+      setStatus("Auto mapped");
+    });
+
+    App.ui.btnInsert.addEventListener("click", function(){
+      addMouthAtPlayhead();
+    });
+
+    App.ui.btnDeleteBlock.addEventListener("click", function(){
+      deleteSelectedMouthBlock();
+    });
+
+    // Context menu delete
+    if (App.ui.ctxDeleteMouth){
+      App.ui.ctxDeleteMouth.addEventListener("click", function(ev){
+        ev.preventDefault();
+        closeCtxMenu();
+        deleteSelectedMouthBlock();
+      });
+    }
+
+    document.addEventListener("pointerdown", function(ev){
+      if (!App.ui || !App.ui.ctxMenu) return;
+      if (App.ui.ctxMenu.style.display === "block"){
+        if (!App.ui.ctxMenu.contains(ev.target)){
+          closeCtxMenu();
+        }
+      }
+    });
+
+    window.addEventListener("blur", function(){ closeCtxMenu(); });
+
+    document.addEventListener("keydown", function(ev){
+      if (ev.key === "Delete" || ev.key === "Backspace"){
+        // Delete selected mouth block (if any)
+        if (App.selectedBlockId){
+          ev.preventDefault();
+          deleteSelectedMouthBlock();
+        }
+      }
+    });
+
+
+    App.ui.btnDownload.addEventListener("click", function(){ saveProjectToFile(); });
+    
+App.ui.btnSend.addEventListener("click", function(){
+  // Export and broadcast the current timeline project payload
+  sendToWick();
+
+  (function () {
+    function getBridge() {
+      try { if (window.LukeToolsBridge) return window.LukeToolsBridge; } catch (e1) {}
+      try { if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; } catch (e2) {}
+      return null;
+    }
+
+    function validateJs(src) {
+      try {
+        new Function(src);
+        return { ok: true, error: "" };
+      } catch (e) {
+        return { ok: false, error: String(e && e.message ? e.message : e) };
+      }
+    }
+
+    function buildDriverScript() {
+        // Build a Wick update script that syncs MouthShapes inside the selected clip
+        // to the Lip Service blocks using readable if else ranges.
+
+        var mouthPath = "";
+        try {
+          mouthPath = (App.ui && App.ui.wickClipName && App.ui.wickClipName.value) ? String(App.ui.wickClipName.value) : "";
+        } catch (e0) {
+          mouthPath = "";
+        }
+        mouthPath = String(mouthPath || "").trim();
+
+        // Default is selection relative MouthShapes
+        if (!mouthPath) mouthPath = "MouthShapes";
+
+        var total = Number(App.totalFrames || 0);
+        if (!isFinite(total) || total < 1) total = 1;
+
+        // Use the existing frameMap if present, otherwise rebuild a simple map from blocks
+        var fm = null;
+        if (Array.isArray(App.frameMap) && App.frameMap.length === total) {
+          fm = App.frameMap;
+        } else {
+          fm = new Array(total);
+          for (var ii = 0; ii < total; ii += 1) fm[ii] = "rest";
+          if (Array.isArray(App.blocks)) {
+            for (var bi = 0; bi < App.blocks.length; bi += 1) {
+              var bb = App.blocks[bi];
+              if (!bb) continue;
+              var s = Number(bb.startFrame);
+              var e = Number(bb.endFrame);
+              if (!isFinite(s)) s = 0;
+              if (!isFinite(e)) e = 0;
+              if (s < 0) s = 0;
+              if (e > total) e = total;
+              if (e <= s) continue;
+              for (var ff = s; ff < e; ff += 1) {
+                fm[ff] = bb.mouth || "rest";
+              }
+            }
+          }
+        }
+
+        // Convert the per frame map into compact segments of {s,e,m} using 1 based frame numbers.
+        var segments = [];
+        var cur = mouthLabel(fm[0] || "rest");
+        var segStart = 1;
+
+        for (var f = 2; f <= total; f += 1) {
+          var lab = mouthLabel(fm[f - 1] || "rest");
+          if (lab !== cur) {
+            segments.push({ s: segStart, e: f, m: cur });
+            cur = lab;
+            segStart = f;
+          }
+        }
+        segments.push({ s: segStart, e: total + 1, m: cur });
+
+        // Build the update script
+        var scriptLines = [];
+        scriptLines.push("/* LukeTools LipService START */");
+        scriptLines.push("// Runs every frame in the update script of the selected clip");
+        scriptLines.push("var frame = 0;");
+        scriptLines.push("try { frame = project.currentFrameNumber; } catch (e0) { frame = 0; }");
+        scriptLines.push("if (!frame || !isFinite(frame)) frame = 1;");
+        scriptLines.push("");
+        scriptLines.push("function resolvePath(root, path) {");
+        scriptLines.push("  if (!root) return null;");
+        scriptLines.push("  path = String(path || \"\").trim();");
+        scriptLines.push("  if (!path) return null;");
+        scriptLines.push("  var parts = path.split(\".\");");
+        scriptLines.push("  var cur = root;");
+        scriptLines.push("  for (var i = 0; i < parts.length; i += 1) {");
+        scriptLines.push("    var p = String(parts[i] || \"\").trim();");
+        scriptLines.push("    if (!p) continue;");
+        scriptLines.push("    if (!cur) return null;");
+        scriptLines.push("    cur = cur[p];");
+        scriptLines.push("  }");
+        scriptLines.push("  return cur || null;");
+        scriptLines.push("}");
+        scriptLines.push("");
+        scriptLines.push("var mouthPath = " + JSON.stringify(mouthPath) + ";");
+        scriptLines.push("var mouth = null;");
+        scriptLines.push("try { mouth = resolvePath(this, mouthPath); } catch (e1) { mouth = null; }");
+        scriptLines.push("if (!mouth) { try { mouth = this.MouthShapes; } catch (e2) { mouth = null; } }");
+        scriptLines.push("");
+        scriptLines.push("if (mouth && typeof mouth.gotoAndStop === \"function\") {");
+        scriptLines.push("  var label = \"Rest\";");
+
+        for (var si = 0; si < segments.length; si += 1) {
+          var seg = segments[si];
+          if (!seg) continue;
+          var s2 = Number(seg.s);
+          var e2 = Number(seg.e);
+          if (!isFinite(s2) || !isFinite(e2)) continue;
+
+          var open = (si === 0 ? "  if" : "  else if") + " (frame >= " + s2 + " && frame < " + e2 + ") {";
+          scriptLines.push(open);
+          scriptLines.push("    label = " + JSON.stringify(String(seg.m || "Rest")) + ";");
+          scriptLines.push("  }");
+        }
+
+        scriptLines.push("  if (!this.LukeToolsLipServiceState) this.LukeToolsLipServiceState = { lastLabel: \"\" };");
+        scriptLines.push("  if (label !== this.LukeToolsLipServiceState.lastLabel) {");
+        scriptLines.push("    this.LukeToolsLipServiceState.lastLabel = label;");
+        scriptLines.push("    mouth.gotoAndStop(label);");
+        scriptLines.push("  }");
+        scriptLines.push("}");
+        scriptLines.push("/* LukeTools LipService END */");
+
+        return scriptLines.join("\n");
+      }
+
+    function upsertLipServiceBlock(current, block) {
+      var startMarker = "/* LukeTools LipService START */";
+      var endMarker = "/* LukeTools LipService END */";
+
+      var sIdx = current.indexOf(startMarker);
+      var eIdx = current.indexOf(endMarker);
+
+      if (sIdx !== -1 && eIdx !== -1 && eIdx > sIdx) {
+        eIdx = eIdx + endMarker.length;
+        return current.slice(0, sIdx) + block + current.slice(eIdx);
+      }
+
+      var out = current;
+      if (out && out[out.length - 1] !== "\n") out += "\n";
+      out += "\n" + block + "\n";
+      return out;
+    }
+
+    var b = getBridge();
+    if (!b) {
+      console.log("[LipService] bridge not found");
+      return;
+    }
+
+    if (typeof b.captureSelectionNow !== "function") {
+      console.log("[LipService] bridge missing captureSelectionNow");
+      return;
+    }
+
+    function getEditor() {
+      try { if (window.wickEditor) return window.wickEditor; } catch (e1) {}
+      try { if (window.parent && window.parent.wickEditor) return window.parent.wickEditor; } catch (e2) {}
+      try { if (window.WickEditor && window.WickEditor.editor) return window.WickEditor.editor; } catch (e3) {}
+      try { if (window.parent && window.parent.WickEditor && window.parent.WickEditor.editor) return window.parent.WickEditor.editor; } catch (e4) {}
+      try { if (window.editor) return window.editor; } catch (e5) {}
+      try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e6) {}
+      try { if (window.app) return window.app; } catch (e7) {}
+      try { if (window.parent && window.parent.app) return window.parent.app; } catch (e8) {}
+      return null;
+    }
+
+    function markDirty(ed) {
+      try {
+        if (ed && ed.project && typeof ed.project.markAsModified === "function") {
+          ed.project.markAsModified();
+        }
+      } catch (e1) {}
+      try {
+        if (ed && ed.project) {
+          ed.project.unsavedChanges = true;
+        }
+      } catch (e2) {}
+    }
+
+    function isScriptable(obj) {
+      if (!obj) return false;
+      if (typeof obj.addScript === "function") return true;
+      if (typeof obj.getScript === "function") return true;
+      if (obj.scripts && typeof obj.scripts === "object") return true;
+      return false;
+    }
+
+    function resolveScriptTarget(obj) {
+      var cur = obj;
+      var guard = 0;
+
+      while (cur && guard < 80) {
+        if (isScriptable(cur)) return cur;
+
+        if (cur.clipAsset && isScriptable(cur.clipAsset)) return cur.clipAsset;
+
+        cur = cur.parentClip || cur.parent || cur._parent || null;
+        guard += 1;
+      }
+
+      return null;
+    }
+
+    function readScriptFromTarget(target, scriptName) {
+      if (!target) return "";
+      var name = String(scriptName || "");
+
+      try {
+        if (typeof target.getScript === "function") {
+          var gs = target.getScript(name);
+          if (typeof gs === "string") return gs;
+
+          if (gs && typeof gs === "object") {
+            if (typeof gs.source === "string") return gs.source;
+            if (typeof gs.code === "string") return gs.code;
+            if (typeof gs.text === "string") return gs.text;
+            if (typeof gs.src === "string") return gs.src;
+          }
+        }
+      } catch (e1) {}
+
+      try {
+        var sc = target.scripts;
+
+        if (typeof sc === "string") return sc;
+
+        if (sc && typeof sc === "object") {
+          if (typeof sc[name] === "string") return sc[name];
+
+          if (sc[name] && typeof sc[name] === "object") {
+            if (typeof sc[name].source === "string") return sc[name].source;
+            if (typeof sc[name].code === "string") return sc[name].code;
+            if (typeof sc[name].text === "string") return sc[name].text;
+            if (typeof sc[name].src === "string") return sc[name].src;
+          }
+
+          if (Array.isArray(sc)) {
+            for (var i = 0; i < sc.length; i += 1) {
+              var item = sc[i];
+              if (!item) continue;
+              if (item.name === name) {
+                if (typeof item.source === "string") return item.source;
+                if (typeof item.code === "string") return item.code;
+                if (typeof item.text === "string") return item.text;
+                if (typeof item.src === "string") return item.src;
+              }
+            }
+          }
+        }
+      } catch (e2) {}
+
+      try {
+        var k = name + "Script";
+        if (typeof target[k] === "string") return target[k];
+      } catch (e3) {}
+
+      return "";
+    }
+
+    function writeScriptToTarget(target, scriptName, source, ed) {
+      var name = String(scriptName || "");
+      var src = String(source || "");
+
+      if (!target) {
+        console.log("[LipService] write failed target null");
+        return false;
+      }
+
+      try {
+        if (typeof target.removeScript === "function") {
+          target.removeScript(name);
+        }
+      } catch (e1) {}
+
+      try {
+        if (typeof target.addScript === "function") {
+          target.addScript(name, src);
+          markDirty(ed);
+          return true;
+        }
+      } catch (e2) {}
+
+      try {
+        if (target.scripts && typeof target.scripts === "object") {
+          target.scripts[name] = src;
+          markDirty(ed);
+          return true;
+        }
+      } catch (e3) {}
+
+      try {
+        var k = name + "Script";
+        target[k] = src;
+        markDirty(ed);
+        return true;
+      } catch (e4) {}
+
+      console.log("[LipService] write failed no supported script api");
+      return false;
+    }
+
+    var sel = null;
+    try { sel = b.captureSelectionNow(); } catch (e0) { sel = null; }
+    var raw = sel && sel.raw ? sel.raw : null;
+
+    if (!raw) {
+      console.log("[LipService] no selected object to write");
+      return;
+    }
+
+    var target = resolveScriptTarget(raw);
+    if (!target) {
+      console.log("[LipService] selected object is not scriptable");
+      return;
+    }
+
+    var scriptName = "update";
+    var current = readScriptFromTarget(target, scriptName);
+
+    var driverBlock = buildDriverScript();
+    var next = upsertLipServiceBlock(current, driverBlock);
+
+    var v = validateJs(next);
+    console.log("[LipService] validate ok", v.ok, v.error);
+    if (!v.ok) return;
+
+    var ed = getEditor();
+    var ok = writeScriptToTarget(target, scriptName, next, ed);
+    console.log("[LipService] update wick write ok", ok);
+  })();});
+
+
+App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
+    App.ui.modalBackdrop.addEventListener("click", function(ev){
+      if (ev.target === App.ui.modalBackdrop) closeModal();
+    });
+
+    App.ui.dlFrameJson.addEventListener("click", function(){
+      downloadText("frame-map.json", JSON.stringify(exportFrameMapJSON(), null, 2), "application/json");
+      closeModal();
+    });
+    App.ui.dlFrameCsv.addEventListener("click", function(){
+      downloadText("frame-map.csv", exportFrameMapCSV(), "text/csv");
+      closeModal();
+    });
+    App.ui.dlBlocksJson.addEventListener("click", function(){
+      downloadText("blocks.json", JSON.stringify(exportBlocksJSON(), null, 2), "application/json");
+      closeModal();
+    });
+    App.ui.dlPapagayoDat.addEventListener("click", function(){
+      downloadText("papagayo-simple.dat", exportPapagayoSimpleDAT(), "text/plain");
+      closeModal();
+    });
+
+    bindTimelineInteractions();
+    rebuildFrameMapFromBlocks();
+    redrawAll(true);
+    setStatus("Ready");
+  }
+
+  ensureAudioCtx();
+  initUi();
+
+})();
+</script>
+
+<script>
+(function(){
+  const bottom = document.getElementById("btn-auto-bottom");
+  const topAuto = document.getElementById("btn-auto");
+  if (bottom && topAuto){
+    bottom.addEventListener("click", function(){
+      topAuto.click();
+    });
+  }
+})();
+</script>
+
+</body>
+</html>

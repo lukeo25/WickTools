@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LukeTool Gradient Fill</title>
+  <style>
+    html, body { margin:0; padding:0; font-family: Arial, Helvetica, sans-serif; background:#0f1014; color:#eee; overflow-x:hidden; }
+    .wrap { padding:12px; }
+    .card {
+      background: linear-gradient(135deg, rgba(255,0,200,0.35), rgba(0,200,255,0.35), rgba(0,255,140,0.30));
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:0px;
+      padding:12px;
+      box-shadow:0 14px 26px rgba(0,0,0,0.45);
+      position:relative;
+      overflow:hidden;
+    }
+    .card:before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background: rgba(0,0,0,0.40);
+      pointer-events:none;
+    }
+    .card > * { position:relative; }
+    h1 { font-size:14px; margin:0 0 8px 0; letter-spacing:0.3px; }
+    .small { font-size:12px; opacity:0.92; line-height:1.35; }
+    .row { display:flex; flex-direction:column; gap:6px; align-items:stretch; margin:10px 0; }
+    .row label { width:auto; font-size:12px; opacity:0.95; }
+    .btnrow { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    button { background: rgba(255,255,255,0.10); color:#eee; border:1px solid rgba(255,255,255,0.16); border-radius:0px; padding:8px 10px; cursor:pointer; font-size:12px; }
+    button:hover { background: rgba(255,255,255,0.14); }
+    select {
+      height:30px;
+      background:rgba(0,0,0,0.28);
+      color:#eee;
+      border:1px solid rgba(255,255,255,0.16);
+      border-radius:0px;
+      padding:0 8px;
+      font-size:12px;
+      outline:none;
+    }
+    input[type="range"] { width:100%; }
+    .status { margin-top:8px; font-size:12px; white-space:pre-wrap; opacity:0.95; }
+    .pill { display:inline-block; padding:3px 8px; border-radius:0px; background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); font-size:12px; margin-top:6px; max-width:100%; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; }
+    .colorrow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    input[type="color"]{ width:40px; height:28px; padding:0; border:0; background:transparent; }
+    .dialwrap { display:flex; justify-content:center; align-items:center; margin-top:6px; }
+    .dial { width:220px; height:220px; user-select:none; -webkit-user-select:none; touch-action:none; position:relative; }
+    .dial svg { width:100%; height:100%; display:block; }
+    .dialreadout{
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column;
+      pointer-events:none; text-align:center;
+    }
+    .deg{ font-size:26px; font-weight:700; letter-spacing:0.3px; text-shadow:0 8px 18px rgba(0,0,0,0.45); }
+    .degsmall{ font-size:12px; opacity:0.9; margin-top:2px; }
+    .dialfooter{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px; flex-wrap:wrap; }
+    .dotrow{ display:flex; gap:8px; align-items:center; }
+    .dot{ width:12px; height:12px; border-radius:0px; border:1px solid rgba(255,255,255,0.25); cursor:pointer; }
+    .tiny{ font-size:11px; opacity:0.9; }
+    .xbtn{
+      position:absolute; top:10px; left:10px; width:22px; height:22px; border-radius:0px;
+      display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.10);
+      border:1px solid rgba(255,255,255,0.14); cursor:pointer; font-size:14px; line-height:1; user-select:none;
+    }
+    .xbtn:hover{ background: rgba(255,255,255,0.14); }
+    .previewRow{ display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap; margin-top:10px; }
+    .previewCanvas{ width:220px; height:70px; background: rgba(0,0,0,0.30); border:1px solid rgba(255,255,255,0.14); border-radius:0px; display:block; }
+    .previewLabel{ font-size:12px; opacity:0.9; margin-bottom:6px; }
+    .colBlock{ display:flex; flex-direction:column; gap:6px; min-width:220px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="xbtn" title="Reset dial" id="btnResetAngle">×</div>
+
+      <h1>Gradient Fill</h1>
+      <div class="small">
+        Drag the dial handle to set angle. Drag the center dot to shift position.
+        <div id="sel" class="pill">No selection</div>
+      </div>
+
+      <div class="dialwrap">
+        <div class="dial" id="dial">
+          <svg viewBox="0 0 220 220" aria-hidden="true">
+            <defs>
+              <radialGradient id="ringGlow" cx="50%" cy="50%" r="65%">
+                <stop offset="0%" stop-color="rgba(255,255,255,0.10)"/>
+                <stop offset="60%" stop-color="rgba(255,255,255,0.06)"/>
+                <stop offset="100%" stop-color="rgba(255,255,255,0.02)"/>
+              </radialGradient>
+
+              <linearGradient id="dialGradLinear" gradientUnits="userSpaceOnUse" x1="50" y1="110" x2="170" y2="110">
+                <stop id="dialStopA" offset="0%" stop-color="#ff0000"/>
+                <stop id="dialStopB" offset="100%" stop-color="#0000ff"/>
+              </linearGradient>
+
+              <radialGradient id="dialGradRadial" gradientUnits="userSpaceOnUse" cx="110" cy="110" r="60">
+                <stop id="dialStopAR" offset="0%" stop-color="#ff0000"/>
+                <stop id="dialStopBR" offset="100%" stop-color="#0000ff"/>
+              </radialGradient>
+            </defs>
+
+            <circle cx="110" cy="110" r="92" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="10"/>
+            <circle cx="110" cy="110" r="92" fill="none" stroke="url(#ringGlow)" stroke-width="22"/>
+
+            <g id="ticks"></g>
+
+            <path id="arc" d="" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="6" stroke-linecap="butt"/>
+
+            <circle id="handle" cx="110" cy="18" r="7" fill="rgba(255,255,255,0.90)" stroke="rgba(0,0,0,0.35)" stroke-width="2"/>
+
+            <circle id="centerDot" cx="110" cy="110" r="6" fill="rgba(0,255,180,0.90)" stroke="rgba(0,0,0,0.35)" stroke-width="2"/>
+
+            <circle id="innerDisc" cx="110" cy="110" r="60" fill="url(#dialGradLinear)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+          </svg>
+
+          <div class="dialreadout">
+            <div class="deg"><span id="degText">0</span></div>
+            <div class="degsmall">degrees</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dialfooter">
+        <div class="dotrow">
+          <div class="dot" id="dotA" title="Set stop A" style="background:#ff0000;"></div>
+          <div class="dot" id="dotB" title="Set stop B" style="background:#0000ff;"></div>
+          <button id="swap" type="button">Swap</button>
+        </div>
+        <div class="tiny">Center shift <span id="shiftText">0, 0</span></div>
+      </div>
+
+      <div class="previewRow">
+        <div class="colBlock">
+          <div class="previewLabel">Preview</div>
+          <canvas id="preview" class="previewCanvas" width="440" height="140"></canvas>
+        </div>
+        <div class="colBlock">
+          <div class="row" style="margin:0;">
+            <label>Gradient type</label>
+            <select id="gradType">
+              <option value="linear">Linear</option>
+              <option value="radial">Radial</option>
+            </select>
+          </div>
+          <div class="row" style="margin:0;">
+            <label>Target Mode</label>
+            <select id="targetMode">
+              <option value="selectedOnly">Selected object only</option>
+              <option value="allFillablesInClip">All fillable shapes in clip</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Stop colors</label>
+        <div class="colorrow">
+          <input id="colorA" type="color" value="#ff0000">
+          <input id="colorB" type="color" value="#0000ff">
+        </div>
+      </div>
+
+      <div class="row">
+        <label for="opacity">Opacity</label>
+        <input id="opacity" type="range" min="0" max="1" step="0.01" value="1">
+      </div>
+
+      <div class="row">
+        <label for="scale">Scale</label>
+        <input id="scale" type="range" min="0.1" max="5" step="0.01" value="1">
+      </div>
+
+      <div class="row">
+        <label>Live update</label>
+        <div class="colorrow">
+          <input id="live" type="checkbox" checked style="transform:scale(1.2);">
+          <div class="small" style="margin:0;">Update script as you drag</div>
+        </div>
+      </div>
+
+      <div class="btnrow">
+        <button id="btnRefresh" type="button">Refresh</button>
+        <button id="btnApply" type="button">Apply</button>
+        <button id="btnRemove" type="button">Remove LT_GRAD</button>
+      </div>
+
+      <div id="status" class="status">Ready</div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  var META_NAME = "LT_GRAD";
+  var TOOL_TAG = "LukeTool_GradientFill";
+
+  var dialState = { angleDeg: 0, shiftX: 0, shiftY: 0 };
+
+  function s(v){ if(v===null||v===undefined) return ""; return String(v); }
+  function clamp01(x){ x = Number(x); if(!isFinite(x)) return 0; if(x<0) return 0; if(x>1) return 1; return x; }
+  function normAng(a){ a = Number(a); if(!isFinite(a)) a = 0; while(a<0) a+=360; while(a>=360) a-=360; return a; }
+
+  function setStatus(t){ document.getElementById("status").textContent = t; }
+  function setSelPill(t){ document.getElementById("sel").textContent = t; }
+
+  function bridge(){ try { return window.LukeToolsBridge || null; } catch(e){ return null; } }
+
+  function getSelObjects(){
+    var b = bridge();
+    if(!b || typeof b.getSelectedObjects !== "function") return [];
+    try { var out = b.getSelectedObjects(); if(out && out.length) return out; } catch(e) {}
+    return [];
+  }
+
+  function getSelInfo(){
+    var b = bridge();
+    if(!b || typeof b.getSelectionInfo !== "function") return null;
+    try { return b.getSelectionInfo(); } catch(e) { return null; }
+  }
+
+  function getUpdateScript(){
+    var b = bridge();
+    if(!b || typeof b.getUpdateScriptOnSelection !== "function") return "";
+    try { return s(b.getUpdateScriptOnSelection()); } catch(e) { return ""; }
+  }
+
+  function setUpdateScript(src){
+    var b = bridge();
+    if(!b || typeof b.setUpdateScriptOnSelection !== "function") return { ok:false, reason:"bridge setUpdateScriptOnSelection missing" };
+    try { return b.setUpdateScriptOnSelection(String(src||"")); } catch(e) { return { ok:false, reason:"set update failed", error:s(e && e.message ? e.message : e) }; }
+  }
+
+  function markDirty(){
+    var b = bridge();
+    if(!b) return;
+    try { if(typeof b.getEditor === "function") { var ed = b.getEditor(); if(ed && ed.project && typeof ed.project.markAsModified === "function") ed.project.markAsModified(); } } catch(e) {}
+  }
+
+  function getUiCfg(){
+    return {
+      tool: TOOL_TAG,
+      targetMode: document.getElementById("targetMode").value,
+      gradType: document.getElementById("gradType").value,
+      colorA: document.getElementById("colorA").value,
+      colorB: document.getElementById("colorB").value,
+      angleDeg: normAng(dialState.angleDeg),
+      opacity: clamp01(document.getElementById("opacity").value),
+      scale: Number(document.getElementById("scale").value),
+      shiftX: Number(dialState.shiftX) || 0,
+      shiftY: Number(dialState.shiftY) || 0
+    };
+  }
+
+  function makeCfgBlock(cfg){ return "var " + META_NAME + " = " + JSON.stringify(cfg, null, 2) + ";"; }
+
+  function stripCfgBlock(src){
+    var re = new RegExp("(^|\\n)\\s*var\\s+" + META_NAME + "\\s*=\\s*\\{[\\s\\S]*?\\}\\s*;\\s*(\\n|$)", "m");
+    return String(src||"").replace(re, "\n");
+  }
+
+  function ensureUpdateScriptHasDriver(src){
+    var base = String(src||"");
+    var hasDriver = base.indexOf("/* " + TOOL_TAG + " */") !== -1;
+    if(hasDriver) return base;
+
+    var driver = // FIX
+"\n\n/* " + TOOL_TAG + " */\n" +
+"function __LT_grad_uuid(o){\n" +
+"  try { if(typeof o.uuid === 'string' && o.uuid) return String(o.uuid); } catch(e1) {}\n" +
+"  try { if(typeof o._uuid === 'string' && o._uuid) return String(o._uuid); } catch(e2) {}\n" +
+"  try { if(typeof o.getUUID === 'function') { var u = o.getUUID(); if(u) return String(u); } } catch(e3) {}\n" +
+"  return '';\n" +
+"}\n" +
+"\n" +
+"function __LT_grad_id(o){\n" +
+"  try { if(typeof o.identifier === 'string' && o.identifier) return String(o.identifier); } catch(e1) {}\n" +
+"  try { if(typeof o._identifier === 'string' && o._identifier) return String(o._identifier); } catch(e2) {}\n" +
+"  try { if(typeof o.name === 'string' && o.name) return String(o.name); } catch(e3) {}\n" +
+"  return '';\n" +
+"}\n" +
+"\n" +
+"function __LT_grad_isFillable(o){\n" +
+"  try {\n" +
+"    if(!o) return false;\n" +
+"    if(o.fillColor !== undefined) return true;\n" +
+"    if(o.fill !== undefined) return true;\n" +
+"    if(o._fillColor !== undefined) return true;\n" +
+"    if(o.style && (o.style.fillColor !== undefined || o.style.fill !== undefined)) return true;\n" +
+"  } catch(e) {}\n" +
+"  return false;\n" +
+"}\n" +
+"\n" +
+"function __LT_grad_getBoundsLoose(o){\n" +
+"  try { if(o && o.bounds) return { x:o.bounds.x, y:o.bounds.y, w:o.bounds.width||0, h:o.bounds.height||0 }; } catch(e1) {}\n" +
+"  try { if(o && typeof o.getBounds === 'function') { var b = o.getBounds(); if(b) return { x:b.x||0, y:b.y||0, w:b.width||0, h:b.height||0 }; } } catch(e2) {}\n" +
+"  try { if(o && typeof o.x === 'number' && typeof o.y === 'number') return { x:o.x, y:o.y, w:0, h:0 }; } catch(e3) {}\n" +
+"  return { x:0, y:0, w:0, h:0 };\n" +
+"}\n" +
+"\n" +
+"function __LT_grad_setFill(o, grad){\n" +
+"  try {\n" +
+"    var g = grad;\n" +
+"    try {\n" +
+"      if(typeof paper !== 'undefined' && paper && typeof paper.Color === 'function'){\n" +
+"        g = new paper.Color(grad);\n" +
+"      }\n" +
+"    } catch(eW) { g = grad; }\n" +
+"    if(typeof o.setFillColor === 'function'){ o.setFillColor(g); return; }\n" +
+"  } catch(e1) {}\n" +
+"  try { if(o.fillColor !== undefined){ o.fillColor = g; return; } } catch(e2) {}\n" +
+"  try { if(o.fill !== undefined){ o.fill = g; return; } } catch(e3) {}\n" +
+"  try { if(o._fillColor !== undefined){ o._fillColor = g; return; } } catch(e4) {}\n" +
+"  try {\n" +
+"    if(o.style && o.style.fillColor !== undefined){ o.style.fillColor = g; return; }\n" +
+"    if(o.style && o.style.fill !== undefined){ o.style.fill = g; return; }\n" +
+"  } catch(e5) {}\n" +
+"}\n" +
+"\n" +
+"function __LT_grad_applyToObject(o, cfg){\n" +
+"  try {\n" +
+"    if(!o || !cfg) return;\n" +
+"    if(!__LT_grad_isFillable(o)) return;\n" +
+"    var b = __LT_grad_getBoundsLoose(o);\n" +
+"    var cx = (b.x + (b.w||0)/2);\n" +
+"    var cy = (b.y + (b.h||0)/2);\n" +
+"    var w = (b.w||0) || 100;\n" +
+"    var h = (b.h||0) || 100;\n" +
+"    var len = Math.max(w,h) * (cfg.scale || 1);\n" +
+"    var sx = (cfg.shiftX || 0);\n" +
+"    var sy = (cfg.shiftY || 0);\n" +
+"    if(sx > 1) sx = 1; if(sx < -1) sx = -1;\n" +
+"    if(sy > 1) sy = 1; if(sy < -1) sy = -1;\n" +
+"    cx = cx + sx * (w/2);\n" +
+"    cy = cy + sy * (h/2);\n" +
+"    var stops = [[cfg.colorA || '#ff0000', 0],[cfg.colorB || '#0000ff', 1]];\n" +
+"    var grad = null;\n" +
+"    if(cfg.gradType === 'radial'){\n" +
+"      grad = { gradient: { stops: stops, radial: true }, origin: { x: cx, y: cy }, destination: { x: cx + (len/2), y: cy } };\n" +
+"    } else {\n" +
+"      var ang = (cfg.angleDeg || 0) * Math.PI / 180;\n" +
+"      var dx = Math.cos(ang) * (len/2);\n" +
+"      var dy = Math.sin(ang) * (len/2);\n" +
+"      grad = { gradient: { stops: stops }, origin: { x: cx - dx, y: cy - dy }, destination: { x: cx + dx, y: cy + dy } };\n" +
+"    }\n" +
+"    __LT_grad_setFill(o, grad);\n" +
+"    try { if(cfg.opacity !== undefined && o.opacity !== undefined) o.opacity = cfg.opacity; } catch(eC) {}\n" +
+"  } catch(e) {}\n" +
+"}\n" +
+"\n" +
+"function __LT_grad_walk(o, visitor, depth){\n" +
+"  try {\n" +
+"    if(!o) return;\n" +
+"    depth = depth || 0;\n" +
+"    if(depth > 60) return;\n" +
+"    visitor(o);\n" +
+"    var kids = null;\n" +
+"    try { if(typeof o.getChildren === 'function') kids = o.getChildren(); } catch(e1) {}\n" +
+"    try { if(!kids && o.children) kids = o.children; } catch(e2) {}\n" +
+"    if(kids && kids.length){ for(var i=0;i<kids.length;i++) __LT_grad_walk(kids[i], visitor, depth+1); }\n" +
+"  } catch(e) {}\n" +
+"}\n" +
+"\n" +
+"function __LT_grad_findFirstFillable(root){\n" +
+"  var found = null;\n" +
+"  __LT_grad_walk(root, function(o){ if(found) return; if(__LT_grad_isFillable(o)) found = o; }, 0);\n" +
+"  return found;\n" +
+"}\n" +
+"\n" +
+"function __LT_grad_findTarget(root, cfg){\n" +
+"  var wantUuid = (cfg && cfg.targetUUID) ? String(cfg.targetUUID) : '';\n" +
+"  var wantId = (cfg && cfg.targetIdentifier) ? String(cfg.targetIdentifier) : '';\n" +
+"  var found = null;\n" +
+"  __LT_grad_walk(root, function(o){\n" +
+"    if(found) return;\n" +
+"    try {\n" +
+"      var u = __LT_grad_uuid(o);\n" +
+"      var id = __LT_grad_id(o);\n" +
+"      if(wantUuid && u && u === wantUuid) found = o;\n" +
+"      else if(!found && wantId && id && id === wantId) found = o;\n" +
+"    } catch(e) {}\n" +
+"  }, 0);\n" +
+"  if(found) return found;\n" +
+"  return __LT_grad_findFirstFillable(root);\n" +
+"}\n" +
+"\n" +
+"try {\n" +
+"  if(typeof " + META_NAME + " === 'object' && " + META_NAME + "){\n" +
+"    var cfg = " + META_NAME + ";\n" +
+"    if(cfg.targetMode === 'allFillablesInClip'){\n" +
+"      __LT_grad_walk(this, function(o){ if(__LT_grad_isFillable(o)) __LT_grad_applyToObject(o,cfg); }, 0);\n" +
+"    } else {\n" +
+"      var target = __LT_grad_findTarget(this, cfg);\n" +
+"      if(!target) target = this;\n" +
+"      __LT_grad_applyToObject(target, cfg);\n" +
+"    }\n" +
+"  }\n" +
+"} catch(e) {}\n";
+
+    return base + driver;
+  }
+
+  function polarToXY(cx, cy, r, deg){
+    var rad = (deg - 90) * Math.PI / 180;
+    return { x: cx + Math.cos(rad) * r, y: cy + Math.sin(rad) * r };
+  }
+
+  function describeArc(cx, cy, r, startDeg, endDeg){
+    var start = polarToXY(cx, cy, r, endDeg);
+    var end = polarToXY(cx, cy, r, startDeg);
+    var large = (endDeg - startDeg) <= 180 ? "0" : "1";
+    return "M " + start.x.toFixed(3) + " " + start.y.toFixed(3) +
+           " A " + r + " " + r + " 0 " + large + " 0 " + end.x.toFixed(3) + " " + end.y.toFixed(3);
+  }
+
+  function renderTicks(){
+    var g = document.getElementById("ticks");
+    if(!g) return;
+    while(g.firstChild) g.removeChild(g.firstChild);
+    for(var i=0;i<60;i++){
+      var deg = i * 6;
+      var inner = (i % 5 === 0) ? 78 : 82;
+      var outer = 92;
+      var p1 = polarToXY(110, 110, inner, deg);
+      var p2 = polarToXY(110, 110, outer, deg);
+      var ln = document.createElementNS("http://www.w3.org/2000/svg","line");
+      ln.setAttribute("x1", p1.x);
+      ln.setAttribute("y1", p1.y);
+      ln.setAttribute("x2", p2.x);
+      ln.setAttribute("y2", p2.y);
+      ln.setAttribute("stroke", "rgba(255,255,255," + (i % 5 === 0 ? "0.35" : "0.18") + ")");
+      ln.setAttribute("stroke-width", (i % 5 === 0 ? "2" : "1"));
+      g.appendChild(ln);
+    }
+  }
+
+  function updateDialGradient(){ // FIX
+    try{
+      var cfg = getUiCfg();
+      var a = cfg.colorA || "#ff0000";
+      var b = cfg.colorB || "#0000ff";
+
+      var s1 = document.getElementById("dialStopA");
+      var s2 = document.getElementById("dialStopB");
+      var sr1 = document.getElementById("dialStopAR");
+      var sr2 = document.getElementById("dialStopBR");
+      if(s1) s1.setAttribute("stop-color", a);
+      if(s2) s2.setAttribute("stop-color", b);
+      if(sr1) sr1.setAttribute("stop-color", a);
+      if(sr2) sr2.setAttribute("stop-color", b);
+
+      var disc = document.getElementById("innerDisc");
+      if(!disc) return;
+
+      var sx = cfg.shiftX || 0;
+      var sy = cfg.shiftY || 0;
+      if(sx > 1) sx = 1; if(sx < -1) sx = -1;
+      if(sy > 1) sy = 1; if(sy < -1) sy = -1;
+
+      var cx = 110 + sx * 52;
+      var cy = 110 + sy * 52;
+
+      if(cfg.gradType === "radial"){
+        var rg = document.getElementById("dialGradRadial");
+        if(rg){
+          rg.setAttribute("cx", String(cx));
+          rg.setAttribute("cy", String(cy));
+          var r = 60 * (cfg.scale || 1);
+          if(r < 10) r = 10;
+          if(r > 240) r = 240;
+          rg.setAttribute("r", String(r));
+        }
+        disc.setAttribute("fill", "url(#dialGradRadial)");
+      } else {
+        var lg = document.getElementById("dialGradLinear");
+        if(lg){
+          var ang = (cfg.angleDeg || 0) * Math.PI / 180;
+          var len = 120 * (cfg.scale || 1);
+          if(len < 30) len = 30;
+          if(len > 500) len = 500;
+          var dx = Math.cos(ang) * (len/2);
+          var dy = Math.sin(ang) * (len/2);
+          lg.setAttribute("x1", String(cx - dx));
+          lg.setAttribute("y1", String(cy - dy));
+          lg.setAttribute("x2", String(cx + dx));
+          lg.setAttribute("y2", String(cy + dy));
+        }
+        disc.setAttribute("fill", "url(#dialGradLinear)");
+      }
+    } catch(e) {}
+  }
+
+  function renderDial(){
+    var deg = normAng(dialState.angleDeg);
+    document.getElementById("degText").textContent = String(Math.round(deg));
+    document.getElementById("shiftText").textContent = (Math.round(dialState.shiftX * 100) / 100) + ", " + (Math.round(dialState.shiftY * 100) / 100);
+
+    var hp = polarToXY(110, 110, 92, deg);
+    document.getElementById("handle").setAttribute("cx", hp.x);
+    document.getElementById("handle").setAttribute("cy", hp.y);
+
+    document.getElementById("arc").setAttribute("d", describeArc(110, 110, 92, 0, deg));
+
+    var maxR = 52;
+    var sx = dialState.shiftX;
+    var sy = dialState.shiftY;
+    if(sx > 1) sx = 1; if(sx < -1) sx = -1;
+    if(sy > 1) sy = 1; if(sy < -1) sy = -1;
+
+    document.getElementById("centerDot").setAttribute("cx", 110 + sx * maxR);
+    document.getElementById("centerDot").setAttribute("cy", 110 + sy * maxR);
+
+    updateDialGradient(); // FIX
+  }
+
+  function getDialLocalPoint(ev){
+    var dial = document.getElementById("dial");
+    var r = dial.getBoundingClientRect();
+    return { x:(ev.clientX - r.left), y:(ev.clientY - r.top), w:r.width, h:r.height };
+  }
+
+  function pointToAngleDeg(pt){
+    var x = (pt.x / pt.w) * 220;
+    var y = (pt.y / pt.h) * 220;
+    var dx = x - 110;
+    var dy = y - 110;
+    var ang = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    if(ang < 0) ang += 360;
+    return ang;
+  }
+
+  function pointToShift(pt){
+    var x = (pt.x / pt.w) * 220;
+    var y = (pt.y / pt.h) * 220;
+    var dx = x - 110;
+    var dy = y - 110;
+    var maxR = 52;
+    var sx = dx / maxR;
+    var sy = dy / maxR;
+    if(sx > 1) sx = 1; if(sx < -1) sx = -1;
+    if(sy > 1) sy = 1; if(sy < -1) sy = -1;
+    return { sx:sx, sy:sy };
+  }
+
+  var dragging = null;
+
+  function onDialPointerDown(ev){
+    ev.preventDefault();
+    var pt = getDialLocalPoint(ev);
+    var dx = (pt.x / pt.w) * 220 - 110;
+    var dy = (pt.y / pt.h) * 220 - 110;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    dragging = (dist < 26) ? "shift" : "angle";
+    onDialPointerMove(ev);
+    window.addEventListener("pointermove", onDialPointerMove, { passive:false });
+    window.addEventListener("pointerup", onDialPointerUp, { passive:false });
+  }
+
+  function onDialPointerMove(ev){
+    if(!dragging) return;
+    ev.preventDefault();
+    var pt = getDialLocalPoint(ev);
+    if(dragging === "angle") dialState.angleDeg = normAng(pointToAngleDeg(pt));
+    else { var sh = pointToShift(pt); dialState.shiftX = sh.sx; dialState.shiftY = sh.sy; }
+    renderDial();
+    drawPreview();
+    if(document.getElementById("live").checked) applyCfgToSelection(true);
+  }
+
+  function onDialPointerUp(ev){
+    if(!dragging) return;
+    ev.preventDefault();
+    dragging = null;
+    window.removeEventListener("pointermove", onDialPointerMove);
+    window.removeEventListener("pointerup", onDialPointerUp);
+  }
+
+  function drawPreview(){
+    var c = document.getElementById("preview");
+    if(!c) return;
+    var ctx = c.getContext("2d");
+    if(!ctx) return;
+    var w = c.width, h = c.height;
+    ctx.clearRect(0,0,w,h);
+
+    var size = 14;
+    for(var y=0;y<h;y+=size){
+      for(var x=0;x<w;x+=size){
+        var v = ((x/size + y/size) % 2) ? 22 : 30;
+        ctx.fillStyle = "rgb(" + v + "," + v + "," + v + ")";
+        ctx.fillRect(x,y,size,size);
+      }
+    }
+
+    var cfg = getUiCfg();
+    var pad = 10;
+    var px = pad, py = pad, pw = w - pad*2, ph = h - pad*2;
+
+    var cx = px + pw/2 + cfg.shiftX * (pw/2);
+    var cy = py + ph/2 + cfg.shiftY * (ph/2);
+
+    var baseLen = Math.max(pw, ph);
+    var len = baseLen * (cfg.scale || 1);
+
+    var g = null;
+    if(cfg.gradType === "radial"){
+      var r1 = Math.max(1, len/2);
+      g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r1);
+    } else {
+      var ang = (cfg.angleDeg || 0) * Math.PI / 180;
+      var dx = Math.cos(ang) * (len/2);
+      var dy = Math.sin(ang) * (len/2);
+      g = ctx.createLinearGradient(cx - dx, cy - dy, cx + dx, cy + dy);
+    }
+
+    g.addColorStop(0, cfg.colorA || "#ff0000");
+    g.addColorStop(1, cfg.colorB || "#0000ff");
+
+    ctx.globalAlpha = clamp01(cfg.opacity);
+    ctx.fillStyle = g;
+    ctx.fillRect(px, py, pw, ph);
+    ctx.globalAlpha = 1;
+
+    ctx.strokeStyle = "rgba(255,255,255,0.20)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px+1, py+1, pw-2, ph-2);
+
+    updateDialGradient(); // FIX
+  }
+
+  function applyCfgToUi(obj){
+    if(!obj || typeof obj !== "object") return;
+    if(obj.colorA) document.getElementById("colorA").value = obj.colorA;
+    if(obj.colorB) document.getElementById("colorB").value = obj.colorB;
+    if(obj.opacity !== undefined) document.getElementById("opacity").value = String(obj.opacity);
+    if(obj.scale !== undefined) document.getElementById("scale").value = String(obj.scale);
+    if(obj.targetMode) document.getElementById("targetMode").value = obj.targetMode;
+    if(obj.gradType) document.getElementById("gradType").value = obj.gradType;
+
+    if(obj.angleDeg !== undefined) dialState.angleDeg = normAng(obj.angleDeg);
+    if(obj.shiftX !== undefined) dialState.shiftX = Number(obj.shiftX) || 0;
+    if(obj.shiftY !== undefined) dialState.shiftY = Number(obj.shiftY) || 0;
+
+    document.getElementById("dotA").style.background = document.getElementById("colorA").value;
+    document.getElementById("dotB").style.background = document.getElementById("colorB").value;
+
+    renderDial();
+    drawPreview();
+  }
+
+  function refreshSelection(){
+    var info = getSelInfo();
+    var list = getSelObjects();
+    if(!list || list.length !== 1){ setSelPill("No selection"); drawPreview(); return; }
+
+    var id = (info && info.identifier) ? String(info.identifier) : "Selected";
+    setSelPill(id);
+
+    var src = getUpdateScript();
+    var m = src.match(new RegExp("var\\s+" + META_NAME + "\\s*=\\s*(\\{[\\s\\S]*?\\})\\s*;"));
+    if(m && m[1]){
+      try { applyCfgToUi(JSON.parse(m[1])); setStatus("Loaded existing LT_GRAD"); }
+      catch(e){ setStatus("Could not parse existing LT_GRAD"); }
+    } else {
+      setStatus("Ready");
+      drawPreview();
+    }
+  }
+
+  function applyCfgToSelection(live){
+    var info = getSelInfo();
+    var list = getSelObjects();
+    if(!list || list.length !== 1){ setSelPill("Select one object"); setStatus("Select one object"); return; }
+
+    var cfg = getUiCfg();
+
+    cfg.targetIdentifier = (info && info.identifier) ? String(info.identifier) : ""; // FIX
+    cfg.targetUUID = (info && info.uuid) ? String(info.uuid) : ""; // FIX
+
+    setSelPill(cfg.targetIdentifier ? cfg.targetIdentifier : "Selected");
+
+    var src = getUpdateScript();
+    src = stripCfgBlock(src);
+    src = (makeCfgBlock(cfg) + "\n\n" + src).trim();
+    src = ensureUpdateScriptHasDriver(src);
+
+    var res = setUpdateScript(src);
+    if(res && res.ok === false){
+      setStatus("Update script failed " + (res.reason || "") + (res.error ? ("\n" + res.error) : ""));
+      return;
+    }
+
+    markDirty();
+    setStatus(live ? "Live updated" : "Applied");
+  }
+
+  function removeCfgFromSelection(){
+    var src = getUpdateScript();
+    var next = stripCfgBlock(src);
+    if(next === src){ setStatus("No LT_GRAD found"); return; }
+    var res = setUpdateScript(next);
+    if(res && res.ok === false){ setStatus("Remove failed " + (res.reason || "") + (res.error ? ("\n" + res.error) : "")); return; }
+    markDirty();
+    setStatus("Removed LT_GRAD");
+  }
+
+  function wireLive(){
+    function onChange(){
+      document.getElementById("dotA").style.background = document.getElementById("colorA").value;
+      document.getElementById("dotB").style.background = document.getElementById("colorB").value;
+      drawPreview();
+      if(!document.getElementById("live").checked) return;
+      applyCfgToSelection(true);
+    }
+    var ids = ["targetMode","gradType","colorA","colorB","opacity","scale"];
+    for(var i=0;i<ids.length;i++){
+      var el = document.getElementById(ids[i]);
+      if(!el) continue;
+      el.addEventListener("input", onChange);
+      el.addEventListener("change", onChange);
+    }
+    document.getElementById("live").addEventListener("change", function(){
+      drawPreview();
+      if(document.getElementById("live").checked) applyCfgToSelection(true);
+    });
+  }
+
+  document.getElementById("swap").addEventListener("click", function(){
+    var a = document.getElementById("colorA").value;
+    var b = document.getElementById("colorB").value;
+    document.getElementById("colorA").value = b;
+    document.getElementById("colorB").value = a;
+    document.getElementById("dotA").style.background = document.getElementById("colorA").value;
+    document.getElementById("dotB").style.background = document.getElementById("colorB").value;
+    drawPreview();
+    if(document.getElementById("live").checked) applyCfgToSelection(true);
+  });
+
+  document.getElementById("dotA").addEventListener("click", function(){ document.getElementById("colorA").click(); });
+  document.getElementById("dotB").addEventListener("click", function(){ document.getElementById("colorB").click(); });
+
+  document.getElementById("btnRefresh").addEventListener("click", function(){ refreshSelection(); });
+  document.getElementById("btnApply").addEventListener("click", function(){ applyCfgToSelection(false); });
+  document.getElementById("btnRemove").addEventListener("click", function(){ removeCfgFromSelection(); });
+
+  document.getElementById("dial").addEventListener("pointerdown", onDialPointerDown, { passive:false });
+
+  document.getElementById("btnResetAngle").addEventListener("click", function(){
+    dialState.angleDeg = 0; dialState.shiftX = 0; dialState.shiftY = 0;
+    renderDial(); drawPreview();
+    if(document.getElementById("live").checked) applyCfgToSelection(true);
+  });
+
+  function boot(){
+    renderTicks();
+    wireLive();
+
+    if(!bridge()){
+      setStatus("No LukeToolsBridge in tool iframe");
+      setSelPill("No bridge");
+      renderDial();
+      drawPreview();
+      return;
+    }
+
+    // prime dots + dial fill
+    document.getElementById("dotA").style.background = document.getElementById("colorA").value;
+    document.getElementById("dotB").style.background = document.getElementById("colorB").value;
+
+    refreshSelection();
+    renderDial();
+    drawPreview();
+
+    setInterval(function(){
+      try{
+        var list = getSelObjects();
+        if(!list || list.length !== 1) return;
+        var info = getSelInfo();
+        var id = (info && info.identifier) ? String(info.identifier) : "Selected";
+        if(document.getElementById("sel").textContent !== id){
+          refreshSelection();
+          if(document.getElementById("live").checked) applyCfgToSelection(true);
+        }
+      } catch(e) {}
+    }, 600);
+  }
+
+  boot();
+
+})();
+</script>
+</body>
+</html>

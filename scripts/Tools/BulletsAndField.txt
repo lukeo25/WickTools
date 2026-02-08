@@ -1,0 +1,731 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Bullets and Field</title>
+  <style>
+    html, body { margin: 0; padding: 0; background: #0b1220; color: #e2e8f0; font-family: Arial, sans-serif; }
+    .wrap { padding: 14px; }
+    .card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+    .title { font-weight: 800; font-size: 16px; margin: 0 0 10px 0; }
+    .label { font-size: 12px; opacity: 0.85; margin: 10px 0 6px 0; }
+    input, select, textarea { width: 100%; box-sizing: border-box; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color: #e2e8f0; outline: none; }
+    textarea { resize: vertical; min-height: 110px; font-family: Consolas, Menlo, Monaco, "Courier New", monospace; font-size: 12px; line-height: 1.35; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .col { flex: 1; min-width: 220px; }
+    .btn { display: inline-block; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color: #e2e8f0; cursor: pointer; user-select: none; font-weight: 700; }
+    .btnPrimary { background: rgba(59,130,246,0.35); border-color: rgba(59,130,246,0.65); }
+    .btnDanger { background: rgba(239,68,68,0.25); border-color: rgba(239,68,68,0.6); }
+    .kv { white-space: pre-wrap; word-break: break-word; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px; font-family: Consolas, Menlo, Monaco, "Courier New", monospace; font-size: 12px; }
+    .muted { opacity: 0.8; font-size: 12px; line-height: 1.35; }
+    .ok { color: #86efac; font-weight: 800; }
+    .bad { color: #fca5a5; font-weight: 800; }
+    .small { font-size: 12px; opacity: 0.9; }
+    .checkRow { display: flex; gap: 10px; align-items: center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="title">Bullets and Field</div>
+      <div class="muted">
+        This plugin injects an update script block into the selected clip using LukeToolsBridge.
+        Inside the clip, add an object named LT_Gun and an object named LT_Forcefield.
+        Optional add an object named LT_BulletTemplate somewhere that the player can access.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="btn btnPrimary" id="btnCapture">Capture selection</div>
+        <div class="btn" id="btnReadUpdate">Read update script</div>
+      </div>
+      <div class="label">Selection</div>
+      <div class="kv" id="selBox">No selection captured</div>
+    </div>
+
+    <div class="card">
+      <div class="title" style="font-size: 14px;">Settings</div>
+
+      <div class="label">Fire mode</div>
+      <select id="fireMode">
+        <option value="enter">Fires on Enter</option>
+        <option value="random">Fires on Random</option>
+      </select>
+
+      <div class="row">
+        <div class="col">
+          <div class="label">Min interval seconds</div>
+          <input id="minInterval" value="0.35" />
+        </div>
+        <div class="col">
+          <div class="label">Max interval seconds</div>
+          <input id="maxInterval" value="1.2" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <div class="label">Burst count</div>
+          <input id="burstCount" value="1" />
+        </div>
+        <div class="col">
+          <div class="label">Chance per second</div>
+          <input id="chancePerSecond" value="1" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <div class="label">Bullet speed</div>
+          <input id="bulletSpeed" value="10" />
+        </div>
+        <div class="col">
+          <div class="label">Bullet life frames</div>
+          <input id="bulletLife" value="120" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <div class="label">Gravity per frame</div>
+          <input id="bulletGravity" value="0.2" />
+        </div>
+        <div class="col">
+          <div class="label">Decay per frame</div>
+          <input id="bulletDecay" value="0.995" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <div class="label">Damage points</div>
+          <input id="damagePoints" value="10" />
+        </div>
+        <div class="col">
+          <div class="label">Die frame name</div>
+          <input id="dieFrameName" value="die" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <div class="label">Health variable name</div>
+          <input id="healthVarName" value="health" />
+        </div>
+        <div class="col">
+          <div class="label">Dead variable name</div>
+          <input id="deadVarName" value="dead" />
+        </div>
+      </div>
+
+      <div class="label">Object names</div>
+      <div class="row">
+        <div class="col">
+          <div class="small">Gun object</div>
+          <input id="gunName" value="LT_Gun" />
+        </div>
+        <div class="col">
+          <div class="small">Forcefield object</div>
+          <input id="fieldName" value="LT_Forcefield" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <div class="small">Bullet template object</div>
+          <input id="bulletTemplateName" value="LT_BulletTemplate" />
+        </div>
+        <div class="col">
+          <div class="checkRow" style="margin-top: 18px;">
+            <input id="removeOnDie" type="checkbox" />
+            <label for="removeOnDie">Remove clip on die</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="label">Override variable names optional</div>
+      <div class="muted">If the variable exists on the clip, it overrides the number above.</div>
+      <div class="row">
+        <div class="col">
+          <div class="small">Min interval var</div>
+          <input id="minIntervalVar" value="fireMin" />
+        </div>
+        <div class="col">
+          <div class="small">Max interval var</div>
+          <input id="maxIntervalVar" value="fireMax" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <div class="small">Chance var</div>
+          <input id="chanceVar" value="fireChance" />
+        </div>
+        <div class="col">
+          <div class="small">Burst var</div>
+          <input id="burstVar" value="fireBurst" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="btn btnPrimary" id="btnInstall">Install or update</div>
+        <div class="btn btnDanger" id="btnRemove">Remove injected block</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="title" style="font-size: 14px;">Result</div>
+      <div class="kv" id="resultBox">Ready</div>
+    </div>
+
+    <div class="card">
+      <div class="title" style="font-size: 14px;">Current update script preview</div>
+      <div class="muted">Preview is truncated</div>
+      <div style="height: 8px;"></div>
+      <div class="kv" id="scriptPreview">Not loaded</div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  function s(v) {
+    if (v === null || v === undefined) return "";
+    return String(v);
+  }
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function setResult(ok, msg, obj) {
+    var box = byId("resultBox");
+    var out = "";
+    out += (ok ? "OK" : "FAIL") + "\n";
+    out += s(msg) + "\n";
+    if (obj !== undefined) {
+      try { out += JSON.stringify(obj, null, 2); } catch (e) { out += s(obj); }
+    }
+    box.textContent = out;
+    box.className = "kv " + (ok ? "ok" : "bad");
+  }
+
+  function getBridge() {
+    try { if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; } catch (e) { }
+    try { if (window.LukeToolsBridge) return window.LukeToolsBridge; } catch (e2) { }
+    return null;
+  }
+
+  function readSelectionFromBridge() {
+    var Bridge = getBridge();
+    if (!Bridge) return { ok: false, reason: "LukeToolsBridge not found" };
+    try {
+      if (Bridge.getSelectionInfo) {
+        var info = Bridge.getSelectionInfo();
+        if (info && info.ok) return info;
+      }
+    } catch (e1) { }
+    try {
+      var nm = Bridge.getSelectedClipName ? Bridge.getSelectedClipName() : "";
+      var uu = Bridge.getSelectedClipUUID ? Bridge.getSelectedClipUUID() : "";
+      var id = Bridge.getSelectedClipIdentifier ? Bridge.getSelectedClipIdentifier() : "";
+      if (nm || uu || id) return { ok: true, name: nm, uuid: uu, identifier: id };
+    } catch (e2) { }
+    return { ok: false, reason: "nothing selected" };
+  }
+
+  function renderSelection() {
+    var box = byId("selBox");
+    var info = readSelectionFromBridge();
+    if (!info || !info.ok) {
+      box.textContent = "No selection\n" + s(info && info.reason ? info.reason : "");
+      return;
+    }
+    box.textContent = JSON.stringify(info, null, 2);
+  }
+
+  function captureSelection() {
+    var Bridge = getBridge();
+    if (!Bridge) return setResult(false, "LukeToolsBridge not found");
+    try {
+      if (!Bridge.captureSelectionNow) return setResult(false, "captureSelectionNow missing");
+      var r = Bridge.captureSelectionNow();
+      if (r && r.ok) {
+        setResult(true, "Selection captured", r);
+        renderSelection();
+        return;
+      }
+      setResult(false, "Capture failed", r);
+    } catch (e) {
+      setResult(false, "Capture threw", s(e && e.message ? e.message : e));
+    }
+  }
+
+  function previewScript(src) {
+    var box = byId("scriptPreview");
+    var txt = s(src || "");
+    if (txt.length > 2200) txt = txt.slice(0, 2200) + "\n\n... truncated";
+    box.textContent = txt || "Empty";
+  }
+
+  function readUpdateScript() {
+    var Bridge = getBridge();
+    if (!Bridge) return { ok: false, reason: "LukeToolsBridge not found" };
+    try {
+      if (!Bridge.getUpdateScriptOnSelection) return { ok: false, reason: "getUpdateScriptOnSelection missing" };
+      return { ok: true, script: s(Bridge.getUpdateScriptOnSelection()) };
+    } catch (e) {
+      return { ok: false, reason: "read failed", error: s(e && e.message ? e.message : e) };
+    }
+  }
+
+  function writeUpdateScript(src) {
+    var Bridge = getBridge();
+    if (!Bridge) return { ok: false, reason: "LukeToolsBridge not found" };
+    try {
+      if (!Bridge.setUpdateScriptOnSelection) return { ok: false, reason: "setUpdateScriptOnSelection missing" };
+      return Bridge.setUpdateScriptOnSelection(s(src));
+    } catch (e) {
+      return { ok: false, reason: "write failed", error: s(e && e.message ? e.message : e) };
+    }
+  }
+
+  function num(id, fallback) {
+    var v = parseFloat(s(byId(id).value).trim());
+    if (!isFinite(v)) return fallback;
+    return v;
+  }
+
+  function intNum(id, fallback) {
+    var v = parseInt(s(byId(id).value).trim(), 10);
+    if (!isFinite(v)) return fallback;
+    return v;
+  }
+
+  function strVal(id, fallback) {
+    var v = s(byId(id).value).trim();
+    return v ? v : fallback;
+  }
+
+  function boolVal(id) {
+    return !!byId(id).checked;
+  }
+
+  function replaceOrAppendBlock(existing, block) {
+    var src = s(existing || "");
+    var begin = "// LT_BulletsAndField_BEGIN";
+    var end = "// LT_BulletsAndField_END";
+
+    var bi = src.indexOf(begin);
+    var ei = src.indexOf(end);
+
+    if (bi !== -1 && ei !== -1 && ei > bi) {
+      var before = src.slice(0, bi);
+      var after = src.slice(ei + end.length);
+      return before + block + after;
+    }
+
+    if (src && !/\n$/.test(src)) src += "\n";
+    return src + "\n" + block;
+  }
+
+  function removeBlock(existing) {
+    var src = s(existing || "");
+    var begin = "// LT_BulletsAndField_BEGIN";
+    var end = "// LT_BulletsAndField_END";
+    var bi = src.indexOf(begin);
+    var ei = src.indexOf(end);
+    if (bi !== -1 && ei !== -1 && ei > bi) {
+      var before = src.slice(0, bi);
+      var after = src.slice(ei + end.length);
+      return before + after;
+    }
+    return src;
+  }
+
+  function buildInjectedBlock() {
+    var fireMode = strVal("fireMode", "enter");
+    var minInterval = num("minInterval", 0.35);
+    var maxInterval = num("maxInterval", 1.2);
+    var burstCount = intNum("burstCount", 1);
+    var chancePerSecond = num("chancePerSecond", 1);
+    var bulletSpeed = num("bulletSpeed", 10);
+    var bulletLife = intNum("bulletLife", 120);
+    var bulletGravity = num("bulletGravity", 0.2);
+    var bulletDecay = num("bulletDecay", 0.995);
+    var damagePoints = num("damagePoints", 10);
+    var dieFrameName = strVal("dieFrameName", "die");
+    var healthVarName = strVal("healthVarName", "health");
+    var deadVarName = strVal("deadVarName", "dead");
+    var gunName = strVal("gunName", "LT_Gun");
+    var fieldName = strVal("fieldName", "LT_Forcefield");
+    var bulletTemplateName = strVal("bulletTemplateName", "LT_BulletTemplate");
+    var removeOnDie = boolVal("removeOnDie");
+
+    var minIntervalVar = strVal("minIntervalVar", "fireMin");
+    var maxIntervalVar = strVal("maxIntervalVar", "fireMax");
+    var chanceVar = strVal("chanceVar", "fireChance");
+    var burstVar = strVal("burstVar", "fireBurst");
+
+    var cfg = {
+      fireMode: fireMode,
+      minInterval: minInterval,
+      maxInterval: maxInterval,
+      burstCount: burstCount,
+      chancePerSecond: chancePerSecond,
+      bulletSpeed: bulletSpeed,
+      bulletLife: bulletLife,
+      bulletGravity: bulletGravity,
+      bulletDecay: bulletDecay,
+      damagePoints: damagePoints,
+      dieFrameName: dieFrameName,
+      healthVarName: healthVarName,
+      deadVarName: deadVarName,
+      gunName: gunName,
+      fieldName: fieldName,
+      bulletTemplateName: bulletTemplateName,
+      removeOnDie: removeOnDie,
+      minIntervalVar: minIntervalVar,
+      maxIntervalVar: maxIntervalVar,
+      chanceVar: chanceVar,
+      burstVar: burstVar
+    };
+
+    var cfgJson = JSON.stringify(cfg, null, 2);
+
+    var block = ""
+      + "// LT_BulletsAndField_BEGIN\n"
+      + "(function(){\n"
+      + "  var LT_CFG = " + cfgJson + ";\n"
+      + "  function LT_s(v){ if(v===null||v===undefined) return \"\"; return String(v); }\n"
+      + "  function LT_num(v, d){ var n = parseFloat(LT_s(v)); return isFinite(n) ? n : d; }\n"
+      + "  function LT_int(v, d){ var n = parseInt(LT_s(v), 10); return isFinite(n) ? n : d; }\n"
+      + "  function LT_has(o,k){ try { return o && Object.prototype.hasOwnProperty.call(o,k); } catch(e){ return false; } }\n"
+      + "  function LT_getVar(owner, name, fallback){\n"
+      + "    try { if (!owner) return fallback;\n"
+      + "      if (LT_has(owner, name)) return owner[name];\n"
+      + "      if (owner.vars && LT_has(owner.vars, name)) return owner.vars[name];\n"
+      + "    } catch (e) {}\n"
+      + "    return fallback;\n"
+      + "  }\n"
+      + "  function LT_setVar(owner, name, value){\n"
+      + "    try { if (!owner) return false;\n"
+      + "      if (owner.vars && typeof owner.vars === \"object\") { owner.vars[name] = value; return true; }\n"
+      + "    } catch (e0) {}\n"
+      + "    try { owner[name] = value; return true; } catch (e1) {}\n"
+      + "    return false;\n"
+      + "  }\n"
+      + "  function LT_children(o){\n"
+      + "    try { if (o && typeof o.getChildren === \"function\") return o.getChildren() || []; } catch(e0) {}\n"
+      + "    try { if (o && Array.isArray(o.children)) return o.children; } catch(e1) {}\n"
+      + "    try { if (o && Array.isArray(o._children)) return o._children; } catch(e2) {}\n"
+      + "    return [];\n"
+      + "  }\n"
+      + "  function LT_name(o){\n"
+      + "    try { if (o && typeof o.getName === \"function\") return LT_s(o.getName()); } catch(e0) {}\n"
+      + "    try { if (o && o.name !== undefined) return LT_s(o.name); } catch(e1) {}\n"
+      + "    try { if (o && o._name !== undefined) return LT_s(o._name); } catch(e2) {}\n"
+      + "    return \"\";\n"
+      + "  }\n"
+      + "  function LT_findByName(root, want){\n"
+      + "    var target = null;\n"
+      + "    function walk(node, depth){\n"
+      + "      if (!node || depth > 60 || target) return;\n"
+      + "      var nm = LT_name(node);\n"
+      + "      if (nm === want) { target = node; return; }\n"
+      + "      var ch = LT_children(node);\n"
+      + "      for (var i=0;i<ch.length;i+=1) walk(ch[i], depth+1);\n"
+      + "    }\n"
+      + "    walk(root, 0);\n"
+      + "    return target;\n"
+      + "  }\n"
+      + "  function LT_xy(o){\n"
+      + "    var x = 0; var y = 0;\n"
+      + "    try { if (o && typeof o.x === \"number\") x = o.x; } catch(e0) {}\n"
+      + "    try { if (o && typeof o.y === \"number\") y = o.y; } catch(e1) {}\n"
+      + "    return { x:x, y:y };\n"
+      + "  }\n"
+      + "  function LT_worldPos(owner, child){\n"
+      + "    var op = LT_xy(owner);\n"
+      + "    var cp = LT_xy(child);\n"
+      + "    return { x: op.x + cp.x, y: op.y + cp.y };\n"
+      + "  }\n"
+      + "  function LT_radius(o, fallback){\n"
+      + "    try { if (o && typeof o.radius === \"number\") return o.radius; } catch(e0) {}\n"
+      + "    try { if (o && typeof o.width === \"number\") return o.width * 0.5; } catch(e1) {}\n"
+      + "    return fallback;\n"
+      + "  }\n"
+      + "  function LT_dist2(ax, ay, bx, by){\n"
+      + "    var dx = ax - bx;\n"
+      + "    var dy = ay - by;\n"
+      + "    return (dx*dx) + (dy*dy);\n"
+      + "  }\n"
+      + "  function LT_cloneBullet(template){\n"
+      + "    if (!template) return null;\n"
+      + "    try { if (typeof template.clone === \"function\") return template.clone(); } catch(e0) {}\n"
+      + "    try { if (typeof template.copy === \"function\") return template.copy(); } catch(e1) {}\n"
+      + "    try { if (typeof template.duplicate === \"function\") return template.duplicate(); } catch(e2) {}\n"
+      + "    return null;\n"
+      + "  }\n"
+      + "  function LT_addToParent(parent, child){\n"
+      + "    if (!parent || !child) return false;\n"
+      + "    try { if (typeof parent.addChild === \"function\") { parent.addChild(child); return true; } } catch(e0) {}\n"
+      + "    try { if (parent.children && Array.isArray(parent.children)) { parent.children.push(child); return true; } } catch(e1) {}\n"
+      + "    return false;\n"
+      + "  }\n"
+      + "  function LT_removeFromParent(parent, child){\n"
+      + "    if (!parent || !child) return false;\n"
+      + "    try { if (typeof child.remove === \"function\") { child.remove(); return true; } } catch(e0) {}\n"
+      + "    try { if (typeof parent.removeChild === \"function\") { parent.removeChild(child); return true; } } catch(e1) {}\n"
+      + "    try {\n"
+      + "      var ch = LT_children(parent);\n"
+      + "      for (var i=0;i<ch.length;i+=1){ if (ch[i] === child){ ch.splice(i,1); return true; } }\n"
+      + "    } catch(e2) {}\n"
+      + "    return false;\n"
+      + "  }\n"
+      + "  function LT_goToDie(owner, frameName){\n"
+      + "    if (!owner) return;\n"
+      + "    try { if (typeof owner.gotoAndStop === \"function\") { owner.gotoAndStop(frameName); return; } } catch(e0) {}\n"
+      + "    try { if (typeof owner.gotoFrameAndStop === \"function\") { owner.gotoFrameAndStop(frameName); return; } } catch(e1) {}\n"
+      + "    try { if (typeof owner.stop === \"function\") { owner.stop(); } } catch(e2) {}\n"
+      + "  }\n"
+      + "  function LT_isDownEnter(){\n"
+      + "    try { if (typeof keyIsDown === \"function\") return !!keyIsDown(\"Enter\"); } catch(e0) {}\n"
+      + "    try { if (typeof isKeyDown === \"function\") return !!isKeyDown(\"Enter\"); } catch(e1) {}\n"
+      + "    return false;\n"
+      + "  }\n"
+      + "  function LT_spawnBullet(owner, gunObj, templateObj){\n"
+      + "    var parent = null;\n"
+      + "    try { parent = owner.parent || null; } catch(e0) { parent = null; }\n"
+      + "    if (!parent) parent = owner;\n"
+      + "    var bullet = LT_cloneBullet(templateObj);\n"
+      + "    if (!bullet) return null;\n"
+      + "    var gp = LT_worldPos(owner, gunObj);\n"
+      + "    try { bullet.x = gp.x; } catch(e1) {}\n"
+      + "    try { bullet.y = gp.y; } catch(e2) {}\n"
+      + "    if (!LT_addToParent(parent, bullet)) return null;\n"
+      + "    var speed = LT_num(LT_CFG.bulletSpeed, 10);\n"
+      + "    return { obj: bullet, parent: parent, vx: speed, vy: 0, life: LT_int(LT_CFG.bulletLife, 120) };\n"
+      + "  }\n"
+      + "  function LT_tickBullets(state){\n"
+      + "    var bullets = state.bullets;\n"
+      + "    if (!bullets || !bullets.length) return;\n"
+      + "    var grav = LT_num(LT_CFG.bulletGravity, 0.2);\n"
+      + "    var decay = LT_num(LT_CFG.bulletDecay, 0.995);\n"
+      + "    for (var i = bullets.length - 1; i >= 0; i += 1) {\n"
+      + "      var b = bullets[i];\n"
+      + "      if (!b || !b.obj) { bullets.splice(i,1); continue; }\n"
+      + "      b.vy = b.vy + grav;\n"
+      + "      b.vx = b.vx * decay;\n"
+      + "      b.vy = b.vy * decay;\n"
+      + "      try { b.obj.x = LT_num(b.obj.x, 0) + b.vx; } catch(e0) {}\n"
+      + "      try { b.obj.y = LT_num(b.obj.y, 0) + b.vy; } catch(e1) {}\n"
+      + "      b.life = b.life - 1;\n"
+      + "      if (b.life <= 0) {\n"
+      + "        try { LT_removeFromParent(b.parent, b.obj); } catch(e2) {}\n"
+      + "        bullets.splice(i,1);\n"
+      + "      }\n"
+      + "    }\n"
+      + "  }\n"
+      + "  function LT_damageOwner(owner, dmg){\n"
+      + "    var hv = LT_s(LT_CFG.healthVarName || \"health\");\n"
+      + "    var dv = LT_s(LT_CFG.deadVarName || \"dead\");\n"
+      + "    var dieFrame = LT_s(LT_CFG.dieFrameName || \"die\");\n"
+      + "    var cur = LT_num(LT_getVar(owner, hv, 0), 0);\n"
+      + "    var next = cur - dmg;\n"
+      + "    LT_setVar(owner, hv, next);\n"
+      + "    if (next <= 0) {\n"
+      + "      LT_setVar(owner, dv, 1);\n"
+      + "      LT_goToDie(owner, dieFrame);\n"
+      + "      if (LT_CFG.removeOnDie) {\n"
+      + "        try { if (owner.parent) LT_removeFromParent(owner.parent, owner); } catch(e0) {}\n"
+      + "      }\n"
+      + "    }\n"
+      + "  }\n"
+      + "  function LT_fieldHit(fieldOwner, fieldObj, bulletObj){\n"
+      + "    if (!fieldOwner || !fieldObj || !bulletObj) return false;\n"
+      + "    var fp = LT_worldPos(fieldOwner, fieldObj);\n"
+      + "    var bx = 0; var by = 0;\n"
+      + "    try { bx = LT_num(bulletObj.x, 0); } catch(e0) { bx = 0; }\n"
+      + "    try { by = LT_num(bulletObj.y, 0); } catch(e1) { by = 0; }\n"
+      + "    var r = LT_radius(fieldObj, 20);\n"
+      + "    var d2 = LT_dist2(fp.x, fp.y, bx, by);\n"
+      + "    return d2 <= (r * r);\n"
+      + "  }\n"
+      + "  function LT_checkHits(state){\n"
+      + "    var owner = state.owner;\n"
+      + "    var bullets = state.bullets;\n"
+      + "    if (!bullets || !bullets.length) return;\n"
+      + "    var root = null;\n"
+      + "    try { root = owner.project || null; } catch(e0) { root = null; }\n"
+      + "    if (!root) root = owner;\n"
+      + "    var dmg = LT_num(LT_CFG.damagePoints, 10);\n"
+      + "    for (var i = bullets.length - 1; i >= 0; i += 1) {\n"
+      + "      var b = bullets[i];\n"
+      + "      if (!b || !b.obj) { bullets.splice(i,1); continue; }\n"
+      + "      var hitSomething = false;\n"
+      + "      try {\n"
+      + "        var all = [];\n"
+      + "        function collect(node, depth){\n"
+      + "          if (!node || depth > 40) return;\n"
+      + "          all.push(node);\n"
+      + "          var ch = LT_children(node);\n"
+      + "          for (var k=0;k<ch.length;k+=1) collect(ch[k], depth+1);\n"
+      + "        }\n"
+      + "        collect(root, 0);\n"
+      + "        for (var j=0;j<all.length;j+=1){\n"
+      + "          var candidate = all[j];\n"
+      + "          if (!candidate || candidate === owner) continue;\n"
+      + "          var field = LT_findByName(candidate, LT_s(LT_CFG.fieldName));\n"
+      + "          if (!field) continue;\n"
+      + "          if (LT_fieldHit(candidate, field, b.obj)) {\n"
+      + "            LT_damageOwner(candidate, dmg);\n"
+      + "            hitSomething = true;\n"
+      + "            break;\n"
+      + "          }\n"
+      + "        }\n"
+      + "      } catch(eScan) {}\n"
+      + "      if (hitSomething) {\n"
+      + "        try { LT_removeFromParent(b.parent, b.obj); } catch(e2) {}\n"
+      + "        bullets.splice(i,1);\n"
+      + "      }\n"
+      + "    }\n"
+      + "  }\n"
+      + "  function LT_nextRandomInterval(owner){\n"
+      + "    var mn = LT_num(LT_getVar(owner, LT_CFG.minIntervalVar, LT_CFG.minInterval), LT_CFG.minInterval);\n"
+      + "    var mx = LT_num(LT_getVar(owner, LT_CFG.maxIntervalVar, LT_CFG.maxInterval), LT_CFG.maxInterval);\n"
+      + "    if (mx < mn) { var t = mn; mn = mx; mx = t; }\n"
+      + "    var r = Math.random();\n"
+      + "    return mn + ((mx - mn) * r);\n"
+      + "  }\n"
+      + "  function LT_tickFire(state){\n"
+      + "    var owner = state.owner;\n"
+      + "    var gun = state.gun;\n"
+      + "    var template = state.template;\n"
+      + "    if (!owner || !gun || !template) return;\n"
+      + "    var mode = LT_s(LT_CFG.fireMode || \"enter\");\n"
+      + "    state.cooldown = Math.max(0, state.cooldown - 1);\n"
+      + "    if (mode === \"enter\") {\n"
+      + "      var down = LT_isDownEnter();\n"
+      + "      if (down && !state.prevEnter && state.cooldown === 0) {\n"
+      + "        state.cooldown = Math.max(1, Math.round(LT_num(LT_getVar(owner, LT_CFG.minIntervalVar, LT_CFG.minInterval), LT_CFG.minInterval) * 60));\n"
+      + "        state.pendingBurst = Math.max(1, LT_int(LT_getVar(owner, LT_CFG.burstVar, LT_CFG.burstCount), LT_CFG.burstCount));\n"
+      + "      }\n"
+      + "      state.prevEnter = down;\n"
+      + "    }\n"
+      + "    if (mode === \"random\") {\n"
+      + "      state.timer = state.timer + 1;\n"
+      + "      if (state.timer >= state.nextFireFrames) {\n"
+      + "        state.timer = 0;\n"
+      + "        state.nextFireFrames = Math.max(1, Math.round(LT_nextRandomInterval(owner) * 60));\n"
+      + "        var chance = LT_num(LT_getVar(owner, LT_CFG.chanceVar, LT_CFG.chancePerSecond), LT_CFG.chancePerSecond);\n"
+      + "        var roll = Math.random();\n"
+      + "        if (roll <= (chance / 1)) {\n"
+      + "          state.pendingBurst = Math.max(1, LT_int(LT_getVar(owner, LT_CFG.burstVar, LT_CFG.burstCount), LT_CFG.burstCount));\n"
+      + "        }\n"
+      + "      }\n"
+      + "    }\n"
+      + "    if (state.pendingBurst > 0 && state.cooldown === 0) {\n"
+      + "      var b = LT_spawnBullet(owner, gun, template);\n"
+      + "      if (b) state.bullets.push(b);\n"
+      + "      state.pendingBurst = state.pendingBurst - 1;\n"
+      + "      state.cooldown = Math.max(1, Math.round(LT_num(LT_getVar(owner, LT_CFG.minIntervalVar, LT_CFG.minInterval), LT_CFG.minInterval) * 60));\n"
+      + "    }\n"
+      + "  }\n"
+      + "  function LT_initIfNeeded(owner){\n"
+      + "    if (!owner) return null;\n"
+      + "    if (owner.LT_BAF && owner.LT_BAF.ok) return owner.LT_BAF;\n"
+      + "    var gun = LT_findByName(owner, LT_s(LT_CFG.gunName));\n"
+      + "    var template = LT_findByName(owner, LT_s(LT_CFG.bulletTemplateName));\n"
+      + "    if (!template) { try { template = LT_findByName(owner.parent || owner, LT_s(LT_CFG.bulletTemplateName)); } catch(e0) {} }\n"
+      + "    var st = { ok: true, owner: owner, gun: gun, template: template, bullets: [], prevEnter: false, cooldown: 0, timer: 0, nextFireFrames: 60, pendingBurst: 0 };\n"
+      + "    st.nextFireFrames = Math.max(1, Math.round(LT_nextRandomInterval(owner) * 60));\n"
+      + "    try { owner.LT_BAF = st; } catch(e1) {}\n"
+      + "    return st;\n"
+      + "  }\n"
+      + "  var LT_state = LT_initIfNeeded(this);\n"
+      + "  if (!LT_state || !LT_state.ok) return;\n"
+      + "  if (!LT_state.gun || !LT_state.template) return;\n"
+      + "  LT_tickFire(LT_state);\n"
+      + "  LT_tickBullets(LT_state);\n"
+      + "  LT_checkHits(LT_state);\n"
+      + "}).call(this);\n"
+      + "// LT_BulletsAndField_END\n";
+
+    return block;
+  }
+
+  function install() {
+    var cap = readSelectionFromBridge();
+    if (!cap.ok) return setResult(false, "No selection to install into", cap);
+
+    var r = readUpdateScript();
+    if (!r.ok) return setResult(false, "Could not read update script", r);
+
+    var block = buildInjectedBlock();
+    var next = replaceOrAppendBlock(r.script, block);
+    var w = writeUpdateScript(next);
+    if (w && w.ok) {
+      setResult(true, "Installed block into update script", w);
+      previewScript(next);
+      return;
+    }
+    setResult(false, "Install failed", w);
+  }
+
+  function removeInstalled() {
+    var cap = readSelectionFromBridge();
+    if (!cap.ok) return setResult(false, "No selection to remove from", cap);
+
+    var r = readUpdateScript();
+    if (!r.ok) return setResult(false, "Could not read update script", r);
+
+    var next = removeBlock(r.script);
+    var w = writeUpdateScript(next);
+    if (w && w.ok) {
+      setResult(true, "Removed block", w);
+      previewScript(next);
+      return;
+    }
+    setResult(false, "Remove failed", w);
+  }
+
+  function readAndPreview() {
+    var r = readUpdateScript();
+    if (!r.ok) {
+      setResult(false, "Could not read update script", r);
+      return;
+    }
+    setResult(true, "Read update script");
+    previewScript(r.script);
+  }
+
+  function wire() {
+    byId("btnCapture").addEventListener("click", function () {
+      captureSelection();
+      renderSelection();
+    });
+    byId("btnReadUpdate").addEventListener("click", function () {
+      renderSelection();
+      readAndPreview();
+    });
+    byId("btnInstall").addEventListener("click", function () {
+      renderSelection();
+      install();
+    });
+    byId("btnRemove").addEventListener("click", function () {
+      renderSelection();
+      removeInstalled();
+    });
+  }
+
+  function init() {
+    wire();
+    renderSelection();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

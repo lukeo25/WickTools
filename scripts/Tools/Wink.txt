@@ -1,0 +1,1032 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Luke Tools Inkscape Importer PNG Assets plus SVG To Body Clip v3</title>
+  <style>
+    body { margin:0; padding:14px; background:#222; color:#eee; font-family: Arial, sans-serif; }
+    .panel { border:1px solid #444; background:rgba(0,0,0,0.35); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+    .title { font-size:12px; color:#9aa; text-transform:uppercase; border-bottom:1px solid #444; padding-bottom:6px; display:flex; align-items:center; gap:10px; }
+    .brand { width:22px; height:22px; border-radius:4px; background:#111; border:1px solid #333; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .brand img { width:100%; height:100%; object-fit:cover; display:block; }
+    .row { display:flex; gap:10px; }
+    .row > * { flex:1; }
+    label { font-size:11px; color:#cfcfcf; display:flex; flex-direction:column; gap:6px; }
+    input[type="text"] { width:100%; padding:10px; background:#141414; color:#eee; border:1px solid #444; border-radius:8px; box-sizing:border-box; font-size:12px; }
+    button { width:100%; padding:12px; border:0; border-radius:8px; background:#21b26b; color:#fff; font-weight:800; cursor:pointer; }
+    button.secondary { background:#3a3a3a; }
+    button.warn { background:#b9832a; }
+    button:disabled { opacity:0.55; cursor:default; }
+    .hint { font-size:11px; color:#aaa; line-height:1.35; }
+    #consoleLog { background:#111; border:1px solid #333; border-radius:8px; padding:10px; font-family:monospace; font-size:11px; color:#0f0; height:260px; overflow-y:auto; white-space:pre-wrap; }
+    .mini { font-size:11px; color:#bbb; }
+    .sep { height:1px; background:#333; margin:4px 0; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="title">
+      <span class="brand" title="Luke Tools">
+        <img alt="Luke Tools" src="https://raw.githubusercontent.com/lukeo25/WickTools/main/LukeToolsBrand.png">
+      </span>
+      <span>Inkscape Export Importer PNG Assets plus SVG To Body Clip v3</span>
+    </div>
+
+    <label>
+      Inkscape server base URL
+      <input id="baseUrl" type="text" value="http://127.0.0.1:8765" placeholder="http://127.0.0.1:8765">
+    </label>
+
+    <div class="row">
+      <button id="btnManifest" class="warn" type="button">Load manifest</button>
+      <button id="btnClear" class="secondary" type="button">Clear log</button>
+    </div>
+
+    <div class="row">
+      <button id="btnImportPng" type="button">Import PNG as assets</button>
+      <button id="btnBuildBody" type="button">Build body clip from SVG</button>
+    </div>
+
+    <div class="row">
+      <button id="btnAll" type="button">Run all</button>
+      <button id="btnSelectBody" class="secondary" type="button">Select body clip</button>
+    </div>
+
+    <div class="hint">
+      This tool fetches <b>/manifest</b> from your local helper server, imports any PNG files as assets, then imports each SVG and places it on frame 1.
+      Each SVG becomes its own part clip, then all parts are wrapped into a single clip named <b>body</b> on the stage.
+    </div>
+
+    <div class="sep"></div>
+    <div class="mini">Tip: if you see HTTP 404, confirm your server endpoint is <b>/manifest</b> and files are served from <b>/file/NAME</b>.</div>
+
+    <div id="consoleLog">Ready.</div>
+  </div>
+
+<script>
+var F_Screen = 0;
+
+(function(){
+  "use strict";
+
+  var logEl = document.getElementById("consoleLog");
+  var btnManifest = document.getElementById("btnManifest");
+  var btnImportPng = document.getElementById("btnImportPng");
+  var btnBuildBody = document.getElementById("btnBuildBody");
+  var btnAll = document.getElementById("btnAll");
+  var btnClear = document.getElementById("btnClear");
+  var btnSelectBody = document.getElementById("btnSelectBody");
+  var baseUrlEl = document.getElementById("baseUrl");
+
+  var state = {
+    manifest: null,
+    baseUrl: "http://127.0.0.1:8765",
+    lastBodyUUID: null
+  };
+
+  function setLog(msg){
+    logEl.textContent = msg || "";
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function log(){
+    var msg = Array.prototype.slice.call(arguments).map(function(v){ return String(v); }).join(" ");
+    logEl.textContent += (logEl.textContent ? "\n" : "") + msg;
+    logEl.scrollTop = logEl.scrollHeight;
+    try { console.log("[LOG] ", msg); } catch(e){}
+  }
+
+  function warn(){
+    var msg = Array.prototype.slice.call(arguments).map(function(v){ return String(v); }).join(" ");
+    log("WARN", msg);
+    try { console.warn(msg); } catch(e){}
+  }
+
+  function err(){
+    var msg = Array.prototype.slice.call(arguments).map(function(v){ return String(v); }).join(" ");
+    log("ERROR", msg);
+    try { console.error(msg); } catch(e){}
+  }
+
+  function getBridge(){
+    try{
+      return window.LukeToolsBridge ||
+             (window.parent && window.parent.LukeToolsBridge) ||
+             window.LukeToolsLocalPanelBridge ||
+             (window.parent && window.parent.LukeToolsLocalPanelBridge) ||
+             null;
+    }catch(e){
+      return null;
+    }
+  }
+
+  function getEditor(bridge){
+    try { if(bridge && typeof bridge.getEditor === "function") return bridge.getEditor(); } catch(e1){}
+    try { if(window.parent && window.parent.editor) return window.parent.editor; } catch(e2){}
+    try { if(window.editor) return window.editor; } catch(e3){}
+    return null;
+  }
+
+  function getProject(bridge, ed){
+    try { if(bridge && typeof bridge.getProject === "function") return bridge.getProject(); } catch(e1){}
+    try { if(ed && ed.project) return ed.project; } catch(e2){}
+    return null;
+  }
+
+  function getWickNS(){
+    try { return (window.Wick || (window.parent && window.parent.Wick)) || null; } catch(e){ return null; }
+  }
+
+  function joinUrl(base, path){
+    var b = String(base || "").trim();
+    var p = String(path || "").trim();
+    b = b.replace(/\/+$/g, "");
+    p = p.replace(/^\/+/g, "");
+    return b + "/" + p;
+  }
+
+  async function fetchJson(url){
+    var res = await fetch(url, { cache: "no-store" });
+    if(!res.ok) throw new Error("HTTP " + res.status + " fetching " + url);
+    return await res.json();
+  }
+
+  async function fetchBlob(url){
+    var res = await fetch(url, { cache: "no-store" });
+    if(!res.ok) throw new Error("HTTP " + res.status + " fetching " + url);
+    return await res.blob();
+  }
+
+
+  async function fetchText(url){
+    var res = await fetch(url, { cache: "no-store" });
+    if(!res.ok) throw new Error("HTTP " + res.status + " fetching " + url);
+    return await res.text();
+  }
+
+  function sanitizeSvgForWick(svgText){
+    try{
+      if(typeof DOMParser === "undefined") return svgText;
+      var parser = new DOMParser();
+      var doc = parser.parseFromString(svgText, "image/svg+xml");
+      if(!doc || !doc.documentElement) return svgText;
+
+      // Map gradient id -> first stop color
+      var gradMap = {};
+      var grads = doc.querySelectorAll("linearGradient, radialGradient");
+      for(var gi=0; gi<grads.length; gi+=1){
+        var g = grads[gi];
+        var id = g.getAttribute("id");
+        if(!id) continue;
+
+        var stop = g.querySelector("stop");
+        var col = null;
+        if(stop){
+          col = stop.getAttribute("stop-color");
+          if(!col){
+            var st = stop.getAttribute("style") || "";
+            var mm = st.match(/stop-color\s*:\s*([^;]+)/i);
+            if(mm) col = (mm[1]||"").trim();
+          }
+        }
+        if(col) gradMap[id] = col;
+      }
+
+      function replaceUrlInValue(v){
+        if(!v) return v;
+        var m = v.match(/url\(#([^)]+)\)/);
+        if(!m) return v;
+        var id = m[1];
+        var col = gradMap[id] || "#000000";
+        return col;
+      }
+
+      // Replace fill/stroke url(#...) in attributes and style strings
+      var all = doc.querySelectorAll("*");
+      for(var i=0;i<all.length;i+=1){
+        var el = all[i];
+
+        var fill = el.getAttribute("fill");
+        if(fill && fill.indexOf("url(#") >= 0) el.setAttribute("fill", replaceUrlInValue(fill));
+
+        var stroke = el.getAttribute("stroke");
+        if(stroke && stroke.indexOf("url(#") >= 0) el.setAttribute("stroke", replaceUrlInValue(stroke));
+
+        var style = el.getAttribute("style");
+        if(style && style.indexOf("url(#") >= 0){
+          style = style.replace(/(fill|stroke)\s*:\s*url\(#([^)]+)\)/g, function(_, prop, id){
+            var col = gradMap[id] || "#000000";
+            return prop + ":" + col;
+          });
+          el.setAttribute("style", style);
+        }
+      }
+
+      // Strip defs that commonly break Wick's SVG importer
+      var defs = doc.querySelectorAll("defs");
+      for(var di=0; di<defs.length; di+=1){
+        var d = defs[di];
+
+        var kill = d.querySelectorAll("linearGradient, radialGradient, pattern, filter, clipPath, mask");
+        for(var ki=0; ki<kill.length; ki+=1){
+          var k = kill[ki];
+          if(k && k.parentNode) k.parentNode.removeChild(k);
+        }
+
+        // Remove empty defs
+        if(!d.children || d.children.length === 0){
+          if(d.parentNode) d.parentNode.removeChild(d);
+        }
+      }
+
+      // Serialize
+      if(typeof XMLSerializer !== "undefined"){
+        var out = new XMLSerializer().serializeToString(doc.documentElement);
+        if(out && out.indexOf("<svg") >= 0) return out;
+      }
+      return svgText;
+    }catch(e){
+      return svgText;
+    }
+  }
+
+function getActionHandlers(ed) {
+  if (!ed) return null;
+
+  // Direct
+  if (ed.actionHandlers && typeof ed.actionHandlers === "object") return ed.actionHandlers;
+
+  // actionHandler variants
+  if (ed.actionHandler) {
+    if (ed.actionHandler.actionHandlers && typeof ed.actionHandler.actionHandlers === "object") return ed.actionHandler.actionHandlers;
+    if (typeof ed.actionHandler === "object") return ed.actionHandler;
+  }
+
+  // actionManager variants
+  if (ed.actionManager) {
+    if (ed.actionManager.actionHandlers && typeof ed.actionManager.actionHandlers === "object") return ed.actionManager.actionHandlers;
+    if (ed.actionManager.handlers && typeof ed.actionManager.handlers === "object") return ed.actionManager.handlers;
+  }
+
+  // wickEditor nested
+  if (ed.wickEditor) {
+    if (ed.wickEditor.actionHandlers && typeof ed.wickEditor.actionHandlers === "object") return ed.wickEditor.actionHandlers;
+    if (ed.wickEditor.actionHandler) {
+      if (ed.wickEditor.actionHandler.actionHandlers && typeof ed.wickEditor.actionHandler.actionHandlers === "object") return ed.wickEditor.actionHandler.actionHandlers;
+      if (typeof ed.wickEditor.actionHandler === "object") return ed.wickEditor.actionHandler;
+    }
+    if (ed.wickEditor.actionManager && ed.wickEditor.actionManager.actionHandlers && typeof ed.wickEditor.actionManager.actionHandlers === "object") {
+      return ed.wickEditor.actionManager.actionHandlers;
+    }
+  }
+
+  // guiActionHandler variants
+  if (ed.guiActionHandler) {
+    if (ed.guiActionHandler.actionHandlers && typeof ed.guiActionHandler.actionHandlers === "object") return ed.guiActionHandler.actionHandlers;
+  }
+
+  return null;
+}
+
+  function findImportHandler(actionHandlers, preferSvg){
+    if(!actionHandlers) return null;
+    var keys = Object.keys(actionHandlers);
+    function score(k){
+      var s = 0;
+      var lk = String(k || "").toLowerCase();
+      if(lk.indexOf("import") >= 0) s += 10;
+      if(lk.indexOf("file") >= 0) s += 4;
+      if(lk.indexOf("asset") >= 0) s += 3;
+      if(lk.indexOf("canvas") >= 0) s += 2;
+      if(preferSvg && lk.indexOf("svg") >= 0) s += 12;
+      if(!preferSvg && lk.indexOf("png") >= 0) s += 6;
+      return s;
+    }
+    keys.sort(function(a,b){ return score(b)-score(a); });
+    for(var i=0;i<keys.length;i+=1){
+      var k = keys[i];
+      if(typeof actionHandlers[k] !== "function") continue;
+      if(score(k) >= 12) return k;
+    }
+    for(var j=0;j<keys.length;j+=1){
+      var kk = keys[j];
+      if(typeof actionHandlers[kk] !== "function") continue;
+      var lkk = String(kk||"").toLowerCase();
+      if(lkk.indexOf("import") >= 0) return kk;
+    }
+    return null;
+  }
+
+  function selectionSnapshot(project){
+    try{
+      var arr = (project && project.selection && typeof project.selection.getSelectedObjects === "function")
+        ? (project.selection.getSelectedObjects() || [])
+        : [];
+      return arr.slice();
+    }catch(e){
+      return [];
+    }
+  }
+
+  function selectionChanged(before, after){
+    try{
+      if(!before) before = [];
+      if(!after) after = [];
+      if(after.length !== before.length) return true;
+      for(var i=0;i<after.length;i+=1){
+        var a = after[i];
+        var b = before[i];
+        var au = a && (a.uuid || a.identifier || a.name);
+        var bu = b && (b.uuid || b.identifier || b.name);
+        if(au && bu && au !== bu) return true;
+        if(a !== b) return true;
+      }
+      return false;
+    }catch(e){
+      return true;
+    }
+  }
+
+  function waitForSelection(project, before, timeoutMs){
+    timeoutMs = Math.max(300, Number(timeoutMs||1500));
+    var start = Date.now();
+    return new Promise(function(resolve){
+      var timer = setInterval(function(){
+        try{
+          var now = Date.now();
+          var cur = selectionSnapshot(project);
+          if(cur && cur.length > 0){
+            if(!before || selectionChanged(before, cur)){
+              clearInterval(timer);
+              resolve(cur);
+              return;
+            }
+          }
+          if(now - start > timeoutMs){
+            clearInterval(timer);
+            resolve(cur || []);
+            return;
+          }
+        }catch(e){
+          clearInterval(timer);
+          resolve([]);
+        }
+      }, 60);
+    });
+  }
+
+  async function importSVGToCanvasAndSelect(project, ed, svgText, filenameBase) {
+  const fileName = filenameBase.endsWith(".svg") ? filenameBase : (filenameBase + ".svg");
+  const file = new File([svgText], fileName, { type: "image/svg+xml" });
+
+  let svgAsset = null;
+
+  // Attempt 1: EditorCore.createAssets
+  try {
+    if (ed && typeof ed.createAssets === "function") {
+      const before = (project && typeof project.getAssets === "function") ? project.getAssets().slice() : [];
+      await ed.createAssets([file]);
+      svgAsset = await waitForNewAsset(project, before, fileName);
+    }
+  } catch (e1) {
+    log("WARN SVG createAssets failed: " + (e1 && e1.message ? e1.message : e1));
+  }
+
+  // Attempt 2: Action handler import
+  if (!svgAsset) {
+    const handlers = getActionHandlers(ed);
+    const handler = findImportHandler(handlers, "svg", true);
+    if (!handler) {
+      if (handlers) {
+        try {
+          const keys = Object.keys(handlers).filter(function (k) { return /svg|import/i.test(k); }).slice(0, 60);
+          log("DEBUG actionHandlers keys (svg/import): " + keys.join(", "));
+        } catch (eK) {}
+      }
+      throw new Error("No SVG import handler found (and createAssets failed).");
+    }
+
+    const before2 = (project && typeof project.getAssets === "function") ? project.getAssets().slice() : [];
+    let r = null;
+    try { r = handler(file); } catch (e2a) { try { r = handler([file]); } catch (e2b) { throw e2b; } }
+    if (r && typeof r.then === "function") await r;
+
+    svgAsset = await waitForNewAsset(project, before2, fileName);
+  }
+
+  if (!svgAsset) {
+    throw new Error("SVG asset was not created (file: " + fileName + ").");
+  }
+
+  // Place it on canvas (temporary). We'll reposition after.
+  const center = getProjectCenter(project);
+  const inst = await placeAssetToCanvas(project, ed, svgAsset, center.x, center.y);
+  if (!inst) {
+    throw new Error("SVG imported, but instance could not be created on canvas (asset: " + (svgAsset.uuid || svgAsset.name || fileName) + ").");
+  }
+
+  try { setSelection(ed, [inst]); } catch (eSel) {}
+  return inst;
+}
+
+  function getObjXY(o){
+    try{
+      if(!o) return { x:0, y:0, ok:false };
+      if(typeof o.x === "number" && typeof o.y === "number") return { x:o.x, y:o.y, ok:true };
+      if(o.position && typeof o.position.x === "number" && typeof o.position.y === "number") return { x:o.position.x, y:o.position.y, ok:true };
+      if(o.transform && o.transform.position && typeof o.transform.position.x === "number") return { x:o.transform.position.x, y:o.transform.position.y, ok:true };
+      return { x:0, y:0, ok:false };
+    }catch(e){
+      return { x:0, y:0, ok:false };
+    }
+  }
+
+  function setObjXY(o, x, y){
+    try{
+      if(!o) return;
+      if(typeof o.x === "number") o.x = x;
+      if(typeof o.y === "number") o.y = y;
+      if(o.position && typeof o.position.x === "number") { o.position.x = x; o.position.y = y; }
+      if(o.transform && o.transform.position && typeof o.transform.position.x === "number") { o.transform.position.x = x; o.transform.position.y = y; }
+    }catch(e){}
+  }
+
+  function selectionCentroid(objs){
+    try{
+      if(!objs || objs.length === 0) return { x:0, y:0, ok:false };
+      var sumX = 0;
+      var sumY = 0;
+      var n = 0;
+      for(var i=0;i<objs.length;i+=1){
+        var p = getObjXY(objs[i]);
+        if(p.ok){
+          sumX += p.x;
+          sumY += p.y;
+          n += 1;
+        }
+      }
+      if(n === 0) return { x:0, y:0, ok:false };
+      return { x: sumX / n, y: sumY / n, ok:true };
+    }catch(e){
+      return { x:0, y:0, ok:false };
+    }
+  }
+
+  function shiftObjects(objs, dx, dy){
+    try{
+      for(var i=0;i<objs.length;i+=1){
+        var o = objs[i];
+        var p = getObjXY(o);
+        if(p.ok){
+          setObjXY(o, p.x + dx, p.y + dy);
+        }
+      }
+    }catch(e){}
+  }
+
+
+
+  function listAssetUUIDs(project){
+    try{
+      var assets = (project && typeof project.getAssets === "function") ? project.getAssets() : (project && project.assets) ? project.assets : [];
+      return (assets || []).map(function(a){ return a && a.uuid; }).filter(Boolean);
+    }catch(e){
+      return [];
+    }
+  }
+
+  function waitForNewAsset(project, beforeUUIDs, expectedName, timeoutMs){
+    var start = Date.now();
+    var beforeSet = {};
+    for(var i=0;i<beforeUUIDs.length;i+=1) beforeSet[beforeUUIDs[i]] = true;
+
+    return new Promise(function(resolve, reject){
+      (function tick(){
+        try{
+          var assets = (project && typeof project.getAssets === "function") ? project.getAssets() : (project && project.assets) ? project.assets : [];
+          assets = assets || [];
+
+          for(var j=0;j<assets.length;j+=1){
+            var a = assets[j];
+            if(!a || !a.uuid) continue;
+            if(beforeSet[a.uuid]) continue;
+            var nm = a.name || a.filename || "";
+            if(String(nm) === String(expectedName)) return resolve(a);
+          }
+
+          var newOnes = [];
+          for(var k=0;k<assets.length;k+=1){
+            var b = assets[k];
+            if(b && b.uuid && !beforeSet[b.uuid]) newOnes.push(b);
+          }
+          if(newOnes.length === 1) return resolve(newOnes[0]);
+
+        }catch(e1){}
+
+        if(Date.now() - start > timeoutMs) return reject(new Error("Timeout waiting for new asset: " + expectedName));
+        setTimeout(tick, 100);
+      })();
+    });
+  }
+
+  function getActiveLayer(project){
+    try { if(project && project.activeLayer) return project.activeLayer; } catch(e1){}
+    try { if(project && project.focus && project.focus.timeline && project.focus.timeline.activeLayer) return project.focus.timeline.activeLayer; } catch(e2){}
+    try { if(project && project.activeTimeline && project.activeTimeline.activeLayer) return project.activeTimeline.activeLayer; } catch(e3){}
+    try { if(project && project.timeline && project.timeline.activeLayer) return project.timeline.activeLayer; } catch(e4){}
+    return null;
+  }
+
+  function setPlayhead(project, frameNumber){
+    try {
+      if(project && project.focus && project.focus.timeline){
+        project.focus.timeline.playheadPosition = frameNumber;
+        return true;
+      }
+    } catch(e1){}
+    try {
+      if(project && project.activeTimeline){
+        project.activeTimeline.playheadPosition = frameNumber;
+        return true;
+      }
+    } catch(e2){}
+    try {
+      if(project && project.timeline){
+        project.timeline.playheadPosition = frameNumber;
+        return true;
+      }
+    } catch(e3){}
+    return false;
+  }
+
+  function getFrameAt(layer, frameNumber){
+    try { if(layer && typeof layer.getFrameAtPlayheadPosition === "function") return layer.getFrameAtPlayheadPosition(frameNumber); } catch(e1){}
+    try { if(layer && typeof layer.getFrameAt === "function") return layer.getFrameAt(frameNumber); } catch(e2){}
+    return null;
+  }
+
+  function ensureBlankFrameAt(layer, frameNumber){
+    try{
+      if(!layer) return null;
+      var existing = getFrameAt(layer, frameNumber);
+      if(existing) return existing;
+
+      if(typeof layer.insertBlankFrame === "function") return layer.insertBlankFrame(frameNumber);
+      if(typeof layer.createFrameAt === "function") return layer.createFrameAt(frameNumber);
+    }catch(e){}
+    return null;
+  }
+
+  function selectionClear(project, ed){
+    try { if(project && project.selection && typeof project.selection.clear === "function") project.selection.clear(); } catch(e1){}
+    try { if(ed && typeof ed.clearSelection === "function") ed.clearSelection(); } catch(e2){}
+  }
+
+  function selectionSelectSingle(project, ed, obj){
+    selectionClear(project, ed);
+
+    try{
+      if(project && project.selection){
+        if(typeof project.selection.select === "function"){ project.selection.select(obj); return true; }
+        if(typeof project.selection.selectMultipleObjects === "function"){ project.selection.selectMultipleObjects([obj]); return true; }
+      }
+    }catch(e1){}
+
+    try{
+      if(ed && typeof ed.selectObjects === "function"){ ed.selectObjects([obj]); return true; }
+    }catch(e2){}
+
+    return false;
+  }
+
+  function selectionSelectMultiple(project, ed, objs){
+    selectionClear(project, ed);
+
+    try{
+      if(project && project.selection && typeof project.selection.selectMultipleObjects === "function"){
+        project.selection.selectMultipleObjects(objs);
+        return true;
+      }
+    }catch(e1){}
+
+    try{
+      if(ed && typeof ed.selectObjects === "function"){
+        ed.selectObjects(objs);
+        return true;
+      }
+    }catch(e2){}
+
+    return false;
+  }
+
+  function getSelectedObject(project, ed){
+    try { if(project && project.selection && typeof project.selection.getSelectedObject === "function") return project.selection.getSelectedObject(); } catch(e1){}
+    try { if(ed && ed.selectedObjects && ed.selectedObjects.length) return ed.selectedObjects[0]; } catch(e2){}
+    return null;
+  }
+
+  function createClipFromSelection(project, ed, identifier){
+    try{
+      if(project && typeof project.createClipFromSelection === "function"){
+        project.createClipFromSelection({ identifier: String(identifier || "Clip"), type: "Clip" });
+        return { ok:true, via:"project.createClipFromSelection" };
+      }
+    }catch(e1){}
+
+    try{
+      if(ed && typeof ed.createClipFromSelection === "function"){
+        ed.createClipFromSelection(String(identifier || "Clip"), true);
+        return { ok:true, via:"ed.createClipFromSelection" };
+      }
+    }catch(e2){}
+
+    try{
+      if(ed && ed.actionManager && typeof ed.actionManager.doAction === "function"){
+        ed.actionManager.doAction(["createClipFromSelection"], [String(identifier || "Clip")]);
+        return { ok:true, via:"actionManager.createClipFromSelection" };
+      }
+    }catch(e3){}
+
+    return { ok:false, reason:"No clip conversion API found" };
+  }
+
+  function setSelectedNameOrIdentifier(project, ed, name){
+    var obj = getSelectedObject(project, ed);
+    if(!obj) return false;
+
+    var v = String(name || "");
+    var changed = false;
+
+    try { if("identifier" in obj){ obj.identifier = v; changed = true; } } catch(e1){}
+    try { if("name" in obj){ obj.name = v; changed = true; } } catch(e2){}
+
+    return changed;
+  }
+
+  function forceRefresh(ed, project){
+    try { if(ed && typeof ed.projectDidChange === "function") ed.projectDidChange({ actionName:"LukeTools" }); } catch(e1){}
+    try { if(ed && typeof ed.syncInterfaces === "function") ed.syncInterfaces(); } catch(e2){}
+    try { if(ed && typeof ed.updateUI === "function") ed.updateUI(); } catch(e3){}
+    try { if(ed && typeof ed.refresh === "function") ed.refresh(); } catch(e4){}
+    try { if(ed && ed.canvas && typeof ed.canvas.redraw === "function") ed.canvas.redraw(); } catch(e5){}
+    try { if(ed && typeof ed.refreshCanvas === "function") ed.refreshCanvas(); } catch(e6){}
+    try{
+      if(project && project.view && project.view.paper && project.view.paper.view && typeof project.view.paper.view.update === "function"){
+        project.view.paper.view.update();
+      }
+    }catch(e7){}
+  }
+
+  async function placeAssetToCanvas(project, ed, asset, x, y) {
+  // Returns the created instance (or null).
+  if (!project || !asset) return null;
+
+  // Strategy A: project helper
+  try {
+    if (typeof project.createImagePathFromAsset === "function") {
+      const instA = await new Promise(function (resolve) {
+        try {
+          project.createImagePathFromAsset(asset, x, y, function (inst) { resolve(inst || null); });
+        } catch (e) { resolve(null); }
+      });
+      if (instA) return instA;
+    }
+  } catch (eA) {}
+
+  // Strategy B: editor doAction (simulate Add to Canvas)
+  try {
+    const doers = [];
+    if (ed && ed.guiActionHandler && typeof ed.guiActionHandler.doAction === "function") doers.push(ed.guiActionHandler);
+    if (ed && ed.actionHandler && typeof ed.actionHandler.doAction === "function") doers.push(ed.actionHandler);
+    if (ed && typeof ed.doAction === "function") doers.push(ed);
+    if (ed && ed.wickEditor && ed.wickEditor.actionHandler && typeof ed.wickEditor.actionHandler.doAction === "function") doers.push(ed.wickEditor.actionHandler);
+
+    const actionNames = [
+      "addAssetToCanvas",
+      "addAssetToStage",
+      "addAssetToFrame",
+      "addAssetToActiveFrame",
+      "placeAssetToCanvas",
+      "createImagePathFromAsset",
+    ];
+
+    for (let d = 0; d < doers.length; d++) {
+      const ah = doers[d];
+      for (let i = 0; i < actionNames.length; i++) {
+        const name = actionNames[i];
+
+        // Try common arg shapes
+        const attempts = [
+          { assetUUID: asset.uuid, x: x, y: y },
+          { uuid: asset.uuid, x: x, y: y },
+          { assetUUID: asset.uuid, position: { x: x, y: y } },
+          { uuid: asset.uuid, position: { x: x, y: y } },
+        ];
+
+        for (let a = 0; a < attempts.length; a++) {
+          try {
+            ah.doAction(name, attempts[a]);
+            await sleep(50);
+            const sel = getSelection(ed);
+            if (sel && sel.length === 1) return sel[0];
+          } catch (e1) {}
+        }
+
+        // Positional args (rare)
+        try {
+          ah.doAction(name, asset.uuid, x, y);
+          await sleep(50);
+          const sel2 = getSelection(ed);
+          if (sel2 && sel2.length === 1) return sel2[0];
+        } catch (e2) {}
+      }
+    }
+  } catch (eB) {}
+
+  // Strategy C: manual instance + add to active frame if we can find it
+  try {
+    if (typeof asset.createInstance === "function") {
+      const inst = asset.createInstance();
+      if (inst) {
+        inst.x = x;
+        inst.y = y;
+
+        let frame = null;
+        try { if (typeof project.getActiveFrame === "function") frame = project.getActiveFrame(); } catch (e1) {}
+        try { if (!frame && project.activeFrame) frame = project.activeFrame; } catch (e2) {}
+        try {
+          if (!frame && typeof project.getActiveLayer === "function") {
+            const layer = project.getActiveLayer();
+            if (layer) {
+              if (typeof layer.getActiveFrame === "function") frame = layer.getActiveFrame();
+              if (!frame && layer.activeFrame) frame = layer.activeFrame;
+            }
+          }
+        } catch (e3) {}
+        try {
+          if (!frame && project.activeTimeline && project.activeTimeline.activeLayer) {
+            frame = project.activeTimeline.activeLayer.activeFrame || null;
+          }
+        } catch (e4) {}
+
+        if (frame) {
+          if (typeof frame.addPath === "function") { frame.addPath(inst); return inst; }
+          if (typeof frame.addClip === "function") { frame.addClip(inst); return inst; }
+          if (typeof frame.addObject === "function") { frame.addObject(inst); return inst; }
+          if (typeof frame.add === "function") { frame.add(inst); return inst; }
+        }
+
+        // If we can't locate a frame, still return instance (caller may still clip it)
+        return inst;
+      }
+    }
+  } catch (eC) {}
+
+  return null;
+}
+
+  function computePivotCenter(items){
+    var sumX = 0;
+    var sumY = 0;
+    var count = 0;
+    for(var i=0;i<items.length;i+=1){
+      var it = items[i];
+      if(it && isFinite(it.pivot_x) && isFinite(it.pivot_y)){
+        sumX += Number(it.pivot_x);
+        sumY += Number(it.pivot_y);
+        count += 1;
+      }
+    }
+    if(count <= 0) return { ok:false, cx:0, cy:0 };
+    return { ok:true, cx: sumX / count, cy: sumY / count };
+  }
+
+  async function loadManifest(){
+    state.baseUrl = String(baseUrlEl.value || "").trim();
+    if(!state.baseUrl) throw new Error("Missing base URL");
+
+    var url = joinUrl(state.baseUrl, "manifest") + "?ts=" + Date.now();
+    log("Fetching", url);
+    var j = await fetchJson(url);
+    var man = (j && j.manifest) ? j.manifest : j;
+    if(!man || !man.items || !Array.isArray(man.items)) throw new Error("Manifest missing items[]");
+    state.manifest = man;
+    log("Manifest loaded", String(man.items.length), "item(s)");
+    return man;
+  }
+
+  async function importPngAssets(){
+    if(!state.manifest) await loadManifest();
+
+    var bridge = getBridge();
+    var ed = getEditor(bridge);
+    var project = getProject(bridge, ed);
+
+    if(!ed || !project) throw new Error("Could not access Wick editor or project");
+
+    var items = state.manifest.items || [];
+    var pngItems = items.filter(function(it){ return it && it.png; });
+
+    if(pngItems.length === 0){
+      log("No PNG entries in manifest. Skipping PNG import.");
+      return;
+    }
+
+    log("Importing PNG assets:", String(pngItems.length));
+
+    for(var i=0;i<pngItems.length;i+=1){
+      var it = pngItems[i];
+      var fname = String(it.png);
+      try{
+        var before = listAssetUUIDs(project);
+        var fileUrl = joinUrl(state.baseUrl, "file/" + encodeURIComponent(fname));
+        log("Import png asset", fname);
+        var blob = await fetchBlob(fileUrl);
+        var file = new File([blob], fname, { type: blob.type || "image/png" });
+
+        // Import via editor
+        try { ed.createAssets([file], []); } catch(e1) { ed.createAssets([file]); }
+        await waitForNewAsset(project, before, fname, 25000);
+      }catch(e2){
+        err("PNG import failed", fname, e2 && e2.message ? e2.message : String(e2));
+      }
+    }
+
+    forceRefresh(ed, project);
+    log("PNG asset import complete.");
+  }
+
+  async function buildBodyClipFromSVG(ed, project, manifest){
+    try{
+      if(!manifest || !manifest.items || manifest.items.length === 0){
+        throw new Error("Manifest has no items");
+      }
+
+      // only items that have an svg file
+      var svgItems = [];
+      for(var i0=0;i0<manifest.items.length;i0+=1){
+        var it0 = manifest.items[i0];
+        if(it0 && it0.svg) svgItems.push(it0);
+      }
+
+      if(svgItems.length === 0){
+        throw new Error("No svg items found in manifest");
+      }
+
+      var centerX = Number(project && project.width ? project.width : 720) / 2;
+      var centerY = Number(project && project.height ? project.height : 480) / 2;
+      log("Project center", centerX, centerY);
+
+      var pivC = computePivotCenter(svgItems);
+      log("Pivot center (manifest space)", pivC.cx, pivC.cy);
+
+      var createdPartClips = [];
+
+      for(var i=0;i<svgItems.length;i+=1){
+        var it = svgItems[i];
+
+        var partName = String(it.part_name || it.layer_label || it.svg || ("Part_" + (i + 1)));
+        var svgName = String(it.svg);
+
+        // Position by pivot relative to pivot center, inside Body
+        var px = centerX + (Number(it.pivot_x || 0) - Number(pivC.cx || 0));
+        var py = centerY + (Number(it.pivot_y || 0) - Number(pivC.cy || 0));
+
+        try{
+          var fileUrl = joinUrl(state.baseUrl, "file/" + encodeURIComponent(svgName));
+          log("Import svg to canvas", svgName, "as", partName);
+
+          var svgText = await fetchText(fileUrl);
+          if(!svgText) throw new Error("Empty svg response for " + svgName);
+
+          // Import through Wick's own action handler so the created objects belong to the current project
+          var imported = await importSVGToCanvasAndSelect(project, ed, svgText, svgName);
+
+          if(!imported || imported.length === 0){
+            throw new Error("No objects selected after importing " + svgName);
+          }
+
+          // Move imported selection to desired position
+          var c = selectionCentroid(imported);
+          if(c.ok){
+            var dx = px - c.x;
+            var dy = py - c.y;
+            shiftObjects(imported, dx, dy);
+          }
+
+          // Wrap as a part clip
+          var r = createClipFromSelection(project, ed, partName);
+          if(!r || !r.ok){
+            throw new Error("Could not create part clip for " + partName);
+          }
+          setSelectedNameOrIdentifier(project, ed, partName);
+
+          var createdClip = getSelectedObject(project, ed);
+          if(createdClip) createdPartClips.push(createdClip);
+
+          forceRefresh(ed, project);
+
+        }catch(e2){
+          err("Could not place svg", svgName, e2 && e2.message ? e2.message : String(e2));
+          // keep going so other parts still import
+        }
+      }
+
+      if(createdPartClips.length === 0){
+        throw new Error("No part clips were created");
+      }
+
+      // Wrap all parts into a single body clip
+      try{
+        selectionSelectMultiple(project, ed, createdPartClips);
+        var rb = createClipFromSelection(project, ed, "body");
+        if(!rb || !rb.ok) throw new Error("Could not create body clip");
+        setSelectedNameOrIdentifier(project, ed, "body");
+
+        var bodyClip = getSelectedObject(project, ed);
+        if(bodyClip && bodyClip.uuid) state.lastBodyUUID = bodyClip.uuid;
+
+        forceRefresh(ed, project);
+        log("Body clip created with", String(createdPartClips.length), "part(s)");
+      }catch(e3){
+        err("Body clip build failed", e3 && e3.message ? e3.message : String(e3));
+      }
+    }catch(e){
+      err("buildBodyClipFromSVG failed", e && e.message ? e.message : String(e));
+    }
+  }
+
+  function trySelectBodyClip(){
+    var bridge = getBridge();
+    var ed = getEditor(bridge);
+    var project = getProject(bridge, ed);
+    var Wick = getWickNS();
+    if(!project || !Wick || !Wick.ObjectCache || !state.lastBodyUUID){
+      warn("No body clip UUID recorded yet");
+      return;
+    }
+    try{
+      var obj = Wick.ObjectCache.getObjectByUUID(state.lastBodyUUID);
+      if(!obj){ warn("Could not find body clip in ObjectCache"); return; }
+      selectionSelectSingle(project, ed, obj);
+      forceRefresh(ed, project);
+      log("Selected body clip");
+    }catch(e){
+      warn("Select body clip failed", e && e.message ? e.message : String(e));
+    }
+  }
+
+  async function runAll(){
+    btnAll.disabled = true;
+    btnManifest.disabled = true;
+    btnImportPng.disabled = true;
+    btnBuildBody.disabled = true;
+
+    try{
+      setLog("Ready.");
+      await loadManifest();
+      await importPngAssets();
+      await buildBodyClipFromSVG();
+      log("Done.");
+    }catch(e){
+      err(e && e.message ? e.message : String(e));
+    }finally{
+      btnAll.disabled = false;
+      btnManifest.disabled = false;
+      btnImportPng.disabled = false;
+      btnBuildBody.disabled = false;
+    }
+  }
+
+  btnClear.addEventListener("click", function(){
+    setLog("Ready.");
+  });
+
+  btnManifest.addEventListener("click", function(){
+    btnManifest.disabled = true;
+    loadManifest().catch(function(e){ err(e && e.message ? e.message : String(e)); }).finally(function(){ btnManifest.disabled = false; });
+  });
+
+  btnImportPng.addEventListener("click", function(){
+    btnImportPng.disabled = true;
+    importPngAssets().catch(function(e){ err(e && e.message ? e.message : String(e)); }).finally(function(){ btnImportPng.disabled = false; });
+  });
+
+  btnBuildBody.addEventListener("click", function(){
+    btnBuildBody.disabled = true;
+    buildBodyClipFromSVG().catch(function(e){ err(e && e.message ? e.message : String(e)); }).finally(function(){ btnBuildBody.disabled = false; });
+  });
+
+  btnAll.addEventListener("click", function(){
+    runAll();
+  });
+
+  btnSelectBody.addEventListener("click", function(){
+    trySelectBodyClip();
+  });
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,593 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LukeTools Type: Game Sprite</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{
+      --bg:#0f0f10;
+      --panel:#141416;
+      --panel2:#1a1a1d;
+      --text:#e7e7ea;
+      --muted:#a8a8b3;
+      --line:#2a2a30;
+      --btn:#2a2a30;
+      --btn2:#1f1f23;
+      --good:#2ecc71;
+      --warn:#f1c40f;
+      --bad:#e74c3c;
+      --radius:12px;
+      --radius2:10px;
+      --pad:14px;
+      --pad2:10px;
+      --font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    html,body{height:100%;margin:0;background:transparent;color:var(--text);font-family:var(--font);}
+    .wrap{padding:var(--pad);box-sizing:border-box;}
+    .card{background:rgba(20,20,22,0.92);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);padding:var(--pad);box-sizing:border-box;}
+    .title{font-size:16px;font-weight:700;letter-spacing:0.2px;margin:0 0 10px 0;color:var(--text);}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0;}
+    .pill{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted);}
+    .pill strong{color:var(--text);font-weight:700;}
+    .btn{
+      appearance:none;border:1px solid rgba(255,255,255,0.10);
+      background:rgba(255,255,255,0.06);color:var(--text);
+      border-radius:var(--radius2);padding:10px 12px;
+      cursor:pointer;font-weight:700;font-size:13px;
+    }
+    .btn:active{transform:translateY(1px);}
+    .btn.primary{background:rgba(46,204,113,0.18);border-color:rgba(46,204,113,0.35);}
+    .btn.ghost{background:rgba(255,255,255,0.04);}
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    .field{display:flex;flex-direction:column;gap:6px;}
+    label{font-size:12px;color:var(--muted);}
+    input[type="number"], input[type="text"]{
+      background:rgba(0,0,0,0.25);
+      border:1px solid rgba(255,255,255,0.10);
+      color:var(--text);
+      border-radius:var(--radius2);
+      padding:10px 10px;
+      font-size:13px;
+      outline:none;
+    }
+    .checks{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+    .check{
+      display:flex;align-items:center;gap:10px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:var(--radius2);
+      padding:10px 10px;
+    }
+    .check input{width:18px;height:18px;}
+    .check .txt{display:flex;flex-direction:column;gap:2px;}
+    .check .txt .h{font-size:13px;font-weight:700;color:var(--text);}
+    .check .txt .s{font-size:12px;color:var(--muted);}
+    .status{
+      margin-top:12px;
+      padding:10px 10px;
+      border-radius:var(--radius2);
+      border:1px solid rgba(255,255,255,0.08);
+      background:rgba(0,0,0,0.22);
+      font-size:12px;
+      color:var(--muted);
+      white-space:pre-wrap;
+    }
+    .status.good{border-color:rgba(46,204,113,0.35);background:rgba(46,204,113,0.12);color:#d9ffe9;}
+    .status.bad{border-color:rgba(231,76,60,0.35);background:rgba(231,76,60,0.12);color:#ffd9d6;}
+    .status.warn{border-color:rgba(241,196,15,0.35);background:rgba(241,196,15,0.10);color:#fff2c2;}
+    .small{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4;}
+    .divider{height:1px;background:rgba(255,255,255,0.08);margin:12px 0;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="title">TYPE MAKER: GAME SPRITE</div>
+
+      <div class="row">
+        <div class="pill"><strong>Selected Clip</strong> <span id="selLabel">No Clip Chosen</span></div>
+        <button class="btn ghost" id="btnRefresh">Refresh</button>
+      </div>
+
+      <div class="row">
+        <div class="field" style="min-width:220px;flex:1;">
+          <label for="masterName">New master clip name</label>
+          <input id="masterName" type="text" value="Sprite">
+        </div>
+        <div class="field" style="min-width:220px;flex:1;">
+          <label>Selected clip is</label>
+          <div class="row" style="margin:0;">
+            <label class="pill" style="cursor:pointer;">
+              <input id="dirRight" type="radio" name="selDir" checked style="margin:0 6px 0 0;">Right
+            </label>
+            <label class="pill" style="cursor:pointer;">
+              <input id="dirLeft" type="radio" name="selDir" style="margin:0 6px 0 0;">Left
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="grid">
+        <div class="field">
+          <label for="speed">Move speed</label>
+          <input id="speed" type="number" min="0" step="0.25" value="3.0">
+        </div>
+        <div class="field">
+          <label for="jump">Jump strength</label>
+          <input id="jump" type="number" min="0" step="0.5" value="9.0">
+        </div>
+        <div class="field">
+          <label for="grav">Gravity</label>
+          <input id="grav" type="number" min="0" step="0.1" value="0.6">
+        </div>
+        <div class="field">
+          <label for="maxfall">Max fall speed</label>
+          <input id="maxfall" type="number" min="0" step="0.5" value="12.0">
+        </div>
+      </div>
+
+      <div class="checks">
+        <div class="check">
+          <input id="optLR" type="checkbox" checked>
+          <div class="txt">
+            <div class="h">Left and right movement</div>
+            <div class="s">Arrow keys move the clip</div>
+          </div>
+        </div>
+        <div class="check">
+          <input id="optJump" type="checkbox" checked>
+          <div class="txt">
+            <div class="h">Jump</div>
+            <div class="s">Spacebar jumps when on ground</div>
+          </div>
+        </div>
+        <div class="check">
+          <input id="optGrav" type="checkbox" checked>
+          <div class="txt">
+            <div class="h">Fall and gravity</div>
+            <div class="s">Gravity pulls down and solids stop falling</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:14px;">
+        <button class="btn primary" id="btnCreate">Create</button>
+      </div>
+
+      <div id="status" class="status">Ready.</div>
+
+      <div class="small">
+        Notes
+        <br>1. Select a clip on the stage, then click Create to inject an update script
+        <br>2. Solids are any clips that have the Solid type script injected
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  function $(id){ return document.getElementById(id); }
+
+  var elSel = $("selLabel");
+  var elStatus = $("status");
+
+  function setStatus(msg, kind){
+    elStatus.className = "status" + (kind ? (" " + kind) : "");
+    elStatus.textContent = msg;
+  }
+
+  function getBridge(){
+    return window.LukeToolsBridge || null;
+  }
+
+  function getSelection(){
+    var bridge = getBridge();
+    if(!bridge) return null;
+    try{
+      if(typeof bridge.getSelectionInfo === "function"){
+        var info = bridge.getSelectionInfo(); // FIX
+        if(info && typeof info.ok === "boolean") return info; // FIX
+      }
+    }catch(e){}
+    return null;
+  }
+
+  function refreshSelection(){
+    var info = getSelection();
+    if(!info || !info.ok){ // FIX
+
+      elSel.textContent = "No Clip Chosen";
+      return null;
+    }
+    elSel.textContent = (info.identifier ? info.identifier : (info.name ? info.name : (info.uuid ? info.uuid : "Selected"))); // FIX
+    elSel.setAttribute("title", info.uuid ? info.uuid : (info.identifier ? info.identifier : (info.name ? info.name : ""))); // FIX
+    return info;
+  }
+
+  
+  function createStateClipStructure(masterName, baseDirName, otherDirName){
+    // FIX: creates a new master clip from the current selection, then creates child clip instances
+    // FIX: Right, Left, Right_Run, Left_Run, Right_Jump, Left_Jump, Die, Right_Fire, Left_Fire, Right_Power_Up, Left_Power_Up, Right_Sick, Left_Sick
+    var bridge = getBridge();
+    if(!bridge){
+      setStatus("LukeToolsBridge not found.", "bad");
+      return false;
+    }
+
+    if(typeof bridge.createClipFromSelection !== "function"){
+      setStatus("Bridge missing createClipFromSelection.", "bad");
+      return false;
+    }
+
+    var project = null;
+    try{ project = bridge.getProject ? bridge.getProject() : null; }catch(e1){ project = null; }
+    if(!project){
+      setStatus("Project missing.", "bad");
+      return false;
+    }
+
+    // Convert selection into a new master clip on stage
+    var r = null;
+    try{ r = bridge.createClipFromSelection(masterName); }catch(e2){ r = null; }
+    if(!r || r.ok === false){
+      setStatus("Could not create master clip from selection.", "bad");
+      return false;
+    }
+
+    // Master clip instance should now be selected
+    var master = null;
+    try{ master = bridge.getSelectedObject ? bridge.getSelectedObject() : null; }catch(e3){ master = null; }
+    if(!master){
+      setStatus("Master clip not selected after creation.", "bad");
+      return false;
+    }
+
+    // Access timeline frames
+    var tl = null;
+    try{ tl = master.timeline; }catch(e4){ tl = null; }
+    if(!tl){ try{ tl = master._timeline; }catch(e5){ tl = null; } }
+
+    if(!tl || typeof tl.getAllFrames !== "function"){
+      setStatus("Master clip timeline not accessible.", "bad");
+      return false;
+    }
+
+    var frames = null;
+    try{ frames = tl.getAllFrames(true); }catch(e6){ frames = null; }
+    if(!frames || !frames.length){
+      setStatus("No frames found in master clip.", "bad");
+      return false;
+    }
+
+    var frame0 = frames[0];
+    if(!frame0 || !frame0.clips || !frame0.clips.length){
+      setStatus("Master clip has no child clips to use as base.", "bad");
+      return false;
+    }
+
+    // Base clip instance (original selected content)
+    var base = frame0.clips[0];
+
+    // Rename base to user specified direction (Right or Left)
+    try{ base.identifier = baseDirName; }catch(e7){}
+    try{ base._identifier = baseDirName; }catch(e8){}
+
+    // Determine base scale sign
+    var baseScale = 1;
+    try{ baseScale = Number(base.scaleX); if(!isFinite(baseScale) || baseScale === 0) baseScale = 1; }catch(e9){ baseScale = 1; }
+
+    var cx = 0, cy = 0;
+    try{ cx = Number(base.x) || 0; }catch(e11){ cx = 0; }
+    try{ cy = Number(base.y) || 0; }catch(e12){ cy = 0; }
+
+    // FIX: Do NOT rely on ClipAsset uuid. A stage clip can have assetSourceUUID null.
+    // FIX: Use Wick's built in clip clone() to create directional and state variants.
+
+    // Create the opposite default (flipped)
+    var other = null;
+    try{
+      if(typeof base.clone === "function"){
+        other = base.clone(); // FIX
+      }
+    }catch(e13){ other = null; }
+
+    if(other){
+      try{ other.x = cx; other.y = cy; }catch(e15){}
+      try{ other.identifier = otherDirName; }catch(e16){}
+      try{ other._identifier = otherDirName; }catch(e17){}
+      try{ other.scaleX = -baseScale; }catch(e18){}
+    }else{
+      setStatus("Could not clone flipped default clip.", "bad");
+      return false;
+    }
+
+    // Decide which sign should be used for Right and Left variants
+    var rightScale = (baseDirName === "Right") ? baseScale : (-baseScale);
+    var leftScale = -rightScale;
+
+    // Create remaining state placeholders as clip clones (same content, different identifiers)
+    var states = [
+      "Right_Run","Left_Run",
+      "Right_Jump","Left_Jump",
+      "Die",
+      "Right_Fire","Left_Fire",
+      "Right_Power_Up","Left_Power_Up",
+      "Right_Sick","Left_Sick"
+    ];
+
+    for(var i=0;i<states.length;i++){
+      var nm = states[i];
+      var inst = null;
+
+      try{
+        if(typeof base.clone === "function"){
+          inst = base.clone(); // FIX
+        }
+      }catch(e19){ inst = null; }
+
+      if(!inst) continue;
+
+      try{ inst.x = cx; inst.y = cy; }catch(e21){}
+      try{ inst.identifier = nm; }catch(e22){}
+      try{ inst._identifier = nm; }catch(e23){}
+
+      if(nm.indexOf("Left_") === 0){
+        try{ inst.scaleX = leftScale; }catch(e24){}
+      }else if(nm.indexOf("Right_") === 0){
+        try{ inst.scaleX = rightScale; }catch(e25){}
+      }else{
+        try{ inst.scaleX = rightScale; }catch(e26){}
+      }
+
+      // Hide placeholders by default
+      try{ inst.visible = false; }catch(e27){}
+      try{ inst.opacity = 0; }catch(e28){}
+    }
+
+    // Ensure the base default is visible, keep the opposite default hidden
+    try{ base.visible = true; }catch(e29){}
+    try{ base.opacity = 1; }catch(e30){}
+    try{ other.visible = false; }catch(e31){}
+    try{ other.opacity = 0; }catch(e32){}
+
+    // Marker for future scripts
+    try{ master._LT_StateSprite = true; }catch(e33){}
+    try{ master.LT_StateSprite = true; }catch(e34){}
+
+    return true;
+  }
+
+
+
+function buildUpdateScript(opts){
+    var cfg = {
+      type: "LT_GAME_SPRITE",
+      enableLR: !!opts.enableLR,
+      enableJump: !!opts.enableJump,
+      enableGrav: !!opts.enableGrav,
+      speed: Number(opts.speed)||3,
+      jump: Number(opts.jump)||9,
+      gravity: Number(opts.gravity)||0.6,
+      maxFall: Number(opts.maxFall)||12
+    };
+
+    return [
+"// LukeTools Type: Game Sprite",
+"// Injected update script. Uses Update Script slot.",
+"var LT_CFG = " + JSON.stringify(cfg, null, 0) + ";",
+"",
+"var p = this.project || null;",
+"if(p){",
+"  if(!p._LT_KEYS){ p._LT_KEYS = {left:false,right:false,space:false}; }",
+"  if(!p._LT_KEYS_INIT){",
+"    p._LT_KEYS_INIT = true;",
+"    try{",
+"      window.addEventListener('keydown', function(e){",
+"        if(!p || !p._LT_KEYS) return;",
+"        if(e.key === 'ArrowLeft') p._LT_KEYS.left = true;",
+"        if(e.key === 'ArrowRight') p._LT_KEYS.right = true;",
+"        if(e.code === 'Space') p._LT_KEYS.space = true;",
+"      }, true);",
+"      window.addEventListener('keyup', function(e){",
+"        if(!p || !p._LT_KEYS) return;",
+"        if(e.key === 'ArrowLeft') p._LT_KEYS.left = false;",
+"        if(e.key === 'ArrowRight') p._LT_KEYS.right = false;",
+"        if(e.code === 'Space') p._LT_KEYS.space = false;",
+"      }, true);",
+"    }catch(e){}",
+"  }",
+"  if(!p._LT_SOLIDS){ p._LT_SOLIDS = {}; }",
+"}",
+"",
+"if(!this._LT_PHYS){",
+"  this._LT_PHYS = {vx:0, vy:0, onGround:false};",
+"}",
+"",
+"function __lt_num(v, d){ v = Number(v); return (isFinite(v) ? v : d); }",
+"function __lt_bounds(o){",
+"  try{",
+"    if(o && typeof o.getBounds === 'function'){",
+"      var b = o.getBounds();",
+"      if(b){",
+"        if(b.left !== undefined && b.top !== undefined && b.right !== undefined && b.bottom !== undefined){",
+"          return {l:__lt_num(b.left,0), t:__lt_num(b.top,0), r:__lt_num(b.right,0), b:__lt_num(b.bottom,0)};",
+"        }",
+"        if(b.x !== undefined && b.y !== undefined && b.width !== undefined && b.height !== undefined){",
+"          return {l:__lt_num(b.x,0), t:__lt_num(b.y,0), r:__lt_num(b.x,0)+__lt_num(b.width,0), b:__lt_num(b.y,0)+__lt_num(b.height,0)};",
+"        }",
+"        if(b.topLeft && b.bottomRight){",
+"          return {l:__lt_num(b.topLeft.x,0), t:__lt_num(b.topLeft.y,0), r:__lt_num(b.bottomRight.x,0), b:__lt_num(b.bottomRight.y,0)};",
+"        }",
+"      }",
+"    }",
+"  }catch(e){}",
+"  var w = __lt_num(o && o.width, 50);",
+"  var h = __lt_num(o && o.height, 50);",
+"  var x = __lt_num(o && o.x, 0);",
+"  var y = __lt_num(o && o.y, 0);",
+"  return {l:x-w*0.5, t:y-h*0.5, r:x+w*0.5, b:y+h*0.5};",
+"}",
+"function __lt_inter(a,b){",
+"  return !(a.r <= b.l || a.l >= b.r || a.b <= b.t || a.t >= b.b);",
+"}",
+"",
+"function __lt_resolveX(self, dx){",
+"  if(!dx) return;",
+"  if(!p || !p._LT_SOLIDS){ self.x = self.x + dx; return; }",
+"  self.x = self.x + dx;",
+"  var k, s, a, sb, hw;",
+"  a = __lt_bounds(self);",
+"  hw = (a.r - a.l) * 0.5;",
+"  for(k in p._LT_SOLIDS){",
+"    s = p._LT_SOLIDS[k];",
+"    if(!s || s === self) continue;",
+"    sb = __lt_bounds(s);",
+"    if(__lt_inter(a, sb)){",
+"      if(dx > 0){ self.x = (sb.l - hw) - 0.01; }",
+"      else{ self.x = (sb.r + hw) + 0.01; }",
+"      self._LT_PHYS.vx = 0;",
+"      a = __lt_bounds(self);",
+"      break;",
+"    }",
+"  }",
+"}",
+"",
+"function __lt_resolveY(self, dy){",
+"  if(!dy){ self._LT_PHYS.onGround = false; return; }",
+"  self._LT_PHYS.onGround = false;",
+"  if(!p || !p._LT_SOLIDS){ self.y = self.y + dy; return; }",
+"  self.y = self.y + dy;",
+"  var k, s, a, sb, hh;",
+"  a = __lt_bounds(self);",
+"  hh = (a.b - a.t) * 0.5;",
+"  for(k in p._LT_SOLIDS){",
+"    s = p._LT_SOLIDS[k];",
+"    if(!s || s === self) continue;",
+"    sb = __lt_bounds(s);",
+"    if(__lt_inter(a, sb)){",
+"      if(dy > 0){",
+"        self.y = (sb.t - hh) - 0.01;",
+"        self._LT_PHYS.vy = 0;",
+"        self._LT_PHYS.onGround = true;",
+"      }else{",
+"        self.y = (sb.b + hh) + 0.01;",
+"        self._LT_PHYS.vy = 0;",
+"      }",
+"      a = __lt_bounds(self);",
+"      break;",
+"    }",
+"  }",
+"}",
+"","var keys = (p && p._LT_KEYS) ? p._LT_KEYS : {left:false,right:false,space:false};",
+"var ph = this._LT_PHYS;",
+"",
+"if(LT_CFG.enableLR){",
+"  var vx = 0;",
+"  if(keys.left) vx -= LT_CFG.speed;",
+"  if(keys.right) vx += LT_CFG.speed;",
+"  ph.vx = vx;",
+"}else{",
+"  ph.vx = 0;",
+"}",
+"",
+"if(LT_CFG.enableGrav){",
+"  ph.vy += LT_CFG.gravity;",
+"  if(ph.vy > LT_CFG.maxFall) ph.vy = LT_CFG.maxFall;",
+"}",
+"",
+"if(LT_CFG.enableJump){",
+"  if(keys.space && ph.onGround){",
+"    ph.vy = -LT_CFG.jump;",
+"    ph.onGround = false;",
+"  }",
+"}",
+"",
+"__lt_resolveX(this, ph.vx);",
+"__lt_resolveY(this, ph.vy);",
+"// End"
+    ].join("\n");
+  }
+
+  function injectUpdateScript(scriptText){
+    var bridge = getBridge();
+    if(!bridge){
+      setStatus("LukeToolsBridge not found. This tool must run inside the Luke Tools panel.", "bad");
+      return false;
+    }
+    if(typeof bridge.setUpdateScriptOnSelection !== "function"){
+      setStatus("Bridge missing setUpdateScriptOnSelection. Use BridgeTool_FIXED35_UpdateScript_FIX.txt or newer.", "bad");
+      return false;
+    }
+    try{
+      var r = bridge.setUpdateScriptOnSelection(scriptText);
+      if (r && r.ok === false) { throw new Error(r.reason || 'update script failed'); }
+      return true;
+    }catch(e){
+      setStatus("Inject failed: " + (e && e.message ? e.message : String(e)), "bad");
+      return false;
+    }
+  }
+  $("btnRefresh").addEventListener("click", function(){ // FIX
+    refreshSelection();
+  });
+
+  $("btnCreate").addEventListener("click", function(){
+    var info = refreshSelection();
+    if(!info || !info.ok){ // FIX
+
+      setStatus("No Clip Chosen. Select a clip on the stage and try again.", "warn");
+      return;
+    }
+
+    var bridge = getBridge();
+    if(!bridge){
+      setStatus("LukeToolsBridge not found. This tool must run inside the Luke Tools panel.", "bad");
+      return;
+    }
+
+    // FIX: build a master clip containing state clips
+    var masterName = "";
+    try{ masterName = String($("masterName").value || "").trim(); }catch(e0){ masterName = ""; }
+    if(!masterName) masterName = "Sprite";
+
+    var selectedIsRight = !!$("dirRight").checked; // FIX
+    var baseDirName = selectedIsRight ? "Right" : "Left"; // FIX
+    var otherDirName = selectedIsRight ? "Left" : "Right"; // FIX
+
+    var buildOk = createStateClipStructure(masterName, baseDirName, otherDirName); // FIX
+    if(!buildOk){
+      return;
+    }
+
+    // FIX: selection should now be the master clip, inject update script there
+    var opts = {
+      enableLR: $("optLR").checked,
+      enableJump: $("optJump").checked,
+      enableGrav: $("optGrav").checked,
+      speed: $("speed").value,
+      jump: $("jump").value,
+      gravity: $("grav").value,
+      maxFall: $("maxfall").value
+    };
+
+    var scriptText = buildUpdateScript(opts);
+    var ok = injectUpdateScript(scriptText);
+    if(ok){
+      var info2 = refreshSelection();
+      setStatus("Success. Built state clips and injected update script into: " + (info2 && info2.name ? info2.name : masterName), "good");
+    }
+  });refreshSelection();
+})();
+</script>
+</body>
+</html>

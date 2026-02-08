@@ -1,0 +1,185 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LukeTools Type: Solid</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{
+      --text:#e7e7ea;
+      --muted:#a8a8b3;
+      --radius:12px;
+      --radius2:10px;
+      --font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    html,body{height:100%;margin:0;background:transparent;color:var(--text);font-family:var(--font);}
+    .wrap{padding:14px;box-sizing:border-box;}
+    .card{
+      background:rgba(20,20,22,0.92);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:var(--radius);
+      padding:14px;
+      box-sizing:border-box;
+    }
+    .title{font-size:16px;font-weight:700;margin:0 0 10px 0;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0;}
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .pill strong{color:var(--text);}
+    .btn{
+      appearance:none;border:1px solid rgba(255,255,255,0.10);
+      background:rgba(255,255,255,0.06);color:var(--text);
+      border-radius:var(--radius2);padding:10px 12px;
+      cursor:pointer;font-weight:700;font-size:13px;
+    }
+    .btn.primary{background:rgba(52,152,219,0.18);border-color:rgba(52,152,219,0.35);}
+    .btn:active{transform:translateY(1px);}
+    .status{
+      margin-top:12px;
+      padding:10px 10px;
+      border-radius:var(--radius2);
+      border:1px solid rgba(255,255,255,0.08);
+      background:rgba(0,0,0,0.22);
+      font-size:12px;
+      color:var(--muted);
+      white-space:pre-wrap;
+    }
+    .status.good{border-color:rgba(46,204,113,0.35);background:rgba(46,204,113,0.12);color:#d9ffe9;}
+    .status.bad{border-color:rgba(231,76,60,0.35);background:rgba(231,76,60,0.12);color:#ffd9d6;}
+    .status.warn{border-color:rgba(241,196,15,0.35);background:rgba(241,196,15,0.10);color:#fff2c2;}
+    .small{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4;}
+    .divider{height:1px;background:rgba(255,255,255,0.08);margin:12px 0;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="title">TYPE MAKER: SOLID</div>
+
+      <div class="row">
+        <div class="pill"><strong>Selected Clip</strong> <span id="selLabel">No Clip Chosen</span></div>
+        <button class="btn" id="btnRefresh">Refresh</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="row">
+        <button class="btn primary" id="btnCreate">Create</button>
+      </div>
+
+      <div id="status" class="status">Ready.</div>
+
+      <div class="small">
+        Notes
+        <br>1. Select a clip on the stage, then click Create to mark it as Solid
+        <br>2. Game Sprites will collide with any clip marked Solid
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  function $(id){ return document.getElementById(id); }
+
+  var elSel = $("selLabel");
+  var elStatus = $("status");
+
+  function setStatus(msg, kind){
+    elStatus.className = "status" + (kind ? (" " + kind) : "");
+    elStatus.textContent = msg;
+  }
+
+  function getBridge(){
+    return window.LukeToolsBridge || null;
+  }
+
+  function getSelection(){
+    var bridge = getBridge();
+    if(!bridge) return null;
+    try{
+      if(typeof bridge.getSelectionInfo === "function"){
+        return bridge.getSelectionInfo();
+      }
+    }catch(e){}
+    return null;
+  }
+
+  function refreshSelection(){
+    var info = getSelection();
+    if(!info || !info.uuid){
+      elSel.textContent = "No Clip Chosen";
+      return null;
+    }
+    elSel.textContent = (info.name ? info.name : info.uuid);
+    elSel.setAttribute("title", info.uuid);
+    return info;
+  }
+
+  function buildUpdateScript(){
+    return [
+"// LukeTools Type: Solid",
+"// Injected update script. This registers this clip as a solid collider.",
+"if (!this.__LT_SolidInit) {",
+"  this.__LT_SolidInit = true;",
+"  this.LT_SOLID = true;",
+"}",
+"var p = this.project || null;",
+"if (p) {",
+"  if (!p._LT_SOLIDS) p._LT_SOLIDS = {};",
+"  try { p._LT_SOLIDS[this.uuid] = this; } catch (e) {}",
+"}",
+"// End",
+    ].join("\n");
+  }
+
+  function injectUpdateScript(scriptText){
+    var bridge = getBridge();
+    if(!bridge){
+      setStatus("LukeToolsBridge not found. This tool must run inside the Luke Tools panel.", "bad");
+      return false;
+    }
+    if(typeof bridge.setUpdateScriptOnSelection !== "function"){
+      setStatus("Bridge missing setUpdateScriptOnSelection. Use BridgeTool_FIXED35_UpdateScript_FIX.txt or newer.", "bad");
+      return false;
+    }
+    try{
+      var r = bridge.setUpdateScriptOnSelection(scriptText);
+      if (r && r.ok === false) { throw new Error(r.reason || 'update script failed'); }
+      return true;
+    }catch(e){
+      setStatus("Inject failed: " + (e && e.message ? e.message : String(e)), "bad");
+      return false;
+    }
+  }
+
+addEventListener("click", function(){
+    refreshSelection();
+  });
+
+  $("btnCreate").addEventListener("click", function(){
+    var info = refreshSelection();
+    if(!info || !info.uuid){
+      setStatus("No Clip Chosen. Select a clip on the stage and try again.", "warn");
+      return;
+    }
+    var scriptText = buildUpdateScript();
+    var ok = injectUpdateScript(scriptText);
+    if(ok){
+      setStatus("Success. Marked Solid in update script for: " + (info.name ? info.name : info.uuid), "good");
+    }
+  });
+
+  refreshSelection();
+})();
+</script>
+</body>
+</html>
