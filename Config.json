@@ -6,7 +6,24 @@
       "id": "behaviours",
       "label": "Behaviours",
       "tabIcon": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Behaviours.svg",
-      "items": []
+      "items": [
+        {
+          "id": "Sine_Block",
+          "label": "Sine Block",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Sine.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/SineBlock.txt",
+          "action": "script",
+          "F_Screen": 0
+        },
+        {
+          "id": "Jump_Through",
+          "label": "Jump Through",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/JThrough.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/JumpThrough.txt",
+          "action": "script",
+          "F_Screen": 0
+        }
+      ]
     },
     {
       "id": "type",
@@ -28,6 +45,22 @@
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Solid.txt",
           "action": "script",
           "F_Screen": 0
+        },
+        {
+          "id": "Parallax_BG",
+          "label": "Parallax BG",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Parallax.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/ParallaxSlots.txt",
+          "action": "script",
+          "F_Screen": 1
+        },
+        {
+          "id": "Bullets_And_Field",
+          "label": "Bullets And Field",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/BulletsAndField.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/BulletsAndField.txt",
+          "action": "script",
+          "F_Screen": 0
         }
       ]
     },
@@ -37,7 +70,7 @@
       "tabIcon": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Import.svg",
       "items": [
         {
-          "id": "multi_script_example",
+          "id": "Multi_Asset_Importer",
           "label": "Multi Script",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Multi.svg",
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/MultiImport.txt",
@@ -45,7 +78,7 @@
           "F_Screen": 0
         },
         {
-          "id": "spriter",
+          "id": "Spriter",
           "label": "Spriter",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Spriter.svg",
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Sprite_Maker.txt",
@@ -53,7 +86,7 @@
           "F_Screen": 0
         },
         {
-          "id": "winkscape",
+          "id": "Winkscape",
           "label": "WinkScape",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Wink.svg",
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Wink.txt",
@@ -61,7 +94,7 @@
           "F_Screen": 0
         },
         {
-          "id": "svg_import",
+          "id": "Import_SVG",
           "label": "SVG Import",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/SVG.svg",
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/SVG_Importer.txt",
@@ -76,7 +109,7 @@
       "tabIcon": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Tools.svg",
       "items": [
         {
-          "id": "lip_service",
+          "id": "Lip_Service",
           "label": "Lip Service",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Lip.svg",
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Lip_Service.txt",
@@ -84,17 +117,33 @@
           "F_Screen": 1
         },
         {
-          "id": "nuke",
+          "id": "Nuke",
           "label": "Nuke",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Nuke.svg",
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Nuke.txt",
+          "action": "tool",
+          "F_Screen": 0
+        },
+        {
+          "id": "Shapes",
+          "label": "Shapes",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Shapes.svg",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/ShapeLibrary.txt",
+          "action": "tool",
+          "F_Screen": 0
+        },
+        {
+          "id": "Gradient",
+          "label": "Gradient",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Gradient.svg",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Gradient.txt",
           "action": "tool",
           "F_Screen": 0
         }
       ]
     },
     {
-      "id": "sandbox",
+      "id": "Sandbox",
       "label": "Sandbox",
       "tabIcon": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Sandbox.svg",
       "items": []
