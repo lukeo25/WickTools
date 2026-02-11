@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Shape Library</title>
+<title>Shapes Library</title>
 <style>
   :root { color-scheme: dark; }
   html, body { margin:0; padding:0; height:100%; background:#111; color:#eee; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
@@ -141,7 +141,7 @@
       async function listDir(relPath) { // FIX
         const segs = String(relPath || "").split("/").filter(Boolean).map(encodeURIComponent).join("/"); // FIX
         const url = "https://api.github.com/repos/lukeo25/WickTools/contents/scripts/Panel_SVG/Shapes" + (segs ? ("/" + segs) : "") + "?ref=main"; // FIX
-        const res = await fetch(url, { cache: "no-store" }); // FIX
+        const res = await fetch(url, { cache: "no-store", headers: { "Accept": "application/vnd.github+json" } }); // FIX
         if (!res.ok) throw new Error("GitHub API HTTP " + res.status + " for " + url); // FIX
         const items = await res.json(); // FIX
         if (!Array.isArray(items)) throw new Error("GitHub API unexpected response"); // FIX
@@ -472,7 +472,7 @@
         return; // FIX
       } // FIX
       const maxDim = Math.max(1, size.w, size.h); // FIX
-      const factor = TARGET_PLACED_MAX_PX / maxDim; // FIX
+      const factor = (maxDim > TARGET_PLACED_MAX_PX) ? (TARGET_PLACED_MAX_PX / maxDim) : 1; // FIX
       debugLog("Resizing placed object", { w: size.w, h: size.h, factor: factor }); // FIX
       const ok = applyUniformScale(obj, factor); // FIX
       if (!ok) debugLog("Resize skipped (no scale fields on object)"); // FIX
