@@ -450,6 +450,7 @@
         } // FIX
       } // FIX
       const maxDim = Math.max(1, size.w, size.h); // FIX
+      if ((size.w === 0) || (size.h === 0)) { debugLog("Resize skipped (zero bounds)"); return; } // FIX
       const factor = (maxDim > TARGET_PLACED_MAX_PX) ? (TARGET_PLACED_MAX_PX / maxDim) : 1; // FIX
       debugLog("Resizing placed object", { w: size.w, h: size.h, factor: factor }); // FIX
       const ok = applyUniformScale(obj, factor); // FIX
@@ -568,36 +569,26 @@
     }
   }
 
-  async function waitForNewAsset(project, beforeUUIDs, expectedName, timeoutMs = 12000) {
-    const start = Date.now();
-    const before = new Set(beforeUUIDs || []);
-
-    while (Date.now() - start < timeoutMs) {
-      try {
-        const assets = project?.assets || [];
-        let newAssets = [];
-
-        if (Array.isArray(assets)) {
-          newAssets = assets.filter(a => a?.uuid && !before.has(a.uuid));
-        } else {
-          for (const k in assets) {
-            const a = assets[k];
-            if (a?.uuid && !before.has(a.uuid)) newAssets.push(a);
-          }
-        }
-
-        if (newAssets.length > 0) {
-          if (expectedName) {
-            const match = newAssets.find(a => a.name === expectedName || a.filename === expectedName);
-            if (match) return match;
-          }
-          return newAssets[newAssets.length - 1];
-        }
-      } catch (e) {}
-      await new Promise(r => setTimeout(r, 80));
-    }
-    throw new Error(`Timeout waiting for "${expectedName}"`);
-  }
+  async function waitForNewAsset(project, fileName, timeoutMs) { // FIX
+    const start = Date.now(); // FIX
+    const safeTimeout = Math.max(500, timeoutMs || 4000); // FIX
+    while (Date.now() - start < safeTimeout) { // FIX
+      try { // FIX
+        const asset = findAssetByName(project, fileName); // FIX
+        if (asset && asset.uuid) { // FIX
+          // Wick sometimes creates the asset record before the internal "published" entry exists. // FIX
+          const lib = project?.assetLibrary || project?.assets || null; // FIX
+          const byUuid = (typeof project.getAssetByUUID === "function") ? project.getAssetByUUID(asset.uuid) : null; // FIX
+          const a = byUuid || asset; // FIX
+          const pub = (a && a.file && (a.file.isPublished === true || a.file.isPublished === false)) ? a.file.isPublished : null; // FIX
+          // If isPublished exists (true/false), the file entry is no longer null. // FIX
+          if (pub !== null) return a; // FIX
+        } // FIX
+      } catch (e) {} // FIX
+      await sleepMs(100); // FIX
+    } // FIX
+    throw new Error("Timed out waiting for asset to be ready: " + fileName); // FIX
+  } // FIX
 
   function placeImagePathFromAsset(project, assetUuid, x, y) {
     return new Promise((resolve, reject) => {
