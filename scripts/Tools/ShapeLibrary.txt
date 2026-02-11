@@ -406,6 +406,74 @@
     return { x: 960, y: 540 };
   }
 
+  const TARGET_PLACED_MAX_PX = 280; // FIX
+
+  function tryGetObjectSize(obj) { // FIX
+    try { // FIX
+      if (!obj) return null; // FIX
+      if (obj.bounds && typeof obj.bounds.width === "number" && typeof obj.bounds.height === "number") { // FIX
+        return { w: obj.bounds.width, h: obj.bounds.height }; // FIX
+      } // FIX
+      if (typeof obj.getBounds === "function") { // FIX
+        const b = obj.getBounds(); // FIX
+        if (b && typeof b.width === "number" && typeof b.height === "number") return { w: b.width, h: b.height }; // FIX
+      } // FIX
+      if (typeof obj.getBBox === "function") { // FIX
+        const b = obj.getBBox(); // FIX
+        if (b && typeof b.width === "number" && typeof b.height === "number") return { w: b.width, h: b.height }; // FIX
+      } // FIX
+      if (typeof obj.width === "number" && typeof obj.height === "number") { // FIX
+        return { w: obj.width, h: obj.height }; // FIX
+      } // FIX
+      if (obj._width && obj._height) return { w: obj._width, h: obj._height }; // FIX
+    } catch (e) {} // FIX
+    return null; // FIX
+  } // FIX
+
+  function applyUniformScale(obj, factor) { // FIX
+    try { // FIX
+      if (!obj || !isFinite(factor) || factor <= 0) return false; // FIX
+      if (typeof obj.scaleX === "number" && typeof obj.scaleY === "number") { // FIX
+        obj.scaleX *= factor; // FIX
+        obj.scaleY *= factor; // FIX
+        return true; // FIX
+      } // FIX
+      if (obj.transform && typeof obj.transform.scaleX === "number" && typeof obj.transform.scaleY === "number") { // FIX
+        obj.transform.scaleX *= factor; // FIX
+        obj.transform.scaleY *= factor; // FIX
+        return true; // FIX
+      } // FIX
+      if (obj._transform && typeof obj._transform.scaleX === "number" && typeof obj._transform.scaleY === "number") { // FIX
+        obj._transform.scaleX *= factor; // FIX
+        obj._transform.scaleY *= factor; // FIX
+        return true; // FIX
+      } // FIX
+    } catch (e) {} // FIX
+    return false; // FIX
+  } // FIX
+
+  function resizePlacedObjectToTarget(editor, obj) { // FIX
+    try { // FIX
+      const size = tryGetObjectSize(obj); // FIX
+      if (!size) { // FIX
+        debugLog("Resize skipped (no bounds available)"); // FIX
+        return; // FIX
+      } // FIX
+      const maxDim = Math.max(1, size.w, size.h); // FIX
+      const factor = TARGET_PLACED_MAX_PX / maxDim; // FIX
+      debugLog("Resizing placed object", { w: size.w, h: size.h, factor: factor }); // FIX
+      const ok = applyUniformScale(obj, factor); // FIX
+      if (!ok) debugLog("Resize skipped (no scale fields on object)"); // FIX
+      // Recenter after scaling // FIX
+      const center = getStageCenter(editor); // FIX
+      if (typeof obj.x === "number") obj.x = center.x; // FIX
+      if (typeof obj.y === "number") obj.y = center.y; // FIX
+    } catch (e) { // FIX
+      debugLog("Resize failed", e.message || String(e)); // FIX
+    } // FIX
+  } // FIX
+
+
   function selectSingleObject(editor, obj) {
     try {
       const sel = editor?.selection || editor?.project?.selection;
@@ -603,6 +671,8 @@
         debugLog("WARNING: recenterClipContentsOnSelection not available");
       }
 
+      resizePlacedObjectToTarget(editor, placed); // FIX
+
       try {
         if (project.markAsModified) project.markAsModified();
         if (editor.canvas?.render) editor.canvas.render();
@@ -680,11 +750,14 @@
     }
   }
 
-  async function fetchSvg(file) {
-    const url = BASE_PATH.replace(/\/$/, "") + "/" + encodeURIComponent(file);
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-    return await res.text();
+  async function fetchSvg(fileOrUrl) { // FIX
+    const isUrl = typeof fileOrUrl === "string" && /^https?:\/\//i.test(fileOrUrl); // FIX
+    const safePath = String(fileOrUrl || ""); // FIX
+    const encodedPath = safePath.split("/").map(encodeURIComponent).join("/"); // FIX
+    const url = isUrl ? safePath : (BASE_PATH.replace(/\/$/, "") + "/" + encodedPath); // FIX
+    const res = await fetch(url, { cache: "no-store" }); // FIX
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`); // FIX
+    return await res.text(); // FIX
   }
 
   function makeButton(shape) {
@@ -697,7 +770,7 @@
       try {
         setStatus(`Importing ${shape.name}...`);
         btn.disabled = true;
-        const rawSvg = await fetchSvg(shape.file);
+        const rawSvg = await fetchSvg(shape.url ? shape.url : shape.file); // FIX
         await importSvgTextToStage(rawSvg, shape.name, placeAsClip);
       } catch (e) {
         setStatus(`Error: ${e?.message || String(e)}`);
@@ -706,7 +779,7 @@
       }
     });
 
-    fetchSvg(shape.file).then(svgText => {
+    fetchSvg(shape.url ? shape.url : shape.file).then(svgText => { // FIX
       const holder = document.createElement("div");
       holder.innerHTML = svgText;
       const svg = holder.querySelector("svg");
