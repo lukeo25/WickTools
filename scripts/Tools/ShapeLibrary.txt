@@ -17,8 +17,8 @@
   .catBar { padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; gap:8px; flex-wrap:wrap; } /* FIX */
   .catBtn { border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.03); color:#ddd; border-radius:999px; padding:6px 10px; font-size:12px; cursor:pointer; } /* FIX */
   .catBtn.active { background:rgba(255,255,255,0.10); color:#fff; } /* FIX */
-  .grid { flex:1 1 auto; min-height:0; padding:12px; overflow:auto; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; }
-  .shapeBtn { border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); border-radius:12px; padding:10px 8px; cursor:pointer; display:flex; align-items:center; justify-content:center; min-height:54px; }
+  .grid { flex:1 1 auto; padding:12px; display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); grid-auto-rows:72px; gap:10px; overflow:auto; } /* FIX */
+  .shapeBtn { height:72px; width:100%; border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.03); border-radius:14px; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; } /* FIX */
   .shapeBtn:hover { background:rgba(255,255,255,0.07); }
   .shapeBtn svg { width:28px; height:28px; }
   .bottom { padding:10px 12px; border-top:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; gap:10px; }
@@ -798,8 +798,11 @@ async function importSvgTextToStage(svgText, displayName, makeClip) { // FIX
       holder.innerHTML = svgText;
       const svg = holder.querySelector("svg");
       if (svg) {
-        svg.setAttribute("width", "28");
-        svg.setAttribute("height", "28");
+        svg.removeAttribute("style"); // FIX
+        svg.removeAttribute("width"); // FIX
+        svg.removeAttribute("height"); // FIX
+        svg.setAttribute("width", "28"); // FIX
+        svg.setAttribute("height", "28"); // FIX
         btn.appendChild(svg);
       } else {
         btn.textContent = shape.name;
