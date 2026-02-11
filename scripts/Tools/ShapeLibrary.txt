@@ -221,6 +221,15 @@
     elStatus.textContent = msg || "";
   }
 
+  function showLoader() { // FIX
+    try { document.getElementById("loader")?.classList.remove("hidden"); } catch (e) {} // FIX
+  } // FIX
+
+  function hideLoader() { // FIX
+    try { document.getElementById("loader")?.classList.add("hidden"); } catch (e) {} // FIX
+  } // FIX
+
+
   function sleepMs(ms) { // FIX
     return new Promise(function (resolve) { setTimeout(resolve, ms); }); // FIX
   } // FIX
@@ -806,7 +815,8 @@ async function importSvgTextToStage(svgText, displayName, makeClip, assetKey) { 
 
     fetchSvg(shape.url ? shape.url : shape.file).then(svgText => { // FIX
       const holder = document.createElement("div");
-      holder.innerHTML = svgText;
+      const sanitized = sanitizeSvg(svgText); // FIX
+      holder.innerHTML = sanitized.text; // FIX
       const svg = holder.querySelector("svg");
       if (svg) {
         svg.removeAttribute("style"); // FIX
@@ -835,10 +845,12 @@ async function importSvgTextToStage(svgText, displayName, makeClip, assetKey) { 
   } // FIX
 
   function init() { // FIX
+    showLoader(); // FIX
     setStatus("Loading"); // FIX
     loadShapeGroupsFromGithub().then(function (groups) { // FIX
       function selectTab(name) { // FIX
         renderShapesList(groups[name] || []); // FIX
+        hideLoader(); // FIX
         setStatus("Ready"); // FIX
       } // FIX
       buildCategoryTabs(groups, selectTab); // FIX
