@@ -749,8 +749,12 @@ async function importSvgTextToStage(svgText, displayName, makeClip, assetKey) { 
       });
 
             const clipBase = (displayName || 'Shape').replace(/[^a-z0-9_\-]/gi, '_').replace(/_+/g, '_'); // FIX
-      const assetBaseRaw = (assetKey || displayName || 'Shape'); // FIX
-      const assetBase = String(assetBaseRaw).replace(/\.svg$/i, '').replace(/\//g, '__').replace(/[^a-z0-9_\-]/gi, '_').replace(/_+/g, '_'); // FIX
+      const assetBase = (assetKey || displayName || 'Shape') // FIX
+        .split('/') // FIX
+        .pop() // FIX
+        .replace(/\.svg$/i, '') // FIX
+        .replace(/[^a-z0-9_\-]/gi, '_') // FIX
+        .replace(/_+/g, '_'); // FIX
       const fileName = assetBase + '.svg'; // FIX
 
 
