@@ -31,7 +31,7 @@
 <body>
 <div class="wrap">
   <div class="top">
-    <div class="title">Shape Library (6× size)</div>
+    <div class="title">Shape Library</div>
     <div class="mode">Place: Clip</div> <!-- FIX -->
   </div>
 
@@ -406,7 +406,7 @@
     return { x: 960, y: 540 };
   }
 
-  const TARGET_PLACED_MAX_PX = 280; // FIX
+  const TARGET_PLACED_MAX_PX = 56; // FIX // FIX
 
   function tryGetObjectSize(obj) { // FIX
     try { // FIX
