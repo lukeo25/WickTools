@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Shapes Library</title>
+<title>Shape Library</title>
 <style>
   :root { color-scheme: dark; }
   html, body { margin:0; padding:0; height:100%; background:#111; color:#eee; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
@@ -31,7 +31,7 @@
 <body>
 <div class="wrap">
   <div class="top">
-    <div class="title">Shape Library (6× size)</div>
+    <div class="title">Shape Library</div>
     <div class="mode">Place: Clip</div> <!-- FIX -->
   </div>
 
@@ -227,7 +227,6 @@
 
   const BASE_PATH = "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Shapes"; // FIX
   const GITHUB_CONTENTS_API = "https://api.github.com/repos/lukeo25/WickTools/contents/scripts/Panel_SVG/Shapes?ref=main"; // FIX
-  const SCALE = 6; // Changed to 6× as requested
 
   const elGrid   = document.getElementById("grid");
   const elStatus = document.getElementById("status");
@@ -464,12 +463,17 @@
     return false; // FIX
   } // FIX
 
-  function resizePlacedObjectToTarget(editor, obj) { // FIX
+  function resizePlacedObjectToTarget(editor, obj, svgDims) { // FIX
     try { // FIX
-      const size = tryGetObjectSize(obj); // FIX
+      let size = tryGetObjectSize(obj); // FIX
       if (!size) { // FIX
-        debugLog("Resize skipped (no bounds available)"); // FIX
-        return; // FIX
+        if (svgDims && isFinite(svgDims.w) && isFinite(svgDims.h)) { // FIX
+          size = { w: svgDims.w, h: svgDims.h }; // FIX
+          debugLog("Resize using svg dims fallback", size); // FIX
+        } else { // FIX
+          debugLog("Resize skipped (no bounds available)"); // FIX
+          return; // FIX
+        } // FIX
       } // FIX
       const maxDim = Math.max(1, size.w, size.h); // FIX
       const factor = (maxDim > TARGET_PLACED_MAX_PX) ? (TARGET_PLACED_MAX_PX / maxDim) : 1; // FIX
@@ -645,7 +649,7 @@
     });
   }
 
-  async function placeSvgAssetOnStage(editor, assetRecord, frameNum, displayName, makeClip = false) {
+  async function placeSvgAssetOnStage(editor, assetRecord, frameNum, displayName, makeClip = false, svgDims = null) { // FIX
     debugLog("placeSvgAssetOnStage START", { assetName: assetRecord?.name, frame: frameNum });
 
     try {
@@ -683,7 +687,7 @@
         debugLog("WARNING: recenterClipContentsOnSelection not available");
       }
 
-      resizePlacedObjectToTarget(editor, placed); // FIX
+      resizePlacedObjectToTarget(editor, placed, svgDims); // FIX
 
       try {
         if (project.markAsModified) project.markAsModified();
@@ -702,7 +706,38 @@
     }
   }
 
-  async function importSvgTextToStage(svgText, displayName, makeClip) {
+  async 
+  function parseSvgDimensions(svgText) { // FIX
+    try { // FIX
+      const holder = document.createElement("div"); // FIX
+      holder.innerHTML = svgText; // FIX
+      const svg = holder.querySelector("svg"); // FIX
+      if (!svg) return null; // FIX
+      const wAttr = svg.getAttribute("width"); // FIX
+      const hAttr = svg.getAttribute("height"); // FIX
+      function num(v) { // FIX
+        if (!v) return NaN; // FIX
+        const m = String(v).trim().match(/^([0-9.]+)/); // FIX
+        return m ? parseFloat(m[1]) : NaN; // FIX
+      } // FIX
+      let w = num(wAttr); // FIX
+      let h = num(hAttr); // FIX
+      const vb = svg.getAttribute("viewBox"); // FIX
+      if ((!isFinite(w) || !isFinite(h)) && vb) { // FIX
+        const parts = vb.trim().split(/\s+/).map(parseFloat); // FIX
+        if (parts.length === 4) { // FIX
+          w = parts[2]; // FIX
+          h = parts[3]; // FIX
+        } // FIX
+      } // FIX
+      if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) return null; // FIX
+      return { w: w, h: h }; // FIX
+    } catch (e) { // FIX
+      return null; // FIX
+    } // FIX
+  } // FIX
+
+function importSvgTextToStage(svgText, displayName, makeClip) {
     makeClip = !!makeClip;
     const editor = getEditor();
     if (!editor) return setStatus('Error: editor not found');
@@ -748,7 +783,8 @@
 
       const frameNumber = getCurrentFrameNumber(editor) || 1;
 
-      const placed = await placeSvgAssetOnStage(editor, importedAsset, frameNumber, base, makeClip);
+      const svgDims = parseSvgDimensions(sanitizedResult.text); // FIX
+      const placed = await placeSvgAssetOnStage(editor, importedAsset, frameNumber, base, makeClip, svgDims); // FIX
 
       if (!placed) {
         setStatus('Imported to assets only (placement failed – check debug)');
@@ -809,10 +845,23 @@
     return btn;
   }
 
-  function init() {
-    elGrid.innerHTML = "";
-    SHAPES.forEach(s => elGrid.appendChild(makeButton(s)));
-    setStatus("Ready – click a shape");
+
+  function renderShapesList(list) { // FIX
+    elGrid.innerHTML = ""; // FIX
+    (list || []).forEach(s => elGrid.appendChild(makeButton(s))); // FIX
+  } // FIX
+
+  function init() { // FIX
+    setStatus("Loading"); // FIX
+    loadShapeGroupsFromGithub().then(function (groups) { // FIX
+      function selectTab(name) { // FIX
+        renderShapesList(groups[name] || []); // FIX
+        setStatus("Ready"); // FIX
+      } // FIX
+      buildCategoryTabs(groups, selectTab); // FIX
+      const first = Object.keys(groups).sort((a,b)=>{ if (a==="All") return -1; if (b==="All") return 1; if (a==="Root") return -1; if (b==="Root") return 1; return a.localeCompare(b); })[0]; // FIX
+      selectTab(first); // FIX
+    }); // FIX
   }
 
   init();
