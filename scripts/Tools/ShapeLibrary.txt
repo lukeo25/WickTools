@@ -14,6 +14,9 @@
   .seg { display:inline-flex; border:1px solid rgba(255,255,255,0.12); border-radius:10px; overflow:hidden; }
   .seg button { appearance:none; border:0; background:transparent; color:#ddd; padding:7px 10px; font-size:13px; cursor:pointer; }
   .seg button.active { background:rgba(255,255,255,0.10); color:#fff; }
+  .catBar { padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; gap:8px; flex-wrap:wrap; } /* FIX */
+  .catBtn { border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.03); color:#ddd; border-radius:999px; padding:6px 10px; font-size:12px; cursor:pointer; } /* FIX */
+  .catBtn.active { background:rgba(255,255,255,0.10); color:#fff; } /* FIX */
   .grid { flex:1 1 auto; min-height:0; padding:12px; overflow:auto; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; }
   .shapeBtn { border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); border-radius:12px; padding:10px 8px; cursor:pointer; display:flex; align-items:center; justify-content:center; min-height:54px; }
   .shapeBtn:hover { background:rgba(255,255,255,0.07); }
@@ -29,13 +32,11 @@
 <div class="wrap">
   <div class="top">
     <div class="title">Shape Library (6× size)</div>
-    <div class="mode">
-      <div class="seg" role="group" aria-label="Place mode">
-        <button id="modeSvg" class="segBtn" type="button">SVG</button>
-        <button id="modeClip" class="segBtn active" type="button">Clip</button>
-      </div>
-    </div>
+    <div class="mode">Place: Clip</div> <!-- FIX -->
   </div>
+
+  <div id="catBar" class="catBar" aria-label="Folders"></div> <!-- FIX -->
+
 
   <div id="grid" class="grid" aria-label="Shapes"></div>
 
@@ -51,6 +52,8 @@
 <script>
 (function () {
   "use strict";
+
+  let placeMode = "clip"; // FIX
 
   const SHAPES = [
     {"name": "Circle", "file": "circle.svg"},
@@ -105,7 +108,113 @@
     {"name": "Tag", "file": "tag.svg"}
   ];
 
+  async function loadShapesFromGithub() { // FIX
+    try { // FIX
+      const res = await fetch(GITHUB_CONTENTS_API, { cache: "no-store" }); // FIX
+      if (!res.ok) throw new Error("GitHub API HTTP " + res.status); // FIX
+      const items = await res.json(); // FIX
+      if (!Array.isArray(items)) throw new Error("GitHub API unexpected response"); // FIX
+      const svgs = items
+        .filter(it => it && typeof it.name === "string" && it.name.toLowerCase().endsWith(".svg") && typeof it.download_url === "string") // FIX
+        .map(it => ({ // FIX
+          name: filenameToDisplayName(it.name), // FIX
+          file: it.name, // FIX
+          url: it.download_url // FIX
+        })) // FIX
+        .sort((a, b) => a.name.localeCompare(b.name)); // FIX
+      if (svgs.length === 0) throw new Error("No SVG files found"); // FIX
+      return svgs; // FIX
+    } catch (e) { // FIX
+      console.warn("[ShapeLibrary] Falling back to built in SHAPES:", e); // FIX
+      return SHAPES.map(s => ({ name: s.name, file: s.file, url: BASE_PATH + "/" + s.file })); // FIX
+    } // FIX
+  } // FIX
+
+  function filenameToDisplayName(fileName) { // FIX
+    const base = String(fileName).replace(/\.svg$/i, ""); // FIX
+    const spaced = base.replace(/[_\-]+/g, " ").trim(); // FIX
+    return spaced ? spaced : base; // FIX
+  } // FIX
+
+  async function loadShapeGroupsFromGithub() { // FIX
+    try { // FIX
+      const rootRes = await fetch(GITHUB_CONTENTS_API, { cache: "no-store" }); // FIX
+      if (!rootRes.ok) throw new Error("GitHub API HTTP " + rootRes.status); // FIX
+      const rootItems = await rootRes.json(); // FIX
+      if (!Array.isArray(rootItems)) throw new Error("GitHub API unexpected response"); // FIX
+
+      const groups = {}; // FIX
+      groups["All"] = []; // FIX
+
+      const rootSvgs = rootItems
+        .filter(it => it && typeof it.name === "string" && it.name.toLowerCase().endsWith(".svg") && typeof it.download_url === "string") // FIX
+        .map(it => ({ name: filenameToDisplayName(it.name), file: it.name, url: it.download_url })); // FIX
+
+      if (rootSvgs.length) { // FIX
+        const rootName = "Root"; // FIX
+        groups[rootName] = rootSvgs.sort((a,b)=>a.name.localeCompare(b.name)); // FIX
+        groups["All"].push(...groups[rootName]); // FIX
+      } // FIX
+
+      const folders = rootItems
+        .filter(it => it && it.type === "dir" && typeof it.name === "string") // FIX
+        .map(it => it.name); // FIX
+
+      for (const folder of folders) { // FIX
+        const url = "https://api.github.com/repos/lukeo25/WickTools/contents/scripts/Panel_SVG/Shapes/" + encodeURIComponent(folder) + "?ref=main"; // FIX
+        const res = await fetch(url, { cache: "no-store" }); // FIX
+        if (!res.ok) continue; // FIX
+        const items = await res.json(); // FIX
+        if (!Array.isArray(items)) continue; // FIX
+        const svgs = items
+          .filter(it => it && typeof it.name === "string" && it.name.toLowerCase().endsWith(".svg") && typeof it.download_url === "string") // FIX
+          .map(it => ({ name: filenameToDisplayName(it.name), file: folder + "/" + it.name, url: it.download_url })) // FIX
+          .sort((a,b)=>a.name.localeCompare(b.name)); // FIX
+        if (svgs.length) { // FIX
+          groups[folder] = svgs; // FIX
+          groups["All"].push(...svgs); // FIX
+        } // FIX
+      } // FIX
+
+      if (!groups["All"].length) throw new Error("No SVG files found"); // FIX
+      groups["All"] = groups["All"].sort((a,b)=>a.name.localeCompare(b.name)); // FIX
+      return groups; // FIX
+    } catch (e) { // FIX
+      console.warn("[ShapeLibrary] Falling back to built in SHAPES groups:", e); // FIX
+      const fallback = {}; // FIX
+      fallback["All"] = SHAPES.map(s => ({ name: s.name, file: s.file, url: BASE_PATH + "/" + s.file })).sort((a,b)=>a.name.localeCompare(b.name)); // FIX
+      return fallback; // FIX
+    } // FIX
+  } // FIX
+
+  function buildCategoryTabs(groups, onSelect) { // FIX
+    const bar = document.getElementById("catBar"); // FIX
+    if (!bar) return; // FIX
+    bar.innerHTML = ""; // FIX
+    const names = Object.keys(groups); // FIX
+    names.sort((a,b)=>{ // FIX
+      if (a === "All") return -1; // FIX
+      if (b === "All") return 1; // FIX
+      return a.localeCompare(b); // FIX
+    }); // FIX
+    names.forEach((name, i) => { // FIX
+      const btn = document.createElement("button"); // FIX
+      btn.type = "button"; // FIX
+      btn.className = "catBtn" + (i === 0 ? " active" : ""); // FIX
+      btn.textContent = name; // FIX
+      btn.addEventListener("click", function () { // FIX
+        Array.from(bar.querySelectorAll(".catBtn")).forEach(b => b.classList.remove("active")); // FIX
+        btn.classList.add("active"); // FIX
+        onSelect(name); // FIX
+      }); // FIX
+      bar.appendChild(btn); // FIX
+    }); // FIX
+  } // FIX
+
+
+
   const BASE_PATH = "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Shapes"; // FIX
+  const GITHUB_CONTENTS_API = "https://api.github.com/repos/lukeo25/WickTools/contents/scripts/Panel_SVG/Shapes?ref=main"; // FIX
   const SCALE = 6; // Changed to 6× as requested
 
   const elGrid   = document.getElementById("grid");
