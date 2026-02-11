@@ -14,6 +14,9 @@
   .seg { display:inline-flex; border:1px solid rgba(255,255,255,0.12); border-radius:10px; overflow:hidden; }
   .seg button { appearance:none; border:0; background:transparent; color:#ddd; padding:7px 10px; font-size:13px; cursor:pointer; }
   .seg button.active { background:rgba(255,255,255,0.10); color:#fff; }
+  .catBar { padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; gap:8px; flex-wrap:wrap; } /* FIX */
+  .catBtn { border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.03); color:#ddd; border-radius:999px; padding:6px 10px; font-size:12px; cursor:pointer; } /* FIX */
+  .catBtn.active { background:rgba(255,255,255,0.10); color:#fff; } /* FIX */
   .grid { flex:1 1 auto; min-height:0; padding:12px; overflow:auto; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; }
   .shapeBtn { border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); border-radius:12px; padding:10px 8px; cursor:pointer; display:flex; align-items:center; justify-content:center; min-height:54px; }
   .shapeBtn:hover { background:rgba(255,255,255,0.07); }
@@ -29,13 +32,11 @@
 <div class="wrap">
   <div class="top">
     <div class="title">Shape Library (6× size)</div>
-    <div class="mode">
-      <div class="seg" role="group" aria-label="Place mode">
-        <button id="modeSvg" class="segBtn" type="button">SVG</button>
-        <button id="modeClip" class="segBtn active" type="button">Clip</button>
-      </div>
-    </div>
+    <div class="mode">Place: Clip</div> <!-- FIX -->
   </div>
+
+  <div id="catBar" class="catBar" aria-label="Folders"></div> <!-- FIX -->
+
 
   <div id="grid" class="grid" aria-label="Shapes"></div>
 
@@ -51,6 +52,8 @@
 <script>
 (function () {
   "use strict";
+
+  let placeMode = "clip"; // FIX
 
   const SHAPES = [
     {"name": "Circle", "file": "circle.svg"},
@@ -132,6 +135,94 @@
     const spaced = base.replace(/[_\-]+/g, " ").trim(); // FIX
     return spaced ? spaced : base; // FIX
   } // FIX
+
+  async function loadShapeGroupsFromGithub() { // FIX
+    try { // FIX
+      async function listDir(relPath) { // FIX
+        const segs = String(relPath || "").split("/").filter(Boolean).map(encodeURIComponent).join("/"); // FIX
+        const url = "https://api.github.com/repos/lukeo25/WickTools/contents/scripts/Panel_SVG/Shapes" + (segs ? ("/" + segs) : "") + "?ref=main"; // FIX
+        const res = await fetch(url, { cache: "no-store" }); // FIX
+        if (!res.ok) throw new Error("GitHub API HTTP " + res.status + " for " + url); // FIX
+        const items = await res.json(); // FIX
+        if (!Array.isArray(items)) throw new Error("GitHub API unexpected response"); // FIX
+        return items; // FIX
+      } // FIX
+
+      function addGroup(groups, label, svgs) { // FIX
+        if (!svgs || !svgs.length) return; // FIX
+        groups[label] = svgs.sort((a,b)=>a.name.localeCompare(b.name)); // FIX
+        groups["All"].push(...groups[label]); // FIX
+      } // FIX
+
+      async function walk(relPath, labelPrefix, depth, groups) { // FIX
+        if (depth > 4) return; // FIX
+        const items = await listDir(relPath); // FIX
+
+        const svgs = items // FIX
+          .filter(it => it && typeof it.name === "string" && it.name.toLowerCase().endsWith(".svg") && typeof it.download_url === "string") // FIX
+          .map(it => ({ // FIX
+            name: filenameToDisplayName(it.name), // FIX
+            file: (relPath ? (relPath + "/") : "") + it.name, // FIX
+            url: it.download_url // FIX
+          })); // FIX
+
+        const label = labelPrefix || (relPath ? relPath : "Root"); // FIX
+        addGroup(groups, label, svgs); // FIX
+
+        const dirs = items // FIX
+          .filter(it => it && it.type === "dir" && typeof it.name === "string") // FIX
+          .map(it => it.name); // FIX
+
+        for (const d of dirs) { // FIX
+          const childRel = (relPath ? (relPath + "/") : "") + d; // FIX
+          const childLabel = labelPrefix ? (labelPrefix + "/" + d) : d; // FIX
+          await walk(childRel, childLabel, depth + 1, groups); // FIX
+        } // FIX
+      } // FIX
+
+      const groups = {}; // FIX
+      groups["All"] = []; // FIX
+
+      await walk("", "", 0, groups); // FIX
+
+      if (!groups["All"].length) throw new Error("No SVG files found"); // FIX
+      groups["All"] = groups["All"].sort((a,b)=>a.name.localeCompare(b.name)); // FIX
+      return groups; // FIX
+
+    } catch (e) { // FIX
+      console.warn("[ShapeLibrary] Falling back to built in SHAPES groups:", e); // FIX
+      const fallback = {}; // FIX
+      fallback["All"] = SHAPES.map(s => ({ name: s.name, file: s.file, url: BASE_PATH + "/" + s.file })).sort((a,b)=>a.name.localeCompare(b.name)); // FIX
+      return fallback; // FIX
+    } // FIX
+  } // FIX
+
+  function buildCategoryTabs(groups, onSelect) { // FIX
+    const bar = document.getElementById("catBar"); // FIX
+    if (!bar) return; // FIX
+    bar.innerHTML = ""; // FIX
+    const names = Object.keys(groups); // FIX
+    names.sort((a,b)=>{ // FIX
+      if (a === "All") return -1; // FIX
+      if (b === "All") return 1; // FIX
+      if (a === "Root") return -1; // FIX
+      if (b === "Root") return 1; // FIX
+      return a.localeCompare(b); // FIX
+    }); // FIX
+    names.forEach((name, i) => { // FIX
+      const btn = document.createElement("button"); // FIX
+      btn.type = "button"; // FIX
+      btn.className = "catBtn" + (i === 0 ? " active" : ""); // FIX
+      btn.textContent = name; // FIX
+      btn.addEventListener("click", function () { // FIX
+        Array.from(bar.querySelectorAll(".catBtn")).forEach(b => b.classList.remove("active")); // FIX
+        btn.classList.add("active"); // FIX
+        onSelect(name); // FIX
+      }); // FIX
+      bar.appendChild(btn); // FIX
+    }); // FIX
+  } // FIX
+
 
 
   const BASE_PATH = "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Shapes"; // FIX
@@ -326,6 +417,74 @@
     } catch (e) {}
     return { x: 960, y: 540 };
   }
+
+  const TARGET_PLACED_MAX_PX = 280; // FIX
+
+  function tryGetObjectSize(obj) { // FIX
+    try { // FIX
+      if (!obj) return null; // FIX
+      if (obj.bounds && typeof obj.bounds.width === "number" && typeof obj.bounds.height === "number") { // FIX
+        return { w: obj.bounds.width, h: obj.bounds.height }; // FIX
+      } // FIX
+      if (typeof obj.getBounds === "function") { // FIX
+        const b = obj.getBounds(); // FIX
+        if (b && typeof b.width === "number" && typeof b.height === "number") return { w: b.width, h: b.height }; // FIX
+      } // FIX
+      if (typeof obj.getBBox === "function") { // FIX
+        const b = obj.getBBox(); // FIX
+        if (b && typeof b.width === "number" && typeof b.height === "number") return { w: b.width, h: b.height }; // FIX
+      } // FIX
+      if (typeof obj.width === "number" && typeof obj.height === "number") { // FIX
+        return { w: obj.width, h: obj.height }; // FIX
+      } // FIX
+      if (obj._width && obj._height) return { w: obj._width, h: obj._height }; // FIX
+    } catch (e) {} // FIX
+    return null; // FIX
+  } // FIX
+
+  function applyUniformScale(obj, factor) { // FIX
+    try { // FIX
+      if (!obj || !isFinite(factor) || factor <= 0) return false; // FIX
+      if (typeof obj.scaleX === "number" && typeof obj.scaleY === "number") { // FIX
+        obj.scaleX *= factor; // FIX
+        obj.scaleY *= factor; // FIX
+        return true; // FIX
+      } // FIX
+      if (obj.transform && typeof obj.transform.scaleX === "number" && typeof obj.transform.scaleY === "number") { // FIX
+        obj.transform.scaleX *= factor; // FIX
+        obj.transform.scaleY *= factor; // FIX
+        return true; // FIX
+      } // FIX
+      if (obj._transform && typeof obj._transform.scaleX === "number" && typeof obj._transform.scaleY === "number") { // FIX
+        obj._transform.scaleX *= factor; // FIX
+        obj._transform.scaleY *= factor; // FIX
+        return true; // FIX
+      } // FIX
+    } catch (e) {} // FIX
+    return false; // FIX
+  } // FIX
+
+  function resizePlacedObjectToTarget(editor, obj) { // FIX
+    try { // FIX
+      const size = tryGetObjectSize(obj); // FIX
+      if (!size) { // FIX
+        debugLog("Resize skipped (no bounds available)"); // FIX
+        return; // FIX
+      } // FIX
+      const maxDim = Math.max(1, size.w, size.h); // FIX
+      const factor = TARGET_PLACED_MAX_PX / maxDim; // FIX
+      debugLog("Resizing placed object", { w: size.w, h: size.h, factor: factor }); // FIX
+      const ok = applyUniformScale(obj, factor); // FIX
+      if (!ok) debugLog("Resize skipped (no scale fields on object)"); // FIX
+      // Recenter after scaling // FIX
+      const center = getStageCenter(editor); // FIX
+      if (typeof obj.x === "number") obj.x = center.x; // FIX
+      if (typeof obj.y === "number") obj.y = center.y; // FIX
+    } catch (e) { // FIX
+      debugLog("Resize failed", e.message || String(e)); // FIX
+    } // FIX
+  } // FIX
+
 
   function selectSingleObject(editor, obj) {
     try {
@@ -524,6 +683,8 @@
         debugLog("WARNING: recenterClipContentsOnSelection not available");
       }
 
+      resizePlacedObjectToTarget(editor, placed); // FIX
+
       try {
         if (project.markAsModified) project.markAsModified();
         if (editor.canvas?.render) editor.canvas.render();
@@ -601,11 +762,14 @@
     }
   }
 
-  async function fetchSvg(file) {
-    const url = BASE_PATH.replace(/\/$/, "") + "/" + encodeURIComponent(file);
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-    return await res.text();
+  async function fetchSvg(fileOrUrl) { // FIX
+    const isUrl = typeof fileOrUrl === "string" && /^https?:\/\//i.test(fileOrUrl); // FIX
+    const safePath = String(fileOrUrl || ""); // FIX
+    const encodedPath = safePath.split("/").map(encodeURIComponent).join("/"); // FIX
+    const url = isUrl ? safePath : (BASE_PATH.replace(/\/$/, "") + "/" + encodedPath); // FIX
+    const res = await fetch(url, { cache: "no-store" }); // FIX
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`); // FIX
+    return await res.text(); // FIX
   }
 
   function makeButton(shape) {
@@ -618,7 +782,7 @@
       try {
         setStatus(`Importing ${shape.name}...`);
         btn.disabled = true;
-        const rawSvg = await fetchSvg(shape.file);
+        const rawSvg = await fetchSvg(shape.url ? shape.url : shape.file); // FIX
         await importSvgTextToStage(rawSvg, shape.name, placeAsClip);
       } catch (e) {
         setStatus(`Error: ${e?.message || String(e)}`);
@@ -627,7 +791,7 @@
       }
     });
 
-    fetchSvg(shape.file).then(svgText => {
+    fetchSvg(shape.url ? shape.url : shape.file).then(svgText => { // FIX
       const holder = document.createElement("div");
       holder.innerHTML = svgText;
       const svg = holder.querySelector("svg");
