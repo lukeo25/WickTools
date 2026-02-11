@@ -92,23 +92,16 @@
         const segs = String(relPath || "").split("/").filter(Boolean).map(encodeURIComponent).join("/"); // FIX
         const url = "https://api.github.com/repos/lukeo25/WickTools/contents/scripts/Panel_SVG/Shapes" + (segs ? ("/" + segs) : "") + "?ref=main"; // FIX
         const res = await fetch(url, { cache: "no-store", headers: { "Accept": "application/vnd.github+json" } }); // FIX
-        if (!res.ok) throw new Error("GitHub API HTTP " + res.status + " for " + url); // FIX
+        if (!res.ok) throw new Error("GitHub API HTTP " + res.status); // FIX
         const items = await res.json(); // FIX
         if (!Array.isArray(items)) throw new Error("GitHub API unexpected response"); // FIX
         return items; // FIX
       } // FIX
 
-      function addGroup(groups, label, svgs) { // FIX
-        if (!svgs || !svgs.length) return; // FIX
-        groups[label] = svgs.sort((a,b)=>a.name.localeCompare(b.name)); // FIX
-        groups["All"].push(...groups[label]); // FIX
-      } // FIX
-
-      async function walk(relPath, labelPrefix, depth, groups) { // FIX
-        if (depth > 4) return; // FIX
+      async function collectSvgsRecursive(relPath, depth) { // FIX
+        if (depth > 6) return []; // FIX
         const items = await listDir(relPath); // FIX
-
-        const svgs = items // FIX
+        const svgsHere = items // FIX
           .filter(it => it && typeof it.name === "string" && it.name.toLowerCase().endsWith(".svg") && typeof it.download_url === "string") // FIX
           .map(it => ({ // FIX
             name: filenameToDisplayName(it.name), // FIX
@@ -116,31 +109,55 @@
             url: it.download_url // FIX
           })); // FIX
 
-        const label = labelPrefix || (relPath ? relPath : "Root"); // FIX
-        addGroup(groups, label, svgs); // FIX
-
         const dirs = items // FIX
           .filter(it => it && it.type === "dir" && typeof it.name === "string") // FIX
           .map(it => it.name); // FIX
 
+        let all = svgsHere.slice(); // FIX
         for (const d of dirs) { // FIX
           const childRel = (relPath ? (relPath + "/") : "") + d; // FIX
-          const childLabel = labelPrefix ? (labelPrefix + "/" + d) : d; // FIX
-          await walk(childRel, childLabel, depth + 1, groups); // FIX
+          const childSvgs = await collectSvgsRecursive(childRel, depth + 1); // FIX
+          all = all.concat(childSvgs); // FIX
         } // FIX
+        return all; // FIX
+      } // FIX
+
+      function sortByName(list) { // FIX
+        return (list || []).sort((a,b)=>String(a.name).localeCompare(String(b.name))); // FIX
       } // FIX
 
       const groups = {}; // FIX
       groups["All"] = []; // FIX
 
-      await walk("", "", 0, groups); // FIX
+      // Root SVGs (only files directly in Shapes) // FIX
+      const rootItems = await listDir(""); // FIX
+      const rootSvgs = rootItems // FIX
+        .filter(it => it && typeof it.name === "string" && it.name.toLowerCase().endsWith(".svg") && typeof it.download_url === "string") // FIX
+        .map(it => ({ name: filenameToDisplayName(it.name), file: it.name, url: it.download_url })); // FIX
+      if (rootSvgs.length) { // FIX
+        groups["Root"] = sortByName(rootSvgs); // FIX
+        groups["All"].push(...groups["Root"]); // FIX
+      } // FIX
+
+      // Top level folders become tabs, each tab includes all SVGs in its subtree // FIX
+      const topDirs = rootItems // FIX
+        .filter(it => it && it.type === "dir" && typeof it.name === "string") // FIX
+        .map(it => it.name); // FIX
+
+      for (const dirName of topDirs) { // FIX
+        const svgs = sortByName(await collectSvgsRecursive(dirName, 0)); // FIX
+        if (svgs.length) { // FIX
+          groups[dirName] = svgs; // FIX
+          groups["All"].push(...svgs); // FIX
+        } // FIX
+      } // FIX
 
       if (!groups["All"].length) throw new Error("No SVG files found"); // FIX
-      groups["All"] = groups["All"].sort((a,b)=>a.name.localeCompare(b.name)); // FIX
+      groups["All"] = sortByName(groups["All"]); // FIX
       return groups; // FIX
 
     } catch (e) { // FIX
-      console.warn("[ShapeLibrary] Falling back to built in SHAPES groups:", e); // FIX
+      console.warn("[ShapeLibrary] Falling back to empty groups:", e); // FIX
       const fallback = {}; // FIX
       fallback["All"] = []; // FIX
       return fallback; // FIX
