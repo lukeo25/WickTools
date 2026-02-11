@@ -750,9 +750,8 @@ async function importSvgTextToStage(svgText, displayName, makeClip, assetKey) { 
         const blob = new Blob([sanitizedResult.text], { type: 'image/svg+xml' });
         const file = new File([blob], fileName, { type: 'image/svg+xml' });
 
-        const beforeUUIDs = listAssetUUIDs(project);
+        await withSuppressedToasts(editor, async () => { // FIX
 
-        await withSuppressedToasts(editor, async () => {
           if (typeof editor.createAssets === 'function') {
             await editor.createAssets([file], []);
           } else if (typeof project.createAssets === 'function') {
@@ -762,7 +761,7 @@ async function importSvgTextToStage(svgText, displayName, makeClip, assetKey) { 
           }
         });
 
-        importedAsset = await waitForNewAsset(project, beforeUUIDs, fileName);
+        importedAsset = await waitForNewAsset(project, fileName, 6000); // FIX
       }
 
       if (!importedAsset) throw new Error('Asset import failed');
