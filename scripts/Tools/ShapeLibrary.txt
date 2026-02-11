@@ -221,6 +221,10 @@
     elStatus.textContent = msg || "";
   }
 
+  function sleepMs(ms) { // FIX
+    return new Promise(function (resolve) { setTimeout(resolve, ms); }); // FIX
+  } // FIX
+
   function debugLog(msg, data) {
     try {
       const line = "[" + new Date().toISOString() + "] " + String(msg);
@@ -638,9 +642,19 @@
       const center = getStageCenter(editor);
       debugLog("Placing clip at stage center", { x: center.x, y: center.y });
 
-      const placed = await placeImagePathFromAsset(project, uuid, center.x, center.y);
+      let placed = null; // FIX
+      for (let attempt = 0; attempt < 20; attempt++) { // FIX
+        try { // FIX
+          placed = await placeImagePathFromAsset(project, uuid, center.x, center.y); // FIX
+          if (placed) break; // FIX
+        } catch (e) { // FIX
+          const msg = (e && (e.message || String(e))) || ""; // FIX
+          debugLog("Placement attempt failed", { attempt: attempt + 1, message: msg }); // FIX
+        } // FIX
+        await sleepMs(100); // FIX
+      } // FIX
 
-      if (!placed) throw new Error("Placement returned null/undefined");
+      if (!placed) throw new Error("Placement failed (asset not ready or frame not initialized)"); // FIX
 
       debugLog("Clip placed", { type: placed.constructor?.name || typeof placed });
 
@@ -706,7 +720,7 @@
     } // FIX
   } // FIX
 
-async function importSvgTextToStage(svgText, displayName, makeClip) { // FIX
+async function importSvgTextToStage(svgText, displayName, makeClip, assetKey) { // FIX
     makeClip = !!makeClip;
     const editor = getEditor();
     if (!editor) return setStatus('Error: editor not found');
@@ -724,8 +738,11 @@ async function importSvgTextToStage(svgText, displayName, makeClip) { // FIX
         removedAttrs: sanitizedResult.removedAttrs
       });
 
-      const base = (displayName || 'Shape').replace(/[^a-z0-9_\-]/gi, '_').replace(/_+/g, '_');
-      const fileName = base + '.svg';
+            const clipBase = (displayName || 'Shape').replace(/[^a-z0-9_\-]/gi, '_').replace(/_+/g, '_'); // FIX
+      const assetBaseRaw = (assetKey || displayName || 'Shape'); // FIX
+      const assetBase = String(assetBaseRaw).replace(/\.svg$/i, '').replace(/\//g, '__').replace(/[^a-z0-9_\-]/gi, '_').replace(/_+/g, '_'); // FIX
+      const fileName = assetBase + '.svg'; // FIX
+
 
       let importedAsset = findAssetByName(project, fileName);
 
@@ -753,7 +770,7 @@ async function importSvgTextToStage(svgText, displayName, makeClip) { // FIX
       const frameNumber = getCurrentFrameNumber(editor) || 1;
 
       const svgDims = parseSvgDimensions(sanitizedResult.text); // FIX
-      const placed = await placeSvgAssetOnStage(editor, importedAsset, frameNumber, base, makeClip, svgDims); // FIX
+      const placed = await placeSvgAssetOnStage(editor, importedAsset, frameNumber, clipBase, makeClip, svgDims); // FIX
 
       if (!placed) {
         setStatus('Imported to assets only (placement failed – check debug)');
@@ -788,7 +805,7 @@ async function importSvgTextToStage(svgText, displayName, makeClip) { // FIX
         setStatus(`Importing ${shape.name}...`);
         btn.disabled = true;
         const rawSvg = await fetchSvg(shape.url ? shape.url : shape.file); // FIX
-        await importSvgTextToStage(rawSvg, shape.name, placeAsClip);
+        await importSvgTextToStage(rawSvg, shape.name, placeAsClip, shape.file); // FIX
       } catch (e) {
         setStatus(`Error: ${e?.message || String(e)}`);
       } finally {
