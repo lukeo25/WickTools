@@ -105,7 +105,7 @@
     {"name": "Tag", "file": "tag.svg"}
   ];
 
-  const BASE_PATH = "/scripts/Panel_SVG/Shapes";
+  const BASE_PATH = "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Shapes"; // FIX
   const SCALE = 6; // Changed to 6× as requested
 
   const elGrid   = document.getElementById("grid");
