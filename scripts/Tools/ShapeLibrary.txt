@@ -55,58 +55,8 @@
 
   let placeMode = "clip"; // FIX
 
-  const SHAPES = [
-    {"name": "Circle", "file": "circle.svg"},
-    {"name": "Square", "file": "square.svg"},
-    {"name": "Rounded Square", "file": "rounded_square.svg"},
-    {"name": "Triangle", "file": "triangle.svg"},
-    {"name": "Triangle Right", "file": "triangle_right.svg"},
-    {"name": "Diamond", "file": "diamond.svg"},
-    {"name": "Pentagon", "file": "pentagon.svg"},
-    {"name": "Hexagon", "file": "hexagon.svg"},
-    {"name": "Octagon", "file": "octagon.svg"},
-    {"name": "Star 4", "file": "star_4.svg"},
-    {"name": "Star 5", "file": "star_5.svg"},
-    {"name": "Star 6", "file": "star_6.svg"},
-    {"name": "Heart", "file": "heart.svg"},
-    {"name": "Plus", "file": "plus.svg"},
-    {"name": "Minus", "file": "minus.svg"},
-    {"name": "Cross", "file": "cross.svg"},
-    {"name": "Check", "file": "check.svg"},
-    {"name": "Arrow Up", "file": "arrow_up.svg"},
-    {"name": "Arrow Down", "file": "arrow_down.svg"},
-    {"name": "Arrow Left", "file": "arrow_left.svg"},
-    {"name": "Arrow Right", "file": "arrow_right.svg"},
-    {"name": "Chevron Up", "file": "chevron_up.svg"},
-    {"name": "Chevron Down", "file": "chevron_down.svg"},
-    {"name": "Chevron Left", "file": "chevron_left.svg"},
-    {"name": "Chevron Right", "file": "chevron_right.svg"},
-    {"name": "Play", "file": "play.svg"},
-    {"name": "Pause", "file": "pause.svg"},
-    {"name": "Stop", "file": "stop.svg"},
-    {"name": "Fast Forward", "file": "fast_forward.svg"},
-    {"name": "Rewind", "file": "rewind.svg"},
-    {"name": "Speech Bubble", "file": "speech_bubble.svg"},
-    {"name": "Thought Bubble", "file": "thought_bubble.svg"},
-    {"name": "Cloud", "file": "cloud.svg"},
-    {"name": "Lightning", "file": "lightning.svg"},
-    {"name": "Drop", "file": "drop.svg"},
-    {"name": "Leaf", "file": "leaf.svg"},
-    {"name": "Flower", "file": "flower.svg"},
-    {"name": "Sun", "file": "sun.svg"},
-    {"name": "Moon", "file": "moon.svg"},
-    {"name": "Ring", "file": "ring.svg"},
-    {"name": "Spiral", "file": "spiral.svg"},
-    {"name": "Wave", "file": "wave.svg"},
-    {"name": "Zigzag", "file": "zigzag.svg"},
-    {"name": "Capsule", "file": "capsule.svg"},
-    {"name": "Rounded Rect", "file": "rounded_rect.svg"},
-    {"name": "Bracket", "file": "bracket.svg"},
-    {"name": "Frame Corner", "file": "frame_corner.svg"},
-    {"name": "Shield", "file": "shield.svg"},
-    {"name": "Keyhole", "file": "keyhole.svg"},
-    {"name": "Tag", "file": "tag.svg"}
-  ];
+  const SHAPES = []; // FIX
+  // Shapes are fetched dynamically from GitHub. SHAPES is only an optional fallback and is intentionally empty. // FIX
 
   async function loadShapesFromGithub() { // FIX
     try { // FIX
@@ -192,7 +142,7 @@
     } catch (e) { // FIX
       console.warn("[ShapeLibrary] Falling back to built in SHAPES groups:", e); // FIX
       const fallback = {}; // FIX
-      fallback["All"] = SHAPES.map(s => ({ name: s.name, file: s.file, url: BASE_PATH + "/" + s.file })).sort((a,b)=>a.name.localeCompare(b.name)); // FIX
+      fallback["All"] = []; // FIX
       return fallback; // FIX
     } // FIX
   } // FIX
@@ -861,6 +811,7 @@ async function importSvgTextToStage(svgText, displayName, makeClip) { // FIX
       buildCategoryTabs(groups, selectTab); // FIX
       const first = Object.keys(groups).sort((a,b)=>{ if (a==="All") return -1; if (b==="All") return 1; if (a==="Root") return -1; if (b==="Root") return 1; return a.localeCompare(b); })[0]; // FIX
       selectTab(first); // FIX
+      if ((groups[first] || []).length === 0) { setStatus("No shapes found"); } // FIX
     }); // FIX
   }
 
