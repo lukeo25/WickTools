@@ -22,9 +22,8 @@
   .shapeBtn:hover { background:rgba(255,255,255,0.07); }
   .shapeBtn { color:#fff; } /* FIX */
   .shapeBtn svg { width:28px; height:28px; color:currentColor; } /* FIX */
-  .shapeBtn svg * { stroke: currentColor !important; } /* FIX */
-  .shapeBtn svg *[fill="none"] { fill: none !important; } /* FIX */
-  .shapeBtn svg *:not([fill="none"]) { fill: currentColor !important; } /* FIX */
+  .shapeBtn svg * { fill: none !important; stroke: currentColor !important; } /* FIX */
+  .shapeBtn svg { stroke-width: 2; } /* FIX */
   .bottom { padding:10px 12px; border-top:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .status { font-size:12px; opacity:0.85; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   details { margin-left:10px; user-select:none; }
@@ -774,7 +773,7 @@ async function importSvgTextToStage(svgText, displayName, makeClip) { // FIX
     const encodedPath = safePath.split("/").map(encodeURIComponent).join("/"); // FIX
     const url = isUrl ? safePath : (BASE_PATH.replace(/\/$/, "") + "/" + encodedPath); // FIX
     const res = await fetch(url, { cache: "no-store" }); // FIX
-    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`); // FIX
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status} for ${url}`); // FIX
     return await res.text(); // FIX
   }
 
@@ -807,6 +806,9 @@ async function importSvgTextToStage(svgText, displayName, makeClip) { // FIX
         svg.removeAttribute("height"); // FIX
         svg.setAttribute("width", "28"); // FIX
         svg.setAttribute("height", "28"); // FIX
+        svg.setAttribute("fill", "none"); // FIX
+        svg.setAttribute("stroke", "currentColor"); // FIX
+        svg.setAttribute("stroke-width", "2"); // FIX
         btn.appendChild(svg);
       } else {
         btn.textContent = shape.name;
