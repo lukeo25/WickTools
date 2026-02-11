@@ -737,7 +737,7 @@
     } // FIX
   } // FIX
 
-function importSvgTextToStage(svgText, displayName, makeClip) {
+async function importSvgTextToStage(svgText, displayName, makeClip) { // FIX
     makeClip = !!makeClip;
     const editor = getEditor();
     if (!editor) return setStatus('Error: editor not found');
