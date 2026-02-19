@@ -2626,7 +2626,7 @@ App.ui.btnSend.addEventListener("click", function(){
         scriptLines.push("/* LukeTools LipService START */");
         scriptLines.push("// Runs every frame in the update script of the selected clip");
         // FIX: frame source uses project.currentFrameNumber only
-        scriptLines.push("var frame = 1;"); // FIX
+        scriptLines.push("var frame = 0;"); // FIX
                 scriptLines.push("try { if (_ltTimelineClip) {"); // FIX
         scriptLines.push("  var _ltc = this;"); // FIX
         scriptLines.push("  while (_ltc && _ltc.parentClip) { _ltc = _ltc.parentClip;"); // FIX
@@ -2639,9 +2639,11 @@ App.ui.btnSend.addEventListener("click", function(){
         scriptLines.push("  }"); // FIX
         scriptLines.push("} } catch (ePC) {}"); // FIX
         scriptLines.push("try { if (!frame && project && typeof project.currentFrameNumber === \"number\") frame = project.currentFrameNumber; } catch (e00) {}"); // FIX
-        scriptLines.push("try { if (frame < _ltStartFrame) return; } catch(eRS) {}"); // FIX
-        scriptLines.push("try { if (_ltEndFrame > 0 && frame > _ltEndFrame) return; } catch(eRE) {}"); // FIX
-        scriptLines.push("try { frame = frame - _ltStartFrame + 1; } catch(eRO) {}"); // FIX
+        scriptLines.push("var _ltDoLip = true;"); // FIX
+        scriptLines.push("try { if (typeof _ltStartFrame === \"number\" && _ltStartFrame > 1) {"); // FIX
+        scriptLines.push("  if (frame < _ltStartFrame) { _ltDoLip = false; } else { frame = frame - _ltStartFrame + 1; }"); // FIX
+        scriptLines.push("} } catch(eSF) {}"); // FIX
+        scriptLines.push("if (_ltDoLip) {"); // FIX
         scriptLines.push("if (!frame || !isFinite(frame)) frame = 1;");
         scriptLines.push("");
         scriptLines.push("// FIX: stop this clip once so it does not run through its own timeline when driven by lipsync");
@@ -2694,6 +2696,7 @@ App.ui.btnSend.addEventListener("click", function(){
                 scriptLines.push("    try { mouth[_ltFn](label); } catch(eGo) {}");
         scriptLines.push("  }");
         scriptLines.push("}");
+        scriptLines.push("}"); // FIX
         scriptLines.push("/* LukeTools LipService END */");
 
         return scriptLines.join("\n");
