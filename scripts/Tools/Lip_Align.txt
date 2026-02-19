@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Lip Aline</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{
+      --bg:#101214;
+      --panel:#161a1d;
+      --panel2:#1c2226;
+      --text:#e9edf1;
+      --muted:#aab2bb;
+      --accent:#21b26b;
+      --danger:#ff5b5b;
+      --line:#2a3238;
+      --btn:#222a30;
+      --btn2:#2a333a;
+      --input:#0e1113;
+      --shadow:rgba(0,0,0,.35);
+      --radius:14px;
+      --radius2:10px;
+      --font: "Segoe UI", Arial, sans-serif;
+    }
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--font);
+      background:radial-gradient(1400px 800px at 20% 0%, #182026 0%, var(--bg) 55%);
+      color:var(--text);
+      overflow:hidden;
+    }
+    .wrap{
+      display:flex;
+      flex-direction:column;
+      height:100%;
+      box-sizing:border-box;
+      padding:14px;
+      gap:10px;
+    }
+    .top{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      background:linear-gradient(180deg, var(--panel) 0%, #13171a 100%);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:10px 12px;
+      box-shadow:0 10px 22px var(--shadow);
+    }
+    .title{
+      font-weight:700;
+      letter-spacing:.2px;
+      font-size:14px;
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:120px;
+    }
+    .pill{
+      font-size:11px;
+      color:#0b1a10;
+      background:linear-gradient(180deg, #2dde86 0%, var(--accent) 100%);
+      padding:3px 8px;
+      border-radius:999px;
+      font-weight:700;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+      flex-wrap:wrap;
+      width:100%;
+    }
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width:160px;
+    }
+    .field label{
+      font-size:12px;
+      color:var(--muted);
+    }
+    input,select{
+      background:var(--input);
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:13px;
+      outline:none;
+    }
+    input:focus,select:focus{border-color:#3b915f}
+    .btn{
+      background:linear-gradient(180deg, var(--btn2) 0%, var(--btn) 100%);
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:9px 12px;
+      font-size:13px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .btn:hover{filter:brightness(1.08)}
+    .btn:active{transform:translateY(1px)}
+    .btnAccent{
+      background:linear-gradient(180deg, #2dde86 0%, var(--accent) 100%);
+      border-color:#1b7c4a;
+      color:#06150d;
+      font-weight:800;
+    }
+    .btnDanger{
+      background:linear-gradient(180deg, #ff7777 0%, var(--danger) 100%);
+      border-color:#b13d3d;
+      color:#200;
+      font-weight:800;
+    }
+    .body{
+      display:flex;
+      flex:1;
+      gap:10px;
+      min-height:0;
+    }
+    .card{
+      flex:1;
+      background:linear-gradient(180deg, var(--panel2) 0%, #121619 100%);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:0 10px 22px var(--shadow);
+      padding:12px;
+      min-height:0;
+      overflow:auto;
+    }
+    .card h2{
+      font-size:13px;
+      margin:0 0 8px 0;
+      color:var(--text);
+      letter-spacing:.2px;
+    }
+    .note{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size:12px;
+      background:#0b0d0f;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px;
+      white-space:pre-wrap;
+      word-break:break-word;
+      color:#dbe2ea;
+      min-height:120px;
+    }
+    .grid2{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+    .small{
+      min-width:120px;
+      max-width:180px;
+    }
+    .tiny{
+      min-width:90px;
+      max-width:120px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="title">
+        Lip Aline <span class="pill">LukeTools</span>
+      </div>
+
+      <div class="row" style="flex:1">
+        <div class="field">
+          <label>Source head clip name optional</label>
+          <input id="srcHeadName" placeholder="leave blank to use selection">
+        </div>
+
+        <div class="field">
+          <label>Source mouth clip name</label>
+          <input id="srcMouthName" value="MouthShapes">
+        </div>
+
+        <div class="field">
+          <label>Target mouth clip name</label>
+          <input id="dstMouthName" value="MouthShapes">
+        </div>
+
+        <div class="field tiny">
+          <label>Overwrite</label>
+          <select id="overwriteMode">
+            <option value="replace">Replace</option>
+            <option value="keep">Keep</option>
+          </select>
+        </div>
+
+        <button class="btn" id="btnSetSource">Use selection as source head</button>
+        <button class="btn" id="btnSetTarget">Use selection as target mouth</button>
+        <button class="btn btnAccent" id="btnAlign">Align mouth shapes</button>
+        <button class="btn btnDanger" id="btnClear">Clear</button>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="card">
+        <h2>Status</h2>
+        <div class="note">
+          This tool copies the visual objects from labelled frames in a source mouth clip into matching labelled frames in a target mouth clip.
+          Labels supported are A B C D E F G Rest.
+          Source is found inside the source head clip, by searching for a nested clip instance whose name matches the source mouth clip name.
+          Target is found by searching inside the selected clip, or the chosen target head clip, for a nested clip instance whose name matches the target mouth clip name.
+        </div>
+        <div style="height:10px"></div>
+        <div class="mono" id="log"></div>
+      </div>
+
+      <div class="card">
+        <h2>Selection</h2>
+        <div class="grid2">
+          <div>
+            <div class="note">Source head</div>
+            <div class="mono" id="srcInfo"></div>
+          </div>
+          <div>
+            <div class="note">Target</div>
+            <div class="mono" id="dstInfo"></div>
+          </div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="note">
+          Tip: in Wick, select the head clip instance on stage, then press use selection as source head.
+          Then select the head clip instance you want to update, or select the mouth clip instance directly, then press use selection as target mouth.
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  var LABELS = ["A","B","C","D","E","F","G","Rest"];
+
+  var App = {
+    src: { uuid: "", name: "", type: "" },
+    dst: { uuid: "", name: "", type: "" }
+  };
+
+  function el(id){ return document.getElementById(id); }
+
+  function logLine(s){
+    var box = el("log");
+    box.textContent += (box.textContent ? "\n" : "") + String(s || "");
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function clearLog(){
+    el("log").textContent = "";
+  }
+
+  function safeStr(v){
+    try { return String(v); } catch(e){ return ""; }
+  }
+
+  function getEditorSafe(){
+    try{
+      if (window.parent && window.parent.wickEditor) return window.parent.wickEditor;
+    }catch(e){}
+    try{
+      if (window.parent && window.parent.editor) return window.parent.editor;
+    }catch(e2){}
+    return null;
+  }
+
+  function getProjectSafe(ed){
+    try{
+      if (!ed) return null;
+      if (ed.project) return ed.project;
+      if (ed.editor && ed.editor.project) return ed.editor.project;
+    }catch(e){}
+    return null;
+  }
+
+  function getSelectedObjectSafe(ed){
+    try{
+      if (!ed) return null;
+      if (typeof ed.getSelectedObject === "function") return ed.getSelectedObject();
+    }catch(e){}
+    try{
+      if (ed.project && typeof ed.project.getSelectedObject === "function") return ed.project.getSelectedObject();
+    }catch(e2){}
+    try{
+      if (ed.project && ed.project.selection && typeof ed.project.selection.getPrimarySelectedObject === "function"){
+        return ed.project.selection.getPrimarySelectedObject();
+      }
+    }catch(e3){}
+    return null;
+  }
+
+  function getObjectName(obj){
+    if (!obj) return "";
+    var n = "";
+    try { n = obj.name; } catch(e){}
+    if (!n) { try { n = obj.identifier; } catch(e2){} }
+    if (!n) { try { n = obj.uuid; } catch(e3){} }
+    return safeStr(n || "");
+  }
+
+  function getObjectType(obj){
+    if (!obj) return "";
+    var t = "";
+    try { t = obj.objectType; } catch(e){}
+    if (!t) { try { t = obj.type; } catch(e2){} }
+    if (!t) { try { t = obj.constructor && obj.constructor.name; } catch(e3){} }
+    return safeStr(t || "");
+  }
+
+  function describeObj(obj){
+    if (!obj) return "none";
+    var out = [];
+    out.push("name: " + getObjectName(obj));
+    out.push("uuid: " + safeStr(obj.uuid || ""));
+    out.push("type: " + getObjectType(obj));
+    try{
+      if (obj.clip && (obj.clip.name || obj.clip.identifier)){
+        out.push("clip: " + safeStr(obj.clip.name || obj.clip.identifier || ""));
+      }
+    }catch(e){}
+    return out.join("\n");
+  }
+
+  function isClipInstance(obj){
+    if (!obj) return false;
+    var t = getObjectType(obj).toLowerCase();
+    if (t.indexOf("clip") !== -1 && t.indexOf("instance") !== -1) return true;
+    if (obj.clip) return true;
+    return false;
+  }
+
+  function getClipFromInstance(obj){
+    if (!obj) return null;
+    try{ if (obj.clip) return obj.clip; }catch(e){}
+    try{ if (obj.sourceClip) return obj.sourceClip; }catch(e2){}
+    return null;
+  }
+
+  function getFramesFromClip(clip){
+    var frames = [];
+    if (!clip) return frames;
+    try{
+      if (clip.layers && clip.layers.length){
+        for (var li=0; li<clip.layers.length; li++){
+          var layer = clip.layers[li];
+          if (!layer || !layer.frames) continue;
+          for (var fi=0; fi<layer.frames.length; fi++){
+            var fr = layer.frames[fi];
+            if (fr) frames.push(fr);
+          }
+        }
+      }
+    }catch(e){}
+    return frames;
+  }
+
+  function getFrameLabel(fr){
+    if (!fr) return "";
+    var lb = "";
+    try{ lb = fr.label; }catch(e){}
+    if (!lb) { try{ lb = fr.name; }catch(e2){} }
+    if (!lb) { try{ lb = fr.identifier; }catch(e3){} }
+    return safeStr(lb || "");
+  }
+
+  function getFrameObjects(fr){
+    if (!fr) return [];
+    try{
+      if (fr.objects && fr.objects.length) return fr.objects;
+    }catch(e){}
+    try{
+      if (fr.wickObjects && fr.wickObjects.length) return fr.wickObjects;
+    }catch(e2){}
+    return [];
+  }
+
+  function clearFrameObjects(fr){
+    if (!fr) return;
+    try{
+      if (typeof fr.removeAllObjects === "function"){ fr.removeAllObjects(); return; }
+    }catch(e){}
+    try{
+      var objs = getFrameObjects(fr);
+      for (var i=objs.length-1;i>=0;i--){
+        var o = objs[i];
+        try{
+          if (typeof fr.removeObject === "function") fr.removeObject(o);
+          else if (o && typeof o.remove === "function") o.remove();
+        }catch(e2){}
+      }
+    }catch(e3){}
+  }
+
+  function cloneObject(obj){
+    if (!obj) return null;
+    try{ if (typeof obj.copy === "function") return obj.copy(); }catch(e){}
+    try{ if (typeof obj.clone === "function") return obj.clone(); }catch(e2){}
+    try{
+      if (typeof obj.serialize === "function"){
+        var data = obj.serialize();
+        if (window.parent && window.parent.Wick && window.parent.Wick.Object && typeof window.parent.Wick.Object.fromJSON === "function"){
+          return window.parent.Wick.Object.fromJSON(data);
+        }
+      }
+    }catch(e3){}
+    try{
+      if (typeof obj.toJSON === "function"){
+        var data2 = obj.toJSON();
+        if (window.parent && window.parent.Wick && window.parent.Wick.Object && typeof window.parent.Wick.Object.fromJSON === "function"){
+          return window.parent.Wick.Object.fromJSON(data2);
+        }
+      }
+    }catch(e4){}
+    return null;
+  }
+
+  function addObjectToFrame(fr, obj){
+    if (!fr || !obj) return false;
+    try{
+      if (typeof fr.addObject === "function"){ fr.addObject(obj); return true; }
+    }catch(e){}
+    try{
+      if (fr.objects && typeof fr.objects.push === "function"){ fr.objects.push(obj); return true; }
+    }catch(e2){}
+    return false;
+  }
+
+  function findNestedClipInstanceByName(rootClip, wantName){
+    if (!rootClip || !wantName) return null;
+    wantName = safeStr(wantName).trim();
+    if (!wantName) return null;
+    var visited = {};
+    function walkClip(clip){
+      if (!clip) return null;
+      var key = safeStr(clip.uuid || clip.id || clip.name || "");
+      if (key && visited[key]) return null;
+      if (key) visited[key] = true;
+
+      var frames = getFramesFromClip(clip);
+      for (var i=0;i<frames.length;i++){
+        var fr = frames[i];
+        var objs = getFrameObjects(fr);
+        for (var j=0;j<objs.length;j++){
+          var o = objs[j];
+          if (!o) continue;
+          var on = getObjectName(o);
+          if (on === wantName && isClipInstance(o)) return o;
+          var oc = getClipFromInstance(o);
+          if (oc){
+            var hit = walkClip(oc);
+            if (hit) return hit;
+          }
+        }
+      }
+      return null;
+    }
+    return walkClip(rootClip);
+  }
+
+  function findFrameByLabel(clip, label){
+    if (!clip) return null;
+    var frames = getFramesFromClip(clip);
+    for (var i=0;i<frames.length;i++){
+      var fr = frames[i];
+      if (getFrameLabel(fr) === label) return fr;
+    }
+    return null;
+  }
+
+  function alignNow(){
+    clearLog();
+    logLine("Lip Aline started");
+
+    var ed = getEditorSafe();
+    var proj = getProjectSafe(ed);
+    if (!proj){
+      logLine("Could not access project");
+      return;
+    }
+
+    var srcHeadName = safeStr(el("srcHeadName").value || "").trim();
+    var srcMouthName = safeStr(el("srcMouthName").value || "").trim() || "MouthShapes";
+    var dstMouthName = safeStr(el("dstMouthName").value || "").trim() || "MouthShapes";
+    var overwrite = safeStr(el("overwriteMode").value || "replace");
+
+    var srcObj = null;
+    var dstObj = null;
+
+    if (App.src && App.src.uuid){
+      try{
+        if (typeof proj.getObjectByUUID === "function") srcObj = proj.getObjectByUUID(App.src.uuid);
+      }catch(e){}
+    }
+    if (!srcObj){
+      srcObj = getSelectedObjectSafe(ed);
+    }
+
+    if (srcHeadName){
+      try{
+        if (typeof proj.getAllObjects === "function"){
+          var all = proj.getAllObjects();
+          for (var i=0;i<all.length;i++){
+            var o = all[i];
+            if (getObjectName(o) === srcHeadName){ srcObj = o; break; }
+          }
+        }
+      }catch(e2){}
+    }
+
+    if (!srcObj){
+      logLine("No source head selected");
+      return;
+    }
+
+    if (App.dst && App.dst.uuid){
+      try{
+        if (typeof proj.getObjectByUUID === "function") dstObj = proj.getObjectByUUID(App.dst.uuid);
+      }catch(e3){}
+    }
+    if (!dstObj){
+      logLine("No target selected");
+      return;
+    }
+
+    if (!isClipInstance(srcObj)){
+      logLine("Source is not a clip instance");
+      logLine(describeObj(srcObj));
+      return;
+    }
+
+    var srcHeadClip = getClipFromInstance(srcObj);
+    if (!srcHeadClip){
+      logLine("Could not access source head clip");
+      return;
+    }
+
+    var srcMouthInst = findNestedClipInstanceByName(srcHeadClip, srcMouthName);
+    if (!srcMouthInst){
+      logLine("Could not find source mouth clip instance named " + srcMouthName);
+      return;
+    }
+    var srcMouthClip = getClipFromInstance(srcMouthInst);
+    if (!srcMouthClip){
+      logLine("Could not access source mouth clip");
+      return;
+    }
+
+    var dstMouthClip = null;
+
+    if (isClipInstance(dstObj)){
+      var dstObjName = getObjectName(dstObj);
+      if (dstObjName === dstMouthName){
+        dstMouthClip = getClipFromInstance(dstObj);
+      }else{
+        var dstHeadClip = getClipFromInstance(dstObj);
+        if (!dstHeadClip){
+          logLine("Could not access target clip");
+          return;
+        }
+        var dstMouthInst = findNestedClipInstanceByName(dstHeadClip, dstMouthName);
+        if (!dstMouthInst){
+          logLine("Could not find target mouth clip instance named " + dstMouthName);
+          return;
+        }
+        dstMouthClip = getClipFromInstance(dstMouthInst);
+      }
+    }
+
+    if (!dstMouthClip){
+      logLine("Could not access target mouth clip");
+      return;
+    }
+
+    logLine("Source mouth clip found");
+    logLine("Target mouth clip found");
+
+    var copied = 0;
+    for (var li=0; li<LABELS.length; li++){
+      var label = LABELS[li];
+
+      var srcFr = findFrameByLabel(srcMouthClip, label);
+      var dstFr = findFrameByLabel(dstMouthClip, label);
+
+      if (!srcFr){
+        logLine("Missing source frame label " + label);
+        continue;
+      }
+      if (!dstFr){
+        logLine("Missing target frame label " + label);
+        continue;
+      }
+
+      var srcObjs = getFrameObjects(srcFr);
+      if (!srcObjs || !srcObjs.length){
+        logLine("Source frame " + label + " has no objects");
+        continue;
+      }
+
+      var dstObjs = getFrameObjects(dstFr);
+
+      if (overwrite === "keep" && dstObjs && dstObjs.length){
+        logLine("Kept target frame " + label);
+        continue;
+      }
+
+      clearFrameObjects(dstFr);
+
+      for (var oi=0; oi<srcObjs.length; oi++){
+        var clone = cloneObject(srcObjs[oi]);
+        if (!clone){
+          logLine("Could not clone an object in " + label);
+          continue;
+        }
+        addObjectToFrame(dstFr, clone);
+      }
+      copied += 1;
+      logLine("Copied " + label);
+    }
+
+    try{
+      if (ed && typeof ed.syncToEngine === "function") ed.syncToEngine();
+    }catch(eSync){}
+    try{
+      if (ed && typeof ed.projectDidChange === "function") ed.projectDidChange();
+    }catch(eChg){}
+
+    logLine("Done. Frames updated: " + copied);
+  }
+
+  function setSourceFromSelection(){
+    var ed = getEditorSafe();
+    var obj = getSelectedObjectSafe(ed);
+    if (!obj){
+      logLine("No selection found");
+      return;
+    }
+    App.src.uuid = safeStr(obj.uuid || "");
+    App.src.name = getObjectName(obj);
+    App.src.type = getObjectType(obj);
+    el("srcInfo").textContent = describeObj(obj);
+    logLine("Source set to selection");
+  }
+
+  function setTargetFromSelection(){
+    var ed = getEditorSafe();
+    var obj = getSelectedObjectSafe(ed);
+    if (!obj){
+      logLine("No selection found");
+      return;
+    }
+    App.dst.uuid = safeStr(obj.uuid || "");
+    App.dst.name = getObjectName(obj);
+    App.dst.type = getObjectType(obj);
+    el("dstInfo").textContent = describeObj(obj);
+    logLine("Target set to selection");
+  }
+
+  function clearAll(){
+    App.src = { uuid:"", name:"", type:"" };
+    App.dst = { uuid:"", name:"", type:"" };
+    el("srcInfo").textContent = "";
+    el("dstInfo").textContent = "";
+    clearLog();
+  }
+
+  el("btnSetSource").addEventListener("click", function(){ setSourceFromSelection(); });
+  el("btnSetTarget").addEventListener("click", function(){ setTargetFromSelection(); });
+  el("btnAlign").addEventListener("click", function(){ alignNow(); });
+  el("btnClear").addEventListener("click", function(){ clearAll(); });
+
+  clearAll();
+  logLine("Ready");
+})();
+</script>
+</body>
+</html>
