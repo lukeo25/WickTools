@@ -2643,7 +2643,9 @@ App.ui.btnSend.addEventListener("click", function(){
         scriptLines.push("  var _ltc = this;");
         scriptLines.push("  while (_ltc) {");
         scriptLines.push("    var _ltn = \"\"; try { _ltn = String(_ltc.name || _ltc.identifier || _ltc.clipName || _ltc._name || \"\"); } catch(eN) {}");
-        scriptLines.push("    if (_ltn === _ltTimelineClip) {");
+        scriptLines.push("    var _ltWant = \"\"; try { _ltWant = String(_ltTimelineClip || \"\").trim().toLowerCase(); } catch(eW) { _ltWant = \"\"; }"); // FIX
+scriptLines.push("    var _ltHave = \"\"; try { _ltHave = String(_ltn || \"\").trim().toLowerCase(); } catch(eH) { _ltHave = \"\"; }"); // FIX
+scriptLines.push("    if (_ltWant && _ltHave === _ltWant) {"); // FIX
         scriptLines.push("      if (typeof _ltc.playheadPosition === \"number\") frame = _ltc.playheadPosition + 1;");
         scriptLines.push("      else if (typeof _ltc.currentFrameNumber === \"number\") frame = _ltc.currentFrameNumber;");
         scriptLines.push("      else if (typeof _ltc.frame === \"number\") frame = _ltc.frame;");
