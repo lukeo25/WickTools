@@ -2652,6 +2652,14 @@ App.ui.btnSend.addEventListener("click", function(){
         scriptLines.push("    _ltc = _ltc.parentClip || null;");
         scriptLines.push("  }");
         scriptLines.push("} } catch (ePC) {}");
+        // FIX: if no named timeline clip is set, default to immediate parentClip timeline
+        scriptLines.push("try { if (!frame && !_ltTimelineClip) {");
+        scriptLines.push("  var _ltp = null; try { _ltp = (this && this.parentClip) ? this.parentClip : null; } catch(eP0) { _ltp = null; }");
+        scriptLines.push("  if (_ltp) {");
+        scriptLines.push("    if (typeof _ltp.currentFrameNumber === \"number\") frame = _ltp.currentFrameNumber;");
+        scriptLines.push("    else if (typeof _ltp.playheadPosition === \"number\") frame = _ltp.playheadPosition + 1;");
+        scriptLines.push("  }");
+        scriptLines.push("} } catch (ePP) {}");
         scriptLines.push("try { if (!frame && project && typeof project.currentFrameNumber === \"number\") frame = project.currentFrameNumber; } catch (e00) {}");
         // FIX: apply timeline start frame offset (no end frame)
         scriptLines.push("var _ltDoLip = true;");
