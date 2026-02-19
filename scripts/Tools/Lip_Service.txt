@@ -528,6 +528,17 @@
         <span class="label">Wick clip</span>
         <input id="inp-clipname" type="text" value="" placeholder="Clip name">
       </div>
+      <!-- FIX: timeline source and range controls -->
+      <div class="group">
+        <label>Timeline Clip Name (optional)</label>
+        <input id="inp-parentclip" type="text" value="" placeholder="Parent clip name">
+      </div>
+      <div class="group" style="flex:1;">
+        <label>Timeline Start Frame</label>
+        <input id="inp-startframe" type="number" min="1" step="1" value="1">
+      </div>
+      <!-- FIX removed end frame UI -->
+
 
       <button class="btn small" id="btn-download">Save Project</button>
       <button class="btn small" id="btn-send">Update Wick</button>
@@ -604,7 +615,7 @@
         <button class="btn" id="dl-papagayo-dat">Papagayo DAT (simple)</button>
       </div>
       <div class="foot">
-        <div class="hint">“Send to Wick” writes to localStorage keys: wick-lipsync-frame-map and wick-lipsync-blocks</div>
+        <div class="hint">"Send to Wick" writes to localStorage keys: wick-lipsync-frame-map and wick-lipsync-blocks</div>
       </div>
     </div>
   </div>
@@ -644,7 +655,7 @@ var F_Screen = 1;
   function uid(prefix){ return prefix + Math.random().toString(16).slice(2) + Date.now().toString(16); }
   // (Mouth SVGs are embedded as data URIs in MOUTH_IMAGES)
 
-  // Mouth palette: Disney/Hanna letter order (A–I), with an extra Rest button.
+  // Mouth palette: Disney/Hanna letter order (A-I), with an extra Rest button.
   // Internally we still keep the existing keys (rest, MBP, O, etc...) so older projects load.
   const MOUTH_ORDER = ["rest","MBP","O","etc","E","AI","FV","L","U","WQ"]; // A..I..Rest
 
@@ -1503,6 +1514,22 @@ var F_Screen = 1;
     }
   }
 
+  function getParentClipName() { // FIX
+    try { return String(el("inp-parentclip").value || "").trim(); } catch (e) { return ""; }
+  }
+
+  function getTimelineStartFrame() { // FIX
+    var v = 1;
+    try { v = parseInt(el("inp-startframe").value, 10); } catch (e) {}
+    if (!isFinite(v) || v < 1) v = 1;
+    return v;
+  }
+
+  function getTimelineEndFrame() { // FIX
+    return 0; // FIX
+  }
+
+
 
   async function exportProject(){
     const proj = {
@@ -1618,6 +1645,9 @@ function sendToWick(){
     const fm = exportFrameMapJSON();
     const bl = exportBlocksJSON();
     const clipName = getClipName();
+    const parentClipName = getParentClipName(); // FIX
+    const timelineStartFrame = getTimelineStartFrame(); // FIX
+    const timelineEndFrame = getTimelineEndFrame(); // FIX
 
     // LocalStorage keys
     try{
@@ -1625,34 +1655,42 @@ function sendToWick(){
       localStorage.setItem("wick-lipsync-blocks", JSON.stringify(bl));
       localStorage.setItem("wick-lipsync-papagayo-simple", exportPapagayoSimpleDAT());
       localStorage.setItem("wick-lipsync-clip-name", clipName);
-      localStorage.setItem("wick-lipsync-project", JSON.stringify({ clipName, frameMap: fm, blocks: bl }));
+      localStorage.setItem("wick-lipsync-parent-clip-name", parentClipName || ""); // FIX
+      localStorage.setItem("wick-lipsync-timeline-start-frame", String(timelineStartFrame)); // FIX
+      // FIX removed end frame storage write
+      localStorage.setItem("wick-lipsync-project", JSON.stringify({ clipName, parentClipName, timelineStartFrame, timelineEndFrame, frameMap: fm, blocks: bl })); // FIX
 
       // Underscore variants (optional)
       localStorage.setItem("wick_lipsync_frame_map", JSON.stringify(fm));
       localStorage.setItem("wick_lipsync_blocks", JSON.stringify(bl));
       localStorage.setItem("wick_lipsync_papagayo_simple", exportPapagayoSimpleDAT());
       localStorage.setItem("wick_lipsync_clip_name", clipName);
-      localStorage.setItem("wick_lipsync_project", JSON.stringify({ clipName, frameMap: fm, blocks: bl }));
+      localStorage.setItem("wick_lipsync_parent_clip_name", parentClipName || ""); // FIX
+      localStorage.setItem("wick_lipsync_timeline_start_frame", String(timelineStartFrame)); // FIX
+      localStorage.setItem("wick_lipsync_timeline_end_frame", String(timelineEndFrame)); // FIX
+      localStorage.setItem("wick_lipsync_project", JSON.stringify({ clipName, parentClipName, timelineStartFrame, timelineEndFrame, frameMap: fm, blocks: bl })); // FIX
     }catch(e){}
 
     // BroadcastChannel (old name) + optional underscore channel
     try{
       const bc = new BroadcastChannel("wick-lipsync");
       bc.postMessage({ type:"clip-name", clipName });
+      bc.postMessage({ type:"timeline-settings", payload: { parentClipName, timelineStartFrame, timelineEndFrame }, clipName }); // FIX
       bc.postMessage({ type:"frame-map", payload: fm, clipName });
       bc.postMessage({ type:"blocks", payload: bl, clipName });
       bc.postMessage({ type:"papagayo-simple", payload: exportPapagayoSimpleDAT(), clipName });
-      bc.postMessage({ type:"project", payload: { clipName, frameMap: fm, blocks: bl } });
+      bc.postMessage({ type:"project", payload: { clipName, parentClipName, timelineStartFrame, timelineEndFrame, frameMap: fm, blocks: bl } }); // FIX
       bc.close();
     }catch(e){}
 
     try{
       const bc2 = new BroadcastChannel("wick_lipsync");
       bc2.postMessage({ type:"clip-name", clipName });
+      bc2.postMessage({ type:"timeline-settings", payload: { parentClipName, timelineStartFrame, timelineEndFrame }, clipName }); // FIX
       bc2.postMessage({ type:"frame-map", payload: fm, clipName });
       bc2.postMessage({ type:"blocks", payload: bl, clipName });
       bc2.postMessage({ type:"papagayo-simple", payload: exportPapagayoSimpleDAT(), clipName });
-      bc2.postMessage({ type:"project", payload: { clipName, frameMap: fm, blocks: bl } });
+      bc2.postMessage({ type:"project", payload: { clipName, parentClipName, timelineStartFrame, timelineEndFrame, frameMap: fm, blocks: bl } }); // FIX
       bc2.close();
     }catch(e){}
 
@@ -2587,10 +2625,33 @@ App.ui.btnSend.addEventListener("click", function(){
         var scriptLines = [];
         scriptLines.push("/* LukeTools LipService START */");
         scriptLines.push("// Runs every frame in the update script of the selected clip");
+    scriptLines.push("var _ltTimelineClip = " + JSON.stringify(parentClipName || \"\") + "; // FIX");
+    scriptLines.push("var _ltStartFrame = " + String((parseInt(timelineStartFrame, 10) || 0)) + "; // FIX");
+
         // FIX: frame source uses project.currentFrameNumber only
-        scriptLines.push("var frame = 1;"); // FIX
-        scriptLines.push("try { frame = (project && typeof project.currentFrameNumber === \"number\") ? project.currentFrameNumber : 1; } catch (e0) { frame = 1; }"); // FIX
+                                scriptLines.push("var frame = 0;");
+        // FIX: optionally drive timing from a named parent clip timeline
+        scriptLines.push("try { if (_ltTimelineClip) {");
+        scriptLines.push("  var _ltc = this;");
+        scriptLines.push("  while (_ltc) {");
+        scriptLines.push("    var _ltn = \"\"; try { _ltn = String(_ltc.name || _ltc.identifier || _ltc.clipName || _ltc._name || \"\"); } catch(eN) {}");
+        scriptLines.push("    if (_ltn === _ltTimelineClip) {");
+        scriptLines.push("      if (typeof _ltc.currentFrameNumber === \"number\") frame = _ltc.currentFrameNumber;");
+        scriptLines.push("      else if (typeof _ltc.playheadPosition === \"number\") frame = _ltc.playheadPosition + 1;");
+        scriptLines.push("      break;");
+        scriptLines.push("    }");
+        scriptLines.push("    _ltc = _ltc.parentClip || null;");
+        scriptLines.push("  }");
+        scriptLines.push("} } catch (ePC) {}");
+        scriptLines.push("try { if (!frame && project && typeof project.currentFrameNumber === \"number\") frame = project.currentFrameNumber; } catch (e00) {}");
+        // FIX: apply timeline start frame offset (no end frame)
+        scriptLines.push("var _ltDoLip = true;");
+        scriptLines.push("try { if (typeof _ltStartFrame === \"number\" && _ltStartFrame > 1) {");
+        scriptLines.push("  if (frame < _ltStartFrame) { _ltDoLip = false; } else { frame = frame - _ltStartFrame + 1; }");
+        scriptLines.push("} } catch(eSF) {}");
+        scriptLines.push("if (_ltDoLip) {"); // FIX
         scriptLines.push("if (!frame || !isFinite(frame)) frame = 1;");
+
         scriptLines.push("");
         scriptLines.push("// FIX: stop this clip once so it does not run through its own timeline when driven by lipsync");
         scriptLines.push("try { if (!this.__LukeToolsLipServiceStoppedOnce) { this.__LukeToolsLipServiceStoppedOnce = true; if (this && typeof this.stop === \"function\") { this.stop(); } } } catch (eStopOnce) {}");
@@ -2642,6 +2703,7 @@ App.ui.btnSend.addEventListener("click", function(){
                 scriptLines.push("    try { mouth[_ltFn](label); } catch(eGo) {}");
         scriptLines.push("  }");
         scriptLines.push("}");
+        scriptLines.push("}"); // FIX
         scriptLines.push("/* LukeTools LipService END */");
 
         return scriptLines.join("\n");
@@ -2950,6 +3012,21 @@ App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
     }
     setInterval(syncOnce, 250);
     setTimeout(syncOnce, 50);
+    try {
+      var pcInp = document.getElementById("inp-parentclip"); // FIX
+      var sfInp = document.getElementById("inp-startframe"); // FIX
+      var efInp = null; // FIX removed end frame input
+// FIX
+      if (pcInp && !pcInp.value) {
+        var pc = localStorage.getItem("wick-lipsync-parent-clip-name") || localStorage.getItem("wick_lipsync_parent_clip_name") || ""; // FIX
+        if (pc) pcInp.value = pc; // FIX
+      }
+      if (sfInp && (!sfInp.value || sfInp.value === "")) {
+        var sf = localStorage.getItem("wick-lipsync-timeline-start-frame") || localStorage.getItem("wick_lipsync_timeline_start_frame") || ""; // FIX
+        if (sf !== "" && sf !== null) sfInp.value = String(parseInt(sf,10) || 1); // FIX
+      }
+      // FIX removed end frame init
+} catch(eTL) {} // FIX
   })();
 
 
