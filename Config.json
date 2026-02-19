@@ -139,6 +139,14 @@
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Gradient.txt",
           "action": "tool",
           "F_Screen": 0
+        },
+        {
+          "id": "Lip_Align",
+          "label": "Lip Align",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Lip.svg",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Lip_Align.txt",
+          "action": "tool",
+          "F_Screen": 1
         }
       ]
     },
