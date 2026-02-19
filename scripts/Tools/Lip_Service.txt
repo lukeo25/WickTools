@@ -2625,19 +2625,25 @@ App.ui.btnSend.addEventListener("click", function(){
         var scriptLines = [];
         scriptLines.push("/* LukeTools LipService START */");
         scriptLines.push("// Runs every frame in the update script of the selected clip");
+    scriptLines.push("var _ltTimelineClip = " + JSON.stringify(parentClipName || \"\") + "; // FIX");
+    scriptLines.push("var _ltStartFrame = " + String((parseInt(timelineStartFrame, 10) || 0)) + "; // FIX");
+
         // FIX: frame source uses project.currentFrameNumber only
-        scriptLines.push("var frame = 0;"); // FIX
-                scriptLines.push("try { if (_ltTimelineClip) {"); // FIX
+                        scriptLines.push("var frame = 0;"); // FIX
+                scriptLines.push("var _ltTimelineClipNorm = \"\"; try { _ltTimelineClipNorm = String(_ltTimelineClip || \"\" ).trim().toLowerCase(); } catch(eTN) { _ltTimelineClipNorm = \"\"; } // FIX"); // FIX
+                scriptLines.push("try { if (_ltTimelineClipNorm) {"); // FIX
         scriptLines.push("  var _ltc = this;"); // FIX
-        scriptLines.push("  while (_ltc && _ltc.parentClip) { _ltc = _ltc.parentClip;"); // FIX
-        scriptLines.push("    var _ltn = \"\"; try { _ltn = String(_ltc.name || _ltc.identifier || \"\" ); } catch(eN) {}"); // FIX
-        scriptLines.push("    if (_ltn === _ltTimelineClip) {"); // FIX
+        scriptLines.push("  while (_ltc) {"); // FIX
+        scriptLines.push('    var _ltn = \"\"; try { _ltn = String(_ltc.name || _ltc.identifier || _ltc.clipName || _ltc._name || \"\" ); } catch(eN) {}\'); // FIX
+        scriptLines.push("    var _ltnNorm = \"\"; try { _ltnNorm = String(_ltn).trim().toLowerCase(); } catch(eNN) { _ltnNorm = \"\"; }"); // FIX
+        scriptLines.push("    if (_ltnNorm && _ltnNorm === _ltTimelineClipNorm) {"); // FIX
         scriptLines.push("      if (typeof _ltc.currentFrameNumber === \"number\") frame = _ltc.currentFrameNumber;"); // FIX
         scriptLines.push("      else if (typeof _ltc.playheadPosition === \"number\") frame = _ltc.playheadPosition + 1;"); // FIX
         scriptLines.push("      break;"); // FIX
         scriptLines.push("    }"); // FIX
+        scriptLines.push("    _ltc = _ltc.parentClip || null;"); // FIX
         scriptLines.push("  }"); // FIX
-        scriptLines.push("} } catch (ePC) {}"); // FIX
+                scriptLines.push("} } catch (ePC) {}"); // FIX
         scriptLines.push("try { if (!frame && project && typeof project.currentFrameNumber === \"number\") frame = project.currentFrameNumber; } catch (e00) {}"); // FIX
         scriptLines.push("var _ltDoLip = true;"); // FIX
         scriptLines.push("try { if (typeof _ltStartFrame === \"number\" && _ltStartFrame > 1) {"); // FIX
