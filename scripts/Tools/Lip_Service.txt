@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lip Service Script Patcher</title>
+<style>
+  html, body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: #1e1e1e; color: #eaeaea; }
+  .wrap { padding: 14px; }
+  h1 { margin: 0 0 10px 0; font-size: 18px; font-weight: 700; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+  .col { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 12px; opacity: 0.9; }
+  input[type="text"], input[type="number"] {
+    background: #2a2a2a; color: #eaeaea; border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 10px 10px; outline: none; width: 260px;
+  }
+  input[type="number"] { width: 140px; }
+  .btn {
+    background: rgba(255,255,255,0.10); color: #fff; border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 12px; padding: 10px 12px; font-weight: 700; cursor: pointer;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: rgba(33,178,107,0.25); border-color: rgba(33,178,107,0.45); }
+  .btn.danger { background: rgba(220,80,80,0.25); border-color: rgba(220,80,80,0.45); }
+  .pill {
+    display: inline-block; padding: 6px 10px; border-radius: 999px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.10);
+    font-size: 12px;
+  }
+  .muted { opacity: 0.75; font-size: 12px; line-height: 1.4; }
+  .sep { height: 1px; background: rgba(255,255,255,0.10); margin: 12px 0; }
+  textarea {
+    width: 100%; min-height: 140px; resize: vertical;
+    background: #121212; color: #dcdcdc; border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 10px; box-sizing: border-box; font-family: Consolas, monospace; font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lip Service Update Script</h1>
+
+  <div class="row">
+    <div class="pill" id="selPill">No selection</div>
+    <button class="btn" id="refreshBtn">Refresh</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="row">
+    <div class="col">
+      <label for="parentName">Parent clip name</label>
+      <input id="parentName" type="text" placeholder="Leave blank to use current timeline">
+    </div>
+
+    <div class="col">
+      <label for="startFrame">Timeline start</label>
+      <input id="startFrame" type="number" min="1" step="1" value="1">
+    </div>
+
+    <div class="col">
+      <label for="stopFrame">Timeline stop</label>
+      <input id="stopFrame" type="number" min="1" step="1" value="1">
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="btn primary" id="applyBtn">Update Wick</button>
+    <button class="btn" id="previewBtn">Preview script</button>
+  </div>
+
+  <div class="muted">
+    This tool only patches the frame source and the timeline window in your existing Lip Service update script.
+    It does not change your mouth mapping logic.
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="row">
+    <div class="pill">Load Audio</div>
+    <div class="pill">Load Project</div>
+    <div class="pill">Play</div>
+    <div class="pill">Stop</div>
+    <div class="pill">FPS</div>
+    <div class="pill">Wick clip</div>
+    <div class="pill">Save Project</div>
+    <div class="pill">Auto map</div>
+    <div class="pill">Refit</div>
+    <div class="pill">Loop</div>
+  </div>
+
+  <textarea id="out" spellcheck="false" placeholder="Preview will appear here"></textarea>
+</div>
+
+<script>
+/* LukeTools LipService Patcher START */
+
+(function () {
+  "use strict";
+
+  function s(v) { try { return String(v); } catch (e) { return ""; } }
+
+  function getBridge() {
+    try {
+      if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge;
+    } catch (e) {}
+    try {
+      if (window.LukeToolsBridge) return window.LukeToolsBridge;
+    } catch (e2) {}
+    return null;
+  }
+
+  function clampInt(v, fallback) {
+    var n = parseInt(String(v), 10);
+    if (isNaN(n)) return fallback;
+    return n;
+  }
+
+  function escapeJsString(str) {
+    var t = s(str);
+    return t.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+  }
+
+  function parseExistingConfig(scriptText) {
+    var t = s(scriptText || "");
+    var cfg = { parentName: "", startFrame: 1, stopFrame: 1 };
+
+    // FIX: read existing config variables if present
+    try {
+      var m1 = t.match(/var\s+LS_PARENT_CLIP_NAME\s*=\s*"([^"]*)"\s*;/);
+      if (m1 && m1[1] !== undefined) cfg.parentName = s(m1[1]);
+    } catch (e1) {}
+
+    try {
+      var m2 = t.match(/var\s+LS_TIMELINE_START\s*=\s*(\d+)\s*;/);
+      if (m2 && m2[1] !== undefined) cfg.startFrame = clampInt(m2[1], 1);
+    } catch (e2) {}
+
+    try {
+      var m3 = t.match(/var\s+LS_TIMELINE_STOP\s*=\s*(\d+)\s*;/);
+      if (m3 && m3[1] !== undefined) cfg.stopFrame = clampInt(m3[1], 1);
+    } catch (e3) {}
+
+    return cfg;
+  }
+
+  function buildFrameSourceBlock(parentName, startFrame, stopFrame) {
+    var pn = s(parentName || "");
+    var sf = clampInt(startFrame, 1);
+    var ef = clampInt(stopFrame, 1);
+    if (sf < 1) sf = 1;
+    if (ef < 1) ef = 1;
+
+    // FIX: frame source now optionally follows a named parent clip timeline
+    // FIX: start and stop window is applied after the frame is found
+    return [
+      "/* LukeTools LipService START */",
+      "",
+      "var LS_PARENT_CLIP_NAME = \"" + escapeJsString(pn) + "\"; // FIX",
+      "var LS_TIMELINE_START = " + String(sf) + "; // FIX",
+      "var LS_TIMELINE_STOP = " + String(ef) + "; // FIX",
+      "",
+      "var frame = 0;",
+      "try { frame = (this && typeof this.currentFrameNumber === \"number\") ? this.currentFrameNumber : 0; } catch (e0) { frame = 0; }",
+      "",
+      "// FIX: if a parent clip name is provided, use that ancestor clip timeline as the driver",
+      "try {",
+      "  if (LS_PARENT_CLIP_NAME) {",
+      "    var p = this;",
+      "    var safety = 0;",
+      "    while (p && safety < 60) {",
+      "      safety += 1;",
+      "      if (p && typeof p.name === \"string\" && p.name === LS_PARENT_CLIP_NAME) {",
+      "        try { if (typeof p.currentFrameNumber === \"number\") frame = p.currentFrameNumber; } catch (eP0) { }",
+      "        try { if ((!frame || frame <= 0) && typeof p.playheadPosition === \"number\") frame = p.playheadPosition + 1; } catch (eP1) { }",
+      "        break;",
+      "      }",
+      "      try { p = p.parentClip || null; } catch (eP2) { p = null; }",
+      "    }",
+      "  }",
+      "} catch (eP3) { }",
+      "",
+      "// Existing fallbacks remain, for safety",
+      "try { if (!frame && project && typeof project.currentFrameNumber === \"number\") frame = project.currentFrameNumber; } catch (e00) {}",
+      "try { if (!frame && this && this.parentClip && typeof this.parentClip.playheadPosition === \"number\") frame = this.parentClip.playheadPosition + 1; } catch (e01) {}",
+      "try { if (!frame && this && typeof this.playheadPosition === \"number\") frame = this.playheadPosition + 1; } catch (e02) {}",
+      "",
+      "// FIX: apply timeline start and stop window",
+      "try {",
+      "  var __sf = (typeof LS_TIMELINE_START === \"number\" && LS_TIMELINE_START > 0) ? LS_TIMELINE_START : 1;",
+      "  var __ef = (typeof LS_TIMELINE_STOP === \"number\" && LS_TIMELINE_STOP > 0) ? LS_TIMELINE_STOP : 1;",
+      "  if (__ef < __sf) { var __tmp = __ef; __ef = __sf; __sf = __tmp; }",
+      "  // Convert absolute timeline frame into a 1 based window frame",
+      "  frame = frame - (__sf - 1);",
+      "  if (frame < 1) frame = 1;",
+      "  var __winLen = (__ef - __sf + 1);",
+      "  if (__winLen > 0 && frame > __winLen) frame = __winLen;",
+      "} catch (eW0) { }",
+      ""
+    ].join("\n");
+  }
+
+  function patchScript(originalScript, parentName, startFrame, stopFrame) {
+    var t = s(originalScript || "");
+
+    var header = "/* LukeTools LipService START */";
+    var idx = t.indexOf(header);
+
+    if (idx === -1) {
+      // FIX: If the marker is missing, prepend the new frame source block and keep the original script below
+      return buildFrameSourceBlock(parentName, startFrame, stopFrame) + "\n" + t;
+    }
+
+    // FIX: Replace from marker up to the first blank line after the frame source section, if we can detect it
+    // We target the first occurrence of "var frame = 0;" and then stop just before the next "/*" marker that is not the START
+    var startIdx = idx;
+
+    // Prefer to replace from header through the first double newline after the window block, but stay safe
+    var endIdx = -1;
+
+    // If the script contains our known line, replace from header to just after the window block
+    var endMarker = "\n\n";
+    var searchFrom = idx;
+    // Heuristic: find the first occurrence of "try {" line that begins the mouth mapping logic, which is usually after frame is computed
+    // If not found, we fall back to replacing only the first 1200 chars after the header.
+    var nextLogic = -1;
+    try {
+      nextLogic = t.indexOf("\ntry {", idx + header.length);
+    } catch (e0) { nextLogic = -1; }
+
+    if (nextLogic !== -1) {
+      // We still want to keep the mapping logic, so end replacement right before that first mapping try block,
+      // BUT only if it occurs after our frame setup block.
+      // We find the first blank line before nextLogic and cut there.
+      var cut = t.lastIndexOf("\n\n", nextLogic);
+      if (cut !== -1 && cut > idx) endIdx = cut + 2;
+    }
+
+    if (endIdx === -1) {
+      // Fallback safe cap
+      endIdx = Math.min(t.length, idx + 1400);
+      // extend to next line break boundary
+      var nl = t.indexOf("\n", endIdx);
+      if (nl !== -1) endIdx = nl + 1;
+    }
+
+    var before = t.slice(0, startIdx);
+    var after = t.slice(endIdx);
+
+    return before + buildFrameSourceBlock(parentName, startFrame, stopFrame) + after;
+  }
+
+  var selPill = document.getElementById("selPill");
+  var refreshBtn = document.getElementById("refreshBtn");
+  var parentName = document.getElementById("parentName");
+  var startFrame = document.getElementById("startFrame");
+  var stopFrame = document.getElementById("stopFrame");
+  var applyBtn = document.getElementById("applyBtn");
+  var previewBtn = document.getElementById("previewBtn");
+  var out = document.getElementById("out");
+
+  function refreshSelection() {
+    var B = getBridge();
+    if (!B) {
+      selPill.textContent = "Bridge not found";
+      return { ok: false };
+    }
+    try {
+      var info = B.getSelectionInfo ? B.getSelectionInfo() : null;
+      if (info && info.ok) {
+        selPill.textContent = "Selected " + s(info.name || info.clipName || "item");
+      } else {
+        selPill.textContent = "No selection";
+      }
+    } catch (e) {
+      selPill.textContent = "Selection read failed";
+    }
+    return { ok: true };
+  }
+
+  function loadExistingScriptConfig() {
+    var B = getBridge();
+    if (!B) return;
+
+    try {
+      var cur = B.getUpdateScriptOnSelection ? B.getUpdateScriptOnSelection() : "";
+      var cfg = parseExistingConfig(cur);
+      parentName.value = cfg.parentName;
+      startFrame.value = String(cfg.startFrame);
+      stopFrame.value = String(cfg.stopFrame);
+    } catch (e) {}
+  }
+
+  function doPreview() {
+    var B = getBridge();
+    if (!B) { out.value = "Bridge not found"; return; }
+
+    var cur = "";
+    try { cur = B.getUpdateScriptOnSelection ? s(B.getUpdateScriptOnSelection()) : ""; } catch (e0) { cur = ""; }
+
+    var patched = patchScript(cur, parentName.value, startFrame.value, stopFrame.value);
+    out.value = patched;
+  }
+
+  function doApply() {
+    var B = getBridge();
+    if (!B) { alert("Bridge not found"); return; }
+
+    var cur = "";
+    try { cur = B.getUpdateScriptOnSelection ? s(B.getUpdateScriptOnSelection()) : ""; } catch (e0) { cur = ""; }
+
+    if (!cur) {
+      var ok = confirm("No update script found on selection. Patch will be prepended. Continue?");
+      if (!ok) return;
+    }
+
+    var patched = patchScript(cur, parentName.value, startFrame.value, stopFrame.value);
+
+    try {
+      var res = B.setUpdateScriptOnSelection ? B.setUpdateScriptOnSelection(patched) : null;
+      if (res && res.ok) {
+        alert("Update script written");
+      } else {
+        alert("Write failed");
+      }
+    } catch (e) {
+      alert("Write failed");
+    }
+  }
+
+  refreshBtn.addEventListener("click", function (e) {
+    e.preventDefault();
+    refreshSelection();
+    loadExistingScriptConfig();
+  });
+
+  previewBtn.addEventListener("click", function (e) {
+    e.preventDefault();
+    doPreview();
+  });
+
+  applyBtn.addEventListener("click", function (e) {
+    e.preventDefault();
+    doApply();
+  });
+
+  // Initial
+  try { refreshSelection(); } catch (e0) {}
+  try { loadExistingScriptConfig(); } catch (e1) {}
+
+  // Ask BridgeTool panel to fit height if running in panel
+  try { window.parent.postMessage({ type: "LukeToolsToolHeight", h: 520 }, "*"); } catch (e2) {}
+
+})();
+</script>
+</body>
+</html>
