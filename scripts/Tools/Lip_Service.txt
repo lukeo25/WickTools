@@ -533,16 +533,11 @@
         <label>Timeline Clip Name (optional)</label>
         <input id="inp-parentclip" type="text" value="" placeholder="Parent clip name">
       </div>
-      <div class="row">
-        <div class="group" style="flex:1;">
-          <label>Timeline Start Frame</label>
-          <input id="inp-startframe" type="number" min="1" step="1" value="1">
-        </div>
-        <div class="group" style="flex:1;">
-          <label>Timeline End Frame (0 = end)</label>
-          <input id="inp-endframe" type="number" min="0" step="1" value="0">
-        </div>
+      <div class="group" style="flex:1;">
+        <label>Timeline Start Frame</label>
+        <input id="inp-startframe" type="number" min="1" step="1" value="1">
       </div>
+      <!-- FIX removed end frame UI -->
 
 
       <button class="btn small" id="btn-download">Save Project</button>
@@ -1531,10 +1526,7 @@ var F_Screen = 1;
   }
 
   function getTimelineEndFrame() { // FIX
-    var v = 0;
-    try { v = parseInt(el("inp-endframe").value, 10); } catch (e) {}
-    if (!isFinite(v) || v < 0) v = 0;
-    return v;
+    return 0; // FIX
   }
 
 
@@ -1665,7 +1657,7 @@ function sendToWick(){
       localStorage.setItem("wick-lipsync-clip-name", clipName);
       localStorage.setItem("wick-lipsync-parent-clip-name", parentClipName || ""); // FIX
       localStorage.setItem("wick-lipsync-timeline-start-frame", String(timelineStartFrame)); // FIX
-      localStorage.setItem("wick-lipsync-timeline-end-frame", String(timelineEndFrame)); // FIX
+      // FIX removed end frame storage write
       localStorage.setItem("wick-lipsync-project", JSON.stringify({ clipName, parentClipName, timelineStartFrame, timelineEndFrame, frameMap: fm, blocks: bl })); // FIX
 
       // Underscore variants (optional)
@@ -3013,7 +3005,8 @@ App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
     try {
       var pcInp = document.getElementById("inp-parentclip"); // FIX
       var sfInp = document.getElementById("inp-startframe"); // FIX
-      var efInp = document.getElementById("inp-endframe"); // FIX
+      var efInp = null; // FIX removed end frame input
+// FIX
       if (pcInp && !pcInp.value) {
         var pc = localStorage.getItem("wick-lipsync-parent-clip-name") || localStorage.getItem("wick_lipsync_parent_clip_name") || ""; // FIX
         if (pc) pcInp.value = pc; // FIX
@@ -3022,11 +3015,8 @@ App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
         var sf = localStorage.getItem("wick-lipsync-timeline-start-frame") || localStorage.getItem("wick_lipsync_timeline_start_frame") || ""; // FIX
         if (sf !== "" && sf !== null) sfInp.value = String(parseInt(sf,10) || 1); // FIX
       }
-      if (efInp && (!efInp.value || efInp.value === "")) {
-        var ef = localStorage.getItem("wick-lipsync-timeline-end-frame") || localStorage.getItem("wick_lipsync_timeline_end_frame") || ""; // FIX
-        if (ef !== "" && ef !== null) efInp.value = String(parseInt(ef,10) || 0); // FIX
-      }
-    } catch(eTL) {} // FIX
+      // FIX removed end frame init
+} catch(eTL) {} // FIX
   })();
 
 
