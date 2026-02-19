@@ -2623,6 +2623,14 @@ App.ui.btnSend.addEventListener("click", function(){
 
         // Build the update script
         var scriptLines = [];
+
+        // FIX: read timeline settings from the panel inputs so the generated update script is driven by the chosen timeline clip
+        var timelineStartFrame = 1; // FIX
+        var parentClipName = ""; // FIX
+        try { timelineStartFrame = getTimelineStartFrame(); } catch(eTSF) { timelineStartFrame = 1; } // FIX
+        try { parentClipName = getParentClipName(); } catch(ePCN) { parentClipName = ""; } // FIX
+        try { if (typeof timelineStartFrame !== "number" || !isFinite(timelineStartFrame) || timelineStartFrame < 1) timelineStartFrame = 1; } catch(eTSF2) { timelineStartFrame = 1; } // FIX
+        try { parentClipName = String(parentClipName || "").trim(); } catch(ePCN2) { parentClipName = ""; } // FIX
         scriptLines.push("/* LukeTools LipService START */");
         scriptLines.push("// Runs every frame in the update script of the selected clip");
     scriptLines.push("var _ltTimelineClip = " + JSON.stringify(parentClipName || "") + "; // FIX");
