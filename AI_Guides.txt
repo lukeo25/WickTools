@@ -1,0 +1,39 @@
+Based on the architecture of your **Luke Tools Local Panel Bridge** and the **Lip Service** tool, here are the function expectations and "rules" for building a similar tool that interacts deeply with the Wick Editor. 
+### **1. Environment Discovery & Stability**
+* 
+**Editor Hooking:** The tool must have a robust method for locating the active Wick Editor instance, checking multiple possible global variables like `window.wickEditor`, `window.WickEditor.editor`, or `window.app`. 
+* 
+**Runtime Guarding:** Use a global "guard" variable (e.g., `window.LukeToolsLocalPanelBridgeLoaded_282`) to prevent the script from initializing multiple times if re-injected. 
+* 
+**Dirty Marking:** Any tool that modifies the project should include a `markDirty` function to notify the editor that changes have occurred, ensuring the "unsaved changes" flag is set and the canvas re-renders. 
+
+### **2. Selection & Object Handling**
+* 
+**Get Selected Clip Handle:** The bridge should provide a single point of truth for the current selection, returning the object's `name`, `uuid`, and `_identifier`. 
+* 
+**Selection Persistence:** To maintain sync between external tools (like an iframe) and the editor, the bridge should store the selected clip's metadata in `localStorage` keys like `LukeToolsSelectedClipName`. 
+
+* **Parent Retrieval:** Tools should be able to traverse the project hierarchy. A "Get Parent" function would involve walking the project's children and timelines to identify which frame or clip contains the current selection. 
+
+### **3. Property & State Manipulation**
+* **Value Tweaking:** Provide a generic way to modify object properties (like `rotation`, `x`, or `y`). If the editor's built-in inspector is open, the tool should ideally simulate user input by focusing the input field, changing the value, and dispatching `input` and `change` events to ensure the editor registers the change. 
+* 
+**Keyframe Enforcement:** Before applying changes, the tool should ensure a keyframe exists at the current playhead position using functions like `addKeyframe` or `insertKeyframe` on the active timeline. 
+### **4. Scripting Automation**
+
+* 
+**Read/Write Script Access:** A fundamental expectation is the ability to read and write to an object's `scripts` array. 
+* **Update Script Application:**
+* 
+**Find Target:** Locate the script by name (e.g., `"update"` or `"default"`). 
+* 
+**Backup:** Before overwriting, existing scripts should be backed up to `localStorage` to allow for recovery if the new script contains errors. 
+* 
+**Injection:** Replace the `src` of the script and then trigger the project's internal modification flag. 
+
+### **5. Bridge Communication (Iframe Support)**
+
+* 
+**PostMessage API:** Since tools often run in sandboxed iframes, the bridge must listen for `message` events to receive commands (e.g., "Apply this frame map to the selection"). 
+* 
+**Direct Syncing:** Tools like Lip Service should implement a `syncOnce` interval that regularly checks the bridge (or shared `localStorage`) to see if the user has selected a different clip in the editor.
