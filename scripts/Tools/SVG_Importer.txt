@@ -1,656 +1,628 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>SVG Importer</title>
-  <style>
-    body { margin: 0; padding: 14px; background: #222; color: #eaeaea; font-family: Arial, sans-serif; }
-    .panel { border: 1px solid #444; background: rgba(0,0,0,0.35); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-    .title { font-size: 12px; color: #9aa; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 5px; display:flex; align-items:center; gap:10px; }
-    .brand { width: 22px; height: 22px; border-radius: 4px; background:#111; border:1px solid #333; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-    .brand img { width:100%; height:100%; object-fit:cover; display:block; }
-    input[type="file"] { width: 100%; padding: 10px; background: #1a1a1a; color: #aaa; border: 1px dashed #555; border-radius: 6px; box-sizing:border-box; }
-    button { width: 100%; padding: 12px; border: none; border-radius: 6px; background: #21b26b; color: #fff; font-weight: bold; cursor: pointer; }
-    button.secondary { background:#3a3a3a; }
-    button:disabled { opacity: 0.55; cursor: default; }
-.settings { font-size: 11px; color: #cfcfcf; display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .settings input[type="number"] { width: 70px; background:#111; color:white; border:1px solid #444; border-radius: 4px; padding: 4px 6px; }
-    .chk { display:flex; align-items:center; gap:8px; }
-    .hint { font-size: 11px; color: #aaa; opacity: 0.9; line-height: 1.35; }
-    .row { display:flex; gap:10px; }
-    .row > * { flex:1; }
-    textarea { width:100%; min-height: 120px; background:#111; color:#ddd; border:1px solid #333; border-radius:6px; padding:8px; box-sizing:border-box; font-family: monospace; font-size: 11px; white-space: pre; overflow:auto; }
-    a { color:#7fd; }
-  
-    /* FIX: hide verbose user logs */
-    #log, #logs, #output, #statusLog, #status, #console, #resultLog, #messageLog, .log, .logs, .output, .statusLog{
-      display:none !important;
-      visibility:hidden !important;
-      height:0 !important;
-      max-height:0 !important;
-      overflow:hidden !important;
-      padding:0 !important;
-      margin:0 !important;
-      border:0 !important;
-    }
-
+<meta charset="utf-8">
+<title>SVG Import Curves Or Clip</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{--bg:#0f1115;--card:#171a21;--line:rgba(255,255,255,0.10);--text:#eaeaea;--muted:#cbd5e1;--ok:#22c55e;--warn:#fbbf24;}
+  body{margin:0;padding:14px;font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
+  h1{margin:0 0 10px 0;font-size:18px;color:var(--ok);text-align:center;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 40px);overflow:auto;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .btn{flex:1 1 160px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#1d2230;color:var(--text);font-weight:700;cursor:pointer;}
+  .btnPrimary{border-color:rgba(34,197,94,0.35);background:rgba(34,197,94,0.12);}
+  .btn:disabled{opacity:0.55;cursor:default;}
+  .btn:active{transform:translateY(1px);}
+  .small{font-size:12px;color:var(--muted);line-height:1.35;}
+  label{font-size:12px;color:var(--muted);display:block;margin-top:6px;}
+  input[type="text"], input[type="number"]{width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:#0f1115;color:var(--text);box-sizing:border-box;}
+  .toggleRow{display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+  .radio,.chk{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
+  .radio input,.chk input{width:auto;}
+  .status{font-size:12px;color:var(--muted);white-space:pre-wrap;min-height:18px;}
+  .sep{height:1px;background:rgba(255,255,255,0.08);margin:6px 0;}
+  .disabled{opacity:0.55;pointer-events:none;}
+  .note{font-size:12px;color:var(--warn);line-height:1.35;}
 </style>
 </head>
 <body>
-  <div class="panel">
-    <div class="title">
-      <span>SVG Importer</span>
+<h1>SVG Import</h1>
+<div class="card">
+  <div class="small">
+    Two behaviours only:
+    <br>• <b>Curves</b> = import SVG as Wick Paths directly onto the current stage frame (no clip).
+    <br>• <b>Clip</b> = SVG asset importer, then <b>manual wrap</b> into a new clip (no clip inside clip).
+  </div>
+
+  <div class="row">
+    <button id="btnLoad" class="btn">Load SVG</button>
+    <button id="btnRun" class="btn btnPrimary" disabled>Import</button>
+  </div>
+
+  <div class="toggleRow">
+    <label class="radio"><input type="radio" name="mode" id="radCurves" checked> Curves (to stage)</label>
+    <label class="radio"><input type="radio" name="mode" id="radClip"> Clip (SVG asset importer)</label>
+  </div>
+
+  <div id="curvesOpts">
+    <div class="toggleRow">
+      <label class="chk"><input id="chkSeparate" type="checkbox" checked> Separate paths (unchecked makes one merged path)</label>
     </div>
+    <label>Optional target width (leave blank to keep SVG scale)</label>
+    <input id="inpWidth" type="number" placeholder="e.g. 300">
+  </div>
 
-    <input type="file" id="svgFile" accept=".svg,image/svg+xml">
+  <div id="clipOpts" class="disabled">
+    <label>New clip name</label>
+    <input id="inpClipName" type="text" value="SVG_Clip">
+    <div class="note">Clip mode always creates exactly one clip on the current frame and moves the SVG path into it.</div>
+  </div>
 
-    <div class="settings">
-      <span>Frame: <input type="number" id="frameNum" value="1" min="1"></span>
+  <div class="sep"></div>
 
-      <span class="chk">
-        <input type="checkbox" id="wrapAsClip" checked>
-        <label for="wrapAsClip">Wrap placed SVG as Clip</label>
-      </span>
+  <div class="toggleRow">
+    <label class="chk"><input type="checkbox" id="keepDefs" checked> Keep defs</label>
+    <label class="chk"><input type="checkbox" id="removeImages"> Remove image tags</label>
+    <label class="chk"><input type="checkbox" id="stripAllStyleTags"> Strip style tags</label>
+  </div>
 
-      <span class="chk">
-        <input type="checkbox" id="nameClipFromFile" checked>
-        <label for="nameClipFromFile">Name clip from filename</label>
-      </span>
-
-      <span class="chk">
-        <input type="checkbox" id="keepDefs" checked>
-        <label for="keepDefs">Keep defs</label>
-      </span>
-
-      <span class="chk">
-        <input type="checkbox" id="removeImages">
-        <label for="removeImages">Remove image tags</label>
-      </span>
-
-      <span class="chk">
-        <input type="checkbox" id="stripAllStyleTags">
-        <label for="stripAllStyleTags">Strip style tags</label>
-      </span>
-
-      <span class="chk">
-        <input type="checkbox" id="suppressToasts" checked>
-        <label for="suppressToasts">Suppress Wick import toasts</label>
-      </span>
-    </div>
-
-    <div class="row">
-      <button id="importBtn">Import SVG</button>
-    <!-- clear log removed -->
+  <div class="status" id="status">Ready.</div>
+  <input id="fileSvg" type="file" accept=".svg,image/svg+xml" style="display:none">
 </div>
 
-    <div class="hint">
-      Flow matches your asset loader: createAssets, wait for asset, move playhead, ensure frame, createImagePathFromAsset, select, optional clip.
-    </div>
-    <!-- FIX: removed preview text/code slots -->
-</div>
+<script>
+(function(){
+  "use strict";
 
-  <script>
-    (function () {
-      "use strict";
+  var State = { name:"", text:"" };
 
-      var logEl = document.getElementById("consoleLog");
-      var btn = document.getElementById("importBtn");
-      var clearBtn = null; // FIX
-      var fileInput = document.getElementById("svgFile");
-      // FIX: removed preview textareas
-function log(){ /* FIX: no user log */ }
-function setLog(msg) {
-        if (!logEl) return; // FIX
-logEl.textContent = msg || "";
-        logEl.scrollTop = logEl.scrollHeight;
+  function el(id){ return document.getElementById(id); }
+  function s(v){ try{ return String(v==null?"":v); }catch(e){ return ""; } }
+  function setStatus(t){ el("status").textContent = s(t); }
+
+  function getBridge(){
+    try { if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; } catch(e1) {}
+    try { if (window.parent && window.parent.LukeTools && window.parent.LukeTools.bridge) return window.parent.LukeTools.bridge; } catch(e2) {}
+    try { if (window.parent && window.parent.LukeToolsLocalPanelBridge) return window.parent.LukeToolsLocalPanelBridge; } catch(e3) {}
+    return null;
+  }
+
+  function getEditor(bridge){
+    try { if (bridge && typeof bridge.getEditor === "function") return bridge.getEditor(); } catch(e0) {}
+    try { if (window.parent && window.parent.wickEditor) return window.parent.wickEditor; } catch(e1) {}
+    try { if (window.parent && window.parent.WickEditor && window.parent.WickEditor.editor) return window.parent.WickEditor.editor; } catch(e2) {}
+    try { if (window.parent && window.parent.editor) return window.parent.editor; } catch(e3) {}
+    try { if (window.parent && window.parent.app) return window.parent.app; } catch(e4) {}
+    return null;
+  }
+
+  function getProject(ed){ try { return ed && ed.project ? ed.project : null; } catch(e0){ return null; } }
+  function getWick(){ try { return (window.parent && window.parent.Wick) ? window.parent.Wick : (window.Wick || null); } catch(e0){ return null; } }
+  function getPaper(){ try { return (window.parent && window.parent.paper) ? window.parent.paper : null; } catch(e0){ return null; } }
+
+  function markDirty(ed){
+    try { if (ed && ed.project && typeof ed.project.markAsModified === "function") ed.project.markAsModified(); } catch(e1) {}
+    try { if (ed && ed.project) ed.project.unsavedChanges = true; } catch(e2) {}
+    try { if (ed && typeof ed.projectDidChange === "function") ed.projectDidChange({ actionName:"LukeTools" }); } catch(e3) {}
+    try { if (ed && typeof ed.syncToEngine === "function") ed.syncToEngine(); } catch(e4) {}
+  }
+
+  function findActiveTimeline(project){
+    if (!project) return null;
+    try { if (project.activeTimeline) return project.activeTimeline; } catch(e0) {}
+    try { if (project.timeline) return project.timeline; } catch(e1) {}
+    try { if (project.focus && project.focus.timeline) return project.focus.timeline; } catch(e2) {}
+    try { if (project.activeClip && project.activeClip.timeline) return project.activeClip.timeline; } catch(e3) {}
+    return null;
+  }
+
+  function getCurrentFrameNumber(project){
+    var n = 1;
+    try { if (typeof project.currentFrameNumber === "number") n = project.currentFrameNumber; } catch(e0) {}
+    if (!n || !isFinite(n)) n = 1;
+    return n;
+  }
+
+  function findFrameFromTimeline(tl, frameNum){
+    if (!tl) return null;
+    var api = [["getFrameAtPlayhead",[]],["getCurrentFrame",[frameNum]],["getActiveFrame",[]],["getFrame",[frameNum]]];
+    for (var i=0;i<api.length;i++){
+      var fn=api[i][0], args=api[i][1];
+      try { if (typeof tl[fn] === "function"){ var fr=tl[fn].apply(tl,args); if (fr) return fr; } } catch(e0){}
+    }
+    try{ if (tl.layers && tl.layers.length && tl.layers[0].frames && tl.layers[0].frames.length) return tl.layers[0].frames[0]; }catch(e1){}
+    return null;
+  }
+
+  function insertObjectIntoFrame(frame, obj){
+    if (!frame || !obj) return false;
+    try { if (typeof frame.addObject === "function"){ frame.addObject(obj); return true; } } catch(e0){}
+    try { if (typeof frame.insertObject === "function"){ frame.insertObject(obj); return true; } } catch(e1){}
+    try { if (frame.objects && typeof frame.objects.push === "function"){ frame.objects.push(obj); return true; } } catch(e2){}
+    try { if (frame.wickObjects && typeof frame.wickObjects.push === "function"){ frame.wickObjects.push(obj); return true; } } catch(e3){}
+    return false;
+  }
+
+  function insertPathIntoFrame(frame, pathObj){
+    if (!frame || !pathObj) return false;
+    var fns=["addPath","addObject","addChild","insertPath","insertObject","addWickObject","addWickPath"];
+    for (var i=0;i<fns.length;i++){
+      var fn=fns[i];
+      try { if (typeof frame[fn] === "function"){ frame[fn](pathObj); return true; } } catch(e0){}
+    }
+    var props=["paths","objects","wickObjects","children","items"];
+    for (var j=0;j<props.length;j++){
+      var pr=props[j];
+      try { if (frame[pr] && typeof frame[pr].push === "function"){ frame[pr].push(pathObj); return true; } } catch(e1){}
+    }
+    return false;
+  }
+
+  function sanitizeName(name){
+    var t=s(name).trim();
+    if (!t) t="SVG_Clip";
+    t=t.replace(/[^\w\s]+/g,"").replace(/\s+/g,"_");
+    if (!t) t="SVG_Clip";
+    return t.slice(0,64);
+  }
+
+  // ------------------- SVG SANITIZE -------------------
+  function parseSvg(svgText){
+    var parser=new DOMParser();
+    var doc=parser.parseFromString(svgText,"image/svg+xml");
+    var pe=doc.getElementsByTagName("parsererror")[0];
+    if (pe) throw new Error("SVG parse error");
+    return doc;
+  }
+  function isBadUrlValue(v){
+    var ss=s(v).trim().toLowerCase();
+    if (!ss) return false;
+    if (ss.indexOf("javascript:")===0) return true;
+    if (ss.indexOf("http:")===0) return true;
+    if (ss.indexOf("https:")===0) return true;
+    if (ss.indexOf("//")===0) return true;
+    return false;
+  }
+  function stripBadCssUrls(cssText){
+    var t=s(cssText);
+    t=t.replace(/@import\s+[^;]+;/gi,"");
+    t=t.replace(/url\(\s*(['"]?)\s*javascript:[^)]*\)/gi,"url()");
+    t=t.replace(/url\(\s*(['"]?)\s*https?:[^)]*\)/gi,"url()");
+    t=t.replace(/url\(\s*(['"]?)\s*\/\/[^)]*\)/gi,"url()");
+    return t;
+  }
+  function sanitizeSvg(svgText, options){
+    var doc=parseSvg(svgText);
+    var svg=doc.documentElement;
+    if (!svg || svg.nodeName.toLowerCase()!=="svg") throw new Error("Not an svg root element");
+
+    var banned=["script","foreignobject","iframe","object","embed","audio","video","canvas","set","animate","animatetransform","animatemotion"];
+    if (options && options.removeImages) banned.push("image");
+
+    function removeAllByTag(tag){
+      var nodes=doc.getElementsByTagName(tag);
+      var list=[];
+      for (var i=0;i<nodes.length;i++) list.push(nodes[i]);
+      for (var j=0;j<list.length;j++){
+        var n=list[j];
+        if (n && n.parentNode) n.parentNode.removeChild(n);
       }
-    // clearBtn removed // FIX
+    }
 
-      function getBridge() {
-        try {
-          return window.LukeToolsBridge ||
-                 (window.parent && window.parent.LukeToolsBridge) ||
-                 window.LukeToolsLocalPanelBridge ||
-                 (window.parent && window.parent.LukeToolsLocalPanelBridge) ||
-                 null;
-        } catch (e) {
-          return null;
-        }
-      }
+    for (var b=0;b<banned.length;b++) removeAllByTag(banned[b]);
+    if (!(options && options.keepDefs)) removeAllByTag("defs");
+    if (options && options.stripAllStyleTags) removeAllByTag("style");
 
-      function getEditor(bridge) {
-        try { if (bridge && typeof bridge.getEditor === "function") return bridge.getEditor(); } catch (e1) {}
-        try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e2) {}
-        try { if (window.editor) return window.editor; } catch (e3) {}
-        return null;
-      }
+    var walker=doc.createTreeWalker(svg, NodeFilter.SHOW_ELEMENT, null, false);
+    var nodesToProcess=[];
+    while (walker.nextNode()) nodesToProcess.push(walker.currentNode);
 
-      function getProject(bridge, ed) {
-        try { if (bridge && typeof bridge.getProject === "function") return bridge.getProject(); } catch (e1) {}
-        try { if (ed && ed.project) return ed.project; } catch (e2) {}
-        return null;
-      }
-
-      function getWickRoot() {
-        try { return window.wickEditor || (window.parent && window.parent.wickEditor) || null; } catch (e) { return null; }
-      }
-
-      function getWickNS() {
-        try { return (window.Wick || (window.parent && window.parent.Wick)) || null; } catch (e) { return null; }
-      }
-
-      function stripExtension(name) {
-        var s = String(name || "");
-        var lastDot = s.lastIndexOf(".");
-        if (lastDot > 0) return s.slice(0, lastDot);
-        return s;
-      }
-
-      function listAssetUUIDs(project) {
-        try {
-          var assets = (project && typeof project.getAssets === "function") ? project.getAssets() : (project && project.assets) ? project.assets : [];
-          return (assets || []).map(function (a) { return a && a.uuid; }).filter(Boolean);
-        } catch (e) {
-          return [];
-        }
-      }
-
-      function waitForNewAsset(project, beforeUUIDs, expectedName, timeoutMs) {
-        var start = Date.now();
-        var beforeSet = {};
-        for (var i = 0; i < beforeUUIDs.length; i++) beforeSet[beforeUUIDs[i]] = true;
-
-        return new Promise(function (resolve, reject) {
-          (function tick() {
-            try {
-              var assets = (project && typeof project.getAssets === "function") ? project.getAssets() : (project && project.assets) ? project.assets : [];
-              assets = assets || [];
-
-              for (var j = 0; j < assets.length; j++) {
-                var a = assets[j];
-                if (!a || !a.uuid) continue;
-                if (beforeSet[a.uuid]) continue;
-                var nm = a.name || a.filename || "";
-                if (String(nm) === String(expectedName)) return resolve(a);
-              }
-
-              var newOnes = [];
-              for (var k = 0; k < assets.length; k++) {
-                var b = assets[k];
-                if (b && b.uuid && !beforeSet[b.uuid]) newOnes.push(b);
-              }
-              if (newOnes.length === 1) return resolve(newOnes[0]);
-
-            } catch (err) {}
-
-            if (Date.now() - start > timeoutMs) {
-              return reject(new Error("Timeout waiting for new asset: " + expectedName));
-            }
-            setTimeout(tick, 100);
-          })();
-        });
-      }
-
-      function getActiveLayer(project) {
-        try { if (project && project.activeLayer) return project.activeLayer; } catch (e1) {}
-        try { if (project && project.focus && project.focus.timeline && project.focus.timeline.activeLayer) return project.focus.timeline.activeLayer; } catch (e2) {}
-        try { if (project && project.activeTimeline && project.activeTimeline.activeLayer) return project.activeTimeline.activeLayer; } catch (e3) {}
-        try { if (project && project.timeline && project.timeline.activeLayer) return project.timeline.activeLayer; } catch (e4) {}
-        return null;
-      }
-
-      function setPlayhead(project, frameNumber) {
-        try {
-          if (project && project.focus && project.focus.timeline) {
-            project.focus.timeline.playheadPosition = frameNumber;
-            return true;
-          }
-        } catch (e1) {}
-        try {
-          if (project && project.activeTimeline) {
-            project.activeTimeline.playheadPosition = frameNumber;
-            return true;
-          }
-        } catch (e2) {}
-        try {
-          if (project && project.timeline) {
-            project.timeline.playheadPosition = frameNumber;
-            return true;
-          }
-        } catch (e3) {}
-        return false;
-      }
-
-      function getFrameAt(layer, frameNumber) {
-        try {
-          if (layer && typeof layer.getFrameAtPlayheadPosition === "function") {
-            return layer.getFrameAtPlayheadPosition(frameNumber);
-          }
-        } catch (e1) {}
-        try {
-          if (layer && typeof layer.getFrameAt === "function") return layer.getFrameAt(frameNumber);
-        } catch (e2) {}
-        return null;
-      }
-
-      function ensureBlankFrameAt(layer, frameNumber) {
-        try {
-          if (!layer) return null;
-          var existing = getFrameAt(layer, frameNumber);
-          if (existing) return existing;
-
-          if (typeof layer.insertBlankFrame === "function") {
-            return layer.insertBlankFrame(frameNumber);
-          }
-          if (typeof layer.createFrameAt === "function") {
-            return layer.createFrameAt(frameNumber);
-          }
-        } catch (e) {}
-        return null;
-      }
-
-      function selectionClear(project, ed) {
-        try { if (project && project.selection && typeof project.selection.clear === "function") project.selection.clear(); } catch (e1) {}
-        try { if (ed && typeof ed.clearSelection === "function") ed.clearSelection(); } catch (e2) {}
-      }
-
-      function selectionSelectSingle(project, ed, obj) {
-        selectionClear(project, ed);
-
-        try {
-          if (project && project.selection) {
-            if (typeof project.selection.select === "function") {
-              project.selection.select(obj);
-              return true;
-            }
-            if (typeof project.selection.selectMultipleObjects === "function") {
-              project.selection.selectMultipleObjects([obj]);
-              return true;
-            }
-          }
-        } catch (e1) {}
-
-        try {
-          if (ed && typeof ed.selectObjects === "function") {
-            ed.selectObjects([obj]);
-            return true;
-          }
-        } catch (e2) {}
-
-        return false;
-      }
-
-      function getSelectedObject(project, ed) {
-        try { if (project && project.selection && typeof project.selection.getSelectedObject === "function") return project.selection.getSelectedObject(); } catch (e1) {}
-        try {
-          if (ed && ed.selectedObjects && ed.selectedObjects.length) return ed.selectedObjects[0];
-        } catch (e2) {}
-        return null;
-      }
-
-      function createClipFromSelection(project, ed, identifier) {
-        try {
-          if (project && typeof project.createClipFromSelection === "function") {
-            project.createClipFromSelection({ identifier: String(identifier || "Clip"), type: "Clip" });
-            return { ok: true, via: "project.createClipFromSelection" };
-          }
-        } catch (e1) {}
-
-        try {
-          if (ed && typeof ed.createClipFromSelection === "function") {
-            ed.createClipFromSelection(String(identifier || "Clip"), true);
-            return { ok: true, via: "ed.createClipFromSelection" };
-          }
-        } catch (e2) {}
-
-        try {
-          if (ed && ed.actionManager && typeof ed.actionManager.doAction === "function") {
-            ed.actionManager.doAction(["createClipFromSelection"], [String(identifier || "Clip")]);
-            return { ok: true, via: "actionManager.createClipFromSelection" };
-          }
-        } catch (e3) {}
-
-        return { ok: false, reason: "No clip conversion API found" };
-      }
-
-      function setSelectedNameOrIdentifier(project, ed, name) {
-        var obj = getSelectedObject(project, ed);
-        if (!obj) return false;
-
-        var v = String(name || "");
-        var changed = false;
-
-        try { if ("identifier" in obj) { obj.identifier = v; changed = true; } } catch (e1) {}
-        try { if ("name" in obj) { obj.name = v; changed = true; } } catch (e2) {}
-
-        return changed;
-      }
-
-      function placeImagePathFromAsset(project, assetUuid, x, y) {
-        return new Promise(function (resolve, reject) {
-          try {
-            var Wick = getWickNS();
-            if (!Wick || !Wick.ObjectCache || typeof Wick.ObjectCache.getObjectByUUID !== "function") {
-              return reject(new Error("Wick.ObjectCache not available"));
-            }
-
-            var assetObj = Wick.ObjectCache.getObjectByUUID(assetUuid);
-            if (!assetObj) return reject(new Error("Asset not found in ObjectCache: " + assetUuid));
-
-            if (typeof project.createImagePathFromAsset !== "function") {
-              return reject(new Error("project.createImagePathFromAsset is not available"));
-            }
-
-            project.createImagePathFromAsset(assetObj, x, y, function (path) {
-              resolve(path);
-            });
-
-          } catch (err) {
-            reject(err);
-          }
-        });
-      }
-
-      function forceRefresh(ed, project) {
-        try { if (ed && typeof ed.projectDidChange === "function") ed.projectDidChange({ actionName: "LukeTools" }); } catch (e1) {}
-        try { if (ed && typeof ed.syncInterfaces === "function") ed.syncInterfaces(); } catch (e2) {}
-        try { if (ed && typeof ed.updateUI === "function") ed.updateUI(); } catch (e3) {}
-        try { if (ed && typeof ed.refresh === "function") ed.refresh(); } catch (e4) {}
-        try { if (ed && ed.canvas && typeof ed.canvas.redraw === "function") ed.canvas.redraw(); } catch (e5) {}
-        try { if (ed && typeof ed.refreshCanvas === "function") ed.refreshCanvas(); } catch (e6) {}
-
-        try {
-          var root = getWickRoot();
-          if (root && typeof root.projectDidChange === "function") root.projectDidChange();
-        } catch (e7) {}
-
-        try {
-          if (project && project.view && project.view.paper && project.view.paper.view && typeof project.view.paper.view.update === "function") {
-            project.view.paper.view.update();
-          }
-        } catch (e8) {}
-      }
-
-      function withSuppressedToasts(ed, enabled, fn) {
-        if (!enabled || !ed) return fn();
-
-        var origToast = ed.toast;
-        var origUpdateToast = ed.updateToast;
-
-        try { ed.toast = function(){ return null; }; } catch (e1) {}
-        try { ed.updateToast = function(){ return null; }; } catch (e2) {}
-
-        return Promise.resolve()
-          .then(fn)
-          .finally(function () {
-            try { ed.toast = origToast; } catch (e3) {}
-            try { ed.updateToast = origUpdateToast; } catch (e4) {}
-          });
-      }
-
-      function parseSvg(svgText) {
-        var parser = new DOMParser();
-        var doc = parser.parseFromString(svgText, "image/svg+xml");
-        var parseError = doc.getElementsByTagName("parsererror")[0];
-        if (parseError) throw new Error("SVG parse error");
-        return doc;
-      }
-
-      function isBadUrlValue(v) {
-        var s = String(v || "").trim().toLowerCase();
-        if (!s) return false;
-        if (s.indexOf("javascript:") === 0) return true;
-        if (s.indexOf("http:") === 0) return true;
-        if (s.indexOf("https:") === 0) return true;
-        if (s.indexOf("//") === 0) return true;
-        return false;
-      }
-
-      function stripBadCssUrls(cssText) {
-        var t = String(cssText || "");
-        t = t.replace(/@import\s+[^;]+;/gi, "");
-        t = t.replace(/url\(\s*(['"]?)\s*javascript:[^)]*\)/gi, "url()");
-        t = t.replace(/url\(\s*(['"]?)\s*https?:[^)]*\)/gi, "url()");
-        t = t.replace(/url\(\s*(['"]?)\s*\/\/[^)]*\)/gi, "url()");
-        return t;
-      }
-
-      function sanitizeSvg(svgText, options) {
-        var doc = parseSvg(svgText);
-        var svg = doc.documentElement;
-
-        if (!svg || svg.nodeName.toLowerCase() !== "svg") {
-          throw new Error("Not an svg root element");
-        }
-
-        var removedNodes = 0;
-        var removedAttrs = 0;
-
-        var bannedTags = [
-          "script",
-          "foreignobject",
-          "iframe",
-          "object",
-          "embed",
-          "audio",
-          "video",
-          "canvas",
-          "set",
-          "animate",
-          "animatetransform",
-          "animatemotion"
-        ];
-
-        if (options && options.removeImages) bannedTags.push("image");
-
-        function removeAllByTag(tagName) {
-          var nodes = doc.getElementsByTagName(tagName);
-          var list = [];
-          for (var i = 0; i < nodes.length; i++) list.push(nodes[i]);
-          for (var j = 0; j < list.length; j++) {
-            var n = list[j];
-            if (n && n.parentNode) {
-              n.parentNode.removeChild(n);
-              removedNodes++;
-            }
+    for (var nidx=0;nidx<nodesToProcess.length;nidx++){
+      var e=nodesToProcess[nidx];
+      if (!e || !e.attributes) continue;
+      var attrs=[];
+      for (var a=0;a<e.attributes.length;a++) attrs.push(e.attributes[a]);
+      for (var k=0;k<attrs.length;k++){
+        var at=attrs[k];
+        var nm=at.name;
+        var val=at.value;
+        var low=nm.toLowerCase();
+        if (low.indexOf("on")===0){ e.removeAttribute(nm); continue; }
+        if (low==="href"||low==="xlink:href"){ if (isBadUrlValue(val)){ e.removeAttribute(nm); continue; } }
+        if (low==="style"){ var cleaned=stripBadCssUrls(val); if (cleaned!==val) e.setAttribute(nm,cleaned); }
+        if (low==="filter"||low==="clip-path"||low==="mask"||low==="fill"||low==="stroke"){
+          if (s(val).toLowerCase().indexOf("url(")>=0){
+            var vv=s(val);
+            var cc=stripBadCssUrls(vv);
+            if (cc!==vv) e.setAttribute(nm,cc);
           }
         }
+      }
+    }
 
-        for (var b = 0; b < bannedTags.length; b++) removeAllByTag(bannedTags[b]);
+    if (!options || !options.stripAllStyleTags){
+      var styleNodes=doc.getElementsByTagName("style");
+      for (var si=0; si<styleNodes.length; si++){
+        var st=styleNodes[si];
+        if (st && st.textContent){
+          var before=st.textContent;
+          var after=stripBadCssUrls(before);
+          if (after!==before) st.textContent=after;
+        }
+      }
+    }
 
-        if (!(options && options.keepDefs)) removeAllByTag("defs");
-        if (options && options.stripAllStyleTags) removeAllByTag("style");
+    if (!svg.getAttribute("viewBox")){
+      var w=svg.getAttribute("width"), h=svg.getAttribute("height");
+      var wf=parseFloat(w), hf=parseFloat(h);
+      if (isFinite(wf)&&isFinite(hf)&&wf>0&&hf>0) svg.setAttribute("viewBox","0 0 "+wf+" "+hf);
+    }
 
-        var walker = doc.createTreeWalker(svg, NodeFilter.SHOW_ELEMENT, null, false);
-        var nodesToProcess = [];
-        while (walker.nextNode()) nodesToProcess.push(walker.currentNode);
+    var ser=new XMLSerializer();
+    return ser.serializeToString(doc);
+  }
 
-        for (var nidx = 0; nidx < nodesToProcess.length; nidx++) {
-          var el = nodesToProcess[nidx];
-          if (!el || !el.attributes) continue;
+  // ------------------- CURVES (always to stage) -------------------
+  function ensurePaperProject(paper){ try{ if (!paper.project) new paper.Project(); }catch(e0){} }
 
-          var attrs = [];
-          for (var a = 0; a < el.attributes.length; a++) attrs.push(el.attributes[a]);
+  function importSvgAsGroup(paper, svgText){
+    ensurePaperProject(paper);
+    var item=null;
+    try { item = paper.project.importSVG(svgText, { insert:false }); } catch(e0){ item=null; }
+    return item;
+  }
 
-          for (var k = 0; k < attrs.length; k++) {
-            var attr = attrs[k];
-            var name = attr.name;
-            var value = attr.value;
+  function scaleAndCenterGroup(paper, group, targetW){
+    if (!paper || !group) return;
+    if (targetW && isFinite(targetW) && targetW>0){
+      try{
+        var b=group.bounds;
+        if (b && b.width && isFinite(b.width) && b.width>0){
+          group.scale(targetW / b.width);
+        }
+      }catch(eS){}
+    }
+    try{ group.position = new paper.Point(240,180); }catch(eP){}
+  }
 
-            var lower = name.toLowerCase();
+  function getAllPathsAndCompound(paper, item){
+    var out=[];
+    if (!item) return out;
+    try{ var ps=item.getItems({ class: paper.Path })||[]; for (var i=0;i<ps.length;i++) out.push(ps[i]); }catch(e0){}
+    try{ var cps=item.getItems({ class: paper.CompoundPath })||[]; for (var j=0;j<cps.length;j++) out.push(cps[j]); }catch(e1){}
+    return out;
+  }
 
-            if (lower.indexOf("on") === 0) {
-              el.removeAttribute(name);
-              removedAttrs++;
-              continue;
+  function getAllFillableItems(paper, item){
+    var out=[];
+    if (!item) return out;
+    try{ var cps=item.getItems({ class: paper.CompoundPath })||[]; for (var j=0;j<cps.length;j++) out.push(cps[j]); }catch(e1){}
+    try{ var ps=item.getItems({ class: paper.Path })||[]; for (var i=0;i<ps.length;i++) out.push(ps[i]); }catch(e0){}
+    return out;
+  }
+
+  function convertSvgToPaperJsonList(svgText, separate, targetW){
+    var paper=getPaper();
+    if (!paper) throw new Error("paper.js not found");
+    var group=importSvgAsGroup(paper, svgText);
+    if (!group) throw new Error("SVG import failed in paper.js");
+    scaleAndCenterGroup(paper, group, targetW);
+
+    var list=[];
+    if (separate){
+      var items=getAllPathsAndCompound(paper, group);
+      for (var i=0;i<items.length;i++){
+        var it=items[i]; if (!it) continue;
+        try{
+          var clone=it.clone({ insert:false });
+          var json=clone.exportJSON({ asString:false });
+          clone.remove();
+          if (json) list.push(json);
+        }catch(e0){}
+      }
+    } else {
+      var singleJson=null;
+      try{
+        var compound=new paper.CompoundPath({ insert:false });
+        var source=getAllFillableItems(paper, group);
+        for (var si=0; si<source.length; si++){
+          var src=source[si]; if (!src) continue;
+          if (src.className==="CompoundPath" && src.children && src.children.length){
+            for (var ci=0; ci<src.children.length; ci++){
+              var child=src.children[ci]; if (!child) continue;
+              try{ compound.addChild(child.clone({ insert:false })); }catch(e1){}
             }
-
-            if (lower === "href" || lower === "xlink:href") {
-              if (isBadUrlValue(value)) {
-                el.removeAttribute(name);
-                removedAttrs++;
-                continue;
-              }
-            }
-
-            if (lower === "style") {
-              var cleaned = stripBadCssUrls(value);
-              if (cleaned !== value) el.setAttribute(name, cleaned);
-            }
-
-            if (lower === "filter" || lower === "clip-path" || lower === "mask" || lower === "fill" || lower === "stroke") {
-              if (String(value || "").toLowerCase().indexOf("url(") >= 0) {
-                var vv = String(value || "");
-                var cssClean = stripBadCssUrls(vv);
-                if (cssClean !== vv) el.setAttribute(name, cssClean);
-              }
-            }
+          } else {
+            try{ compound.addChild(src.clone({ insert:false })); }catch(e2){}
           }
         }
-
-        if (!options || !options.stripAllStyleTags) {
-          var styleNodes = doc.getElementsByTagName("style");
-          for (var sidx = 0; sidx < styleNodes.length; sidx++) {
-            var st = styleNodes[sidx];
-            if (st && st.textContent) {
-              var before = st.textContent;
-              var after = stripBadCssUrls(before);
-              if (after !== before) st.textContent = after;
+        if (compound.children && compound.children.length){
+          try{
+            var st=source[0];
+            if (st){
+              compound.fillColor = st.fillColor;
+              compound.strokeColor = st.strokeColor;
+              compound.strokeWidth = st.strokeWidth;
             }
-          }
+          }catch(eStyle){}
+          singleJson=compound.exportJSON({ asString:false });
         }
+        try{ compound.remove(); }catch(eR){}
+      }catch(eComp){ singleJson=null; }
+      if (!singleJson){
+        try{ singleJson=group.exportJSON({ asString:false }); }catch(eG){ singleJson=null; }
+      }
+      if (singleJson) list=[singleJson];
+    }
 
-        if (!svg.getAttribute("viewBox")) {
-          var w = svg.getAttribute("width");
-          var h = svg.getAttribute("height");
-          var wf = parseFloat(w);
-          var hf = parseFloat(h);
-          if (isFinite(wf) && isFinite(hf) && wf > 0 && hf > 0) {
-            svg.setAttribute("viewBox", "0 0 " + wf + " " + hf);
+    try{ group.remove(); }catch(eX){}
+    return list;
+  }
+
+  function insertCurves(ed, project, Wick, stageFrame, jsonList){
+    var inserted=0, failed=0;
+    for (var i=0;i<jsonList.length;i++){
+      var json=jsonList[i];
+      var wp=null;
+      try { wp=new Wick.Path({ json: json, project: project }); } catch(e0){ wp=null; }
+      if (!wp){ try { wp=new Wick.Path({ json: json }); } catch(e1){ wp=null; } }
+      if (!wp){ failed++; continue; }
+      var ok=insertPathIntoFrame(stageFrame, wp);
+      if (ok) inserted++; else failed++;
+    }
+    markDirty(ed);
+    return { inserted:inserted, failed:failed };
+  }
+
+  // ------------------- CLIP (asset importer only, manual wrap) -------------------
+  function stripExtension(name){
+    var ss=s(name); var d=ss.lastIndexOf("."); if (d>0) return ss.slice(0,d); return ss;
+  }
+
+  function listAssetUUIDs(project){
+    try{
+      var assets = (project && typeof project.getAssets==="function") ? project.getAssets() : (project && project.assets ? project.assets : []);
+      return (assets||[]).map(function(a){ return a && a.uuid; }).filter(Boolean);
+    }catch(e0){ return []; }
+  }
+
+  function waitForNewAsset(project, beforeUUIDs, expectedName, timeoutMs){
+    var start=Date.now();
+    var beforeSet={};
+    for (var i=0;i<beforeUUIDs.length;i++) beforeSet[beforeUUIDs[i]]=true;
+
+    return new Promise(function(resolve,reject){
+      (function tick(){
+        try{
+          var assets = (project && typeof project.getAssets==="function") ? project.getAssets() : (project && project.assets ? project.assets : []);
+          assets=assets||[];
+
+          for (var j=0;j<assets.length;j++){
+            var a=assets[j];
+            if (!a || !a.uuid) continue;
+            if (beforeSet[a.uuid]) continue;
+            var nm=a.name||a.filename||"";
+            if (s(nm)===s(expectedName)) return resolve(a);
           }
-        }
 
-        var serializer = new XMLSerializer();
-        var out = serializer.serializeToString(doc);
-
-        return { text: out, removedNodes: removedNodes, removedAttrs: removedAttrs };
-      }
-
-      function safeFileBaseName(name) {
-        var n = String(name || "ImportedSVG");
-        n = n.replace(/\\/g, "/");
-        n = n.split("/").pop();
-        n = n.replace(/\.[^.]+$/, "");
-        n = n.replace(/[^\w\s().,]/g, "_");
-        n = n.replace(/\s+/g, " ").trim();
-        if (!n) n = "ImportedSVG";
-        return n;
-      }
-
-      async function importSanitizedSvgOnStage() {
-        var bridge = getBridge();
-        if (!bridge) { setLog("Bridge not found. Make sure Luke Tools bridge is loaded."); return; }
-
-        if (!fileInput.files || !fileInput.files.length) { setLog("Select an SVG file first."); return; }
-
-        var ed = getEditor(bridge);
-        var project = getProject(bridge, ed);
-
-        if (!ed) { setLog("Editor not found from bridge."); return; }
-        if (!project) { setLog("Project not found from bridge."); return; }
-        if (typeof ed.createAssets !== "function") { setLog("editor.createAssets is not available in this build."); return; }
-
-        var layer = getActiveLayer(project);
-        if (!layer) { setLog("No active layer detected. Click the layer you want to import into, then try again."); return; }
-
-        var frameNum = parseInt(document.getElementById("frameNum").value, 10);
-        if (!frameNum || frameNum < 1) frameNum = 1;
-
-        var keepDefs = !!document.getElementById("keepDefs").checked;
-        var removeImages = !!document.getElementById("removeImages").checked;
-        var stripAllStyleTags = !!document.getElementById("stripAllStyleTags").checked;
-
-        var wrapAsClip = !!document.getElementById("wrapAsClip").checked;
-        var nameClipFromFile = !!document.getElementById("nameClipFromFile").checked;
-
-        var suppressToasts = !!document.getElementById("suppressToasts").checked;
-
-        var file = fileInput.files[0];
-
-        btn.disabled = true;
-        setLog("...");
-
-        return withSuppressedToasts(ed, suppressToasts, async function () {
-          try {
-            log(" " + file.name);
-            var original = await file.text();
-            // FIX: removed original preview output
-log("...");
-            var result = sanitizeSvg(original, {
-              keepDefs: keepDefs,
-              removeImages: removeImages,
-              stripAllStyleTags: stripAllStyleTags
-            });
-            // FIX: removed sanitized preview output
-log(" Removed nodes: " + result.removedNodes + " Removed attrs: " + result.removedAttrs);
-
-            var base = safeFileBaseName(file.name);
-            var outName = base + "_sanitized.svg";
-
-            var blob = new Blob([result.text], { type: "image/svg+xml" });
-            var outFile = new File([blob], outName, { type: "image/svg+xml" });
-
-            var beforeUUIDs = listAssetUUIDs(project);
-
-            log(": " + outFile.name);
-            ed.createAssets([outFile], []);
-
-            var asset = await waitForNewAsset(project, beforeUUIDs, outFile.name, 25000);
-            if (!asset || !asset.uuid) throw new Error("New asset not found for: " + outFile.name);
-
-            log(": " + asset.uuid);
-
-            var centerX = (project.width || 0) / 2;
-            var centerY = (project.height || 0) / 2;
-
-            setPlayhead(project, frameNum);
-            ensureBlankFrameAt(layer, frameNum);
-
-            log(" at center frame: " + frameNum);
-            var path = await placeImagePathFromAsset(project, asset.uuid, centerX, centerY);
-
-            selectionSelectSingle(project, ed, path);
-
-            if (wrapAsClip) {
-              var clipName = nameClipFromFile ? stripExtension(file.name) : "SVG_Clip";
-              var r = createClipFromSelection(project, ed, clipName);
-
-              if (!r || !r.ok) {
-                log("WARN: Could not convert selection to clip (" + (r && r.reason ? r.reason : "unknown") + ")");
-              } else {
-                if (nameClipFromFile) setSelectedNameOrIdentifier(project, ed, stripExtension(file.name));
-                log(" " + frameNum + " (clip)");
-              }
-            } else {
-              log(" " + frameNum);
-            }
-
-            forceRefresh(ed, project);
-            log("");
-          } catch (err) {
-            log("ERROR: " + (err && err.message ? err.message : String(err)));
-            try { } catch (e) {} // FIX: removed console output
-          } finally {
-            btn.disabled = false;
+          var newOnes=[];
+          for (var k=0;k<assets.length;k++){
+            var b=assets[k];
+            if (b && b.uuid && !beforeSet[b.uuid]) newOnes.push(b);
           }
-        });
-      }
+          if (newOnes.length===1) return resolve(newOnes[0]);
+        }catch(e1){}
 
-      btn.addEventListener("click", function () {
-        importSanitizedSvgOnStage();
+        if (Date.now()-start>timeoutMs) return reject(new Error("Timeout waiting for new asset: "+expectedName));
+        setTimeout(tick, 100);
+      })();
+    });
+  }
+
+  function placeImagePathFromAsset(project, assetUuid, x, y){
+    return new Promise(function(resolve, reject){
+      try{
+        var Wick=getWick();
+        if (!Wick || !Wick.ObjectCache || typeof Wick.ObjectCache.getObjectByUUID!=="function") return reject(new Error("Wick.ObjectCache not available"));
+        var assetObj=Wick.ObjectCache.getObjectByUUID(assetUuid);
+        if (!assetObj) return reject(new Error("Asset not found in ObjectCache: "+assetUuid));
+        if (typeof project.createImagePathFromAsset!=="function") return reject(new Error("project.createImagePathFromAsset not available"));
+        project.createImagePathFromAsset(assetObj, x, y, function(path){ resolve(path); });
+      }catch(err){ reject(err); }
+    });
+  }
+
+  function removeFromParentFrame(obj){
+    if (!obj) return false;
+    try { if (typeof obj.remove === "function"){ obj.remove(); return true; } } catch(e0) {}
+    try {
+      if (obj.parentFrame && typeof obj.parentFrame.removePath === "function"){ obj.parentFrame.removePath(obj); return true; }
+    } catch(e1) {}
+    try {
+      if (obj.parentFrame && typeof obj.parentFrame.removeObject === "function"){ obj.parentFrame.removeObject(obj); return true; }
+    } catch(e2) {}
+    try {
+      if (obj.parent && typeof obj.parent.removePath === "function"){ obj.parent.removePath(obj); return true; }
+    } catch(e3) {}
+    return false;
+  }
+
+  function createBlankClip(project, Wick, name){
+    var clip=null;
+    try { if (Wick && Wick.Clip) clip=new Wick.Clip({ project: project }); } catch(e0){ clip=null; }
+    if (!clip){ try { if (project && typeof project.createClip === "function") clip=project.createClip(name); } catch(e1){ clip=null; } }
+    if (!clip) return null;
+    try { clip.name=name; } catch(eN){}
+    try { clip.identifier=name; } catch(eI){}
+    try { clip._identifier=name; } catch(eI2){}
+    return clip;
+  }
+
+  function getClipInnerFrame(clip){
+    if (!clip) return null;
+    try{
+      var tl = clip.activeTimeline || clip.timeline || null;
+      if (tl) return findFrameFromTimeline(tl, 1);
+    }catch(e0){}
+    return null;
+  }
+
+  async function importClipMode(ed, project, Wick, stageFrame){
+    if (typeof ed.createAssets!=="function") throw new Error("editor.createAssets is not available in this build");
+
+    var fileName = State.name || "ImportedSVG.svg";
+    var base = stripExtension(fileName);
+
+    var sanitized = sanitizeSvg(State.text, {
+      keepDefs: !!el("keepDefs").checked,
+      removeImages: !!el("removeImages").checked,
+      stripAllStyleTags: !!el("stripAllStyleTags").checked
+    });
+
+    var outName = base + "_sanitized.svg";
+    var blob = new Blob([sanitized], { type:"image/svg+xml" });
+    var outFile = new File([blob], outName, { type:"image/svg+xml" });
+
+    var beforeUUIDs = listAssetUUIDs(project);
+    ed.createAssets([outFile], []);
+
+    var asset = await waitForNewAsset(project, beforeUUIDs, outFile.name, 25000);
+    if (!asset || !asset.uuid) throw new Error("New asset not found for: "+outFile.name);
+
+    var cx=(project.width||0)/2;
+    var cy=(project.height||0)/2;
+
+    // Create path (it will be placed on whatever timeline Wick considers active)
+    var path = await placeImagePathFromAsset(project, asset.uuid, cx, cy);
+    if (!path) throw new Error("createImagePathFromAsset returned null");
+
+    // Create ONE new clip on the current frame (no createClipFromSelection)
+    var cn = sanitizeName(el("inpClipName").value || "SVG_Clip");
+    var clip = createBlankClip(project, Wick, cn);
+    if (!clip) throw new Error("Could not create clip");
+
+    if (!insertObjectIntoFrame(stageFrame, clip)) throw new Error("Could not place clip on stage frame");
+
+    var inner = getClipInnerFrame(clip);
+    if (!inner) throw new Error("Could not resolve inner clip frame");
+
+    // Remove the path from wherever it landed, then put into the clip
+    removeFromParentFrame(path);
+    if (!insertPathIntoFrame(inner, path)) throw new Error("Could not insert SVG path into clip");
+
+// FIX: center the imported SVG path on the clip origin (0,0)
+try {
+  var b = null;
+  try { b = path.bounds; } catch(eB0) { b = null; }
+  if (b && isFinite(b.left) && isFinite(b.right) && isFinite(b.top) && isFinite(b.bottom)) {
+    var cx0 = (Number(b.left) + Number(b.right)) * 0.5;
+    var cy0 = (Number(b.top) + Number(b.bottom)) * 0.5;
+    if (isFinite(cx0) && isFinite(cy0)) {
+      try { path.x = Number(path.x || 0) - cx0; } catch(ePX) {}
+      try { path.y = Number(path.y || 0) - cy0; } catch(ePY) {}
+    }
+  }
+} catch(eCenter) {}
+
+markDirty(ed);
+    return { ok:true, clipName:cn, assetUuid:asset.uuid };
+  }
+
+  // ------------------- MAIN RUN -------------------
+  async function runImport(){
+    if (!State.text){ setStatus("Load an SVG first"); return; }
+
+    var bridge=getBridge();
+    var ed=getEditor(bridge);
+    if (!ed){ setStatus("Wick editor not found"); return; }
+
+    var project=getProject(ed);
+    if (!project){ setStatus("Project not found"); return; }
+
+    var Wick=getWick();
+    if (!Wick){ setStatus("Wick namespace not found"); return; }
+
+    var tl=findActiveTimeline(project);
+    if (!tl){ setStatus("Could not find active timeline"); return; }
+
+    var frameNum=getCurrentFrameNumber(project);
+    var stageFrame=findFrameFromTimeline(tl, frameNum);
+    if (!stageFrame){ setStatus("Could not resolve current stage frame"); return; }
+
+    // Shared sanitize
+    var sanitizedText = "";
+    try{
+      sanitizedText = sanitizeSvg(State.text, {
+        keepDefs: !!el("keepDefs").checked,
+        removeImages: !!el("removeImages").checked,
+        stripAllStyleTags: !!el("stripAllStyleTags").checked
       });
-      // FIX: removed preview clear handler
+    }catch(eSan){
+      setStatus("Sanitize failed: " + s(eSan && eSan.message ? eSan.message : eSan));
+      return;
+    }
+
+    try{
+      if (el("radCurves").checked){
+        if (!Wick.Path){ setStatus("Wick.Path not found"); return; }
+
+        var separate=!!el("chkSeparate").checked;
+        var wVal=s(el("inpWidth").value).trim();
+        var targetW = wVal ? Number(wVal) : null;
+        if (!(isFinite(targetW) && targetW>0)) targetW = null;
+
+        var jsonList = convertSvgToPaperJsonList(sanitizedText, separate, targetW);
+        if (!jsonList || !jsonList.length){
+          setStatus("Convert failed: no paths found");
+          return;
+        }
+
+        var res=insertCurves(ed, project, Wick, stageFrame, jsonList);
+        setStatus("Curves imported to stage\nInserted: " + res.inserted + "  Failed: " + res.failed);
+      } else {
+        var rr = await importClipMode(ed, project, Wick, stageFrame);
+        setStatus("Clip created: " + rr.clipName);
+      }
+    }catch(err){
+      setStatus("Import failed: " + s(err && err.message ? err.message : err));
+    }
+  }
+
+  function updateUi(){
+    el("btnRun").disabled = !State.text;
+
+    var isCurves = !!el("radCurves").checked;
+    el("curvesOpts").className = isCurves ? "" : "disabled";
+    el("clipOpts").className = isCurves ? "disabled" : "";
+  }
+
+  // Wire UI
+  el("btnLoad").addEventListener("click", function(){ el("fileSvg").click(); });
+  el("fileSvg").addEventListener("change", function(){
+    var f = el("fileSvg").files && el("fileSvg").files[0] ? el("fileSvg").files[0] : null;
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function(){
+      State.name = f.name || "svg";
+      State.text = s(r.result);
+      updateUi();
+      setStatus("Loaded: " + State.name);
+    };
+    r.readAsText(f);
+    el("fileSvg").value = "";
+  });
+
+  el("btnRun").addEventListener("click", function(){
+    el("btnRun").disabled = true;
+    Promise.resolve().then(runImport).finally(function(){ el("btnRun").disabled = !State.text; });
+  });
+
+  el("radCurves").addEventListener("change", updateUi);
+  el("radClip").addEventListener("change", updateUi);
+
+  updateUi();
 })();
-  </script>
+</script>
 </body>
 </html>
