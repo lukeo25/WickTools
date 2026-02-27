@@ -1,0 +1,78 @@
+[
+  {
+    "id": "timeline",
+    "label": "Timeline",
+    "kind": "ScriptNode",
+    "category": "Scripts",
+    "ports": {
+      "inputs": [
+        "trigger"
+      ],
+      "outputs": [
+        "code"
+      ]
+    },
+    "ui": {
+      "controls": [
+        {
+          "type": "select",
+          "key": "action",
+          "label": "action",
+          "default": "stop",
+          "options": [
+            {
+              "value": "stop",
+              "label": "stop"
+            },
+            {
+              "value": "play",
+              "label": "play"
+            },
+            {
+              "value": "gotoAndStop",
+              "label": "gotoAndStop"
+            },
+            {
+              "value": "gotoAndPlay",
+              "label": "gotoAndPlay"
+            },
+            {
+              "value": "gotoNextFrame",
+              "label": "gotoNextFrame"
+            },
+            {
+              "value": "gotoPrevFrame",
+              "label": "gotoPrevFrame"
+            }
+          ]
+        },
+        {
+          "type": "number",
+          "key": "frame",
+          "label": "frame",
+          "default": 1,
+          "min": 1,
+          "step": 1,
+          "showWhen": {
+            "key": "action",
+            "in": [
+              "gotoAndStop",
+              "gotoAndPlay"
+            ]
+          }
+        }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "templateByAction": {
+        "stop": "if (this && this.stop) this.stop();",
+        "play": "if (this && this.play) this.play();",
+        "gotoAndStop": "try { if (this && this.gotoAndStop) this.gotoAndStop({{frame}}); } catch(e0) {}",
+        "gotoAndPlay": "try { if (this && this.gotoAndPlay) this.gotoAndPlay({{frame}}); } catch(e1) {}",
+        "gotoNextFrame": "try { if (this && this.gotoNextFrame) this.gotoNextFrame(); } catch(e2) {}",
+        "gotoPrevFrame": "try { if (this && this.gotoPrevFrame) this.gotoPrevFrame(); } catch(e3) {}"
+      }
+    }
+  }
+]
