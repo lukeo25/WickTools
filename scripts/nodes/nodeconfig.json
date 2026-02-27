@@ -65,6 +65,7 @@
     },
     "script": {
       "slotDefault": "update",
+      "slotMode": "byTargetPort",
       "templateByAction": {
         "stop": "if (this && this.stop) this.stop();",
         "play": "if (this && this.play) this.play();",
@@ -73,6 +74,68 @@
         "gotoNextFrame": "try { if (this && this.gotoNextFrame) this.gotoNextFrame(); } catch(e2) {}",
         "gotoPrevFrame": "try { if (this && this.gotoPrevFrame) this.gotoPrevFrame(); } catch(e3) {}"
       }
+    }
+  },
+  {
+    "id": "mouse",
+    "label": "Mouse",
+    "kind": "ScriptNode",
+    "category": "Scripts",
+    "ports": {
+      "inputs": [
+        "trigger"
+      ],
+      "outputs": [
+        "code"
+      ]
+    },
+    "ui": {
+      "controls": [
+        {
+          "type": "select",
+          "key": "event",
+          "label": "event",
+          "default": "mouseenter",
+          "options": [
+            {
+              "value": "mouseenter",
+              "label": "mouseenter"
+            },
+            {
+              "value": "mouseleave",
+              "label": "mouseleave"
+            },
+            {
+              "value": "mousehover",
+              "label": "mousehover"
+            },
+            {
+              "value": "mousepressed",
+              "label": "mousepressed"
+            },
+            {
+              "value": "mousedown",
+              "label": "mousedown"
+            },
+            {
+              "value": "mousereleased",
+              "label": "mousereleased"
+            },
+            {
+              "value": "mousedrag",
+              "label": "mousedrag"
+            },
+            {
+              "value": "mouseclick",
+              "label": "mouseclick"
+            }
+          ]
+        }
+      ]
+    },
+    "script": {
+      "slotMode": "mouseEvent",
+      "template": "/* Mouse event slot: {{event}} */"
     }
   }
 ]
