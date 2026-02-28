@@ -1322,6 +1322,14 @@
             {
               "value": "text",
               "label": "text"
+            },
+            {
+              "value": "random",
+              "label": "random int"
+            },
+            {
+              "value": "randomf",
+              "label": "random float"
             }
           ]
         },
@@ -1329,7 +1337,40 @@
           "type": "text",
           "key": "value",
           "label": "value",
-          "default": "0"
+          "default": "0",
+          "showWhen": {
+            "key": "valtype",
+            "in": [
+              "number",
+              "text"
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "key": "rmin",
+          "label": "min",
+          "default": "0",
+          "showWhen": {
+            "key": "valtype",
+            "in": [
+              "random",
+              "randomf"
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "key": "rmax",
+          "label": "max",
+          "default": "10",
+          "showWhen": {
+            "key": "valtype",
+            "in": [
+              "random",
+              "randomf"
+            ]
+          }
         }
       ]
     },
@@ -1338,7 +1379,9 @@
       "slotMode": "byTargetPort",
       "templateByAction": {
         "number": "{{scope}}.{{varname}} = {{value}};",
-        "text": "{{scope}}.{{varname}} = '{{value}}';"
+        "text": "{{scope}}.{{varname}} = '{{value}}';",
+        "random": "{{scope}}.{{varname}} = random.integer({{rmin}}, {{rmax}});",
+        "randomf": "{{scope}}.{{varname}} = random.float({{rmin}}, {{rmax}});"
       },
       "actionKey": "valtype"
     }
