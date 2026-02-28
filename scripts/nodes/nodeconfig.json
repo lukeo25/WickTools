@@ -1310,6 +1310,22 @@
           "default": "myVar"
         },
         {
+          "type": "select",
+          "key": "valtype",
+          "label": "type",
+          "default": "number",
+          "options": [
+            {
+              "value": "number",
+              "label": "number"
+            },
+            {
+              "value": "text",
+              "label": "text"
+            }
+          ]
+        },
+        {
           "type": "text",
           "key": "value",
           "label": "value",
@@ -1320,7 +1336,11 @@
     "script": {
       "slotDefault": "update",
       "slotMode": "byTargetPort",
-      "template": "{{scope}}.{{varname}} = {{value}};"
+      "templateByAction": {
+        "number": "{{scope}}.{{varname}} = {{value}};",
+        "text": "{{scope}}.{{varname}} = '{{value}}';"
+      },
+      "actionKey": "valtype"
     }
   },
   {
@@ -1385,18 +1405,37 @@
           ]
         },
         {
-          "type": "number",
-          "key": "amount",
+          "type": "select",
+          "key": "valtype",
+          "label": "type",
+          "default": "number",
+          "options": [
+            {
+              "value": "number",
+              "label": "number"
+            },
+            {
+              "value": "text",
+              "label": "text"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "key": "value",
           "label": "amount",
-          "default": 1,
-          "step": 1
+          "default": "1"
         }
       ]
     },
     "script": {
       "slotDefault": "update",
       "slotMode": "byTargetPort",
-      "template": "if ({{scope}}.{{varname}} === undefined) {{scope}}.{{varname}} = 0; {{scope}}.{{varname}} {{op}} {{amount}};"
+      "templateByAction": {
+        "number": "if ({{scope}}.{{varname}} === undefined) {{scope}}.{{varname}} = 0; {{scope}}.{{varname}} {{op}} {{value}};",
+        "text": "if ({{scope}}.{{varname}} === undefined) {{scope}}.{{varname}} = ''; {{scope}}.{{varname}} {{op}} '{{value}}';"
+      },
+      "actionKey": "valtype"
     }
   },
   {
