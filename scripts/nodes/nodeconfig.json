@@ -3,63 +3,22 @@
     "id": "timeline",
     "label": "Timeline",
     "kind": "ScriptNode",
-    "category": "Scripts",
-    "ports": {
-      "inputs": [
-        "trigger"
-      ],
-      "outputs": [
-        "code"
-      ]
-    },
+    "category": "Playback",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
     "ui": {
       "controls": [
-        {
-          "type": "select",
-          "key": "action",
-          "label": "action",
-          "default": "stop",
+        { "type": "select", "key": "action", "label": "action", "default": "stop",
           "options": [
-            {
-              "value": "stop",
-              "label": "stop"
-            },
-            {
-              "value": "play",
-              "label": "play"
-            },
-            {
-              "value": "gotoAndStop",
-              "label": "gotoAndStop"
-            },
-            {
-              "value": "gotoAndPlay",
-              "label": "gotoAndPlay"
-            },
-            {
-              "value": "gotoNextFrame",
-              "label": "gotoNextFrame"
-            },
-            {
-              "value": "gotoPrevFrame",
-              "label": "gotoPrevFrame"
-            }
+            {"value":"stop","label":"stop"},
+            {"value":"play","label":"play"},
+            {"value":"gotoAndStop","label":"gotoAndStop"},
+            {"value":"gotoAndPlay","label":"gotoAndPlay"},
+            {"value":"gotoNextFrame","label":"gotoNextFrame"},
+            {"value":"gotoPrevFrame","label":"gotoPrevFrame"}
           ]
         },
-        {
-          "type": "number",
-          "key": "frame",
-          "label": "frame",
-          "default": 1,
-          "min": 1,
-          "step": 1,
-          "showWhen": {
-            "key": "action",
-            "in": [
-              "gotoAndStop",
-              "gotoAndPlay"
-            ]
-          }
+        { "type": "number", "key": "frame", "label": "frame", "default": 1, "min": 1, "step": 1,
+          "showWhen": {"key":"action","in":["gotoAndStop","gotoAndPlay"]}
         }
       ]
     },
@@ -67,314 +26,81 @@
       "slotDefault": "update",
       "slotMode": "byTargetPort",
       "templateByAction": {
-        "stop": "if (this && this.stop) this.stop();",
-        "play": "if (this && this.play) this.play();",
-        "gotoAndStop": "try { if (this && this.gotoAndStop) this.gotoAndStop({{frame}}); } catch(e0) {}",
-        "gotoAndPlay": "try { if (this && this.gotoAndPlay) this.gotoAndPlay({{frame}}); } catch(e1) {}",
+        "stop":          "if (this && this.stop) this.stop();",
+        "play":          "if (this && this.play) this.play();",
+        "gotoAndStop":   "try { if (this && this.gotoAndStop) this.gotoAndStop({{frame}}); } catch(e0) {}",
+        "gotoAndPlay":   "try { if (this && this.gotoAndPlay) this.gotoAndPlay({{frame}}); } catch(e1) {}",
         "gotoNextFrame": "try { if (this && this.gotoNextFrame) this.gotoNextFrame(); } catch(e2) {}",
         "gotoPrevFrame": "try { if (this && this.gotoPrevFrame) this.gotoPrevFrame(); } catch(e3) {}"
       }
     }
   },
+
   {
     "id": "mouse",
     "label": "Mouse",
     "kind": "ScriptNode",
-    "category": "Scripts",
-    "ports": {
-      "inputs": [
-        "trigger"
-      ],
-      "outputs": [
-        "code"
-      ]
-    },
+    "category": "Events",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
     "ui": {
       "controls": [
-        {
-          "type": "select",
-          "key": "event",
-          "label": "event",
-          "default": "mouseenter",
+        { "type": "select", "key": "event", "label": "event", "default": "mouseenter",
           "options": [
-            {
-              "value": "mouseenter",
-              "label": "mouseenter"
-            },
-            {
-              "value": "mouseleave",
-              "label": "mouseleave"
-            },
-            {
-              "value": "mousehover",
-              "label": "mousehover"
-            },
-            {
-              "value": "mousepressed",
-              "label": "mousepressed"
-            },
-            {
-              "value": "mousedown",
-              "label": "mousedown"
-            },
-            {
-              "value": "mousereleased",
-              "label": "mousereleased"
-            },
-            {
-              "value": "mousedrag",
-              "label": "mousedrag"
-            },
-            {
-              "value": "mouseclick",
-              "label": "mouseclick"
-            }
+            {"value":"mouseenter","label":"mouseenter"},
+            {"value":"mouseleave","label":"mouseleave"},
+            {"value":"mousehover","label":"mousehover"},
+            {"value":"mousepressed","label":"mousepressed"},
+            {"value":"mousedown","label":"mousedown"},
+            {"value":"mousereleased","label":"mousereleased"},
+            {"value":"mousedrag","label":"mousedrag"},
+            {"value":"mouseclick","label":"mouseclick"}
           ]
         }
       ]
     },
     "script": {
       "slotMode": "mouseEvent",
-      "template": "/* Mouse event slot: {{event}} */"
+      "template": "/* Mouse: {{event}} */"
     }
   },
+
   {
     "id": "keyboard",
     "label": "Keyboard",
     "kind": "ScriptNode",
-    "category": "Scripts",
-    "ports": {
-      "inputs": [
-        "trigger"
-      ],
-      "outputs": [
-        "code"
-      ]
-    },
+    "category": "Events",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
     "ui": {
       "controls": [
-        {
-          "type": "select",
-          "key": "event",
-          "label": "event",
-          "default": "keypressed",
+        { "type": "select", "key": "event", "label": "event", "default": "keypressed",
           "options": [
-            {
-              "value": "keypressed",
-              "label": "keypressed"
-            },
-            {
-              "value": "keyreleased",
-              "label": "keyreleased"
-            },
-            {
-              "value": "keydown",
-              "label": "keydown"
-            }
+            {"value":"keypressed","label":"keypressed"},
+            {"value":"keyreleased","label":"keyreleased"},
+            {"value":"keydown","label":"keydown"}
           ]
         },
-        {
-          "type": "select",
-          "key": "key",
-          "label": "key",
-          "default": "ANY",
+        { "type": "select", "key": "key", "label": "key", "default": "ANY",
           "options": [
-            {
-              "value": "ANY",
-              "label": "ANY"
-            },
-            {
-              "value": "A",
-              "label": "A"
-            },
-            {
-              "value": "B",
-              "label": "B"
-            },
-            {
-              "value": "C",
-              "label": "C"
-            },
-            {
-              "value": "D",
-              "label": "D"
-            },
-            {
-              "value": "E",
-              "label": "E"
-            },
-            {
-              "value": "F",
-              "label": "F"
-            },
-            {
-              "value": "G",
-              "label": "G"
-            },
-            {
-              "value": "H",
-              "label": "H"
-            },
-            {
-              "value": "I",
-              "label": "I"
-            },
-            {
-              "value": "J",
-              "label": "J"
-            },
-            {
-              "value": "K",
-              "label": "K"
-            },
-            {
-              "value": "L",
-              "label": "L"
-            },
-            {
-              "value": "M",
-              "label": "M"
-            },
-            {
-              "value": "N",
-              "label": "N"
-            },
-            {
-              "value": "O",
-              "label": "O"
-            },
-            {
-              "value": "P",
-              "label": "P"
-            },
-            {
-              "value": "Q",
-              "label": "Q"
-            },
-            {
-              "value": "R",
-              "label": "R"
-            },
-            {
-              "value": "S",
-              "label": "S"
-            },
-            {
-              "value": "T",
-              "label": "T"
-            },
-            {
-              "value": "U",
-              "label": "U"
-            },
-            {
-              "value": "V",
-              "label": "V"
-            },
-            {
-              "value": "W",
-              "label": "W"
-            },
-            {
-              "value": "X",
-              "label": "X"
-            },
-            {
-              "value": "Y",
-              "label": "Y"
-            },
-            {
-              "value": "Z",
-              "label": "Z"
-            },
-            {
-              "value": "0",
-              "label": "0"
-            },
-            {
-              "value": "1",
-              "label": "1"
-            },
-            {
-              "value": "2",
-              "label": "2"
-            },
-            {
-              "value": "3",
-              "label": "3"
-            },
-            {
-              "value": "4",
-              "label": "4"
-            },
-            {
-              "value": "5",
-              "label": "5"
-            },
-            {
-              "value": "6",
-              "label": "6"
-            },
-            {
-              "value": "7",
-              "label": "7"
-            },
-            {
-              "value": "8",
-              "label": "8"
-            },
-            {
-              "value": "9",
-              "label": "9"
-            },
-            {
-              "value": "SPACE",
-              "label": "SPACE"
-            },
-            {
-              "value": "ENTER",
-              "label": "ENTER"
-            },
-            {
-              "value": "ESC",
-              "label": "ESC"
-            },
-            {
-              "value": "TAB",
-              "label": "TAB"
-            },
-            {
-              "value": "SHIFT",
-              "label": "SHIFT"
-            },
-            {
-              "value": "CTRL",
-              "label": "CTRL"
-            },
-            {
-              "value": "ALT",
-              "label": "ALT"
-            },
-            {
-              "value": "BACKSPACE",
-              "label": "BACKSPACE"
-            },
-            {
-              "value": "LEFT",
-              "label": "LEFT"
-            },
-            {
-              "value": "RIGHT",
-              "label": "RIGHT"
-            },
-            {
-              "value": "UP",
-              "label": "UP"
-            },
-            {
-              "value": "DOWN",
-              "label": "DOWN"
-            }
+            {"value":"ANY","label":"ANY"},
+            {"value":"A","label":"A"},{"value":"B","label":"B"},{"value":"C","label":"C"},
+            {"value":"D","label":"D"},{"value":"E","label":"E"},{"value":"F","label":"F"},
+            {"value":"G","label":"G"},{"value":"H","label":"H"},{"value":"I","label":"I"},
+            {"value":"J","label":"J"},{"value":"K","label":"K"},{"value":"L","label":"L"},
+            {"value":"M","label":"M"},{"value":"N","label":"N"},{"value":"O","label":"O"},
+            {"value":"P","label":"P"},{"value":"Q","label":"Q"},{"value":"R","label":"R"},
+            {"value":"S","label":"S"},{"value":"T","label":"T"},{"value":"U","label":"U"},
+            {"value":"V","label":"V"},{"value":"W","label":"W"},{"value":"X","label":"X"},
+            {"value":"Y","label":"Y"},{"value":"Z","label":"Z"},
+            {"value":"0","label":"0"},{"value":"1","label":"1"},{"value":"2","label":"2"},
+            {"value":"3","label":"3"},{"value":"4","label":"4"},{"value":"5","label":"5"},
+            {"value":"6","label":"6"},{"value":"7","label":"7"},{"value":"8","label":"8"},
+            {"value":"9","label":"9"},
+            {"value":"SPACE","label":"SPACE"},{"value":"ENTER","label":"ENTER"},
+            {"value":"ESC","label":"ESC"},{"value":"TAB","label":"TAB"},
+            {"value":"SHIFT","label":"SHIFT"},{"value":"CTRL","label":"CTRL"},
+            {"value":"ALT","label":"ALT"},{"value":"BACKSPACE","label":"BACKSPACE"},
+            {"value":"LEFT","label":"LEFT"},{"value":"RIGHT","label":"RIGHT"},
+            {"value":"UP","label":"UP"},{"value":"DOWN","label":"DOWN"}
           ]
         }
       ]
@@ -382,9 +108,569 @@
     "script": {
       "slotMode": "keyEvent",
       "templateByEvent": {
-        "keypressed": "try { if (this && this.onKeyPressed) { /* LT_KEY={{key}} */ } } catch(e0) {}",
-        "keyreleased": "try { if (this && this.onKeyReleased) { /* LT_KEY={{key}} */ } } catch(e1) {}",
-        "keydown": "try { if (this && this.onKeyDown) { /* LT_KEY={{key}} */ } } catch(e2) {}"
+        "keypressed":  "try { if (isKeyJustPressed('{{key}}')) { /* code */ } } catch(e0) {}",
+        "keyreleased": "try { if (!isKeyDown('{{key}}')) { /* code */ } } catch(e1) {}",
+        "keydown":     "try { if (isKeyDown('{{key}}')) { /* code */ } } catch(e2) {}"
+      }
+    }
+  },
+
+  {
+    "id": "isKeyDown",
+    "label": "Is Key Down",
+    "kind": "ScriptNode",
+    "category": "Conditions",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "select", "key": "key", "label": "key", "default": "LEFT",
+          "options": [
+            {"value":"LEFT","label":"LEFT"},{"value":"RIGHT","label":"RIGHT"},
+            {"value":"UP","label":"UP"},{"value":"DOWN","label":"DOWN"},
+            {"value":"SPACE","label":"SPACE"},{"value":"ENTER","label":"ENTER"},
+            {"value":"SHIFT","label":"SHIFT"},{"value":"CTRL","label":"CTRL"},
+            {"value":"A","label":"A"},{"value":"B","label":"B"},{"value":"C","label":"C"},
+            {"value":"D","label":"D"},{"value":"E","label":"E"},{"value":"F","label":"F"},
+            {"value":"G","label":"G"},{"value":"H","label":"H"},{"value":"I","label":"I"},
+            {"value":"J","label":"J"},{"value":"K","label":"K"},{"value":"L","label":"L"},
+            {"value":"M","label":"M"},{"value":"N","label":"N"},{"value":"O","label":"O"},
+            {"value":"P","label":"P"},{"value":"Q","label":"Q"},{"value":"R","label":"R"},
+            {"value":"S","label":"S"},{"value":"T","label":"T"},{"value":"U","label":"U"},
+            {"value":"V","label":"V"},{"value":"W","label":"W"},{"value":"X","label":"X"},
+            {"value":"Y","label":"Y"},{"value":"Z","label":"Z"},
+            {"value":"0","label":"0"},{"value":"1","label":"1"},{"value":"2","label":"2"},
+            {"value":"3","label":"3"},{"value":"4","label":"4"},{"value":"5","label":"5"},
+            {"value":"6","label":"6"},{"value":"7","label":"7"},{"value":"8","label":"8"},
+            {"value":"9","label":"9"},
+            {"value":"ESC","label":"ESC"},{"value":"TAB","label":"TAB"},
+            {"value":"ALT","label":"ALT"},{"value":"BACKSPACE","label":"BACKSPACE"}
+          ]
+        }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { if (isKeyDown('{{key}}')) { } } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "isKeyJustPressed",
+    "label": "Key Just Pressed",
+    "kind": "ScriptNode",
+    "category": "Conditions",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "select", "key": "key", "label": "key", "default": "SPACE",
+          "options": [
+            {"value":"SPACE","label":"SPACE"},{"value":"ENTER","label":"ENTER"},
+            {"value":"LEFT","label":"LEFT"},{"value":"RIGHT","label":"RIGHT"},
+            {"value":"UP","label":"UP"},{"value":"DOWN","label":"DOWN"},
+            {"value":"SHIFT","label":"SHIFT"},{"value":"CTRL","label":"CTRL"},
+            {"value":"A","label":"A"},{"value":"B","label":"B"},{"value":"C","label":"C"},
+            {"value":"D","label":"D"},{"value":"E","label":"E"},{"value":"F","label":"F"},
+            {"value":"G","label":"G"},{"value":"H","label":"H"},{"value":"I","label":"I"},
+            {"value":"J","label":"J"},{"value":"K","label":"K"},{"value":"L","label":"L"},
+            {"value":"M","label":"M"},{"value":"N","label":"N"},{"value":"O","label":"O"},
+            {"value":"P","label":"P"},{"value":"Q","label":"Q"},{"value":"R","label":"R"},
+            {"value":"S","label":"S"},{"value":"T","label":"T"},{"value":"U","label":"U"},
+            {"value":"V","label":"V"},{"value":"W","label":"W"},{"value":"X","label":"X"},
+            {"value":"Y","label":"Y"},{"value":"Z","label":"Z"},
+            {"value":"0","label":"0"},{"value":"1","label":"1"},{"value":"2","label":"2"},
+            {"value":"3","label":"3"},{"value":"4","label":"4"},{"value":"5","label":"5"},
+            {"value":"6","label":"6"},{"value":"7","label":"7"},{"value":"8","label":"8"},
+            {"value":"9","label":"9"},
+            {"value":"ESC","label":"ESC"},{"value":"TAB","label":"TAB"},
+            {"value":"ALT","label":"ALT"},{"value":"BACKSPACE","label":"BACKSPACE"}
+          ]
+        }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { if (isKeyJustPressed('{{key}}')) { } } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "isMouseDown",
+    "label": "Is Mouse Down",
+    "kind": "ScriptNode",
+    "category": "Conditions",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": { "controls": [] },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { if (isMouseDown()) { } } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "sound",
+    "label": "Sound",
+    "kind": "ScriptNode",
+    "category": "Audio",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "select", "key": "action", "label": "action", "default": "playSound",
+          "options": [
+            {"value":"playSound","label":"playSound"},
+            {"value":"stopSound","label":"stopSound"},
+            {"value":"stopAllSounds","label":"stopAllSounds"}
+          ]
+        },
+        { "type": "text", "key": "asset", "label": "asset", "default": "sound",
+          "showWhen": {"key":"action","in":["playSound","stopSound"]}
+        }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "templateByAction": {
+        "playSound":    "try { playSound('{{asset}}'); } catch(e0) {}",
+        "stopSound":    "try { stopSound('{{asset}}'); } catch(e1) {}",
+        "stopAllSounds":"try { stopAllSounds(); } catch(e2) {}"
+      }
+    }
+  },
+
+  {
+    "id": "cursor",
+    "label": "Cursor",
+    "kind": "ScriptNode",
+    "category": "Display",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "select", "key": "action", "label": "action", "default": "hideCursor",
+          "options": [
+            {"value":"hideCursor","label":"hideCursor"},
+            {"value":"showCursor","label":"showCursor"}
+          ]
+        }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "templateByAction": {
+        "hideCursor": "try { hideCursor(); } catch(e0) {}",
+        "showCursor": "try { showCursor(); } catch(e1) {}"
+      }
+    }
+  },
+
+  {
+    "id": "move",
+    "label": "Move",
+    "kind": "ScriptNode",
+    "category": "Transform",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "number", "key": "x", "label": "x", "default": 0, "step": 1 },
+        { "type": "number", "key": "y", "label": "y", "default": 0, "step": 1 }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { this.x += {{x}}; this.y += {{y}}; } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "setPosition",
+    "label": "Set Position",
+    "kind": "ScriptNode",
+    "category": "Transform",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "number", "key": "x", "label": "x", "default": 0, "step": 1 },
+        { "type": "number", "key": "y", "label": "y", "default": 0, "step": 1 }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { this.x = {{x}}; this.y = {{y}}; } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "rotate",
+    "label": "Rotate",
+    "kind": "ScriptNode",
+    "category": "Transform",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "number", "key": "angle", "label": "degrees", "default": 5, "step": 1 }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { this.rotation += {{angle}}; } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "scale",
+    "label": "Scale",
+    "kind": "ScriptNode",
+    "category": "Transform",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "number", "key": "sx", "label": "scaleX", "default": 1, "step": 0.1 },
+        { "type": "number", "key": "sy", "label": "scaleY", "default": 1, "step": 0.1 }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { this.scaleX = {{sx}}; this.scaleY = {{sy}}; } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "opacity",
+    "label": "Opacity",
+    "kind": "ScriptNode",
+    "category": "Display",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "number", "key": "opacity", "label": "opacity", "default": 1, "min": 0, "step": 0.1 }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { this.opacity = {{opacity}}; } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "setVisible",
+    "label": "Visibility",
+    "kind": "ScriptNode",
+    "category": "Display",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "select", "key": "visible", "label": "visible", "default": "true",
+          "options": [
+            {"value":"true","label":"show"},
+            {"value":"false","label":"hide"}
+          ]
+        }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { this.opacity = {{visible}} ? 1 : 0; } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "remove",
+    "label": "Remove",
+    "kind": "ScriptNode",
+    "category": "Object",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": { "controls": [] },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { this.remove(); } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "clone",
+    "label": "Clone",
+    "kind": "ScriptNode",
+    "category": "Object",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": { "controls": [] },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { var _clone = this.clone(); } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "setText",
+    "label": "Set Text",
+    "kind": "ScriptNode",
+    "category": "Object",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "text", "key": "text", "label": "text", "default": "Hello" }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { this.setText('{{text}}'); } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "hitTest",
+    "label": "Hit Test",
+    "kind": "ScriptNode",
+    "category": "Conditions",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "text", "key": "target", "label": "clip", "default": "other" }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { if (this.hitTest({{target}})) { } } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "varSet",
+    "label": "Set Variable",
+    "kind": "ScriptNode",
+    "category": "Logic",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "text", "key": "varname", "label": "var", "default": "myVar" },
+        { "type": "text", "key": "value",   "label": "value", "default": "0" }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { window['{{varname}}'] = {{value}}; } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "varChange",
+    "label": "Change Variable",
+    "kind": "ScriptNode",
+    "category": "Logic",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "text",   "key": "varname", "label": "var",    "default": "myVar" },
+        { "type": "select", "key": "op",      "label": "by",     "default": "+=",
+          "options": [
+            {"value":"+=","label":"+ add"},
+            {"value":"-=","label":"- subtract"},
+            {"value":"*=","label":"× multiply"},
+            {"value":"/=","label":"÷ divide"}
+          ]
+        },
+        { "type": "number", "key": "amount",  "label": "amount", "default": 1, "step": 1 }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { if (window['{{varname}}'] === undefined) window['{{varname}}'] = 0; window['{{varname}}'] {{op}} {{amount}}; } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "codeStatement",
+    "label": "Code Statement",
+    "kind": "ScriptNode",
+    "category": "Logic",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "select", "key": "statement", "label": "type", "default": "if",
+          "options": [
+            {"value":"if",      "label":"if"},
+            {"value":"ifelse",  "label":"if / else"},
+            {"value":"elseif",  "label":"else if"},
+            {"value":"else",    "label":"else"},
+            {"value":"while",   "label":"while"},
+            {"value":"for",     "label":"for"},
+            {"value":"forof",   "label":"for...of"},
+            {"value":"forin",   "label":"for...in"},
+            {"value":"switch",  "label":"switch"},
+            {"value":"try",     "label":"try / catch"},
+            {"value":"return",  "label":"return"},
+            {"value":"break",   "label":"break"},
+            {"value":"continue","label":"continue"}
+          ]
+        },
+        { "type": "text", "key": "condition", "label": "condition", "default": "true",
+          "showWhen": {"key":"statement","in":["if","ifelse","elseif","while","for","forof","forin","switch"]}
+        },
+        { "type": "text", "key": "body", "label": "body", "default": "/* code */",
+          "showWhen": {"key":"statement","in":["if","ifelse","else","while","for","forof","forin","switch","try"]}
+        },
+        { "type": "text", "key": "elsebody", "label": "else", "default": "/* code */",
+          "showWhen": {"key":"statement","in":["ifelse","try"]}
+        },
+        { "type": "text", "key": "returnval", "label": "value", "default": "",
+          "showWhen": {"key":"statement","in":["return"]}
+        }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "templateByAction": {
+        "if":       "if ({{condition}}) { {{body}} }",
+        "ifelse":   "if ({{condition}}) { {{body}} } else { {{elsebody}} }",
+        "elseif":   "else if ({{condition}}) { {{body}} }",
+        "else":     "else { {{body}} }",
+        "while":    "while ({{condition}}) { {{body}} }",
+        "for":      "for ({{condition}}) { {{body}} }",
+        "forof":    "for (var _item of {{condition}}) { {{body}} }",
+        "forin":    "for (var _key in {{condition}}) { {{body}} }",
+        "switch":   "switch ({{condition}}) { {{body}} }",
+        "try":      "try { {{body}} } catch(e0) { {{elsebody}} }",
+        "return":   "return {{returnval}};",
+        "break":    "break;",
+        "continue": "continue;"
+      }
+    }
+  },
+
+  {
+    "id": "consolelog",
+    "label": "Console Log",
+    "kind": "ScriptNode",
+    "category": "Debug",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "text", "key": "message", "label": "message", "default": "debug" }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { console.log('{{message}}'); } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "customCode",
+    "label": "Custom Code",
+    "kind": "ScriptNode",
+    "category": "Debug",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "text", "key": "code", "label": "code", "default": "/* your code */" }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "{{code}}"
+    }
+  },
+
+  {
+    "id": "comment",
+    "label": "Comment",
+    "kind": "ScriptNode",
+    "category": "Debug",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "text", "key": "text", "label": "note", "default": "note" }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "/* {{text}} */"
+    }
+  },
+
+  {
+    "id": "onEvent",
+    "label": "On Event",
+    "kind": "ScriptNode",
+    "category": "Events",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "select", "key": "event", "label": "event", "default": "mouseenter",
+          "options": [
+            {"value":"mouseenter","label":"mouseenter"},
+            {"value":"mouseleave","label":"mouseleave"},
+            {"value":"mousehover","label":"mousehover"},
+            {"value":"mousepressed","label":"mousepressed"},
+            {"value":"mousedown","label":"mousedown"},
+            {"value":"mousereleased","label":"mousereleased"},
+            {"value":"mousedrag","label":"mousedrag"},
+            {"value":"mouseclick","label":"mouseclick"},
+            {"value":"keypressed","label":"keypressed"},
+            {"value":"keyreleased","label":"keyreleased"},
+            {"value":"keydown","label":"keydown"}
+          ]
+        }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "template": "try { onEvent('{{event}}', function() { }); } catch(e0) {}"
+    }
+  },
+
+  {
+    "id": "globalPlay",
+    "label": "Global Play",
+    "kind": "ScriptNode",
+    "category": "Playback",
+    "ports": { "inputs": ["trigger"], "outputs": ["code"] },
+    "ui": {
+      "controls": [
+        { "type": "select", "key": "action", "label": "action", "default": "gotoAndStop",
+          "options": [
+            {"value":"gotoAndStop","label":"gotoAndStop"},
+            {"value":"gotoAndPlay","label":"gotoAndPlay"},
+            {"value":"gotoNextFrame","label":"gotoNextFrame"},
+            {"value":"gotoPrevFrame","label":"gotoPrevFrame"},
+            {"value":"play","label":"play"},
+            {"value":"stop","label":"stop"}
+          ]
+        },
+        { "type": "number", "key": "frame", "label": "frame", "default": 1, "min": 1, "step": 1,
+          "showWhen": {"key":"action","in":["gotoAndStop","gotoAndPlay"]}
+        }
+      ]
+    },
+    "script": {
+      "slotDefault": "update",
+      "slotMode": "byTargetPort",
+      "templateByAction": {
+        "gotoAndStop":   "try { gotoAndStop({{frame}}); } catch(e0) {}",
+        "gotoAndPlay":   "try { gotoAndPlay({{frame}}); } catch(e1) {}",
+        "gotoNextFrame": "try { gotoNextFrame(); } catch(e2) {}",
+        "gotoPrevFrame": "try { gotoPrevFrame(); } catch(e3) {}",
+        "play":          "try { play(); } catch(e4) {}",
+        "stop":          "try { stop(); } catch(e5) {}"
       }
     }
   }
