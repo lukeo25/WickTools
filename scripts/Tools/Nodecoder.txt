@@ -338,6 +338,24 @@
   .lt_clipUpdateBtn:active{ transform:scale(0.97); }
 
   /* Real ports for clip: invisible but interactive, positioned over visible dots */
+  /* ProxyClip — name input replacing the badge */
+  .lt_proxyNameInput {
+    position:absolute;
+    left:18px; top:16px;
+    background:#2a2a35;
+    border:1.5px solid #3a3a48;
+    border-radius:999px;
+    padding:7px 18px;
+    color:#d4d4e0;
+    font-size:14px;
+    font-weight:500;
+    letter-spacing:0.01em;
+    font-family:'Outfit', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    width:calc(100% - 60px);
+    box-sizing:border-box;
+  }
+  .lt_proxyNameInput:focus { outline:none; border-color:#5a5a80; background:#30303e; }
+
   .lt_clipCard .lt_port{
     width:20px !important;
     height:20px !important;
@@ -430,7 +448,7 @@
     border:1px solid #252530 !important;
     border-radius:14px !important;
     padding:0 !important;
-    overflow:hidden;
+    overflow:visible;
     box-shadow:0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
     font-family:'Outfit', system-ui, sans-serif;
   }
@@ -443,7 +461,7 @@
     left:0; top:0; right:0; bottom:0;
     display:flex;
     flex-direction:column;
-    overflow:hidden;
+    overflow:visible;
     box-sizing:border-box;
   }
   /* Accent bar at top of card — colour set per node by JS */
@@ -494,9 +512,9 @@
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding:0 14px;
-    height:38px;
-    min-height:38px;
+    padding:0 20px;
+    height:48px;
+    min-height:48px;
     flex-shrink:0;
     background:#0c0c14;
     border-top:1px solid rgba(255,255,255,0.07);
@@ -507,13 +525,16 @@
   .lt_portStripSide {
     display:flex;
     align-items:center;
-    gap:7px;
+    gap:12px;
   }
+  .lt_portStripSide:first-child { justify-content:flex-start; }
+  .lt_portStripSide:nth-child(2) { flex:1; justify-content:center; }
+  .lt_portStripSide:last-child { justify-content:flex-end; }
   .lt_portStripLabel {
-    font-size:11px;
-    font-weight:500;
-    color:#6a6a88;
-    letter-spacing:0.03em;
+    font-size:13px;
+    font-weight:400;
+    color:#c8c8d8;
+    letter-spacing:0.01em;
     pointer-events:none;
     user-select:none;
     white-space:nowrap;
@@ -842,7 +863,7 @@
       if (lk.fromNodeId !== scriptNodeId || lk.fromPort !== "code") continue;
       var dest = nodeById(lk.toNodeId);
       if (!dest) continue;
-      if (dest.kind === "Clip" && (lk.toPort === "default" || lk.toPort === "load" || lk.toPort === "update" || lk.toPort === "unload")) {
+      if ((dest.kind === "Clip" || dest.kind === "ProxyClip") && (lk.toPort === "default" || lk.toPort === "load" || lk.toPort === "update" || lk.toPort === "unload")) {
         results.push({ clipNode: dest, slotPort: lk.toPort });
       } else if (dest.kind === "ScriptNode") {
         // Chain: follow downstream clips through any number of ScriptNode hops
@@ -1688,9 +1709,14 @@
         if (!p1 || !p2) return;
         var x1 = p1.x, y1 = p1.y;
         var x2 = p2.x, y2 = p2.y;
-        var dx = Math.abs(x2 - x1);
-        var c = Math.max(60, dx * 0.55);
-        var d = "M " + x1 + " " + y1 + " C " + (x1+c) + " " + y1 + " " + (x2-c) + " " + y2 + " " + x2 + " " + y2;
+        var dx = x2 - x1;
+        var tension = Math.max(80, Math.abs(dx) * 0.6);
+        var bias = dx > 40 ? 40 : (dx < -40 ? -40 : 0);
+        var cx1 = x1 + tension + bias * 0.8;
+        var cy1 = y1;
+        var cx2 = x2 - tension + bias * 0.4;
+        var cy2 = y2;
+        var d = "M " + x1 + " " + y1 + " C " + cx1 + " " + cy1 + " " + cx2 + " " + cy2 + " " + x2 + " " + y2;
 
         // Wide invisible hit-target for right-click delete / click-to-unplug
         var hitPath = svgEl("path");
@@ -1782,6 +1808,8 @@
 
   function tryCompleteLink(toNodeId, toPort){
     if (!state.linking || !state.linking.active) return;
+    if (state.linking._completing) return; // deduplicate — multiple handlers can fire
+    state.linking._completing = true;
     var fromNodeId = state.linking.fromNodeId;
     var fromPort = state.linking.fromPort;
     if (fromNodeId === toNodeId) { cancelLink(); return; }
@@ -1791,11 +1819,13 @@
     var ok = false;
     if (a.kind === "ScriptNode" && fromPort === "code") {
       if (b.kind === "Clip" && (toPort === "default" || toPort === "load" || toPort === "update" || toPort === "unload")) ok = true;
+      if (b.kind === "ProxyClip" && (toPort === "default" || toPort === "update" || toPort === "load" || toPort === "unload")) ok = true;
       if (b.kind === "ScriptNode" && toPort === "trigger") ok = true;
       if (b.kind === "Wrapper" && (toPort === "body" || toPort === "else")) ok = true;
     }
     if (a.kind === "Wrapper" && fromPort === "code") {
       if (b.kind === "Clip" && (toPort === "default" || toPort === "load" || toPort === "update" || toPort === "unload")) ok = true;
+      if (b.kind === "ProxyClip" && (toPort === "default" || toPort === "update" || toPort === "load" || toPort === "unload")) ok = true;
       if (b.kind === "ScriptNode" && toPort === "trigger") ok = true;
       if (b.kind === "Wrapper" && (toPort === "body" || toPort === "else")) ok = true;
     }
@@ -1834,6 +1864,28 @@
       { name:"unload",  dir:"in", x:25, y:175 }
     ];
     n.title = (n.data.path && n.data.path.length) ? n.data.path[n.data.path.length - 1] : "Clip";
+    state.nodes.push(n);
+    selectNode(n.id);
+    scheduleInject();
+    return n;
+  }
+
+  function addProxyClipNode(x, y, clipName) {
+    // Layout: accent=4, titleRow=42, nameInput=50, slotRow=32 each, bottomPad=14
+    // Height: top(16)+badge(34)+gap(18)+4rows(32each)+btn(66) = 262
+    var cardH = 262;
+    var n = {
+      id: uuid(), kind: "ProxyClip",
+      title: clipName || "MyClip",
+      x: x, y: y, w: 260, h: cardH,
+      data: { proxyName: clipName || "MyClip" },
+      ports: [
+        { name:"default", dir:"in", x:14, y: 68+7  },
+        { name:"update",  dir:"in", x:14, y: 100+7 },
+        { name:"load",    dir:"in", x:14, y: 132+7 },
+        { name:"unload",  dir:"in", x:14, y: 164+7 }
+      ]
+    };
     state.nodes.push(n);
     selectNode(n.id);
     scheduleInject();
@@ -2010,15 +2062,15 @@
     var wt = WRAPPER_TYPES[wrapType];
     if (!wt) return null;
     var ctrlCount = wt.controls.length;
-    // height: 60 header + controls + 42 strip + 28 body hint
-    var cardH = 64 + ctrlCount * 52 + 42 + 32;
-    var portY = cardH - 21;
+    // height: header(64) + controls(ctrlCount*52) + hint(32) + strip(48)
+    var cardH = 64 + ctrlCount * 52 + 32 + 48;
+    var portY = cardH - 24;
     var data = {};
     for (var dk in wt.defaultData) data[dk] = wt.defaultData[dk];
     data._wrapType = wrapType;
     var ports = [
-      { name:"body",  dir:"in",  x:0,   y:portY },
-      { name:"code",  dir:"out", x:320, y:portY }
+      { name:"body",  dir:"in",  x:80,  y:portY },
+      { name:"code",  dir:"out", x:240, y:portY }
     ];
     if (wt.hasElsePort) {
       ports.splice(1, 0, { name:"else", dir:"in", x:160, y:portY });
@@ -2046,8 +2098,10 @@
     var ctrlCount = 0;
     if (def && def.ui && Array.isArray(def.ui.controls)) ctrlCount = def.ui.controls.length;
     // Anchor ports to bottom strip: cardH - 38 = dot centre
-    var cardH = 60 + ctrlCount * 44 + 42; // 60=header, 44=per control, 42=port strip
-    var portY = cardH - 21; // centre of 42px strip
+    var CLAMP_IDS = { "move":1, "setPosition":1, "rotate":1, "scale":1 };
+    var clampExtra = CLAMP_IDS[def && def.id] ? ctrlCount * 34 : 0; // 34px per clamp row
+    var cardH = 60 + ctrlCount * 44 + clampExtra + 42;
+    var portY = cardH - 21;
     n.ports[0].y = portY;
     n.ports[1].y = portY;
     if (def && def.ui && Array.isArray(def.ui.controls)){
@@ -2319,6 +2373,9 @@
       for (var wti=0; wti<wTargets.length; wti++) {
         var wtgt = wTargets[wti];
         var wPath = (wtgt.clipNode.data && wtgt.clipNode.data.path) ? wtgt.clipNode.data.path : [];
+        if (!wPath.length && wtgt.clipNode.kind === "ProxyClip" && wtgt.clipNode.data && wtgt.clipNode.data.proxyName) {
+          wPath = ["proxy::", wtgt.clipNode.data.proxyName];
+        }
         if (!wPath.length) continue;
         var wSlot = wtgt.slotPort;
         var wBucket = ensure(wPath, wSlot);
@@ -2340,6 +2397,9 @@
       for (var ti=0; ti<targets.length; ti++) {
         var tgt = targets[ti];
         var clipPath2 = (tgt.clipNode.data && tgt.clipNode.data.path) ? tgt.clipNode.data.path : [];
+        if (!clipPath2.length && tgt.clipNode.kind === "ProxyClip" && tgt.clipNode.data && tgt.clipNode.data.proxyName) {
+          clipPath2 = ["proxy::", tgt.clipNode.data.proxyName];
+        }
         if (!clipPath2.length) continue;
         var slot2 = tgt.slotPort;
         if (def2.script.slotMode === "mouseEvent") { slot2 = String((sn2.data && sn2.data.event) ? sn2.data.event : "mouseenter"); }
@@ -2358,8 +2418,11 @@
       var clipLinks = findOutgoing(ctx.id, "clip");
       if (!clipLinks.length) continue;
       var clipNode = nodeById(clipLinks[0].toNodeId);
-      if (!clipNode || clipNode.kind !== "Clip") continue;
+      if (!clipNode || (clipNode.kind !== "Clip" && clipNode.kind !== "ProxyClip")) continue;
       var clipPathC = (clipNode.data && clipNode.data.path) ? clipNode.data.path : [];
+      if (!clipPathC.length && clipNode.kind === "ProxyClip" && clipNode.data && clipNode.data.proxyName) {
+        clipPathC = ["proxy::", clipNode.data.proxyName];
+      }
       if (!clipPathC.length) continue;
       var codeLinks = findIncoming(ctx.id, "code");
       if (!codeLinks.length) continue;
@@ -2419,6 +2482,26 @@
       return projR;
     }
 
+    // ProxyClip resolution — search by proxyName
+    if (clipNodeData.proxyName) {
+      var pn = String(clipNodeData.proxyName).trim();
+      if (pn) {
+        var pProj = findProjectObject();
+        if (pProj) {
+          var pResult = getByNamePath(pProj, [pn]);
+          if (pResult) return pResult;
+          // Try children directly
+          var pKids = [];
+          try { pKids = pProj.children || pProj.objects || []; } catch(ePK){}
+          for (var pki=0; pki<pKids.length; pki++) {
+            var pk = pKids[pki];
+            var pkName = "";
+            try { pkName = pk.name || pk.identifier || ""; } catch(ePKN){}
+            if (String(pkName).toLowerCase() === pn.toLowerCase()) return pk;
+          }
+        }
+      }
+    }
     var clipName = String((clipNodeData.path && clipNodeData.path.length) ? clipNodeData.path[clipNodeData.path.length-1] : "");
     var clipUUID = String(clipNodeData.uuid || "");
     var clipIdent = String(clipNodeData.identifier || "");
@@ -2504,6 +2587,30 @@
 
   // Write a single slot to a clip object, using bridge byInfo when possible
   function writeSlotViabridge(clipNodeData, slot, text){
+    // For ProxyClip — resolve by name and delegate to resolveClipObj path
+    if (clipNodeData && clipNodeData.proxyName) {
+      var proxyObj = resolveClipObj(clipNodeData);
+      if (!proxyObj) { console.log("[LT proxy] could not resolve:", clipNodeData.proxyName); return false; }
+      try {
+        var sc = proxyObj.scripts || (proxyObj.timeline && proxyObj.timeline.layers && proxyObj.timeline.layers[0] && proxyObj.timeline.layers[0].frames && proxyObj.timeline.layers[0].frames[0] && proxyObj.timeline.layers[0].frames[0].scripts);
+        if (!sc) {
+          // Try to get frame scripts via standard path
+          var tl3 = proxyObj.timeline || null;
+          if (tl3 && tl3.layers && tl3.layers[0] && tl3.layers[0].frames && tl3.layers[0].frames[0]) {
+            sc = tl3.layers[0].frames[0].scripts;
+          }
+        }
+        if (Array.isArray(sc)) {
+          var pfound = false;
+          for (var psi2=0; psi2<sc.length; psi2++) {
+            if (sc[psi2] && sc[psi2].name === slot) { sc[psi2].src = text; pfound = true; break; }
+          }
+          if (!pfound && text.trim()) sc.push({ name: slot, src: text });
+          return true;
+        }
+      } catch(ePW){ console.log("[LT proxy] write error:", ePW); }
+      return false;
+    }
     var br = null;
     try {
       br = (window.parent && window.parent.LukeToolsBridge) ? window.parent.LukeToolsBridge
@@ -2747,7 +2854,24 @@
 
   // Apply injection for one specific clip node
   function applyLiveInjectionNowForClipNode(clipNode){
-    if (!clipNode || clipNode.kind !== "Clip") return { ok:false, reason:"not a clip node" };
+    if (!clipNode || (clipNode.kind !== "Clip" && clipNode.kind !== "ProxyClip")) return { ok:false, reason:"not a clip node" };
+
+    // ProxyClip — uses proxyName as key, not path
+    if (clipNode.kind === "ProxyClip") {
+      var pName = String(clipNode.data && clipNode.data.proxyName || "").trim();
+      if (!pName) return { ok:false, reason:"no clip name" };
+      var ops0 = buildOpsByClip();
+      var want0 = ops0["proxy::" + pName] || {};
+      if (!Object.keys(want0).length) return { ok:false, reason:"nothing connected" };
+      var written0 = [];
+      for (var slot0 in want0) {
+        var block0 = (want0[slot0].lines || []).join("\n");
+        var ok0 = writeSlotViabridge(clipNode.data, slot0, block0);
+        if (ok0) written0.push(slot0);
+      }
+      return { ok: written0.length > 0, slots: written0 };
+    }
+
     var path = (clipNode.data && clipNode.data.path) ? clipNode.data.path : [];
     if (!path.length) return { ok:false, reason:"no path" };
 
@@ -2837,11 +2961,17 @@
       var n = state.nodes[i];
       if (n.kind !== "Clip") continue;
       if (n.data && n.data.isRoot) {
-        // isRoot clips (Project Timeline) — use injectRootTimeline path
         injectRootTimeline(null);
         continue;
       }
       applyLiveInjectionNowForClipNode(n);
+    }
+    // ProxyClip nodes
+    for (var pi=0; pi<state.nodes.length; pi++){
+      var pn2 = state.nodes[pi];
+      if (pn2 && pn2.kind === "ProxyClip") {
+        applyLiveInjectionNowForClipNode(pn2);
+      }
     }
   }
 
@@ -2997,11 +3127,13 @@
           if ((n.defId === "smartCode" || n.defId === "customCode") && n.data && Array.isArray(n.data._controls)) {
             ctrlCount2 = n.data._controls.length;
           }
-          // Use stored port position if available (most accurate), else recalculate
+          // Use stored port position if available, add clamp extra for transform nodes
+          var CLAMP_DOM_IDS = { "move":1, "setPosition":1, "rotate":1, "scale":1 };
+          var clampExtraDom = CLAMP_DOM_IDS[n.defId] ? ctrlCount2 * 34 : 0;
           if (n.ports && n.ports.length) {
-            h = n.ports[n.ports.length - 1].y + 42;
+            h = n.ports[n.ports.length - 1].y + 42 + clampExtraDom;
           } else {
-            h = 60 + ctrlCount2 * 44 + 42;
+            h = 60 + ctrlCount2 * 44 + clampExtraDom + 42;
           }
         } else if (n.kind === "Wrapper") {
           var wdef2 = WRAPPER_TYPES[n.data && n.data._wrapType] || null;
@@ -3014,6 +3146,85 @@
           try { if (n.ports && n.ports.length) h = Math.max(200, (n.ports[n.ports.length-1].y + 80)); } catch(eH0){}
         }
         setStyle(card, { left:n.x + "px", top:n.y + "px", width:n.w + "px", height:h + "px" });
+
+        /* ---- PROXY CLIP — identical layout to Clip card, name input replaces badge ---- */
+        if (n.kind === "ProxyClip"){
+          card.className += " lt_clipCard";
+          var pInner = el("div"); pInner.className = "lt_clipInner";
+
+          // Editable name input — same position/size as lt_clipBadge
+          var pNameInp = el("input"); pNameInp.className = "lt_proxyNameInput";
+          pNameInp.type = "text"; pNameInp.placeholder = "clip name…";
+          pNameInp.value = String(n.data.proxyName || "");
+          pNameInp.spellcheck = false;
+          pNameInp.onmousedown = function(ev){ ev.stopPropagation(); };
+          pNameInp.onclick = function(ev){ ev.stopPropagation(); };
+          pNameInp.onfocus = function(ev){ ev.stopPropagation(); };
+          (function(nd){ pNameInp.oninput = function(){
+            nd.data.proxyName = pNameInp.value;
+            nd.title = pNameInp.value || "MyClip";
+            scheduleInject();
+          }; })(n);
+          pInner.appendChild(pNameInp);
+
+          // Close button
+          var pClose = el("button"); pClose.className = "lt_clipCloseBtn";
+          pClose.textContent = "✕";
+          pClose.onmousedown = function(ev){ ev.stopPropagation(); ev.preventDefault(); };
+          pClose.onclick = function(ev){ ev.stopPropagation(); deleteNode(n.id); };
+          pInner.appendChild(pClose);
+
+          // Slot rows — same as Clip card including Default
+          var PROXY_SLOTS2 = [
+            { top: 68,  dotClass:"lt_dot_default", label:"Default" },
+            { top: 100, dotClass:"lt_dot_update",  label:"Update"  },
+            { top: 132, dotClass:"lt_dot_load",    label:"Load"    },
+            { top: 164, dotClass:"lt_dot_unload",  label:"Unload"  }
+          ];
+          for (var psi=0; psi<PROXY_SLOTS2.length; psi++){
+            var ps2 = PROXY_SLOTS2[psi];
+            var pOpt = el("div"); pOpt.className = "lt_clipOption";
+            pOpt.style.top = ps2.top + "px";
+            var pDot = el("span"); pDot.className = "lt_clipDot " + ps2.dotClass;
+            var pLbl = el("span"); pLbl.className = "lt_clipLabel"; pLbl.textContent = ps2.label;
+            pOpt.appendChild(pDot); pOpt.appendChild(pLbl);
+            pInner.appendChild(pOpt);
+          }
+
+          // Update button — same as Clip card
+          var pBtnUpd = el("button"); pBtnUpd.className = "lt_clipUpdateBtn";
+          pBtnUpd.textContent = "Update";
+          pBtnUpd.onmousedown = function(ev){ ev.stopPropagation(); ev.preventDefault(); };
+          (function(nd, btn){
+            btn.onclick = function(ev){
+              ev.stopPropagation(); ev.preventDefault();
+              var name = String(nd.data.proxyName || "").trim();
+              if (!name) {
+                btn.textContent = "No clip name";
+                btn.style.background = "#555";
+                setTimeout(function(){ btn.textContent = "Update"; btn.style.background = ""; }, 1800);
+                return;
+              }
+              state._injectBlocked = true;
+              setTimeout(function(){ state._injectBlocked = false; }, 1000);
+              setTimeout(function(){
+                var result = applyLiveInjectionNowForClipNode(nd);
+                if (!result.ok) {
+                  btn.textContent = result.reason || "Not found";
+                  btn.style.background = "#7a2020";
+                  setTimeout(function(){ btn.textContent = "Update"; btn.style.background = ""; }, 2200);
+                  return;
+                }
+                var label = (result.slots && result.slots.length) ? "✓ " + result.slots.join(", ") : "✓ done";
+                btn.textContent = label;
+                btn.style.background = "#1e6b50";
+                setTimeout(function(){ btn.textContent = "Update"; btn.style.background = ""; }, 2000);
+              }, 50);
+            };
+          })(n, pBtnUpd);
+          pInner.appendChild(pBtnUpd);
+          card.appendChild(pInner);
+        }
 
         /* ---- CLIP ---- */
         if (n.kind === "Clip"){
@@ -3306,28 +3517,36 @@
                   slider.step = String(stepN);
                   slider.value = String(curN);
                   slider.onmousedown = function(ev){ ev.stopPropagation(); };
-                  (function(k, s, b, fl, mn, mx, st){
+                  (function(k, s, b, fl){
                     s.oninput = function(){
                       var v = parseFloat(s.value);
                       if (!isFinite(v)) v = 0;
-                      v = Math.min(mx, Math.max(mn, v));
+                      // Use live slider min/max so clamp inputs take effect
+                      var liveMin = parseFloat(s.min); if (!isFinite(liveMin)) liveMin = -999;
+                      var liveMax = parseFloat(s.max); if (!isFinite(liveMax)) liveMax = 999;
+                      v = Math.min(liveMax, Math.max(liveMin, v));
                       n.data[k] = v;
                       b.textContent = fl ? v.toFixed(2) : String(Math.round(v));
                       scheduleInject();
                     };
-                  })(keyN, slider, badge, isFloat, minN, maxN, stepN);
+                  })(keyN, slider, badge, isFloat);
                   row.appendChild(slider);
 
-                  // Min / Max clamp editors — shown for transform nodes with hasClamp:true
-                  var defForClamp = NodeConfig.byId[n.defId] || null;
-                  if (defForClamp && defForClamp.hasClamp) {
+                  // Min / Max clamp editors — shown for transform nodes (by ID, immune to remote config)
+                  var CLAMP_NODE_IDS = { "move":1, "setPosition":1, "rotate":1, "scale":1 };
+                  if (CLAMP_NODE_IDS[n.defId]) {
                     var clampRow = el("div"); clampRow.className = "lt_clampRow";
                     var minLbl = el("span"); minLbl.className = "lt_clampLabel"; minLbl.textContent = "min";
                     var minInp = el("input"); minInp.className = "lt_clampInput"; minInp.type = "number";
-                    minInp.value = String(minN); minInp.step = String(stepN);
+                    // Restore saved clamp values from n.data, fall back to control defaults
+                    var savedMin = (n.data && typeof n.data["_cmin_"+keyN] !== "undefined") ? n.data["_cmin_"+keyN] : minN;
+                    var savedMax = (n.data && typeof n.data["_cmax_"+keyN] !== "undefined") ? n.data["_cmax_"+keyN] : maxN;
+                    minInp.value = String(savedMin); minInp.step = String(stepN);
+                    slider.min = String(savedMin);
                     var maxLbl = el("span"); maxLbl.className = "lt_clampLabel"; maxLbl.textContent = "max";
                     var maxInp = el("input"); maxInp.className = "lt_clampInput"; maxInp.type = "number";
-                    maxInp.value = String(maxN); maxInp.step = String(stepN);
+                    maxInp.value = String(savedMax); maxInp.step = String(stepN);
+                    slider.max = String(savedMax);
                     clampRow.appendChild(minLbl); clampRow.appendChild(minInp);
                     clampRow.appendChild(maxLbl); clampRow.appendChild(maxInp);
                     row.appendChild(clampRow);
@@ -3338,6 +3557,8 @@
                         var newMax = parseFloat(ma.value); if (!isFinite(newMax)) newMax = 999;
                         if (newMin >= newMax) return;
                         sl.min = String(newMin); sl.max = String(newMax);
+                        n.data["_cmin_"+k2] = newMin;
+                        n.data["_cmax_"+k2] = newMax;
                         // Re-clamp current value
                         var v2 = parseFloat(sl.value);
                         if (!isFinite(v2)) v2 = 0;
@@ -3348,7 +3569,11 @@
                         scheduleInject();
                       }
                       mi.onmousedown = function(ev){ ev.stopPropagation(); };
+                      mi.onclick = function(ev){ ev.stopPropagation(); };
+                      mi.onfocus = function(ev){ ev.stopPropagation(); };
                       ma.onmousedown = function(ev){ ev.stopPropagation(); };
+                      ma.onclick = function(ev){ ev.stopPropagation(); };
+                      ma.onfocus = function(ev){ ev.stopPropagation(); };
                       mi.oninput = updateRange; mi.onchange = updateRange;
                       ma.oninput = updateRange; ma.onchange = updateRange;
                     })(slider, minInp, maxInp, badge, keyN, isFloat, stepN);
@@ -3537,6 +3762,8 @@
                 var wk = String(wc.key || "");
                 wInp.value = String((n.data && typeof n.data[wk] !== "undefined") ? n.data[wk] : (wc.default || ""));
                 wInp.onmousedown = function(ev){ ev.stopPropagation(); };
+                wInp.onclick = function(ev){ ev.stopPropagation(); };
+                wInp.onfocus = function(ev){ ev.stopPropagation(); };
                 (function(k, inp){ inp.oninput = function(){ n.data[k] = inp.value; scheduleInject(); }; })(wk, wInp);
                 wRow.appendChild(wInp);
               } else if (wc.type === "select") {
@@ -3573,40 +3800,45 @@
 
           wInner.appendChild(wControls);
 
-          // Port strip — ifElse gets 3 pips: body in | else in | code out
-          var wStrip = el("div"); wStrip.className = "lt_portStrip";
+          // Port strip — reliable bottom strip, pips at fixed portY matching n.ports
           var wDefnStrip = WRAPPER_TYPES[n.data && n.data._wrapType] || null;
           var wHasElse = !!(wDefnStrip && wDefnStrip.hasElsePort);
 
+          var wStrip = el("div"); wStrip.className = "lt_portStrip lt_wrapperStrip";
+
+          // Left: if body
           var wSL = el("div"); wSL.className = "lt_portStripSide";
           var wInPip2 = el("div"); wInPip2.className = "lt_port lt_port_in";
-          wInPip2.style.cssText = "cursor:pointer;pointer-events:all;";
+          wInPip2.style.cssText = "cursor:pointer;pointer-events:all;background:rgba(255,180,120,0.9);width:14px;height:14px;border-radius:50%;flex-shrink:0;";
           wInPip2.setAttribute("data-port-node", n.id);
           wInPip2.setAttribute("data-port-name", "body");
-          state.pipRegistry.push({ nodeId: n.id, port: "body", el: wInPip2 });
+          wInPip2._pipNodeId = n.id; wInPip2._pipPort = "body";
           var wInLbl2 = el("div"); wInLbl2.className = "lt_portStripLabel"; wInLbl2.textContent = "if body";
           wSL.appendChild(wInPip2); wSL.appendChild(wInLbl2);
           wStrip.appendChild(wSL);
 
+          // Centre: else body (if applicable)
           var wElsePip = null;
           if (wHasElse) {
             var wSM = el("div"); wSM.className = "lt_portStripSide";
             wElsePip = el("div"); wElsePip.className = "lt_port lt_port_in";
-            wElsePip.style.cssText = "cursor:pointer;pointer-events:all;background:rgba(255,140,60,0.9) !important;";
+            wElsePip.style.cssText = "cursor:pointer;pointer-events:all;background:rgba(255,140,60,0.9);width:14px;height:14px;border-radius:50%;flex-shrink:0;";
             wElsePip.setAttribute("data-port-node", n.id);
             wElsePip.setAttribute("data-port-name", "else");
-            state.pipRegistry.push({ nodeId: n.id, port: "else", el: wElsePip });
+            wElsePip._pipNodeId = n.id; wElsePip._pipPort = "else";
             var wElseLbl = el("div"); wElseLbl.className = "lt_portStripLabel"; wElseLbl.textContent = "else body";
             wSM.appendChild(wElsePip); wSM.appendChild(wElseLbl);
             wStrip.appendChild(wSM);
           }
 
+          // Right: code out
           var wSR = el("div"); wSR.className = "lt_portStripSide";
           var wOutLbl2 = el("div"); wOutLbl2.className = "lt_portStripLabel"; wOutLbl2.textContent = "code out";
           var wOutPip2 = el("div"); wOutPip2.className = "lt_port lt_port_out";
-          wOutPip2.style.cssText = "cursor:crosshair;pointer-events:all;";
+          wOutPip2.style.cssText = "cursor:crosshair;pointer-events:all;background:rgba(140,200,255,0.95);width:14px;height:14px;border-radius:50%;flex-shrink:0;";
           wSR.appendChild(wOutLbl2); wSR.appendChild(wOutPip2);
           wStrip.appendChild(wSR);
+
           wInner.appendChild(wStrip);
           card.appendChild(wInner);
 
@@ -3625,6 +3857,39 @@
             wInPip2.addEventListener("mouseleave",  function(){ if (state.hoverIn && state.hoverIn.nodeId === wnId) state.hoverIn = null; });
             wOutPip2.addEventListener("mouseenter", function(){ state.hoverIn = { nodeId: wnId, port: "code" }; });
             wOutPip2.addEventListener("mouseleave", function(){ if (state.hoverIn && state.hoverIn.nodeId === wnId) state.hoverIn = null; });
+            // Large invisible hit zone for else port — positioned over middle third of strip
+            if (wHasElse) {
+              var elseHitZone = el("div");
+              elseHitZone.setAttribute("data-port-name", "else");
+              elseHitZone.setAttribute("data-port-node", wnId);
+              elseHitZone._pipNodeId = wnId;
+              elseHitZone._pipPort = "else";
+              // Position hit zone over the else row
+              setStyle(elseHitZone, {
+                position:"absolute",
+                left:"80px", right:"80px",
+                bottom:"0px", height:"48px",
+                zIndex:"10",
+                cursor:"pointer",
+                background:"transparent",
+                pointerEvents:"all"
+              });
+              elseHitZone.addEventListener("mousedown", function(ev){
+                ev.stopPropagation(); ev.preventDefault();
+                if (state.linking && state.linking.active) { tryCompleteLink(wnId, "else"); return; }
+                var exLE2 = null;
+                for (var elie2=0; elie2<state.links.length; elie2++){
+                  if (state.links[elie2].toNodeId === wnId && state.links[elie2].toPort === "else"){ exLE2 = state.links[elie2]; break; }
+                }
+                if (exLE2){ state.links = state.links.filter(function(l){ return l.id !== exLE2.id; }); scheduleInject(); beginLink(exLE2.fromNodeId, exLE2.fromPort, ev); }
+              }, true);
+              elseHitZone.addEventListener("mouseup", function(ev){
+                ev.stopPropagation();
+                if (state.linking && state.linking.active) { tryCompleteLink(wnId, "else"); }
+              }, true);
+              card.appendChild(elseHitZone);
+            }
+
             if (wElsePipRef) {
               wElsePipRef.addEventListener("mousedown", function(ev){
                 ev.stopPropagation(); ev.preventDefault();
@@ -3659,27 +3924,28 @@
             var pip = el("div");
             var isStripNode = (n.kind === "ScriptNode" || n.kind === "Context" || n.kind === "Wrapper");
             var pipColor = p.dir === "out" ? "rgba(140,200,255,0.95)" : "rgba(255,180,120,0.95)";
-            if (n.kind === "Clip") {
-              if (p.name === "update")  pipColor = "rgba(255,120,120,0.95)";
-              if (p.name === "load")    pipColor = "rgba(170,120,255,0.95)";
+            if (n.kind === "Clip" || n.kind === "ProxyClip") {
+              if (p.name === "update")  pipColor = "rgba(80,200,120,0.95)";
+              if (p.name === "load")    pipColor = "rgba(100,180,255,0.95)";
               if (p.name === "default") pipColor = "rgba(190,190,190,0.95)";
-              if (p.name === "unload")  pipColor = "rgba(120,255,220,0.95)";
+              if (p.name === "unload")  pipColor = "rgba(255,160,80,0.95)";
             }
             if (n.kind === "ScriptNode" && n.defId === "timeline" && p.name === "code") pipColor = "rgba(70,170,255,0.95)";
             setStyle(pip, {
-              width: isStripNode ? "0" : "12px",
-              height: isStripNode ? "0" : "12px",
+              width: (isStripNode || n.kind === "ProxyClip") ? "0" : "12px",
+              height: (isStripNode || n.kind === "ProxyClip") ? "0" : "12px",
               borderRadius:"50%",
-              background: (n.kind === "Clip") ? "transparent" : (isStripNode ? "transparent" : pipColor),
+              background: (n.kind === "Clip" || n.kind === "ProxyClip") ? "transparent" : (isStripNode ? "transparent" : pipColor),
               pointerEvents:"none",
               flexShrink:"0",
               transition:"transform 0.1s, box-shadow 0.1s",
-              boxShadow: isStripNode ? "none" : "0 0 0 3px rgba(255,255,255,0.06) inset"
+              boxShadow: (isStripNode || n.kind === "ProxyClip") ? "none" : "0 0 0 3px rgba(255,255,255,0.06) inset"
             });
 
             // For strip nodes (ScriptNode/Context): ports are handled by the strip pip listeners above
             // For Clip nodes: create invisible hit-target div over the visible pip
-            if (!isStripNode) {
+            // ProxyClip uses its own row layout — skip generic hit target
+            if (!isStripNode && n.kind !== "ProxyClip") {
               var port = el("div");
               setStyle(port, {
                 position:"absolute",
@@ -3733,7 +3999,7 @@
                 lbl.style.textAlign = "left";
               }
               card.appendChild(port);
-              if (n.kind !== "Clip") card.appendChild(lbl);
+              if (n.kind !== "Clip" && n.kind !== "ProxyClip") card.appendChild(lbl);
 
               if (p.dir === "out") {
                 port.onmousedown = function(ev){
@@ -3762,6 +4028,12 @@
         }
 
         card.onmousedown = function(ev){
+          // Only drag from non-interactive elements
+          var t = ev.target;
+          var tag = t ? t.tagName.toLowerCase() : "";
+          if (tag === "input" || tag === "select" || tag === "textarea" || tag === "button") return;
+          // Also skip if target has a data-port attribute (pip)
+          if (t && t.getAttribute && (t.getAttribute("data-port-node") || t.className.indexOf("lt_port") !== -1)) return;
           ev.stopPropagation();
           selectNode(n.id);
           beginDragNode(n.id, ev);
@@ -3770,6 +4042,19 @@
         nodesLayer.appendChild(card);
       })();
     }
+
+    // Rebuild pipRegistry — else ports first so they win over body when rects overlap
+    state.pipRegistry = [];
+    var allPips = nodesLayer.querySelectorAll("[data-port-name]");
+    var elseFirst = [], others = [];
+    for (var rpi=0; rpi<allPips.length; rpi++) {
+      var rpEl = allPips[rpi];
+      var rpPort = rpEl._pipPort || rpEl.getAttribute("data-port-name");
+      var entry = { nodeId: rpEl._pipNodeId || rpEl.getAttribute("data-port-node"), port: rpPort, el: rpEl };
+      if (rpPort === "else") elseFirst.push(entry);
+      else others.push(entry);
+    }
+    state.pipRegistry = others.concat(elseFirst);
 
     drawLinks();
   }
@@ -4061,13 +4346,12 @@
 
   // ===== Import nodes from existing clip scripts =====
   function importClipNodes(clipNode, dropX, dropY) {
-    // Don't import nodes for root timeline — it has no clip scripts
     if (clipNode.data && clipNode.data.isRoot) return;
     var SLOTS = ["default", "update", "load", "unload"];
     var nodeX = dropX + 320;
     var nodeY = dropY - 80;
 
-    // Remove existing ScriptNodes linked to this clip
+    // Remove existing ScriptNodes already linked to this clip
     var toRemove = [];
     for (var ni = 0; ni < state.nodes.length; ni++) {
       var nd = state.nodes[ni];
@@ -4085,6 +4369,7 @@
 
     var yOff = 0;
     var createdAny = false;
+    var CLAMP_IDS_IMP = { "move":1, "setPosition":1, "rotate":1, "scale":1 };
 
     for (var si = 0; si < SLOTS.length; si++) {
       var slot = SLOTS[si];
@@ -4092,62 +4377,72 @@
       try { raw = readSlotViaBridge(clipNode.data, slot) || ""; } catch(e){}
       if (!raw.trim()) continue;
 
-      // Strip LT_NODEPANEL markers
-      var stripped = raw;
+      // Strip LT_NODEPANEL wrapper markers if present
+      var src = raw;
       var startMark = "/* LT_NODEPANEL_START */";
-      var endMark = "/* LT_NODEPANEL_END */";
-      var sa = stripped.indexOf(startMark);
-      var sb = stripped.indexOf(endMark);
-      if (sa !== -1 && sb !== -1 && sb > sa) stripped = stripped.slice(sa + startMark.length, sb).trim();
-      if (!stripped.trim()) continue;
+      var endMark   = "/* LT_NODEPANEL_END */";
+      var sa = src.indexOf(startMark);
+      var sb = src.indexOf(endMark);
+      if (sa !== -1 && sb !== -1 && sb > sa) src = src.slice(sa + startMark.length, sb).trim();
+      if (!src.trim()) continue;
 
-      // Split into lines, try matching each against known node defs
-      var lines = stripped.split("\n").map(function(l){ return l.trim(); }).filter(function(l){ return l && l.indexOf("//") !== 0; });
-      var lineMatches = [];
+      // ── Pass 1: try to match each line to a known node def (json-config node) ──
+      var lines = src.split("\n")
+        .map(function(l){ return l.trim(); })
+        .filter(function(l){ return l && l.indexOf("//") !== 0; });
+
+      var matchedDefIds = {};
       var unmatchedLines = [];
+
       for (var lmi = 0; lmi < lines.length; lmi++) {
         var lm = tryMatchNodeDef(lines[lmi]);
-        if (lm) lineMatches.push({ match: lm, line: lines[lmi] });
-        else unmatchedLines.push(lines[lmi]);
+        if (lm && NodeConfig.byId[lm.defId]) {
+          // Don't create duplicate def nodes for same defId
+          if (matchedDefIds[lm.defId]) { unmatchedLines.push(lines[lmi]); continue; }
+          matchedDefIds[lm.defId] = true;
+          var mDef = NodeConfig.byId[lm.defId];
+          var mControls = (mDef.ui && mDef.ui.controls) ? mDef.ui.controls : [];
+          var mCtrl = mControls.length;
+          var mClamp = CLAMP_IDS_IMP[lm.defId] ? mCtrl * 34 : 0;
+          var mH = 60 + mCtrl * 44 + mClamp + 42;
+          var mSn = { id:uuid(), kind:"ScriptNode", title:mDef.label || lm.defId,
+            x:nodeX, y:nodeY+yOff, w:320, h:mH,
+            ports:[
+              { name:"trigger", dir:"in",  x:0,   y:mH-21 },
+              { name:"code",    dir:"out", x:320, y:mH-21 }
+            ],
+            defId:lm.defId, data:lm.data };
+          state.nodes.push(mSn);
+          state.links.push({ id:uuid(), fromNodeId:mSn.id, fromPort:"code", toNodeId:clipNode.id, toPort:slot });
+          yOff += mH + 16;
+          createdAny = true;
+        } else {
+          unmatchedLines.push(lines[lmi]);
+        }
       }
 
-      // Create a proper node for each matched line
-      for (var mni = 0; mni < lineMatches.length; mni++) {
-        var lmatch = lineMatches[mni].match;
-        var matchDef = NodeConfig.byId[lmatch.defId] || null;
-        if (!matchDef) continue;
-        var matchControls = (matchDef.ui && matchDef.ui.controls) ? matchDef.ui.controls : [];
-        var ctrlCount = matchControls.length;
-        var cardH2 = 60 + ctrlCount * 44 + 42;
-        var sn2 = { id:uuid(), kind:"ScriptNode", title:matchDef.label || lmatch.defId,
-          x:nodeX, y:nodeY+yOff, w:320, h:cardH2,
-          ports:[
-            { name:"trigger", dir:"in",  x:0,   y:cardH2-19 },
-            { name:"code",    dir:"out", x:320, y:cardH2-19 }
-          ],
-          defId:lmatch.defId, data:lmatch.data };
-        state.nodes.push(sn2);
-        state.links.push({ id:uuid(), fromNodeId:sn2.id, fromPort:"code", toNodeId:clipNode.id, toPort:slot });
-        yOff += cardH2 + 16;
-        createdAny = true;
-      }
-
-      // Remaining unmatched lines fall back to smartCode / CFG
-      var fallbackSrc = lineMatches.length > 0 ? unmatchedLines.join("\n") : stripped;
+      // ── Pass 2: remaining lines → smartCode / CFG card ──
+      // Use full src for CFG parsing (LT_CFG block needs the whole script)
+      var fallbackSrc = Object.keys(matchedDefIds).length > 0 ? unmatchedLines.join("\n") : src;
       if (!fallbackSrc.trim()) continue;
+
       var parsed = parseCodeToControls(fallbackSrc);
       if (!parsed || !parsed.controls || !parsed.controls.length) continue;
 
-      var nodeData = { _template: parsed.template, _rawCode: fallbackSrc, _controls: parsed.controls,
+      var nodeData = {
+        _template: parsed.template, _rawCode: fallbackSrc, _controls: parsed.controls,
         _cfgMode: parsed._cfgMode || false, _cfgObj: parsed._cfgObj || null,
-        _cfgJsonStr: parsed._cfgJsonStr || null, _cfgVarName: parsed._cfgVarName || null };
+        _cfgJsonStr: parsed._cfgJsonStr || null, _cfgVarName: parsed._cfgVarName || null
+      };
       for (var ci = 0; ci < parsed.controls.length; ci++) {
         var c = parsed.controls[ci];
         nodeData[c.key] = (typeof c.default !== "undefined") ? c.default : "";
       }
       var rawTitle = parsed._cfgVarName || "";
-      if (rawTitle) rawTitle = rawTitle.replace(/^LT_/,"").replace(/_/g," ").toLowerCase().replace(/\b(\w)/g,function(x){return x.toUpperCase();});
+      if (rawTitle) rawTitle = rawTitle.replace(/^LT_/,"").replace(/_/g," ").toLowerCase().replace(/\b(\w)/g,function(x){ return x.toUpperCase(); });
       var title = rawTitle || (slot.charAt(0).toUpperCase() + slot.slice(1));
+
+      // Card height matches drawNodes smartCode formula: 60 + ctrlCount*44 + 42
       var cardH = 60 + parsed.controls.length * 44 + 42;
       var sn = { id:uuid(), kind:"ScriptNode", title:title,
         x:nodeX, y:nodeY+yOff, w:320, h:cardH,
@@ -4254,12 +4549,39 @@
           var dx0 = w.x - wx;
           var dy0 = w.y - wy;
           var dist = Math.sqrt(dx0*dx0 + dy0*dy0);
-          if (dist < bestDist){ bestDist = dist; bestNodeId = nd.id; bestPort = np.name; }
+          var effectiveDist = (np.name === "else") ? dist * 0.55 : dist;
+          if (effectiveDist < bestDist){ bestDist = effectiveDist; bestNodeId = nd.id; bestPort = np.name; }
         }
       }
-      // hoverIn takes priority for snap preview
-      var snapNodeId = state.hoverIn ? state.hoverIn.nodeId : bestNodeId;
-      var snapPort   = state.hoverIn ? state.hoverIn.port   : bestPort;
+      // Check else ports via world coords for snap preview
+      var elseSnapHit = null;
+      for (var esw=0; esw<state.nodes.length; esw++) {
+        var esn = state.nodes[esw];
+        if (!esn || esn.kind !== "Wrapper") continue;
+        var eswdef = WRAPPER_TYPES[esn.data && esn.data._wrapType];
+        if (!eswdef || !eswdef.hasElsePort) continue;
+        for (var esp=0; esp<esn.ports.length; esp++) {
+          if (esn.ports[esp].name === "else") {
+            var espx = esn.x + esn.ports[esp].x;
+            var espy = esn.y + esn.ports[esp].y;
+            var esdx = w.x - espx; var esdy = w.y - espy;
+            if (Math.sqrt(esdx*esdx + esdy*esdy) < 60) {
+              elseSnapHit = { nodeId: esn.id, port: "else", px: espx, py: espy };
+            }
+            break;
+          }
+        }
+        if (elseSnapHit) break;
+      }
+      var snapNodeId, snapPort;
+      if (elseSnapHit) {
+        snapNodeId = elseSnapHit.nodeId; snapPort = "else";
+        state.linking.mouseWorldX = elseSnapHit.px;
+        state.linking.mouseWorldY = elseSnapHit.py;
+      } else {
+        snapNodeId = state.hoverIn ? state.hoverIn.nodeId : bestNodeId;
+        snapPort   = state.hoverIn ? state.hoverIn.port   : bestPort;
+      }
       if (snapNodeId){
         var sn = null;
         for (var si=0; si<state.nodes.length; si++) if (state.nodes[si].id === snapNodeId){ sn = state.nodes[si]; break; }
@@ -4275,6 +4597,17 @@
           // If port not found in nd.ports (e.g. else port rendered in DOM only), use hoverIn as-is
         }
       }
+      // Visual feedback — highlight snapped port
+      try {
+        document.querySelectorAll(".lt_port").forEach(function(p){ p.style.transform="scale(1)"; p.style.boxShadow="none"; });
+        if (snapNodeId && snapPort) {
+          var snapPip = document.querySelector("[data-port-node=\""+snapNodeId+"\"][data-port-name=\""+snapPort+"\"]");
+          if (snapPip) {
+            snapPip.style.transform = "scale(1.8)";
+            snapPip.style.boxShadow = "0 0 12px " + (snapPort === "else" ? "rgba(255,160,80,0.9)" : "rgba(100,220,180,0.9)");
+          }
+        }
+      } catch(eVF){}
       drawLinks();
     }
     if (!state.draggingPan) return;
@@ -4288,14 +4621,47 @@
 
   window.addEventListener("mouseup", function(ev){
     if (state.linking && state.linking.active) {
-      // 1. Check pipRegistry by actual screen rect — most reliable, works during drag
+      var mw = screenToWorld(ev.clientX, ev.clientY);
+
+      // 1. World-coordinate check for wrapper else ports
+      var elseHit = null;
+      for (var wei=0; wei<state.nodes.length; wei++) {
+        var wen = state.nodes[wei];
+        if (!wen || wen.kind !== "Wrapper") continue;
+        var wdef = WRAPPER_TYPES[wen.data && wen.data._wrapType];
+        if (!wdef || !wdef.hasElsePort) continue;
+        var elsePort = null;
+        for (var esp=0; esp<wen.ports.length; esp++) {
+          if (wen.ports[esp].name === "else") { elsePort = wen.ports[esp]; break; }
+        }
+        if (!elsePort) continue;
+        var elseX = wen.x + elsePort.x;
+        var elseY_w = wen.y + elsePort.y;
+        var distToElse = Math.sqrt(Math.pow(mw.x - elseX,2) + Math.pow(mw.y - elseY_w,2));
+        var centerHalfLeft  = wen.x + wen.w * 0.25;
+        var centerHalfRight = wen.x + wen.w * 0.75;
+        var inCenterX = mw.x >= centerHalfLeft && mw.x <= centerHalfRight;
+        var nearBottom = Math.abs(mw.y - (wen.y + wen.h - 24)) < 35;
+        if (distToElse < 45 && inCenterX && nearBottom) {
+          elseHit = { nodeId: wen.id, port: "else" };
+          state.linking.mouseWorldX = elseX;
+          state.linking.mouseWorldY = elseY_w;
+        }
+        if (elseHit) break;
+      }
+      if (elseHit) {
+        tryCompleteLink(elseHit.nodeId, elseHit.port);
+        return;
+      }
+
+      // 2. pipRegistry screen rect check for other special pips
       var pipHit = null;
       for (var pri=0; pri<state.pipRegistry.length; pri++) {
         var pr = state.pipRegistry[pri];
-        if (!pr || !pr.el) continue;
+        if (!pr || !pr.el || pr.port === "else") continue; // else handled above
         try {
           var rect = pr.el.getBoundingClientRect();
-          var pad = 10; // extra hit padding
+          var pad = 10;
           if (ev.clientX >= rect.left - pad && ev.clientX <= rect.right + pad &&
               ev.clientY >= rect.top - pad && ev.clientY <= rect.bottom + pad) {
             pipHit = pr; break;
@@ -4304,7 +4670,7 @@
       }
       if (pipHit) {
         tryCompleteLink(pipHit.nodeId, pipHit.port);
-      // 2. hoverIn fallback
+      // 3. hoverIn fallback
       } else if (state.hoverIn) {
         try { tryCompleteLink(state.hoverIn.nodeId, state.hoverIn.port); } catch(eH){ cancelLink(); }
       } else {
@@ -4562,6 +4928,7 @@
       nodeSelect.appendChild(o);
     }
 
+    addOpt("proxy:", "Proxy Clip");
     for (var i=0;i<NodeConfig.list.length;i++){
       var d = NodeConfig.list[i];
       if (!d || typeof d !== "object") continue;
@@ -4584,6 +4951,7 @@
     try { v = String(nodeSelect.value || ""); } catch(e0){ v = ""; }
     var p = worldCenter();
 
+    if (v === "proxy:" || v.indexOf("proxy:") === 0) { addProxyClipNode(p.x, p.y, "MyClip"); drawNodes(); return; }
     if (v.indexOf("tool:") === 0){
       var id = v.slice(5);
       var def = NodeConfig.byId[id] || null;
