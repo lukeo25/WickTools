@@ -1,0 +1,53 @@
+var LT_CFG = {"type":"LT_DROPZONE","acceptName":"","highlightOnHover":1,"snapToCenter":1,"onDropScale":1.1,"resetAfterFrames":0};
+if (!this._DZ) { this._DZ = { hasItem:false, itemName:"", flashT:0, baseScaleX:this.scaleX||1, baseScaleY:this.scaleY||1 }; }
+var dz = this._DZ;
+var proj = this.project || null;
+if (!proj) return;
+var hw = (this.width  || 80) / 2;
+var hh = (this.height || 80) / 2;
+if (!proj._LT_ZONES) proj._LT_ZONES = {};
+proj._LT_ZONES[this.identifier || "dropzone"] = { x:this.x, y:this.y, hw:hw, hh:hh };
+var hovering = false;
+if (LT_CFG.highlightOnHover && proj._LT_DRAGGING) {
+  for (var uid in proj._LT_DRAGGING) {
+    var drag = proj._LT_DRAGGING[uid];
+    if (!drag.active) continue;
+    if (LT_CFG.acceptName && drag.name !== LT_CFG.acceptName) continue;
+    var over = drag.x >= this.x - hw && drag.x <= this.x + hw &&
+               drag.y >= this.y - hh && drag.y <= this.y + hh;
+    if (over) { hovering = true; break; }
+  }
+}
+this.opacity = hovering ? 0.7 : 1;
+if (proj._LT_DROPS && proj._LT_DROPS.length > 0) {
+  for (var di=0; di<proj._LT_DROPS.length; di++) {
+    var drop = proj._LT_DROPS[di];
+    if (LT_CFG.acceptName && drop.name !== LT_CFG.acceptName) continue;
+    var landed = drop.x >= this.x - hw && drop.x <= this.x + hw &&
+                 drop.y >= this.y - hh && drop.y <= this.y + hh;
+    if (landed) {
+      dz.hasItem = true;
+      dz.itemName = drop.name;
+      dz.flashT = 12;
+      if (LT_CFG.snapToCenter) {
+        if (!proj._LT_SNAP) proj._LT_SNAP = {};
+        proj._LT_SNAP[drop.uuid] = { x: this.x, y: this.y };
+      }
+      if (!proj._LT_DROP_RESULTS) proj._LT_DROP_RESULTS = [];
+      proj._LT_DROP_RESULTS.push({ zone: this.identifier || "dropzone", item: drop.name, uuid: drop.uuid });
+    }
+  }
+}
+if (dz.flashT > 0) {
+  dz.flashT--;
+  var t = dz.flashT / 12;
+  var sc = dz.baseScaleX * (1 + (LT_CFG.onDropScale - 1) * t);
+  try { this.scaleX = sc; this.scaleY = sc; } catch(e){}
+} else {
+  try { this.scaleX = dz.baseScaleX; this.scaleY = dz.baseScaleY; } catch(e){}
+}
+if (LT_CFG.resetAfterFrames > 0 && dz.hasItem) {
+  if (!dz.resetT) dz.resetT = 0;
+  dz.resetT++;
+  if (dz.resetT >= LT_CFG.resetAfterFrames) { dz.hasItem = false; dz.itemName = ""; dz.resetT = 0; }
+}
