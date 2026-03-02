@@ -753,25 +753,21 @@
     // Project Timeline only has one "default" script slot in Wick.
     // Nodes connected to Update/Load/Unload ports are wrapped in onEvent handlers.
     var slotLines = {};
-    // Walk every ScriptNode and find links that reach root timeline (directly OR through chains)
     for (var ni = 0; ni < state.nodes.length; ni++) {
       var sn = state.nodes[ni];
       if (!sn || sn.kind !== "ScriptNode") continue;
-      var def = NodeConfig.byId[sn.defId] || null;
-      if (!def || !def.script) continue;
-      var line = renderNodeLine(def, sn.data);
-      if (!line || !String(line).trim()) continue;
-      // Find all downstream clip slots — filter to only root nodes
-      var allTargets = getDownstreamClipSlots(sn.id, {});
-      for (var rti=0; rti<allTargets.length; rti++) {
-        var rtgt = allTargets[rti];
-        if (!rtgt.clipNode.data || !rtgt.clipNode.data.isRoot) continue;
-        var targetSlot = rtgt.slotPort || "default";
-        if (def.script.slotMode === "mouseEvent") { targetSlot = String((sn.data && sn.data.event) ? sn.data.event : "mouseenter"); }
-        else if (def.script.slotMode === "byTargetPort") { targetSlot = rtgt.slotPort; }
-        else if (def.script.slotDefault) { targetSlot = String(def.script.slotDefault); }
+      for (var li = 0; li < state.links.length; li++) {
+        var lk = state.links[li];
+        if (lk.fromNodeId !== sn.id || lk.fromPort !== "code") continue;
+        var dest = nodeById(lk.toNodeId);
+        if (!dest || dest.kind !== "Clip" || !dest.data || !dest.data.isRoot) continue;
+        var def = NodeConfig.byId[sn.defId] || null;
+        if (!def || !def.script) continue;
+        var line = renderNodeLine(def, sn.data);
+        var targetSlot = lk.toPort || "default";
         if (!slotLines[targetSlot]) slotLines[targetSlot] = [];
-        slotLines[targetSlot].push(String(line).trim());
+        if (line && String(line).trim()) slotLines[targetSlot].push(line);
+        // No break — same node may connect to multiple ports
       }
     }
 
@@ -1071,21 +1067,6 @@
     });
     return out;
   }
-
-  // Block LukeTools bridge iframe-height messages that shrink our panel
-  // The bridge injects setInterval/ResizeObserver that posts scrollHeight to parent.
-  // We intercept in capture phase and reply with the actual viewport height instead.
-  (function(){
-    window.addEventListener("message", function(ev){
-      try {
-        if (ev.data && ev.data.type === "LukeToolsToolHeight") {
-          ev.stopImmediatePropagation();
-          var h = window.innerHeight || document.documentElement.clientHeight || 600;
-          try { if (window.parent && window.parent !== window) window.parent.postMessage({ type:"LukeToolsToolHeight", h:h }, "*"); } catch(ep){}
-        }
-      } catch(e){}
-    }, true);
-  })();
 
   function uuid(){ return String(Date.now()) + "_" + String(Math.floor(Math.random()*1000000)); }
 
@@ -1838,27 +1819,25 @@
       return results;
     }
 
-    // Walk every ScriptNode and find ALL downstream clip slots (including chains)
-    for (var ni2=0; ni2<state.nodes.length; ni2++) {
-      var sn2 = state.nodes[ni2];
-      if (!sn2 || sn2.kind !== "ScriptNode") continue;
-      var def2 = NodeConfig.byId[sn2.defId] || null;
-      if (!def2 || !def2.script) continue;
-      var genLine2 = renderNodeLine(def2, sn2.data);
-      if (!genLine2 || !String(genLine2).trim()) continue;
-      // Find all downstream clip slots this node feeds (directly OR through chains)
-      var targets = getDownstreamClipSlots(sn2.id, {});
-      for (var ti=0; ti<targets.length; ti++) {
-        var tgt = targets[ti];
-        var clipPath2 = (tgt.clipNode.data && tgt.clipNode.data.path) ? tgt.clipNode.data.path : [];
-        if (!clipPath2.length) continue;
-        var slot2 = tgt.slotPort;
-        if (def2.script.slotMode === "mouseEvent") { slot2 = String((sn2.data && sn2.data.event) ? sn2.data.event : "mouseenter"); }
-        else if (def2.script.slotMode === "byTargetPort") { slot2 = tgt.slotPort; }
-        else if (def2.script.slotDefault) { slot2 = String(def2.script.slotDefault); }
-        var bucket2 = ensure(clipPath2, slot2);
-        console.log("[LT build] sn", sn2.defId, "->", tgt.clipNode.data && tgt.clipNode.data.name, "slot", slot2, "line:", genLine2);
-        bucket2.lines.push(String(genLine2).trim());
+    for (var i=0;i<state.links.length;i++){
+      var L = state.links[i];
+      var to = nodeById(L.toNodeId);
+      var from = nodeById(L.fromNodeId);
+      if (!to || !from) continue;
+      if (to.kind === "Clip" && (L.toPort === "default" || L.toPort === "load" || L.toPort === "update" || L.toPort === "unload")) {
+        if (from.kind !== "ScriptNode" || L.fromPort !== "code") continue;
+        var clipPath = (to.data && to.data.path) ? to.data.path : [];
+        if (!clipPath.length) continue;
+        var def = NodeConfig.byId[from.defId] || null;
+        if (!def || !def.script) continue;
+        var slot = L.toPort;
+        if (def.script.slotMode === "mouseEvent") { slot = String((from.data && from.data.event) ? from.data.event : "mouseenter"); }
+        else if (def.script.slotMode === "byTargetPort") { slot = L.toPort; }
+        else if (def.script.slotDefault) { slot = String(def.script.slotDefault); }
+        var bucket = ensure(clipPath, slot);
+        var genLine = renderNodeLine(def, from.data);
+        console.log("[LT build] link", i, "from", from.defId, "slot", slot, "line:", genLine);
+        if (genLine && String(genLine).trim()) bucket.lines.push(genLine);
       }
     }
 
