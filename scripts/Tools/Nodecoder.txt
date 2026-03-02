@@ -476,7 +476,7 @@
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding:12px 14px 0;
+    padding:5px 14px;
     flex-shrink:0;
   }
   .lt_scriptTitlePill, .lt_contextTitlePill {
@@ -513,8 +513,8 @@
     align-items:center;
     justify-content:space-between;
     padding:0 20px;
-    height:48px;
-    min-height:48px;
+    height:22px;
+    min-height:22px;
     flex-shrink:0;
     background:#0c0c14;
     border-top:1px solid rgba(255,255,255,0.07);
@@ -568,10 +568,9 @@
   }
   .lt_scriptLabel {
     color:#ffffff;
-    font-size:11px;
-    font-weight:600;
-    letter-spacing:0.07em;
-    text-transform:uppercase;
+    font-size:12px;
+    font-weight:500;
+    letter-spacing:0.01em;
     flex-shrink:0;
   }
   .lt_scriptValueBadge {
@@ -1577,6 +1576,20 @@
   topbar.appendChild(btnAddWrap);
   topbar.appendChild(nodeSelect);
   topbar.appendChild(btnAddNode);
+
+  var ffSelect = el("select");
+  ffSelect.className = "lt_select";
+  var ffOptDefault = el("option");
+  ffOptDefault.value = "";
+  ffOptDefault.textContent = "FF_ (loading…)";
+  ffSelect.appendChild(ffOptDefault);
+
+  var btnAddFF = el("button");
+  btnAddFF.className = "lt_btn";
+  btnAddFF.textContent = "Add";
+
+  topbar.appendChild(ffSelect);
+  topbar.appendChild(btnAddFF);
   rootEl.appendChild(topbar);
 
   /* --- Main area --- */
@@ -1852,7 +1865,25 @@
   function selectNode(id){ state.selectedNodeId = id; drawNodes(); }
 
   // ===== Node creation =====
+  function staggerPos(x, y) {
+    var attempts = 0;
+    while (attempts < 8) {
+      var overlap = false;
+      for (var oi=0; oi<state.nodes.length; oi++) {
+        var other = state.nodes[oi];
+        if (Math.abs(other.x - x) < 200 && Math.abs(other.y - y) < 120) {
+          overlap = true; break;
+        }
+      }
+      if (!overlap) break;
+      y += 60;
+      attempts++;
+    }
+    return { x:x, y:y };
+  }
+
   function addClipNode(x, y, data){
+    var sp0=staggerPos(x,y); x=sp0.x; y=sp0.y;
     var n = { id:uuid(), kind:"Clip", title:"", x:x, y:y, w:280, ports:[], data:data || {} };
     // Project Timeline (isRoot): script layer frames use "update" slot (confirmed via debug).
     // All ports on the card route to "update" — connections are accepted on any
@@ -1871,6 +1902,7 @@
   }
 
   function addProxyClipNode(x, y, clipName) {
+    var sp1=staggerPos(x,y); x=sp1.x; y=sp1.y;
     // Layout: accent=4, titleRow=42, nameInput=50, slotRow=32 each, bottomPad=14
     // Height: top(16)+badge(34)+gap(18)+4rows(32each)+btn(66) = 262
     var cardH = 262;
@@ -1893,6 +1925,7 @@
   }
 
   function addContextNode(x, y, slot){
+    var sp2=staggerPos(x,y); x=sp2.x; y=sp2.y;
     var n = { id:uuid(), kind:"Context", title:"Context", x:x, y:y, w:300, ports:[], data:{ slot: slot || "update" } };
     var ctxCardH = 68 + 36 + 50;
     var ctxPortY = ctxCardH - 38;
@@ -2059,6 +2092,7 @@
   };
 
   function addWrapperNode(x, y, wrapType) {
+    var sp3=staggerPos(x,y); x=sp3.x; y=sp3.y;
     var wt = WRAPPER_TYPES[wrapType];
     if (!wt) return null;
     var ctrlCount = wt.controls.length;
@@ -2087,6 +2121,7 @@
   }
 
   function addScriptNodeFromDef(x, y, def){
+    var sp4=staggerPos(x,y); x=sp4.x; y=sp4.y;
     var n = { id:uuid(), kind:"ScriptNode", title:String(def.label || def.id || "Tool"), x:x, y:y, w:320, ports:[], data:{}, defId:String(def.id || def.label || "") };
     // Port Y based on content layout (not card height)
     // scriptInner padding-top:18 + header:34 + margin:16 = 68px to controls start
@@ -2100,8 +2135,8 @@
     // Anchor ports to bottom strip: cardH - 38 = dot centre
     var CLAMP_IDS = { "move":1, "setPosition":1, "rotate":1, "scale":1 };
     var clampExtra = CLAMP_IDS[def && def.id] ? ctrlCount * 34 : 0; // 34px per clamp row
-    var cardH = 60 + ctrlCount * 44 + clampExtra + 42;
-    var portY = cardH - 21;
+    var cardH = 60 + ctrlCount * 44 + clampExtra + 48;
+    var portY = cardH - 24;
     n.ports[0].y = portY;
     n.ports[1].y = portY;
     if (def && def.ui && Array.isArray(def.ui.controls)){
@@ -3131,9 +3166,9 @@
           var CLAMP_DOM_IDS = { "move":1, "setPosition":1, "rotate":1, "scale":1 };
           var clampExtraDom = CLAMP_DOM_IDS[n.defId] ? ctrlCount2 * 34 : 0;
           if (n.ports && n.ports.length) {
-            h = n.ports[n.ports.length - 1].y + 42 + clampExtraDom;
+            h = n.ports[n.ports.length - 1].y + 28 + clampExtraDom;
           } else {
-            h = 60 + ctrlCount2 * 44 + clampExtraDom + 42;
+            h = 60 + ctrlCount2 * 44 + clampExtraDom + 28;
           }
         } else if (n.kind === "Wrapper") {
           var wdef2 = WRAPPER_TYPES[n.data && n.data._wrapType] || null;
@@ -4919,6 +4954,100 @@
     wrapSelect.appendChild(og3);
   }
 
+  // ── FF_ dropdown: fetch file list from GitHub, load code on demand ──
+  var FF_GITHUB_API = "https://api.github.com/repos/lukeo25/WickTools/contents/scripts/FF_nodes";
+  var FF_RAW_BASE   = "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/FF_nodes/";
+  var FF_CACHE = {}; // filename -> code string
+
+  function populateFFDropdown() {
+    ffSelect.innerHTML = "";
+    var loadingOpt = el("option"); loadingOpt.value = ""; loadingOpt.textContent = "FF_ (loading…)";
+    ffSelect.appendChild(loadingOpt);
+
+    fetch(FF_GITHUB_API)
+      .then(function(r){ return r.json(); })
+      .then(function(files) {
+        ffSelect.innerHTML = "";
+        var og = el("optgroup"); og.label = "Full Function";
+        var count = 0;
+        for (var i=0; i<files.length; i++) {
+          var f = files[i];
+          if (!f.name || !f.name.match(/\.txt$/i)) continue;
+          var label = f.name.replace(/\.txt$/i, "");
+          var o = el("option"); o.value = f.name; o.textContent = label;
+          og.appendChild(o);
+          count++;
+        }
+        if (count === 0) {
+          var none = el("option"); none.value = ""; none.textContent = "FF_ (none found)";
+          ffSelect.appendChild(none);
+        } else {
+          ffSelect.appendChild(og);
+        }
+      })
+      .catch(function(e) {
+        ffSelect.innerHTML = "";
+        var errOpt = el("option"); errOpt.value = ""; errOpt.textContent = "FF_ (fetch failed)";
+        ffSelect.appendChild(errOpt);
+        console.warn("[LT FF] GitHub fetch failed:", e);
+      });
+  }
+
+  function loadFFAndAdd(filename) {
+    if (FF_CACHE[filename]) { addFFNodeFromCode(filename, FF_CACHE[filename]); return; }
+    fetch(FF_RAW_BASE + filename)
+      .then(function(r){ return r.text(); })
+      .then(function(code) {
+        FF_CACHE[filename] = code;
+        addFFNodeFromCode(filename, code);
+      })
+      .catch(function(e){ console.warn("[LT FF] Failed to load", filename, e); });
+  }
+
+  function addFFNodeFromCode(filename, code) {
+    var parsed = parseCodeToControls(code);
+    if (!parsed) { console.warn("[LT FF] No LT_CFG found in", filename); return; }
+    var label = filename.replace(/\.txt$/i, "");
+    // Detect slot from CFG type or default to update
+    var slot = "update";
+    if (parsed._cfgObj && parsed._cfgObj.slot) slot = parsed._cfgObj.slot;
+    else if (/solid/i.test(filename)) slot = "default";
+    var ctrlCount = parsed.controls.length;
+    var nodeData = {
+      _template: code, _rawCode: code, _controls: parsed.controls,
+      _cfgMode: true, _cfgVarName: parsed._cfgVarName,
+      _cfgJsonStr: parsed._cfgJsonStr, _cfgObj: parsed._cfgObj,
+      slot: slot
+    };
+    for (var ci=0; ci<parsed.controls.length; ci++) {
+      var ctrl = parsed.controls[ci];
+      nodeData[ctrl.key] = ctrl.default !== undefined ? ctrl.default : 0;
+    }
+    var nH = 60 + ctrlCount * 44 + 48;
+    var portY2 = nH - 24;
+    var _fp = worldCenter(); var _fsp = staggerPos(_fp.x, _fp.y);
+    var nn = {
+      id: uuid(), kind: "ScriptNode", defId: "smartCode",
+      title: label,
+      x: _fsp.x, y: _fsp.y, w: 320,
+      ports: [
+        { name:"trigger", dir:"in",  x:10,  y:portY2 },
+        { name:"code",    dir:"out", x:310, y:portY2 }
+      ],
+      data: nodeData
+    };
+    state.nodes.push(nn);
+    selectNode(nn.id);
+    drawNodes();
+    scheduleInject();
+  }
+
+  btnAddFF.onclick = function() {
+    var filename = ffSelect.value;
+    if (!filename || !filename.match(/\.txt$/i)) return;
+    loadFFAndAdd(filename);
+  };
+
   function populateNodeDropdown(){
     nodeSelect.textContent = "";
     function addOpt(v, t){
@@ -4972,6 +5101,7 @@
   loadNodeConfig().then(function(loaded){
     populateWrapDropdown();
     populateNodeDropdown();
+    populateFFDropdown();
     refreshClipList();
     // Restore saved layout if available — do NOT auto-inject on load to avoid overwriting scripts
     var restored = loadLayout();
