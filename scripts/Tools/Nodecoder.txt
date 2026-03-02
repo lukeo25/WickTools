@@ -5037,6 +5037,21 @@
       data: nodeData
     };
     state.nodes.push(nn);
+    // Auto-connect to selected or first clip
+    var selClip2 = null;
+    if (state.selectedNodeId) {
+      var sc2 = nodeById(state.selectedNodeId);
+      if (sc2 && (sc2.kind === "Clip" || sc2.kind === "ProxyClip")) selClip2 = sc2;
+    }
+    if (!selClip2) {
+      for (var fci=0; fci<state.nodes.length; fci++) {
+        var fcn2 = state.nodes[fci];
+        if (fcn2 && fcn2.id !== nn.id && (fcn2.kind === "Clip" || fcn2.kind === "ProxyClip")) { selClip2 = fcn2; break; }
+      }
+    }
+    if (selClip2) {
+      state.links.push({ id: uuid(), fromNodeId: nn.id, fromPort: "code", toNodeId: selClip2.id, toPort: slot });
+    }
     selectNode(nn.id);
     drawNodes();
     scheduleInject();
