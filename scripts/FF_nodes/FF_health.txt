@@ -1,0 +1,27 @@
+var LT_CFG = {"type":"LT_HEALTH","maxHealth":3,"invincibleFrames":60,"flashSpeed":6,"dieOnZero":1};
+if (!this._HP) { this._HP = { hp: LT_CFG.maxHealth, inv: 0, alive: true }; }
+var hp = this._HP;
+if (hp.inv > 0) {
+  hp.inv--;
+  this.opacity = (Math.floor(hp.inv / LT_CFG.flashSpeed) % 2 === 0) ? 0.3 : 1;
+} else {
+  this.opacity = 1;
+}
+var proj = this.project || null;
+if (proj && proj._LT_DMG && proj._LT_DMG[this.uuid]) {
+  var dmg = proj._LT_DMG[this.uuid];
+  delete proj._LT_DMG[this.uuid];
+  if (hp.inv === 0) {
+    hp.hp -= dmg;
+    hp.inv = LT_CFG.invincibleFrames;
+    if (hp.hp <= 0 && LT_CFG.dieOnZero) {
+      hp.hp = 0;
+      hp.alive = false;
+      try { this.opacity = 0; } catch(e){}
+    }
+  }
+}
+if (proj) {
+  if (!proj._LT_HP) proj._LT_HP = {};
+  proj._LT_HP[this.uuid] = { hp: hp.hp, max: LT_CFG.maxHealth, alive: hp.alive };
+}

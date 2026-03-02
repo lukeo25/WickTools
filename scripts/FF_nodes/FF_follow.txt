@@ -1,0 +1,23 @@
+var LT_CFG = {"type":"LT_FOLLOW","targetName":"","lerpSpeed":0.08,"offsetX":0,"offsetY":0,"deadZone":5};
+var proj = this.project || null;
+if (!proj) return;
+var target = null;
+try {
+  if (LT_CFG.targetName) {
+    var children = proj.children || (proj.activeFrame && proj.activeFrame.children) || [];
+    for (var i=0; i<children.length; i++) {
+      if (children[i] && children[i].identifier === LT_CFG.targetName) { target = children[i]; break; }
+    }
+  }
+  if (!target && proj.focus) target = proj.focus;
+} catch(e) {}
+if (!target) return;
+var tx = target.x + LT_CFG.offsetX;
+var ty = target.y + LT_CFG.offsetY;
+var dx = tx - this.x;
+var dy = ty - this.y;
+var dist = Math.sqrt(dx*dx + dy*dy);
+if (dist > LT_CFG.deadZone) {
+  this.x += dx * LT_CFG.lerpSpeed;
+  this.y += dy * LT_CFG.lerpSpeed;
+}

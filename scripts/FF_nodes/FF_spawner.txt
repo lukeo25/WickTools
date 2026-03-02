@@ -1,0 +1,16 @@
+var LT_CFG = {"type":"LT_SPAWNER","interval":60,"maxCount":10,"spreadX":100,"spreadY":0,"clipName":""};
+if (!this._SPW) { this._SPW = { t: 0, count: 0 }; }
+var sp = this._SPW;
+sp.t++;
+if (sp.t < LT_CFG.interval) return;
+sp.t = 0;
+if (sp.count >= LT_CFG.maxCount) return;
+var proj = this.project || null;
+if (!proj) return;
+try {
+  if (!proj._LT_SPAWN) proj._LT_SPAWN = [];
+  var sx = this.x + (Math.random() - 0.5) * LT_CFG.spreadX;
+  var sy = this.y + (Math.random() - 0.5) * (LT_CFG.spreadY || LT_CFG.spreadX);
+  proj._LT_SPAWN.push({ clipName: LT_CFG.clipName, x: sx, y: sy, id: Date.now() + Math.random() });
+  sp.count++;
+} catch(e){}

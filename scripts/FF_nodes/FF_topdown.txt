@@ -1,0 +1,18 @@
+var LT_CFG = {"type":"LT_TOPDOWN","speed":4,"friction":0.82,"diagonal":1,"rotateToMove":0};
+if (!this._TD) { this._TD = { vx:0, vy:0 }; }
+var td = this._TD;
+var keys = this.project && this.project.keysPressed ? this.project.keysPressed : {};
+var left  = keys["ArrowLeft"]  || keys["a"] || keys["A"] ? 1 : 0;
+var right = keys["ArrowRight"] || keys["d"] || keys["D"] ? 1 : 0;
+var up    = keys["ArrowUp"]    || keys["w"] || keys["W"] ? 1 : 0;
+var down  = keys["ArrowDown"]  || keys["s"] || keys["S"] ? 1 : 0;
+var dx = right - left;
+var dy = down - up;
+if (LT_CFG.diagonal && dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
+td.vx = td.vx * LT_CFG.friction + dx * LT_CFG.speed * (1 - LT_CFG.friction);
+td.vy = td.vy * LT_CFG.friction + dy * LT_CFG.speed * (1 - LT_CFG.friction);
+this.x += td.vx;
+this.y += td.vy;
+if (LT_CFG.rotateToMove && (Math.abs(td.vx) > 0.1 || Math.abs(td.vy) > 0.1)) {
+  this.rotation = Math.atan2(td.vy, td.vx) * (180 / Math.PI);
+}

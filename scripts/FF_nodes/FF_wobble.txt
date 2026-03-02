@@ -1,0 +1,12 @@
+var LT_CFG = {"type":"LT_WOBBLE","kickAngle":15,"decay":0.88,"oscillations":3,"autoKick":0};
+if (!this._WBL) { this._WBL = { angle: 0, vel: 0, baseR: this.rotation || 0 }; }
+var wb = this._WBL;
+var proj = this.project || null;
+if (proj && proj._LT_WOBBLE && proj._LT_WOBBLE[this.uuid]) {
+  wb.vel += LT_CFG.kickAngle; delete proj._LT_WOBBLE[this.uuid];
+}
+if (LT_CFG.autoKick && !wb._kicked) { wb.vel = LT_CFG.kickAngle; wb._kicked = true; }
+wb.vel -= wb.angle * (LT_CFG.oscillations * 0.01);
+wb.vel *= LT_CFG.decay;
+wb.angle += wb.vel;
+try { this.rotation = wb.baseR + wb.angle; } catch(e){}

@@ -1,0 +1,23 @@
+var LT_CFG = {"type":"LT_SLIDER_UI","minVal":0,"maxVal":100,"axis":"x","varName":"sliderValue","knobSize":20};
+if (!this._SLD) { this._SLD = { dragging: false, value: (LT_CFG.minVal + LT_CFG.maxVal) / 2 }; }
+var sl = this._SLD;
+var proj = this.project || null;
+if (!proj) return;
+var mx = proj.mouseX || 0;
+var my = proj.mouseY || 0;
+var mdown = proj.mouseIsDown || false;
+var hw = (this.width  || 100) / 2;
+var hh = (this.height || 20)  / 2;
+var hit = mx >= this.x - hw && mx <= this.x + hw && my >= this.y - hh && my <= this.y + hh;
+if (mdown && hit) sl.dragging = true;
+if (!mdown) sl.dragging = false;
+if (sl.dragging) {
+  var t;
+  if (LT_CFG.axis === "x") t = (mx - (this.x - hw)) / (hw * 2);
+  else t = (my - (this.y - hh)) / (hh * 2);
+  t = Math.max(0, Math.min(1, t));
+  sl.value = LT_CFG.minVal + t * (LT_CFG.maxVal - LT_CFG.minVal);
+}
+if (LT_CFG.varName && proj) {
+  try { proj[LT_CFG.varName] = sl.value; } catch(e){}
+}

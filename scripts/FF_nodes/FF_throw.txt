@@ -1,0 +1,33 @@
+var LT_CFG = {"type":"LT_THROW","gravity":0.4,"damping":0.98,"minSpeed":1,"bounceWalls":1};
+if (!this._THROW) { this._THROW = { dragging:false, offX:0, offY:0, vx:0, vy:0, px:0, py:0 }; }
+var th = this._THROW;
+var proj = this.project || null;
+if (!proj) return;
+var mx = proj.mouseX || 0;
+var my = proj.mouseY || 0;
+var mdown = proj.mouseIsDown || false;
+var hw = (this.width  || 50) / 2;
+var hh = (this.height || 50) / 2;
+var hit = mx >= this.x - hw && mx <= this.x + hw && my >= this.y - hh && my <= this.y + hh;
+if (mdown && !th.dragging && hit) { th.dragging = true; th.offX = this.x - mx; th.offY = this.y - my; }
+if (th.dragging) {
+  th.vx = mx + th.offX - th.px;
+  th.vy = my + th.offY - th.py;
+  th.px = this.x; th.py = this.y;
+  this.x = mx + th.offX;
+  this.y = my + th.offY;
+}
+if (!mdown && th.dragging) { th.dragging = false; }
+if (!th.dragging) {
+  th.vy += LT_CFG.gravity;
+  th.vx *= LT_CFG.damping;
+  th.vy *= LT_CFG.damping;
+  if (Math.abs(th.vx) < LT_CFG.minSpeed) th.vx = 0;
+  this.x += th.vx;
+  this.y += th.vy;
+  if (LT_CFG.bounceWalls && proj.width && proj.height) {
+    if (this.x - hw < 0) { this.x = hw; th.vx *= -0.6; }
+    if (this.x + hw > proj.width)  { this.x = proj.width  - hw; th.vx *= -0.6; }
+    if (this.y + hh > proj.height) { this.y = proj.height - hh; th.vy *= -0.6; th.vx *= 0.85; }
+  }
+}

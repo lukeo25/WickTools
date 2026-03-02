@@ -1,0 +1,34 @@
+var LT_CFG = {"type":"LT_DRAG","snapGrid":0,"gridSize":50,"clampBounds":1,"dragOpacity":0.8};
+if (!this._DRAG) { this._DRAG = { dragging: false, offX: 0, offY: 0 }; }
+var dr = this._DRAG;
+var proj = this.project || null;
+if (!proj) return;
+var mx = proj.mouseX || 0;
+var my = proj.mouseY || 0;
+var mdown = proj.mouseIsDown || false;
+var hw = (this.width  || 50) / 2;
+var hh = (this.height || 50) / 2;
+var hit = mx >= this.x - hw && mx <= this.x + hw && my >= this.y - hh && my <= this.y + hh;
+if (mdown && !dr.dragging && hit) {
+  dr.dragging = true;
+  dr.offX = this.x - mx;
+  dr.offY = this.y - my;
+}
+if (!mdown) { dr.dragging = false; }
+if (dr.dragging) {
+  this.opacity = LT_CFG.dragOpacity;
+  var tx = mx + dr.offX;
+  var ty = my + dr.offY;
+  if (LT_CFG.snapGrid && LT_CFG.gridSize > 0) {
+    tx = Math.round(tx / LT_CFG.gridSize) * LT_CFG.gridSize;
+    ty = Math.round(ty / LT_CFG.gridSize) * LT_CFG.gridSize;
+  }
+  if (LT_CFG.clampBounds && proj.width && proj.height) {
+    tx = Math.max(hw, Math.min(proj.width  - hw, tx));
+    ty = Math.max(hh, Math.min(proj.height - hh, ty));
+  }
+  this.x = tx;
+  this.y = ty;
+} else {
+  this.opacity = 1;
+}

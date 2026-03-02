@@ -1,0 +1,16 @@
+var LT_CFG = {"type":"LT_SQUASH","squashAmt":0.6,"stretchAmt":1.4,"speed":0.15,"threshold":3};
+if (!this._SQS) { this._SQS = { prevY: this.y, scaleX: 1, scaleY: 1 }; }
+var sq = this._SQS;
+var vy = this.y - sq.prevY;
+sq.prevY = this.y;
+var targetSX = 1, targetSY = 1;
+if (vy > LT_CFG.threshold) {
+  targetSX = LT_CFG.squashAmt + (1 - LT_CFG.squashAmt) * (1 - Math.min(1, vy / 20));
+  targetSY = 2 - targetSX;
+} else if (vy < -LT_CFG.threshold) {
+  targetSX = LT_CFG.stretchAmt - (LT_CFG.stretchAmt - 1) * (1 - Math.min(1, Math.abs(vy) / 20));
+  targetSY = 2 - targetSX;
+}
+sq.scaleX += (targetSX - sq.scaleX) * LT_CFG.speed;
+sq.scaleY += (targetSY - sq.scaleY) * LT_CFG.speed;
+try { this.scaleX = sq.scaleX; this.scaleY = sq.scaleY; } catch(e){}

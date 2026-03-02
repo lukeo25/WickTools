@@ -1,0 +1,9 @@
+var LT_CFG = {"type":"LT_ORBIT","radius":100,"speed":1,"offsetX":0,"offsetY":0,"tilt":0};
+if (!this._ORB) { this._ORB = { t: 0, baseX: this.x, baseY: this.y }; }
+var ob = this._ORB;
+ob.t += LT_CFG.speed / 60;
+var cx = ob.baseX + LT_CFG.offsetX;
+var cy = ob.baseY + LT_CFG.offsetY;
+var tiltRad = LT_CFG.tilt * Math.PI / 180;
+this.x = cx + Math.cos(ob.t) * LT_CFG.radius;
+this.y = cy + Math.sin(ob.t) * LT_CFG.radius * Math.cos(tiltRad);

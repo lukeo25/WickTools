@@ -1,0 +1,20 @@
+var LT_CFG = {"type":"LT_CLAMP","padLeft":0,"padRight":0,"padTop":0,"padBottom":0,"bounce":0,"bounceDamp":0.6};
+if (!this._CLM) { this._CLM = { vx: 0, vy: 0, prevX: this.x, prevY: this.y }; }
+var cl = this._CLM;
+cl.vx = this.x - cl.prevX;
+cl.vy = this.y - cl.prevY;
+cl.prevX = this.x;
+cl.prevY = this.y;
+var proj = this.project || null;
+var pw = proj && proj.width  ? proj.width  : 480;
+var ph = proj && proj.height ? proj.height : 270;
+var hw = (this.width  || 40) / 2;
+var hh = (this.height || 40) / 2;
+var minX = hw + LT_CFG.padLeft;
+var maxX = pw - hw - LT_CFG.padRight;
+var minY = hh + LT_CFG.padTop;
+var maxY = ph - hh - LT_CFG.padBottom;
+if (this.x < minX) { this.x = minX; if (LT_CFG.bounce) cl.vx *= -LT_CFG.bounceDamp; }
+if (this.x > maxX) { this.x = maxX; if (LT_CFG.bounce) cl.vx *= -LT_CFG.bounceDamp; }
+if (this.y < minY) { this.y = minY; if (LT_CFG.bounce) cl.vy *= -LT_CFG.bounceDamp; }
+if (this.y > maxY) { this.y = maxY; if (LT_CFG.bounce) cl.vy *= -LT_CFG.bounceDamp; }

@@ -1,0 +1,15 @@
+var LT_CFG = {"type":"LT_HOVER","scaleUp":1.15,"lerpSpeed":0.12,"colorShift":0,"cursorPointer":1};
+if (!this._HOV) { this._HOV = { over: false, scale: 1 }; }
+var hv = this._HOV;
+var proj = this.project || null;
+if (!proj) return;
+var mx = proj.mouseX || 0;
+var my = proj.mouseY || 0;
+var hw = (this.width  || 50) / 2;
+var hh = (this.height || 50) / 2;
+hv.over = mx >= this.x - hw && mx <= this.x + hw && my >= this.y - hh && my <= this.y + hh;
+var targetScale = hv.over ? LT_CFG.scaleUp : 1;
+hv.scale += (targetScale - hv.scale) * LT_CFG.lerpSpeed;
+try { this.scaleX = hv.scale; this.scaleY = hv.scale; } catch(e){}
+if (hv.over && LT_CFG.colorShift) { try { this.opacity = 0.85; } catch(e){} }
+else { try { this.opacity = 1; } catch(e){} }

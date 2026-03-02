@@ -1,0 +1,14 @@
+var LT_CFG = {"type":"LT_SCREENSHAKE","trauma":0.6,"decay":0.85,"maxOffset":20,"maxRotation":3};
+if (!this._SHK) { this._SHK = { trauma: 0, baseX: this.x, baseY: this.y, baseR: this.rotation || 0 }; }
+var sh = this._SHK;
+var proj = this.project || null;
+if (proj && proj._LT_SHAKE) { sh.trauma = Math.min(1, sh.trauma + proj._LT_SHAKE); delete proj._LT_SHAKE; }
+sh.trauma = Math.max(0, sh.trauma * LT_CFG.decay);
+var shake = sh.trauma * sh.trauma;
+var seed = Date.now();
+var rx = ((Math.sin(seed * 0.07) + Math.sin(seed * 0.13)) * 0.5) * shake * LT_CFG.maxOffset;
+var ry = ((Math.sin(seed * 0.11) + Math.sin(seed * 0.17)) * 0.5) * shake * LT_CFG.maxOffset;
+var rr = ((Math.sin(seed * 0.05)) * 0.5) * shake * LT_CFG.maxRotation;
+this.x = sh.baseX + rx;
+this.y = sh.baseY + ry;
+this.rotation = sh.baseR + rr;

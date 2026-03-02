@@ -1,0 +1,15 @@
+var LT_CFG = {"type":"LT_SCORE","startScore":0,"multiplier":1,"maxScore":9999,"displayOnClip":1};
+if (!this._SCR) { this._SCR = { score: LT_CFG.startScore }; }
+var sc = this._SCR;
+var proj = this.project || null;
+if (proj && proj._LT_ADDSCORE) {
+  sc.score += proj._LT_ADDSCORE * LT_CFG.multiplier;
+  if (sc.score > LT_CFG.maxScore) sc.score = LT_CFG.maxScore;
+  if (sc.score < 0) sc.score = 0;
+  delete proj._LT_ADDSCORE;
+}
+if (proj) { proj._LT_SCORE = sc.score; }
+if (LT_CFG.displayOnClip) {
+  try { this.setText && this.setText(String(Math.floor(sc.score))); } catch(e){}
+  try { if (this.text !== undefined) this.text = String(Math.floor(sc.score)); } catch(e){}
+}

@@ -1,0 +1,18 @@
+var LT_CFG = {"type":"LT_BOUNCE","speedX":4,"speedY":3,"restitution":1,"clampSpeed":12};
+if (!this._BNC) {
+  this._BNC = { vx: LT_CFG.speedX, vy: LT_CFG.speedY };
+}
+var bn = this._BNC;
+var proj = this.project || null;
+var pw = proj && proj.width  ? proj.width  : 480;
+var ph = proj && proj.height ? proj.height : 270;
+var hw = (this.width  || 40) / 2;
+var hh = (this.height || 40) / 2;
+this.x += bn.vx;
+this.y += bn.vy;
+if (this.x - hw <= 0)  { this.x = hw;      bn.vx =  Math.abs(bn.vx) * LT_CFG.restitution; }
+if (this.x + hw >= pw) { this.x = pw - hw; bn.vx = -Math.abs(bn.vx) * LT_CFG.restitution; }
+if (this.y - hh <= 0)  { this.y = hh;      bn.vy =  Math.abs(bn.vy) * LT_CFG.restitution; }
+if (this.y + hh >= ph) { this.y = ph - hh; bn.vy = -Math.abs(bn.vy) * LT_CFG.restitution; }
+var spd = Math.sqrt(bn.vx*bn.vx + bn.vy*bn.vy);
+if (spd > LT_CFG.clampSpeed) { bn.vx = bn.vx/spd * LT_CFG.clampSpeed; bn.vy = bn.vy/spd * LT_CFG.clampSpeed; }
