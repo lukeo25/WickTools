@@ -1,0 +1,31 @@
+var LT_CFG = {"type":"LT_SINE_BLOCK","amp":100,"speed":1,"phase":0,"lockY":0};
+if(!this._LT_SINE){
+  this._LT_SINE = { baseX: this.x, baseY: this.y, t: 0 };
+}
+var st = this._LT_SINE;
+var dt = 1/60;
+try {
+  var p = this.project || null;
+  if (p && typeof p._LT_lastTimeMs === 'number') {
+    var now = Date.now();
+    dt = (now - p._LT_lastTimeMs) / 1000;
+    if (!isFinite(dt) || dt <= 0 || dt > 0.25) dt = 1/60;
+  } else if (p) {
+    p._LT_lastTimeMs = Date.now();
+  }
+} catch(e) { }
+st.t += dt;
+var w = (Math.PI * 2) * (LT_CFG.speed || 0);
+var xOff = (LT_CFG.amp || 0) * Math.sin((w * st.t) + (LT_CFG.phase || 0));
+this.x = st.baseX + xOff;
+if (!LT_CFG.lockY) {
+  var yOff = (LT_CFG.amp || 0) * Math.cos((w * st.t) + (LT_CFG.phase || 0));
+  this.y = st.baseY + yOff;
+}
+try {
+  var p2 = this.project || null;
+  if (p2) {
+    if (!p2._LT_SOLIDS) p2._LT_SOLIDS = {};
+    p2._LT_SOLIDS[this.uuid] = this;
+  }
+} catch(e2) { }

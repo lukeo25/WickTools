@@ -1,0 +1,9 @@
+var LT_CFG = {"type":"LT_SOLID","r":255,"g":255,"b":255,"alpha":1,"width":100,"height":100};
+try {
+  this.opacity = LT_CFG.alpha;
+  this.scaleX = LT_CFG.width / 100;
+  this.scaleY = LT_CFG.height / 100;
+  if (this.fillColor !== undefined) {
+    this.fillColor = "rgb("+Math.round(LT_CFG.r)+","+Math.round(LT_CFG.g)+","+Math.round(LT_CFG.b)+")";
+  }
+} catch(e) {}
