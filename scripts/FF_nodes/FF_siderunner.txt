@@ -1,20 +1,31 @@
 var LT_CFG = {"type":"LT_SIDERUNNER","speed":5,"jump":12,"gravity":0.6,"maxFall":15,"lockX":0};
 if (!this._SR) { this._SR = { vy: 0, grounded: false }; }
 var sr = this._SR;
-var keys = this.project && this.project.keysPressed ? this.project.keysPressed : {};
-var left  = keys["ArrowLeft"]  || keys["a"] || keys["A"];
-var right = keys["ArrowRight"] || keys["d"] || keys["D"];
-var jump  = keys["ArrowUp"]    || keys["w"] || keys["W"] || keys[" "];
+
+// Wick key detection - isKeyDown is the correct Wick API
+var left  = isKeyDown('LEFT')  || isKeyDown('a') || isKeyDown('A');
+var right = isKeyDown('RIGHT') || isKeyDown('d') || isKeyDown('D');
+var jump  = isKeyDown('UP')    || isKeyDown('w') || isKeyDown('W') || isKeyDown('SPACE');
+
 if (!LT_CFG.lockX) {
   if (left)  this.x -= LT_CFG.speed;
   if (right) this.x += LT_CFG.speed;
 }
+
 sr.vy += LT_CFG.gravity;
 if (sr.vy > LT_CFG.maxFall) sr.vy = LT_CFG.maxFall;
 this.y += sr.vy;
-if (this.y >= (this.project ? this.project.height || 400 : 400) - (this.height || 50) / 2) {
-  this.y = (this.project ? this.project.height || 400 : 400) - (this.height || 50) / 2;
+
+var groundY = project.height - this.height / 2;
+if (this.y >= groundY) {
+  this.y = groundY;
   sr.vy = 0;
   sr.grounded = true;
-} else { sr.grounded = false; }
-if (jump && sr.grounded) { sr.vy = -LT_CFG.jump; sr.grounded = false; }
+} else {
+  sr.grounded = false;
+}
+
+if (jump && sr.grounded) {
+  sr.vy = -LT_CFG.jump;
+  sr.grounded = false;
+}
