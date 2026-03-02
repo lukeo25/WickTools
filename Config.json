@@ -124,6 +124,14 @@
           "action": "tool",
           "F_Screen": 0
         },
+                {
+          "id": "Node",
+          "label": "Node Coder",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Node.svg",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Nodecoder.txt",
+          "action": "tool",
+          "F_Screen": 1
+        },
         {
           "id": "Shapes",
           "label": "Shapes",
