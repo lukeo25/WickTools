@@ -347,6 +347,84 @@
   }
 
   /* ===== ScriptNode + Context Card ===== */
+  /* ── Wrapper node ── */
+  .lt_wrapperCard {
+    border-radius: 14px;
+    overflow: hidden;
+    position: absolute;
+    cursor: grab;
+    box-sizing: border-box;
+    border: 2px solid rgba(255,180,50,0.55);
+    background: #17171e;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  }
+  .lt_wrapperCard.lt_nodeCard_sel {
+    border-color: rgba(255,200,80,0.95);
+    box-shadow: 0 0 0 3px rgba(255,200,80,0.18), 0 4px 24px rgba(0,0,0,0.5);
+  }
+  .lt_wrapperInner {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+  }
+  .lt_wrapperAccent {
+    height: 4px;
+    flex: 0 0 4px;
+    background: linear-gradient(90deg, #ffb830, #ff7a30);
+    border-radius: 0;
+  }
+  .lt_wrapperHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px 6px 12px;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+  .lt_wrapperTitlePill {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffcc66;
+    background: rgba(255,180,50,0.12);
+    border-radius: 8px;
+    padding: 3px 10px;
+    letter-spacing: 0.04em;
+  }
+  .lt_wrapperCloseBtn {
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  .lt_wrapperCloseBtn:hover { background: rgba(255,255,255,0.07); color: #fff; }
+  .lt_wrapperControls {
+    flex: 1 1 auto;
+    padding: 4px 12px 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .lt_wrapperBodyLabel {
+    font-size: 11px;
+    color: rgba(255,180,50,0.7);
+    padding: 4px 0 2px 0;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .lt_wrapperBodyHint {
+    font-size: 11px;
+    color: #556;
+    font-style: italic;
+    padding: 2px 0;
+  }
+
   .lt_scriptCard, .lt_contextCard {
     background:#16161f !important;
     border:1px solid #252530 !important;
@@ -457,7 +535,8 @@
     display:flex;
     flex-direction:column;
     gap:4px;
-    padding:7px 0;
+    padding:9px 0;
+    min-height:38px;
     border-bottom:1px solid #1e1e28;
   }
   .lt_scriptRow:last-child { border-bottom:none; }
@@ -551,6 +630,18 @@
   .lt_scriptSelect:hover { border-color:#3a3a50; background:#1e1e2a; }
   .lt_scriptSelect:focus { border-color:#4a6aaa; }
   .lt_scriptSelect option { background:#1a1a24; color:#c0c0d8; }
+  .lt_scriptText {
+    background:#0e0e12;
+    color:#eaeaea;
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:8px;
+    padding:6px 10px;
+    font-size:13px;
+    width:100%;
+    box-sizing:border-box;
+    font-family:inherit;
+  }
+  .lt_scriptText:focus { outline:none; border-color:rgba(255,180,50,0.6); }
   /* Text input */
   .lt_scriptInput {
     width:100%;
@@ -715,6 +806,32 @@
   // ═══════════════════════════════════════════════════════
   // Writes generated code from all connected script nodes into the project timeline script layer.
   // This is the exact same write path the DBG button uses. callback(ok) when done.
+  // Module-level — accessible from both buildOpsByClip and injectRootTimeline
+  function getDownstreamClipSlots(scriptNodeId, visited) {
+    visited = visited || {};
+    if (visited[scriptNodeId]) return [];
+    visited[scriptNodeId] = true;
+    var results = [];
+    for (var li=0; li<state.links.length; li++) {
+      var lk = state.links[li];
+      if (lk.fromNodeId !== scriptNodeId || lk.fromPort !== "code") continue;
+      var dest = nodeById(lk.toNodeId);
+      if (!dest) continue;
+      if (dest.kind === "Clip" && (lk.toPort === "default" || lk.toPort === "load" || lk.toPort === "update" || lk.toPort === "unload")) {
+        results.push({ clipNode: dest, slotPort: lk.toPort });
+      } else if (dest.kind === "ScriptNode") {
+        // Chain: follow downstream clips through any number of ScriptNode hops
+        var downstream = getDownstreamClipSlots(dest.id, visited);
+        for (var di=0; di<downstream.length; di++) results.push(downstream[di]);
+      } else if (dest.kind === "Wrapper") {
+        // Wrapper node: treat it as a ScriptNode endpoint — follow its code-out
+        var wrapDownstream = getDownstreamClipSlots(dest.id, visited);
+        for (var wdi=0; wdi<wrapDownstream.length; wdi++) results.push(wrapDownstream[wdi]);
+      }
+    }
+    return results;
+  }
+
   function injectRootTimeline(callback) {
     console.log("[LT-ROOT] injectRootTimeline start");
 
@@ -750,24 +867,45 @@
     if (!frame) { console.log("[LT-ROOT] FAIL: no frame"); if (callback) callback(false); return; }
 
     // Step 4: Build code per slot from connected script nodes
-    // Project Timeline only has one "default" script slot in Wick.
-    // Nodes connected to Update/Load/Unload ports are wrapped in onEvent handlers.
+    // Use buildOpsByClip() so Wrappers, chains, and all node types are handled uniformly
+    var allOps = buildOpsByClip();
     var slotLines = {};
-    for (var ni = 0; ni < state.nodes.length; ni++) {
-      var sn = state.nodes[ni];
-      if (!sn || sn.kind !== "ScriptNode") continue;
-      for (var li = 0; li < state.links.length; li++) {
-        var lk = state.links[li];
-        if (lk.fromNodeId !== sn.id || lk.fromPort !== "code") continue;
-        var dest = nodeById(lk.toNodeId);
-        if (!dest || dest.kind !== "Clip" || !dest.data || !dest.data.isRoot) continue;
-        var def = NodeConfig.byId[sn.defId] || null;
-        if (!def || !def.script) continue;
-        var line = renderNodeLine(def, sn.data);
-        var targetSlot = lk.toPort || "default";
-        if (!slotLines[targetSlot]) slotLines[targetSlot] = [];
-        if (line && String(line).trim()) slotLines[targetSlot].push(line);
-        // No break — same node may connect to multiple ports
+
+    // Find the root clip node(s) in state
+    for (var rni=0; rni<state.nodes.length; rni++) {
+      var rn = state.nodes[rni];
+      if (!rn || rn.kind !== "Clip" || !rn.data || !rn.data.isRoot) continue;
+      var rPath = rn.data.path || [];
+      var rKey = rPath.join(">>");
+      var rOps = allOps[rKey] || {};
+      for (var rslot in rOps) {
+        var rentry = rOps[rslot];
+        if (!rentry || !rentry.lines || !rentry.lines.length) continue;
+        if (!slotLines[rslot]) slotLines[rslot] = [];
+        for (var rli=0; rli<rentry.lines.length; rli++) {
+          slotLines[rslot].push(rentry.lines[rli]);
+        }
+      }
+    }
+
+    // Fallback: if no root clip node on canvas, do a raw path scan
+    if (!Object.keys(slotLines).length) {
+      for (var opKey in allOps) {
+        // Check if any clip node with isRoot matches this key
+        for (var fni=0; fni<state.nodes.length; fni++) {
+          var fn2 = state.nodes[fni];
+          if (fn2 && fn2.kind === "Clip" && fn2.data && fn2.data.isRoot) {
+            var fnKey = (fn2.data.path || []).join(">>");
+            if (fnKey === opKey) {
+              var fops = allOps[opKey] || {};
+              for (var fslot in fops) {
+                if (!slotLines[fslot]) slotLines[fslot] = [];
+                var flines = (fops[fslot] && fops[fslot].lines) ? fops[fslot].lines : [];
+                for (var fli=0; fli<flines.length; fli++) slotLines[fslot].push(flines[fli]);
+              }
+            }
+          }
+        }
       }
     }
 
@@ -1068,6 +1206,21 @@
     return out;
   }
 
+  // Block LukeTools bridge iframe-height messages that shrink our panel
+  // The bridge injects setInterval/ResizeObserver that posts scrollHeight to parent.
+  // We intercept in capture phase and reply with the actual viewport height instead.
+  (function(){
+    window.addEventListener("message", function(ev){
+      try {
+        if (ev.data && ev.data.type === "LukeToolsToolHeight") {
+          ev.stopImmediatePropagation();
+          var h = window.innerHeight || document.documentElement.clientHeight || 600;
+          try { if (window.parent && window.parent !== window) window.parent.postMessage({ type:"LukeToolsToolHeight", h:h }, "*"); } catch(ep){}
+        }
+      } catch(e){}
+    }, true);
+  })();
+
   function uuid(){ return String(Date.now()) + "_" + String(Math.floor(Math.random()*1000000)); }
 
   // ===== Live inject =====
@@ -1340,6 +1493,13 @@
   btnFit.className = "lt_btn";
   btnFit.textContent = "Fit";
 
+  var wrapSelect = el("select");
+  wrapSelect.className = "lt_select";
+
+  var btnAddWrap = el("button");
+  btnAddWrap.className = "lt_btn";
+  btnAddWrap.textContent = "Add";
+
   var nodeSelect = el("select");
   nodeSelect.className = "lt_select";
 
@@ -1349,12 +1509,26 @@
 
   topbar.appendChild(title);
   topbar.appendChild(spacer);
+  var btnSave = el("button");
+  btnSave.className = "lt_btn";
+  btnSave.title = "Save layout to file";
+  btnSave.textContent = "Save";
+
+  var btnLoad = el("button");
+  btnLoad.className = "lt_btn";
+  btnLoad.title = "Load layout from file";
+  btnLoad.textContent = "Load";
+
   topbar.appendChild(btnRefreshAll);
 
 
 
   topbar.appendChild(btnFS);
   topbar.appendChild(btnFit);
+  topbar.appendChild(btnSave);
+  topbar.appendChild(btnLoad);
+  topbar.appendChild(wrapSelect);
+  topbar.appendChild(btnAddWrap);
   topbar.appendChild(nodeSelect);
   topbar.appendChild(btnAddNode);
   rootEl.appendChild(topbar);
@@ -1434,6 +1608,7 @@
     selectedNodeId: "",
     linking: null,
     hoverIn: null,
+    pipRegistry: [],   // [{nodeId, port, el}] rebuilt on every drawNodes
     _injectTimer: 0
   };
 
@@ -1567,6 +1742,7 @@
     function mu(){
       window.removeEventListener("mousemove", mm);
       window.removeEventListener("mouseup", mu);
+      try { saveLayout(); } catch(eSN){}
     }
     window.addEventListener("mousemove", mm);
     window.addEventListener("mouseup", mu);
@@ -1591,6 +1767,12 @@
     if (a.kind === "ScriptNode" && fromPort === "code") {
       if (b.kind === "Clip" && (toPort === "default" || toPort === "load" || toPort === "update" || toPort === "unload")) ok = true;
       if (b.kind === "ScriptNode" && toPort === "trigger") ok = true;
+      if (b.kind === "Wrapper" && (toPort === "body" || toPort === "else")) ok = true;
+    }
+    if (a.kind === "Wrapper" && fromPort === "code") {
+      if (b.kind === "Clip" && (toPort === "default" || toPort === "load" || toPort === "update" || toPort === "unload")) ok = true;
+      if (b.kind === "ScriptNode" && toPort === "trigger") ok = true;
+      if (b.kind === "Wrapper" && (toPort === "body" || toPort === "else")) ok = true;
     }
     if ((a.kind === "Context") && fromPort === "clip") {
       if (b.kind === "Clip" && (toPort === "default" || toPort === "load" || toPort === "update" || toPort === "unload")) ok = true;
@@ -1647,6 +1829,186 @@
     return n;
   }
 
+  // ──────────────────────────────────────────────
+  // Wrapper node factory
+  // wrapType: "condition" | "function"
+  // ──────────────────────────────────────────────
+  var WRAPPER_TYPES = {
+    "condition": {
+      label: "If Condition",
+      defaultData: { expr: "true", indent: "  " },
+      controls: [
+        { type:"text",   key:"expr",   label:"condition", default:"true" }
+      ],
+      // {{body}} is substituted with collected inner lines at build time
+      wrapTemplate: "if ({{expr}}) {\n{{body}}\n}"
+    },
+    "ifKey": {
+      label: "If Key Pressed",
+      defaultData: { key: "space" },
+      controls: [
+        { type:"select", key:"key", label:"key", default:"space",
+          options:[
+            {value:"space",label:"SPACE"},{value:"left",label:"LEFT"},{value:"right",label:"RIGHT"},
+            {value:"up",label:"UP"},{value:"down",label:"DOWN"},{value:"enter",label:"ENTER"},
+            {value:"escape",label:"ESC"},{value:"shift",label:"SHIFT"},{value:"control",label:"CTRL"},
+            {value:"a",label:"A"},{value:"b",label:"B"},{value:"c",label:"C"},{value:"d",label:"D"},
+            {value:"e",label:"E"},{value:"f",label:"F"},{value:"g",label:"G"},{value:"h",label:"H"},
+            {value:"i",label:"I"},{value:"j",label:"J"},{value:"k",label:"K"},{value:"l",label:"L"},
+            {value:"m",label:"M"},{value:"n",label:"N"},{value:"o",label:"O"},{value:"p",label:"P"},
+            {value:"q",label:"Q"},{value:"r",label:"R"},{value:"s",label:"S"},{value:"t",label:"T"},
+            {value:"u",label:"U"},{value:"v",label:"V"},{value:"w",label:"W"},{value:"x",label:"X"},
+            {value:"y",label:"Y"},{value:"z",label:"Z"},{value:"0",label:"0"},{value:"1",label:"1"},
+            {value:"2",label:"2"},{value:"3",label:"3"},{value:"4",label:"4"},{value:"5",label:"5"},
+            {value:"6",label:"6"},{value:"7",label:"7"},{value:"8",label:"8"},{value:"9",label:"9"}
+          ]
+        }
+      ],
+      wrapTemplate: "if (isKeyJustPressed('{{key}}')) {\n{{body}}\n}"
+    },
+    "ifKeyDown": {
+      label: "If Key Down",
+      defaultData: { key: "space" },
+      controls: [
+        { type:"select", key:"key", label:"key", default:"space",
+          options:[
+            {value:"space",label:"SPACE"},{value:"left",label:"LEFT"},{value:"right",label:"RIGHT"},
+            {value:"up",label:"UP"},{value:"down",label:"DOWN"},{value:"enter",label:"ENTER"},
+            {value:"escape",label:"ESC"},{value:"shift",label:"SHIFT"},{value:"control",label:"CTRL"},
+            {value:"a",label:"A"},{value:"b",label:"B"},{value:"c",label:"C"},{value:"d",label:"D"},
+            {value:"e",label:"E"},{value:"f",label:"F"},{value:"g",label:"G"},{value:"h",label:"H"},
+            {value:"i",label:"I"},{value:"j",label:"J"},{value:"k",label:"K"},{value:"l",label:"L"},
+            {value:"m",label:"M"},{value:"n",label:"N"},{value:"o",label:"O"},{value:"p",label:"P"},
+            {value:"q",label:"Q"},{value:"r",label:"R"},{value:"s",label:"S"},{value:"t",label:"T"},
+            {value:"u",label:"U"},{value:"v",label:"V"},{value:"w",label:"W"},{value:"x",label:"X"},
+            {value:"y",label:"Y"},{value:"z",label:"Z"},{value:"0",label:"0"},{value:"1",label:"1"},
+            {value:"2",label:"2"},{value:"3",label:"3"},{value:"4",label:"4"},{value:"5",label:"5"},
+            {value:"6",label:"6"},{value:"7",label:"7"},{value:"8",label:"8"},{value:"9",label:"9"}
+          ]
+        }
+      ],
+      wrapTemplate: "if (isKeyDown('{{key}}')) {\n{{body}}\n}"
+    },
+    "ifMouse": {
+      label: "If Mouse Event",
+      defaultData: { event: "mouseclick" },
+      controls: [
+        { type:"select", key:"event", label:"event", default:"mouseclick",
+          options:[
+            {value:"mouseclick",label:"mouseclick"},{value:"mouseenter",label:"mouseenter"},
+            {value:"mouseleave",label:"mouseleave"},{value:"mousepressed",label:"mousepressed"},
+            {value:"mousedown",label:"mousedown"},{value:"mousereleased",label:"mousereleased"},
+            {value:"mousehover",label:"mousehover"},{value:"mousedrag",label:"mousedrag"}
+          ]
+        }
+      ],
+      wrapTemplate: "onEvent('{{event}}', function() {\n{{body}}\n});"
+    },
+    "ifVar": {
+      label: "If Variable",
+      defaultData: { scope:"project", varname:"myVar", op:"===", value:"0" },
+      controls: [
+        { type:"select",  key:"scope",   label:"scope",  default:"project",
+          options:[{value:"project",label:"project"},{value:"this",label:"this (clip)"}] },
+        { type:"text",    key:"varname", label:"var",    default:"myVar" },
+        { type:"select",  key:"op",      label:"is",     default:"===",
+          options:[{value:"===",label:"==="},{value:"!==",label:"!=="},{value:">",label:">"},{value:"<",label:"<"},{value:">=",label:">="},{value:"<=",label:"<="}] },
+        { type:"text",    key:"value",   label:"value",  default:"0" }
+      ],
+      wrapTemplate: "if ({{scope}}.{{varname}} {{op}} {{value}}) {\n{{body}}\n}"
+    },
+    "function": {
+      label: "Function",
+      defaultData: { fname: "myFunc" },
+      controls: [
+        { type:"text", key:"fname", label:"name", default:"myFunc" }
+      ],
+      wrapTemplate: "function {{fname}}() {\n{{body}}\n}"
+    },
+    "ifElse": {
+      label: "If...Else",
+      defaultData: { expr: "true" },
+      controls: [
+        { type:"text", key:"expr", label:"if condition", default:"true" }
+      ],
+      // {{body}} = if branch nodes, {{elseBody}} = else branch nodes (collected from else port)
+      wrapTemplate: "if ({{expr}}) {\n{{body}}\n} else {\n{{elseBody}}\n}",
+      hasElsePort: true
+    },
+    "ifAnd": {
+      label: "If A AND B",
+      defaultData: { exprA: "true", exprB: "true" },
+      controls: [
+        { type:"text", key:"exprA", label:"condition A", default:"true" },
+        { type:"text", key:"exprB", label:"condition B", default:"true" }
+      ],
+      wrapTemplate: "if (({{exprA}}) && ({{exprB}})) {\n{{body}}\n}"
+    },
+    "ifOr": {
+      label: "If A OR B",
+      defaultData: { exprA: "true", exprB: "false" },
+      controls: [
+        { type:"text", key:"exprA", label:"condition A", default:"true" },
+        { type:"text", key:"exprB", label:"condition B", default:"false" }
+      ],
+      wrapTemplate: "if (({{exprA}}) || ({{exprB}})) {\n{{body}}\n}"
+    },
+    "whileLoop": {
+      label: "While Loop",
+      defaultData: { expr: "i < 10" },
+      controls: [
+        { type:"text", key:"expr", label:"condition", default:"i < 10" }
+      ],
+      wrapTemplate: "while ({{expr}}) {\n{{body}}\n}"
+    },
+    "forLoop": {
+      label: "For Loop",
+      defaultData: { init:"var i=0", cond:"i<10", inc:"i++" },
+      controls: [
+        { type:"text", key:"init", label:"init",      default:"var i=0" },
+        { type:"text", key:"cond", label:"condition", default:"i<10" },
+        { type:"text", key:"inc",  label:"increment", default:"i++" }
+      ],
+      wrapTemplate: "for ({{init}}; {{cond}}; {{inc}}) {\n{{body}}\n}"
+    },
+    "tryBlock": {
+      label: "Try / Catch",
+      defaultData: { errVar: "e" },
+      controls: [
+        { type:"text", key:"errVar", label:"error var", default:"e" }
+      ],
+      wrapTemplate: "try {\n{{body}}\n} catch({{errVar}}) {}"
+    }
+  };
+
+  function addWrapperNode(x, y, wrapType) {
+    var wt = WRAPPER_TYPES[wrapType];
+    if (!wt) return null;
+    var ctrlCount = wt.controls.length;
+    // height: 60 header + controls + 42 strip + 28 body hint
+    var cardH = 64 + ctrlCount * 52 + 42 + 32;
+    var portY = cardH - 21;
+    var data = {};
+    for (var dk in wt.defaultData) data[dk] = wt.defaultData[dk];
+    data._wrapType = wrapType;
+    var ports = [
+      { name:"body",  dir:"in",  x:0,   y:portY },
+      { name:"code",  dir:"out", x:320, y:portY }
+    ];
+    if (wt.hasElsePort) {
+      ports.splice(1, 0, { name:"else", dir:"in", x:160, y:portY });
+    }
+    var n = {
+      id: uuid(), kind: "Wrapper",
+      title: wt.label,
+      x: x, y: y, w: 320, h: cardH,
+      ports: ports,
+      data: data
+    };
+    state.nodes.push(n);
+    return n;
+  }
+
   function addScriptNodeFromDef(x, y, def){
     var n = { id:uuid(), kind:"ScriptNode", title:String(def.label || def.id || "Tool"), x:x, y:y, w:320, ports:[], data:{}, defId:String(def.id || def.label || "") };
     // Port Y based on content layout (not card height)
@@ -1659,8 +2021,8 @@
     var ctrlCount = 0;
     if (def && def.ui && Array.isArray(def.ui.controls)) ctrlCount = def.ui.controls.length;
     // Anchor ports to bottom strip: cardH - 38 = dot centre
-    var cardH = 56 + ctrlCount * 36 + 38; // 56=header, 38=port strip
-    var portY = cardH - 19; // centre of 38px strip
+    var cardH = 60 + ctrlCount * 44 + 42; // 60=header, 44=per control, 42=port strip
+    var portY = cardH - 21; // centre of 42px strip
     n.ports[0].y = portY;
     n.ports[1].y = portY;
     if (def && def.ui && Array.isArray(def.ui.controls)){
@@ -1798,46 +2160,169 @@
     }
 
     // Build a map: ScriptNode id -> list of {clipNode, slotPort} it ultimately feeds
-    function getDownstreamClipSlots(scriptNodeId, visited) {
-      visited = visited || {};
-      if (visited[scriptNodeId]) return [];
-      visited[scriptNodeId] = true;
-      var results = [];
-      for (var li=0; li<state.links.length; li++) {
-        var lk = state.links[li];
-        if (lk.fromNodeId !== scriptNodeId || lk.fromPort !== "code") continue;
-        var dest = nodeById(lk.toNodeId);
-        if (!dest) continue;
-        if (dest.kind === "Clip" && (lk.toPort === "default" || lk.toPort === "load" || lk.toPort === "update" || lk.toPort === "unload")) {
-          results.push({ clipNode: dest, slotPort: lk.toPort });
-        } else if (dest.kind === "ScriptNode" && lk.toPort === "trigger") {
-          // Chain: follow this node's downstream clips too
-          var downstream = getDownstreamClipSlots(dest.id, visited);
-          for (var di=0; di<downstream.length; di++) results.push(downstream[di]);
+    // ── Wrapper nodes: topological build so inner wrappers render before outer ones ──
+    var consumedByWrapper = {};
+    var wrapperOutput = {}; // nodeId -> rendered block string
+
+    // Render one wrapper node's block, recursing into nested wrappers first
+    function renderWrapperBlock(wnId, visited3) {
+      visited3 = visited3 || {};
+      if (visited3[wnId]) return wrapperOutput[wnId] || "";
+      visited3[wnId] = true;
+      var wn3 = nodeById(wnId);
+      if (!wn3 || wn3.kind !== "Wrapper") return "";
+      var wt3 = WRAPPER_TYPES[wn3.data && wn3.data._wrapType] || null;
+      if (!wt3) return "";
+
+      var bodyLines3 = [];
+
+      // Walk everything wired to this wrapper's body port
+      function collectBody3(startId, vis4) {
+        vis4 = vis4 || {};
+        if (vis4[startId]) return;
+        vis4[startId] = true;
+        var sn3 = nodeById(startId);
+        if (!sn3) return;
+
+        if (sn3.kind === "ScriptNode") {
+          var bdef3 = NodeConfig.byId[sn3.defId] || null;
+          if (bdef3 && bdef3.script) {
+            var bline3 = renderNodeLine(bdef3, sn3.data);
+            if (bline3 && String(bline3).trim()) {
+              bodyLines3.push("  " + String(bline3).trim());
+              consumedByWrapper[sn3.id] = true;
+            }
+          }
+          // Follow upstream chain into this ScriptNode's trigger port
+          for (var bu=0; bu<state.links.length; bu++) {
+            var blku = state.links[bu];
+            if (blku.toNodeId === startId && blku.fromPort === "code") {
+              collectBody3(blku.fromNodeId, vis4);
+            }
+          }
+        } else if (sn3.kind === "Wrapper") {
+          // Nested wrapper — render it first, then use its output as a body line
+          var innerBlock = renderWrapperBlock(sn3.id, visited3);
+          if (innerBlock) {
+            // Indent each line of the inner block
+            var innerLines = innerBlock.split("\n");
+            for (var il=0; il<innerLines.length; il++) {
+              bodyLines3.push("  " + innerLines[il]);
+            }
+            consumedByWrapper[sn3.id] = true;
+          }
+          // Also follow what feeds INTO the inner wrapper via its body port chain
+          // (already handled by recursive renderWrapperBlock call above)
         }
       }
-      return results;
+
+      // Start from all nodes wired to this wrapper's body port
+      for (var bpi3=0; bpi3<state.links.length; bpi3++) {
+        var bpl3 = state.links[bpi3];
+        if (bpl3.toNodeId !== wnId || bpl3.toPort !== "body") continue;
+        collectBody3(bpl3.fromNodeId, {});
+      }
+
+      // Collect else branch if this wrapper type has an else port
+      var elseLines3 = [];
+      if (wt3.hasElsePort) {
+        var elseBodyLines = [];
+        function collectElse3(startId, vis5) {
+          vis5 = vis5 || {};
+          if (vis5[startId]) return;
+          vis5[startId] = true;
+          var en3 = nodeById(startId);
+          if (!en3) return;
+          if (en3.kind === "ScriptNode") {
+            var edef3 = NodeConfig.byId[en3.defId] || null;
+            if (edef3 && edef3.script) {
+              var eline3 = renderNodeLine(edef3, en3.data);
+              if (eline3 && String(eline3).trim()) {
+                elseBodyLines.push("  " + String(eline3).trim());
+                consumedByWrapper[en3.id] = true;
+              }
+            }
+            for (var eu=0; eu<state.links.length; eu++) {
+              var elku = state.links[eu];
+              if (elku.toNodeId === startId && elku.fromPort === "code") collectElse3(elku.fromNodeId, vis5);
+            }
+          } else if (en3.kind === "Wrapper") {
+            var eInner = renderWrapperBlock(en3.id, visited3);
+            if (eInner) {
+              var eInnerLines = eInner.split("\n");
+              for (var eil=0; eil<eInnerLines.length; eil++) elseBodyLines.push("  " + eInnerLines[eil]);
+              consumedByWrapper[en3.id] = true;
+            }
+          }
+        }
+        for (var epi=0; epi<state.links.length; epi++) {
+          var epl = state.links[epi];
+          if (epl.toNodeId !== wnId || epl.toPort !== "else") continue;
+          collectElse3(epl.fromNodeId, {});
+        }
+        elseLines3 = elseBodyLines;
+      }
+
+      var bodyStr3 = bodyLines3.join("\n");
+      var elseStr3 = elseLines3.length ? elseLines3.join("\n") : "  // else";
+      var vars3 = {};
+      for (var wvk3 in wn3.data) vars3[wvk3] = String(wn3.data[wvk3]);
+      var block3 = wt3.wrapTemplate;
+      for (var wvk4 in vars3) {
+        block3 = block3.split("{{" + wvk4 + "}}").join(vars3[wvk4]);
+      }
+      block3 = block3.split("{{body}}").join(bodyStr3);
+      block3 = block3.split("{{elseBody}}").join(elseStr3);
+      wrapperOutput[wnId] = block3;
+      return block3;
     }
 
-    for (var i=0;i<state.links.length;i++){
-      var L = state.links[i];
-      var to = nodeById(L.toNodeId);
-      var from = nodeById(L.fromNodeId);
-      if (!to || !from) continue;
-      if (to.kind === "Clip" && (L.toPort === "default" || L.toPort === "load" || L.toPort === "update" || L.toPort === "unload")) {
-        if (from.kind !== "ScriptNode" || L.fromPort !== "code") continue;
-        var clipPath = (to.data && to.data.path) ? to.data.path : [];
-        if (!clipPath.length) continue;
-        var def = NodeConfig.byId[from.defId] || null;
-        if (!def || !def.script) continue;
-        var slot = L.toPort;
-        if (def.script.slotMode === "mouseEvent") { slot = String((from.data && from.data.event) ? from.data.event : "mouseenter"); }
-        else if (def.script.slotMode === "byTargetPort") { slot = L.toPort; }
-        else if (def.script.slotDefault) { slot = String(def.script.slotDefault); }
-        var bucket = ensure(clipPath, slot);
-        var genLine = renderNodeLine(def, from.data);
-        console.log("[LT build] link", i, "from", from.defId, "slot", slot, "line:", genLine);
-        if (genLine && String(genLine).trim()) bucket.lines.push(genLine);
+    // Render all top-level wrappers and push to clip buckets
+    // Must render ALL wrappers first so nested ones are in wrapperOutput before parents need them
+    for (var wi=0; wi<state.nodes.length; wi++) {
+      var wn = state.nodes[wi];
+      if (!wn || wn.kind !== "Wrapper") continue;
+      renderWrapperBlock(wn.id, {});  // pre-render into wrapperOutput cache
+    }
+    for (var wi2=0; wi2<state.nodes.length; wi2++) {
+      var wn2 = state.nodes[wi2];
+      if (!wn2 || wn2.kind !== "Wrapper") continue;
+      if (consumedByWrapper[wn2.id]) continue;  // nested — already inside a parent wrapper
+      var wrappedBlock = wrapperOutput[wn2.id] || "";
+      if (!wrappedBlock || !wrappedBlock.trim()) continue;
+      var wTargets = getDownstreamClipSlots(wn2.id, {});
+      for (var wti=0; wti<wTargets.length; wti++) {
+        var wtgt = wTargets[wti];
+        var wPath = (wtgt.clipNode.data && wtgt.clipNode.data.path) ? wtgt.clipNode.data.path : [];
+        if (!wPath.length) continue;
+        var wSlot = wtgt.slotPort;
+        var wBucket = ensure(wPath, wSlot);
+        wBucket.lines.push(wrappedBlock);
+      }
+    }
+
+    // ── Regular ScriptNodes (skip those consumed by a Wrapper) ──
+    for (var ni2=0; ni2<state.nodes.length; ni2++) {
+      var sn2 = state.nodes[ni2];
+      if (!sn2 || sn2.kind !== "ScriptNode") continue;
+      if (consumedByWrapper[sn2.id]) continue; // already inside a wrapper block
+      var def2 = NodeConfig.byId[sn2.defId] || null;
+      if (!def2 || !def2.script) continue;
+      var genLine2 = renderNodeLine(def2, sn2.data);
+      if (!genLine2 || !String(genLine2).trim()) continue;
+      // Find all downstream clip slots this node feeds (directly OR through chains)
+      var targets = getDownstreamClipSlots(sn2.id, {});
+      for (var ti=0; ti<targets.length; ti++) {
+        var tgt = targets[ti];
+        var clipPath2 = (tgt.clipNode.data && tgt.clipNode.data.path) ? tgt.clipNode.data.path : [];
+        if (!clipPath2.length) continue;
+        var slot2 = tgt.slotPort;
+        if (def2.script.slotMode === "mouseEvent") { slot2 = String((sn2.data && sn2.data.event) ? sn2.data.event : "mouseenter"); }
+        else if (def2.script.slotMode === "byTargetPort") { slot2 = tgt.slotPort; }
+        else if (def2.script.slotDefault) { slot2 = String(def2.script.slotDefault); }
+        var bucket2 = ensure(clipPath2, slot2);
+        console.log("[LT build] sn", sn2.defId, "->", tgt.clipNode.data && tgt.clipNode.data.name, "slot", slot2, "line:", genLine2);
+        bucket2.lines.push(String(genLine2).trim());
       }
     }
 
@@ -1913,33 +2398,82 @@
     var clipUUID = String(clipNodeData.uuid || "");
     var clipIdent = String(clipNodeData.identifier || "");
 
-    // Log what bridge methods are available
-    if (br) {
-      var brMethods = ["findObjectByInfo","findObjectByIdentifier","findObjectByUUID","getClipByUUID","getObjectByUUID"];
-      var avail = brMethods.filter(function(m){ return typeof br[m] === "function"; });
-      console.log("[LT45] br methods avail:", avail.join(", ") || "none");
-    } else {
-      console.log("[LT45] no bridge");
-    }
+    // ── Priority 1: clipObjCache (populated at list build — most reliable) ──
+    if (clipUUID && clipObjCache[clipUUID]) return clipObjCache[clipUUID];
 
+    // ── Priority 2: Bridge lookup methods ──
     if (br && typeof br.findObjectByInfo === "function") {
-      try { var found = br.findObjectByInfo({ uuid: clipUUID, identifier: clipIdent || clipName, name: clipName }); if (found) return found; } catch(e0){}
+      try { var found = br.findObjectByInfo({ uuid: clipUUID, identifier: clipIdent || clipName, name: clipName }); if (found) { if (clipUUID) clipObjCache[clipUUID] = found; return found; } } catch(e0){}
+    }
+    if (br && typeof br.findObjectByIdentifier === "function" && clipIdent) {
+      try { var byId = br.findObjectByIdentifier(clipIdent); if (byId) { if (clipUUID) clipObjCache[clipUUID] = byId; return byId; } } catch(e1){}
     }
     if (br && typeof br.findObjectByIdentifier === "function" && clipName) {
-      try { var byId = br.findObjectByIdentifier(clipName); if (byId) return byId; } catch(e1){}
+      try { var byName = br.findObjectByIdentifier(clipName); if (byName) { if (clipUUID) clipObjCache[clipUUID] = byName; return byName; } } catch(e1b){}
     }
     if (br && typeof br.findObjectByUUID === "function" && clipUUID) {
-      try { var byUUID = br.findObjectByUUID(clipUUID); if (byUUID) return byUUID; } catch(e2){}
+      try { var byUUID = br.findObjectByUUID(clipUUID); if (byUUID) { clipObjCache[clipUUID] = byUUID; return byUUID; } } catch(e2){}
     }
 
-    // Last resort: walk project
+    // ── Priority 3: Walk project — skip leading path segments that match the project root name ──
     var proj = findProjectObject();
-    console.log("[LT45] proj:", proj ? "found" : "null");
     if (proj && clipNodeData.path && clipNodeData.path.length) {
-      var result = getByNamePath(proj, clipNodeData.path);
-      console.log("[LT45] getByNamePath result:", result ? "found" : "null");
-      return result;
+      // Path may start with project name ("Project") — skip it
+      var walkPath = clipNodeData.path.slice();
+      var projName = "";
+      try { projName = (proj.name || proj.title || "").toLowerCase(); } catch(ePN){}
+      if (walkPath.length > 1 && (walkPath[0].toLowerCase() === "project" || (projName && walkPath[0].toLowerCase() === projName))) {
+        walkPath = walkPath.slice(1);
+      }
+      if (walkPath.length) {
+        var result = getByNamePath(proj, walkPath);
+        if (result) { if (clipUUID) clipObjCache[clipUUID] = result; return result; }
+      }
+      // Also try full path in case project IS a clip container
+      var result2 = getByNamePath(proj, clipNodeData.path);
+      if (result2) { if (clipUUID) clipObjCache[clipUUID] = result2; return result2; }
     }
+
+    // ── Priority 4: Deep UUID scan across whole project ──
+    if (clipUUID) {
+      try {
+        var scanProj = findProjectObject();
+        function scanForUUID(obj, depth) {
+          if (!obj || typeof obj !== "object" || depth > 8) return null;
+          var u = "";
+          try { u = obj.uuid || obj.UUID || obj.id || ""; } catch(eSU){}
+          if (u && String(u) === clipUUID) return obj;
+          var kids = [];
+          try { kids = obj.children || obj.objects || []; } catch(eK){}
+          if (!Array.isArray(kids)) kids = [];
+          // Also walk timeline
+          try {
+            var tl2 = obj.timeline || null;
+            if (tl2 && tl2.layers) {
+              for (var li3=0; li3<tl2.layers.length; li3++) {
+                var lay3 = tl2.layers[li3];
+                if (!lay3 || !lay3.frames) continue;
+                for (var fi3=0; fi3<lay3.frames.length; fi3++) {
+                  var fr3 = lay3.frames[fi3];
+                  if (!fr3) continue;
+                  var fkids = fr3.children || fr3.objects || [];
+                  for (var fki=0; fki<fkids.length; fki++) kids.push(fkids[fki]);
+                }
+              }
+            }
+          } catch(eTL){}
+          for (var ki=0; ki<kids.length; ki++) {
+            var found2 = scanForUUID(kids[ki], depth+1);
+            if (found2) return found2;
+          }
+          return null;
+        }
+        var scanned = scanForUUID(scanProj, 0);
+        if (scanned) { clipObjCache[clipUUID] = scanned; return scanned; }
+      } catch(eScan){}
+    }
+
+    console.warn("[LT] resolveClipObj: could not find clip", clipName, clipUUID);
     return null;
   }
 
@@ -2032,7 +2566,7 @@
       return writeSlotScript(rootFrame, slot, text);
     }
 
-    // Use bridge slot-specific methods for default and update (most tested paths)
+    // Use bridge slot-specific methods where available
     if (br) {
       if (slot === "update" && typeof br.setUpdateScriptByInfo === "function") {
         try { var r = br.setUpdateScriptByInfo(info, text); if (r && r.ok !== false) return true; } catch(e0){}
@@ -2042,9 +2576,50 @@
       }
     }
 
-    // For load/unload and any fallback: resolve the clip object directly
+    // For load/unload (and update/default fallback): resolve the clip object and write directly
     var clipObj = resolveClipObj(clipNodeData);
     if (!clipObj) return false;
+
+    // Try selection-based bridge write for all slots (mirrors injectRootTimeline approach)
+    if (br) {
+      try {
+        var ed2 = br.getEditor ? br.getEditor() : null;
+        if (ed2) {
+          // Find the script-layer frame for this clip
+          var clipTl = clipObj.timeline || (clipObj.clipAsset && clipObj.clipAsset.timeline) || null;
+          var clipFrame = null;
+          if (clipTl && clipTl.layers) {
+            for (var cfi=0; cfi<clipTl.layers.length && !clipFrame; cfi++) {
+              var cfl = clipTl.layers[cfi];
+              var isScr = !!(cfl.isScriptLayer || cfl.layerType === "script" || cfl.layerType === "Script"
+                || (cfl.name && (cfl.name.toLowerCase()==="script"||cfl.name.toLowerCase()==="scripts"))
+                || (cfl.frames && cfl.frames[0] && typeof cfl.frames[0].addScript === "function"));
+              if (isScr && cfl.frames && cfl.frames.length) clipFrame = cfl.frames[0];
+            }
+          }
+          if (clipFrame) {
+            var sel2 = (ed2.project && ed2.project.selection) ? ed2.project.selection : ed2.selection || null;
+            var didSel = false;
+            if (sel2) {
+              var selFns = ["selectObjects","setSelectedObjects","select"];
+              for (var sf3=0; sf3<selFns.length && !didSel; sf3++) {
+                try { if (typeof sel2[selFns[sf3]]==="function"){ sel2[selFns[sf3]]([clipFrame]); didSel=true; } } catch(eSf3){}
+              }
+            }
+            if (didSel) {
+              var wres = false;
+              if (slot==="update" && typeof br.setUpdateScriptOnSelection==="function") {
+                try { var wr=br.setUpdateScriptOnSelection(text); wres=(wr&&wr.ok!==false); } catch(eWu){}
+              } else if (slot==="default" && typeof br.setDefaultScriptOnSelection==="function") {
+                try { var wr2=br.setDefaultScriptOnSelection(text); wres=(wr2&&wr2.ok!==false); } catch(eWd){}
+              }
+              if (wres) return true;
+            }
+          }
+        }
+      } catch(eSel2){}
+    }
+
     return writeSlotScript(clipObj, slot, text);
   }
 
@@ -2236,9 +2811,65 @@
     for (var i=0; i<state.nodes.length; i++){
       var n = state.nodes[i];
       if (n.kind !== "Clip") continue;
-      if (n.data && n.data.isRoot) { console.log("[LT] skipping isRoot node in auto-inject"); continue; }
+      if (n.data && n.data.isRoot) {
+        // isRoot clips (Project Timeline) — use injectRootTimeline path
+        injectRootTimeline(null);
+        continue;
+      }
       applyLiveInjectionNowForClipNode(n);
     }
+  }
+
+  // ===== LocalStorage layout persistence =====
+  var _layoutReady = false; // blocks saves until after loadLayout runs on init
+
+  function getLayoutKey() {
+    // Key by project name/title if available, fall back to generic
+    var proj = null;
+    try { proj = findProjectObject(); } catch(e){}
+    var name = "";
+    if (proj) {
+      try { name = proj.name || proj.title || proj.filename || ""; } catch(e){}
+    }
+    return "LT_NodePanel_v2_" + (name ? name.replace(/[^a-zA-Z0-9_]/g, "_") : "default");
+  }
+
+  function saveLayout() {
+    if (!_layoutReady) return;
+    try {
+      var payload = {
+        nodes: state.nodes,
+        links: state.links,
+        panX: state.panX,
+        panY: state.panY,
+        scale: state.scale,
+        savedAt: Date.now()
+      };
+      localStorage.setItem(getLayoutKey(), JSON.stringify(payload));
+    } catch(e) {}
+  }
+
+  function loadLayout() {
+    try {
+      var raw = localStorage.getItem(getLayoutKey());
+      if (!raw) return false;
+      var payload = JSON.parse(raw);
+      if (!payload || !Array.isArray(payload.nodes)) return false;
+      state.nodes = payload.nodes;
+      state.links = payload.links || [];
+      if (typeof payload.panX === "number") state.panX = payload.panX;
+      if (typeof payload.panY === "number") state.panY = payload.panY;
+      if (typeof payload.scale === "number") state.scale = payload.scale;
+      return true;
+    } catch(e) { return false; }
+  }
+
+  function clearLayout() {
+    try { localStorage.removeItem(getLayoutKey()); } catch(e) {}
+    state.nodes = [];
+    state.links = [];
+    ensureCenterPan();
+    drawNodes();
   }
 
   function scheduleInject(){
@@ -2248,6 +2879,7 @@
     state._injectTimer = setTimeout(function(){
       state._injectTimer = 0;
       try { applyLiveInjectionNow(); } catch(e1){}
+      try { saveLayout(); } catch(eSL){}
     }, 120);
   }
 
@@ -2315,6 +2947,7 @@
 
   // ===== Rendering nodes =====
   function drawNodes(){
+    state.pipRegistry = [];  // rebuild pip registry each render
     clearNodeDom();
 
     for (var i=0;i<state.nodes.length;i++){
@@ -2326,6 +2959,7 @@
         if (n.kind === "Clip")       card.className += " lt_clipCard";
         if (n.kind === "ScriptNode") card.className += " lt_scriptCard";
         if (n.kind === "Context")    card.className += " lt_contextCard";
+        if (n.kind === "Wrapper")    card.className += " lt_wrapperCard";
 
         var h;
         if (n.kind === "Clip") {
@@ -2337,12 +2971,17 @@
           // Smart/custom nodes use _controls from data
           if ((n.defId === "smartCode" || n.defId === "customCode") && n.data && Array.isArray(n.data._controls)) {
             ctrlCount2 = n.data._controls.length;
-            // Derive height from port position if available, else calculate
-            var smartPortY = (n.ports && n.ports.length) ? n.ports[n.ports.length-1].y : (50 + ctrlCount2 * 62 + 10);
-            h = smartPortY + 38;
-          } else {
-            h = 56 + ctrlCount2 * 36 + 38;
           }
+          // Use stored port position if available (most accurate), else recalculate
+          if (n.ports && n.ports.length) {
+            h = n.ports[n.ports.length - 1].y + 42;
+          } else {
+            h = 60 + ctrlCount2 * 44 + 42;
+          }
+        } else if (n.kind === "Wrapper") {
+          var wdef2 = WRAPPER_TYPES[n.data && n.data._wrapType] || null;
+          var wctrlCount = wdef2 ? wdef2.controls.length : 1;
+          h = n.ports && n.ports.length ? n.ports[n.ports.length-1].y + 22 : (64 + wctrlCount * 52 + 74);
         } else if (n.kind === "Context") {
           h = 56 + 36 + 38;
         } else {
@@ -2689,6 +3328,8 @@
           stripLeft.className = "lt_portStripSide";
           var inPip = el("div");
           inPip.className = "lt_port lt_port_in";
+          inPip.style.cursor = "pointer";
+          inPip.style.pointerEvents = "all";
           var inLbl = el("div");
           inLbl.className = "lt_portStripLabel";
           inLbl.textContent = "code in";
@@ -2702,12 +3343,40 @@
           outLbl.textContent = "code out";
           var outPip = el("div");
           outPip.className = "lt_port lt_port_out";
+          outPip.style.cursor = "crosshair";
+          outPip.style.pointerEvents = "all";
           stripRight.appendChild(outLbl);
           stripRight.appendChild(outPip);
 
           portStrip.appendChild(stripLeft);
           portStrip.appendChild(stripRight);
           sInner.appendChild(portStrip);
+
+          // Wire strip pip mousedown handlers (capture so they fire before card drag)
+          (function(snId){
+            outPip.addEventListener("mousedown", function(ev){
+              ev.stopPropagation(); ev.preventDefault();
+              beginLink(snId, "code", ev);
+            }, true);
+            inPip.addEventListener("mousedown", function(ev){
+              ev.stopPropagation(); ev.preventDefault();
+              if (state.linking && state.linking.active) return;
+              var existingLink = null;
+              for (var eli=0; eli<state.links.length; eli++){
+                var el2 = state.links[eli];
+                if (el2.toNodeId === snId && el2.toPort === "trigger"){ existingLink = el2; break; }
+              }
+              if (existingLink) {
+                state.links = state.links.filter(function(l){ return l.id !== existingLink.id; });
+                scheduleInject();
+                beginLink(existingLink.fromNodeId, existingLink.fromPort, ev);
+              }
+            }, true);
+            inPip.addEventListener("mouseenter", function(){ state.hoverIn = { nodeId: snId, port: "trigger" }; });
+            inPip.addEventListener("mouseleave", function(){ if (state.hoverIn && state.hoverIn.nodeId === snId) state.hoverIn = null; });
+            outPip.addEventListener("mouseenter", function(){ state.hoverIn = { nodeId: snId, port: "code" }; });
+            outPip.addEventListener("mouseleave", function(){ if (state.hoverIn && state.hoverIn.nodeId === snId) state.hoverIn = null; });
+          })(n.id);
 
           card.appendChild(sInner);
 
@@ -2761,6 +3430,163 @@
           cControls.appendChild(cRow);
           cInner.appendChild(cControls);
           card.appendChild(cInner);
+
+        /* ---- WRAPPER NODE ---- */
+        } else if (n.kind === "Wrapper") {
+          var wInner = el("div");
+          wInner.className = "lt_wrapperInner";
+
+          var wAccent = el("div");
+          wAccent.className = "lt_wrapperAccent";
+          wInner.appendChild(wAccent);
+
+          var wHeader = el("div");
+          wHeader.className = "lt_wrapperHeader";
+          var wTitle = el("div");
+          wTitle.className = "lt_wrapperTitlePill";
+          wTitle.textContent = n.title || "Wrapper";
+          var wClose = el("button");
+          wClose.className = "lt_wrapperCloseBtn";
+          wClose.textContent = "✕";
+          wClose.onmousedown = function(ev){ ev.stopPropagation(); ev.preventDefault(); };
+          wClose.onclick = (function(nId){ return function(ev){ ev.stopPropagation(); ev.preventDefault(); deleteNode(nId); }; })(n.id);
+          wHeader.appendChild(wTitle);
+          wHeader.appendChild(wClose);
+          wInner.appendChild(wHeader);
+
+          var wControls = el("div");
+          wControls.className = "lt_wrapperControls";
+
+          var wDefn = WRAPPER_TYPES[n.data && n.data._wrapType] || null;
+          var wCtrlList = wDefn ? wDefn.controls : [];
+          for (var wci2=0; wci2<wCtrlList.length; wci2++) {
+            (function(){
+              var wc = wCtrlList[wci2];
+              if (!wc) return;
+              var wRow = el("div"); wRow.className = "lt_scriptRow";
+              var wRowTop = el("div"); wRowTop.className = "lt_scriptRowTop";
+              var wLab = el("div"); wLab.className = "lt_scriptLabel";
+              wLab.textContent = String(wc.label || wc.key || "");
+              wRowTop.appendChild(wLab);
+              wRow.appendChild(wRowTop);
+              if (wc.type === "text") {
+                var wInp = el("input");
+                wInp.type = "text";
+                wInp.className = "lt_scriptText";
+                var wk = String(wc.key || "");
+                wInp.value = String((n.data && typeof n.data[wk] !== "undefined") ? n.data[wk] : (wc.default || ""));
+                wInp.onmousedown = function(ev){ ev.stopPropagation(); };
+                (function(k, inp){ inp.oninput = function(){ n.data[k] = inp.value; scheduleInject(); }; })(wk, wInp);
+                wRow.appendChild(wInp);
+              } else if (wc.type === "select") {
+                var wSel2 = el("select"); wSel2.className = "lt_scriptSelect";
+                var wk2 = String(wc.key || "");
+                var wCur2 = String((n.data && typeof n.data[wk2] !== "undefined") ? n.data[wk2] : (wc.default || ""));
+                var wOpts2 = Array.isArray(wc.options) ? wc.options : [];
+                for (var woi2=0; woi2<wOpts2.length; woi2++){
+                  var wo2 = el("option");
+                  wo2.value = String(wOpts2[woi2].value);
+                  wo2.textContent = String(wOpts2[woi2].label || wOpts2[woi2].value);
+                  if (wo2.value === wCur2) wo2.selected = true;
+                  wSel2.appendChild(wo2);
+                }
+                wSel2.onmousedown = function(ev){ ev.stopPropagation(); };
+                (function(k, s){ s.onchange = function(){ n.data[k] = s.value; scheduleInject(); }; })(wk2, wSel2);
+                wRow.appendChild(wSel2);
+              }
+              wControls.appendChild(wRow);
+            })();
+          }
+
+          // Body hint — shows how many nodes are wired in
+          var wBodyLbl = el("div"); wBodyLbl.className = "lt_wrapperBodyLabel";
+          var wBodyCount = 0, wElseCount = 0;
+          for (var wbci=0; wbci<state.links.length; wbci++) {
+            if (state.links[wbci].toNodeId === n.id && state.links[wbci].toPort === "body") wBodyCount++;
+            if (state.links[wbci].toNodeId === n.id && state.links[wbci].toPort === "else") wElseCount++;
+          }
+          var wHintText = wBodyCount > 0 ? "✓ " + wBodyCount + " if node" + (wBodyCount > 1 ? "s" : "") : "if body ← connect nodes";
+          if (wElseCount > 0) wHintText += "  |  ✓ " + wElseCount + " else";
+          wBodyLbl.textContent = wHintText;
+          wControls.appendChild(wBodyLbl);
+
+          wInner.appendChild(wControls);
+
+          // Port strip — ifElse gets 3 pips: body in | else in | code out
+          var wStrip = el("div"); wStrip.className = "lt_portStrip";
+          var wDefnStrip = WRAPPER_TYPES[n.data && n.data._wrapType] || null;
+          var wHasElse = !!(wDefnStrip && wDefnStrip.hasElsePort);
+
+          var wSL = el("div"); wSL.className = "lt_portStripSide";
+          var wInPip2 = el("div"); wInPip2.className = "lt_port lt_port_in";
+          wInPip2.style.cssText = "cursor:pointer;pointer-events:all;";
+          wInPip2.setAttribute("data-port-node", n.id);
+          wInPip2.setAttribute("data-port-name", "body");
+          state.pipRegistry.push({ nodeId: n.id, port: "body", el: wInPip2 });
+          var wInLbl2 = el("div"); wInLbl2.className = "lt_portStripLabel"; wInLbl2.textContent = "if body";
+          wSL.appendChild(wInPip2); wSL.appendChild(wInLbl2);
+          wStrip.appendChild(wSL);
+
+          var wElsePip = null;
+          if (wHasElse) {
+            var wSM = el("div"); wSM.className = "lt_portStripSide";
+            wElsePip = el("div"); wElsePip.className = "lt_port lt_port_in";
+            wElsePip.style.cssText = "cursor:pointer;pointer-events:all;background:rgba(255,140,60,0.9) !important;";
+            wElsePip.setAttribute("data-port-node", n.id);
+            wElsePip.setAttribute("data-port-name", "else");
+            state.pipRegistry.push({ nodeId: n.id, port: "else", el: wElsePip });
+            var wElseLbl = el("div"); wElseLbl.className = "lt_portStripLabel"; wElseLbl.textContent = "else body";
+            wSM.appendChild(wElsePip); wSM.appendChild(wElseLbl);
+            wStrip.appendChild(wSM);
+          }
+
+          var wSR = el("div"); wSR.className = "lt_portStripSide";
+          var wOutLbl2 = el("div"); wOutLbl2.className = "lt_portStripLabel"; wOutLbl2.textContent = "code out";
+          var wOutPip2 = el("div"); wOutPip2.className = "lt_port lt_port_out";
+          wOutPip2.style.cssText = "cursor:crosshair;pointer-events:all;";
+          wSR.appendChild(wOutLbl2); wSR.appendChild(wOutPip2);
+          wStrip.appendChild(wSR);
+          wInner.appendChild(wStrip);
+          card.appendChild(wInner);
+
+          (function(wnId, wElsePipRef){
+            wOutPip2.addEventListener("mousedown", function(ev){ ev.stopPropagation(); ev.preventDefault(); beginLink(wnId, "code", ev); }, true);
+            wInPip2.addEventListener("mousedown", function(ev){
+              ev.stopPropagation(); ev.preventDefault();
+              if (state.linking && state.linking.active) return;
+              var exL2 = null;
+              for (var eli2=0; eli2<state.links.length; eli2++){
+                if (state.links[eli2].toNodeId === wnId && state.links[eli2].toPort === "body"){ exL2 = state.links[eli2]; break; }
+              }
+              if (exL2){ state.links = state.links.filter(function(l){ return l.id !== exL2.id; }); scheduleInject(); beginLink(exL2.fromNodeId, exL2.fromPort, ev); }
+            }, true);
+            wInPip2.addEventListener("mouseenter",  function(){ state.hoverIn = { nodeId: wnId, port: "body" }; });
+            wInPip2.addEventListener("mouseleave",  function(){ if (state.hoverIn && state.hoverIn.nodeId === wnId) state.hoverIn = null; });
+            wOutPip2.addEventListener("mouseenter", function(){ state.hoverIn = { nodeId: wnId, port: "code" }; });
+            wOutPip2.addEventListener("mouseleave", function(){ if (state.hoverIn && state.hoverIn.nodeId === wnId) state.hoverIn = null; });
+            if (wElsePipRef) {
+              wElsePipRef.addEventListener("mousedown", function(ev){
+                ev.stopPropagation(); ev.preventDefault();
+                if (state.linking && state.linking.active) {
+                  // Complete an in-progress link onto the else port
+                  tryCompleteLink(wnId, "else");
+                  return;
+                }
+                // Drag existing else link off
+                var exLE = null;
+                for (var elie=0; elie<state.links.length; elie++){
+                  if (state.links[elie].toNodeId === wnId && state.links[elie].toPort === "else"){ exLE = state.links[elie]; break; }
+                }
+                if (exLE){ state.links = state.links.filter(function(l){ return l.id !== exLE.id; }); scheduleInject(); beginLink(exLE.fromNodeId, exLE.fromPort, ev); }
+              }, true);
+              wElsePipRef.addEventListener("mouseenter", function(){ state.hoverIn = { nodeId: wnId, port: "else" }; });
+              wElsePipRef.addEventListener("mouseleave", function(){ if (state.hoverIn && state.hoverIn.nodeId === wnId && state.hoverIn.port === "else") state.hoverIn = null; });
+              wElsePipRef.addEventListener("mouseup", function(ev){
+                ev.stopPropagation();
+                if (state.linking && state.linking.active) tryCompleteLink(wnId, "else");
+              }, true);
+            }
+          })(n.id, wElsePip);
         }
 
         // Ports — large hit-target wrapper around visible pip
@@ -2770,7 +3596,7 @@
 
             // Visible pip — hidden for ScriptNode/Context (ports are in the port strip)
             var pip = el("div");
-            var isStripNode = (n.kind === "ScriptNode" || n.kind === "Context");
+            var isStripNode = (n.kind === "ScriptNode" || n.kind === "Context" || n.kind === "Wrapper");
             var pipColor = p.dir === "out" ? "rgba(140,200,255,0.95)" : "rgba(255,180,120,0.95)";
             if (n.kind === "Clip") {
               if (p.name === "update")  pipColor = "rgba(255,120,120,0.95)";
@@ -2790,24 +3616,24 @@
               boxShadow: isStripNode ? "none" : "0 0 0 3px rgba(255,255,255,0.06) inset"
             });
 
-            // Large invisible hit-target centred on the pip
-            var port = el("div");
-            setStyle(port, {
-              position:"absolute",
-              left:(p.x - 16) + "px",
-              top: (p.y - 16) + "px",
-              width:"32px", height:"32px",
-              borderRadius:"50%",
-              display:"flex", alignItems:"center", justifyContent:"center",
-              background:"transparent",
-              border:"none", boxShadow:"none",
-              cursor: p.dir === "out" ? "crosshair" : "pointer",
-              zIndex:"10"
-            });
-            port.appendChild(pip);
-
-            // Hover glow (only for Clip nodes; ScriptNode/Context use strip)
+            // For strip nodes (ScriptNode/Context): ports are handled by the strip pip listeners above
+            // For Clip nodes: create invisible hit-target div over the visible pip
             if (!isStripNode) {
+              var port = el("div");
+              setStyle(port, {
+                position:"absolute",
+                left:(p.x - 16) + "px",
+                top: (p.y - 16) + "px",
+                width:"32px", height:"32px",
+                borderRadius:"50%",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                background:"transparent",
+                border:"none", boxShadow:"none",
+                cursor: p.dir === "out" ? "crosshair" : "pointer",
+                zIndex:"10"
+              });
+              port.appendChild(pip);
+
               port.onmouseenter = function(){
                 pip.style.transform = "scale(1.5)";
                 pip.style.boxShadow = "0 0 8px " + pipColor;
@@ -2818,68 +3644,57 @@
                 pip.style.boxShadow = "none";
                 if (state.hoverIn && state.hoverIn.nodeId === n.id && state.hoverIn.port === p.name) state.hoverIn = null;
               };
-            } else {
-              port.onmouseenter = function(){ state.hoverIn = { nodeId: n.id, port: p.name }; };
-              port.onmouseleave = function(){ if (state.hoverIn && state.hoverIn.nodeId === n.id && state.hoverIn.port === p.name) state.hoverIn = null; };
-            }
 
-            var lbl = el("div");
-            lbl.className = "lt_portLabel";
-            var lblText = p.dir === "out" ? "code out" : "code in";
-            lbl.textContent = lblText;
-            var isRight = false;
-            try { isRight = (p.x > (n.w * 0.6)); } catch(eL0){}
-            // Label sits directly below the dot, centred on it
-            setStyle(lbl, {
-              position: "absolute",
-              top: (p.y + 10) + "px",
-              fontFamily: "'Outfit', system-ui, sans-serif",
-              fontSize: "15px",
-              fontWeight: "400",
-              color: "#c8c8d8",
-              background: "none",
-              border: "none",
-              padding: "0",
-              whiteSpace: "nowrap",
-              pointerEvents: "none"
-            });
-            if (isRight) {
-              lbl.style.right = (n.w - p.x - 6) + "px";
-              lbl.style.textAlign = "right";
-            } else {
-              lbl.style.left = (p.x - 10) + "px";
-              lbl.style.textAlign = "left";
-            }
+              var lbl = el("div");
+              lbl.className = "lt_portLabel";
+              var lblText = p.dir === "out" ? "code out" : "code in";
+              lbl.textContent = lblText;
+              var isRight = false;
+              try { isRight = (p.x > (n.w * 0.6)); } catch(eL0){}
+              setStyle(lbl, {
+                position: "absolute",
+                top: (p.y + 10) + "px",
+                fontFamily: "'Outfit', system-ui, sans-serif",
+                fontSize: "15px",
+                fontWeight: "400",
+                color: "#c8c8d8",
+                background: "none",
+                border: "none",
+                padding: "0",
+                whiteSpace: "nowrap",
+                pointerEvents: "none"
+              });
+              if (isRight) {
+                lbl.style.right = (n.w - p.x - 6) + "px";
+                lbl.style.textAlign = "right";
+              } else {
+                lbl.style.left = (p.x - 10) + "px";
+                lbl.style.textAlign = "left";
+              }
+              card.appendChild(port);
+              if (n.kind !== "Clip") card.appendChild(lbl);
 
-            card.appendChild(port);
-            if (n.kind !== "Clip" && !isStripNode) card.appendChild(lbl);
-
-            if (p.dir === "out") {
-              port.onmousedown = function(ev){
-                ev.stopPropagation(); ev.preventDefault();
-                beginLink(n.id, p.name, ev);
-              };
-            } else {
-              // Input port: if a link is already connected here, unplug it and resume dragging from its source
-              port.onmousedown = function(ev){
-                ev.stopPropagation(); ev.preventDefault();
-                if (state.linking && state.linking.active) {
-                  // We are dropping — handled by proximity snap on mouseup, do nothing here
-                  return;
-                }
-                // Find an existing link going INTO this port
-                var existingLink = null;
-                for (var eli=0; eli<state.links.length; eli++){
-                  var el2 = state.links[eli];
-                  if (el2.toNodeId === n.id && el2.toPort === p.name){ existingLink = el2; break; }
-                }
-                if (existingLink) {
-                  // Remove link and start dragging from its source
-                  state.links = state.links.filter(function(l){ return l.id !== existingLink.id; });
-                  scheduleInject();
-                  beginLink(existingLink.fromNodeId, existingLink.fromPort, ev);
-                }
-              };
+              if (p.dir === "out") {
+                port.onmousedown = function(ev){
+                  ev.stopPropagation(); ev.preventDefault();
+                  beginLink(n.id, p.name, ev);
+                };
+              } else {
+                port.onmousedown = function(ev){
+                  ev.stopPropagation(); ev.preventDefault();
+                  if (state.linking && state.linking.active) return;
+                  var existingLink = null;
+                  for (var eli=0; eli<state.links.length; eli++){
+                    var el2 = state.links[eli];
+                    if (el2.toNodeId === n.id && el2.toPort === p.name){ existingLink = el2; break; }
+                  }
+                  if (existingLink) {
+                    state.links = state.links.filter(function(l){ return l.id !== existingLink.id; });
+                    scheduleInject();
+                    beginLink(existingLink.fromNodeId, existingLink.fromPort, ev);
+                  }
+                };
+              }
             }
             // Input port completion handled by proximity snap in window mouseup
           })();
@@ -3080,44 +3895,9 @@
       }
     }
 
-    // Priority 2: bare number assignments  e.g. this.x = 5, score += 1
-    var controls2 = [], template = src, found = 0, seenKeys = {}, m;
-    var propNumRx = /([a-zA-Z_$][a-zA-Z0-9_.]*)\s*([+\-]?=)\s*(-?[0-9]+(?:\.[0-9]+)?)\b/g;
-    var SKIP = /^(e[0-9]|_|dt|now|st|w\b|p\b|p2|i$|j$|k$|n$|t$|LT_CFG|Math|Date)/;
-    while ((m = propNumRx.exec(src)) !== null) {
-      var propName = m[1].replace(/^(this|project|window)\./, "");
-      if (SKIP.test(propName)) continue;
-      var key2 = propName.replace(/[^a-zA-Z0-9_]/g, "_");
-      if (seenKeys[key2]) continue;
-      seenKeys[key2] = true;
-      var numVal = parseFloat(m[3]);
-      var isFloat2 = (m[3].indexOf(".") !== -1);
-      controls2.push({ type:"number", key:key2, label:propName, default:numVal, min:0,
-        step:isFloat2 ? 0.01 : 1, max:isFloat2 ? 10 : 1000 });
-      template = template.replace(
-        new RegExp("(" + escRx(m[1]) + "\\s*[+\\-]?=\\s*)" + escRx(m[3]) + "\\b"),
-        "$1{{" + key2 + "}}"
-      );
-      found++;
-    }
-
-    // Priority 3: boolean toggles
-    var boolRx = /([a-zA-Z_$][a-zA-Z0-9_.]*)\s*=\s*(true|false)\b/g;
-    while ((m = boolRx.exec(src)) !== null) {
-      var bProp = m[1].replace(/^(this|project)\./, "");
-      var keyB = bProp.replace(/[^a-zA-Z0-9_]/g, "_") + "_bool";
-      if (seenKeys[keyB]) continue;
-      seenKeys[keyB] = true;
-      controls2.push({ type:"select", key:keyB, label:bProp, default:m[2],
-        options:[{value:"true",label:"true"},{value:"false",label:"false"}] });
-      template = template.replace(
-        new RegExp("(" + escRx(m[1]) + "\\s*=\\s*)" + m[2] + "\\b"), "$1{{" + keyB + "}}"
-      );
-      found++;
-    }
-
-    if (found === 0) return null;
-    return { controls:controls2, template:template };
+    // Priority 2 & 3 removed: bare number/bool extraction creates too many unhelpful cards.
+    // Only CFG-style blocks (var X_CFG = {...}) are worth showing as editable nodes.
+    return null;
   }
 
 
@@ -3133,6 +3913,89 @@
       result = result.replace(new RegExp("\{\{" + c.key + "\}\}", "g"), String(val));
     }
     return result;
+  }
+
+  // ===== Try to match a script line against known node definitions =====
+  // Returns { defId, data } if matched, or null
+  function tryMatchNodeDef(scriptLine) {
+    var line = String(scriptLine || "").trim();
+    if (!line) return null;
+    var defs = NodeConfig.list || [];
+    for (var di = 0; di < defs.length; di++) {
+      var def = defs[di];
+      if (!def || !def.script || def.id === "smartCode" || def.id === "customCode") continue;
+      var sc = def.script;
+      // Collect all template variants for this def
+      var templates = [];
+      if (sc.templateByAction) {
+        for (var ak in sc.templateByAction) templates.push({ actionKey: sc.actionKey || "action", actionVal: ak, tpl: sc.templateByAction[ak] });
+      } else if (sc.templateByEvent) {
+        for (var ek in sc.templateByEvent) templates.push({ eventKey: "event", eventVal: ek, tpl: sc.templateByEvent[ek] });
+      } else if (sc.template) {
+        templates.push({ tpl: sc.template });
+      }
+      // Build default data from ui.controls
+      var defaultData = {};
+      var ui = def.ui || {};
+      var controls = (ui.controls && Array.isArray(ui.controls)) ? ui.controls : [];
+      for (var ci3 = 0; ci3 < controls.length; ci3++) {
+        var ctrl = controls[ci3];
+        if (ctrl.key) defaultData[ctrl.key] = String(ctrl.default !== undefined ? ctrl.default : "");
+      }
+      // For each template variant, check if rendered output is a substring of the script line
+      // OR if the script line matches a pattern derived from the template
+      for (var ti2 = 0; ti2 < templates.length; ti2++) {
+        var tv = templates[ti2];
+        var testData = {};
+        for (var dk in defaultData) testData[dk] = defaultData[dk];
+        if (tv.actionKey) testData[tv.actionKey] = tv.actionVal;
+        if (tv.eventKey) testData[tv.eventKey] = tv.eventVal;
+        // Render the template with default values
+        var rendered = renderNodeLine(def, testData);
+        if (!rendered || !rendered.trim()) continue;
+        // Build a regex from the template by replacing {{key}} with a capture pattern
+        // First check: does the rendered output (with defaults) appear in the script line?
+        var renderedClean = rendered.trim().replace(/\s+/g, " ");
+        var lineClean = line.replace(/\s+/g, " ");
+        if (renderedClean === lineClean) {
+          // Exact match with defaults — use them
+          var matchData = {};
+          for (var dk2 in defaultData) matchData[dk2] = defaultData[dk2];
+          if (tv.actionKey) matchData[tv.actionKey] = tv.actionVal;
+          if (tv.eventKey) matchData[tv.eventKey] = tv.eventVal;
+          return { defId: def.id, data: matchData, slotDefault: sc.slotDefault };
+        }
+        // Second check: build regex from template, extract actual values
+        var tplStr = String(tv.tpl || "");
+        if (!tplStr) continue;
+        // Find all {{key}} placeholders
+        var placeholderRx = /\{\{([^}]+)\}\}/g;
+        var placeholders = [];
+        var pm;
+        while ((pm = placeholderRx.exec(tplStr)) !== null) placeholders.push(pm[1]);
+        if (!placeholders.length) continue;
+        // Build regex: escape the template, replace placeholders with capture groups
+        var regexStr = tplStr.replace(/[.*+?^${}()|[\\\]\\\\]/g, "\\$&");
+        for (var pi2 = 0; pi2 < placeholders.length; pi2++) {
+          regexStr = regexStr.replace("\\{\\{" + placeholders[pi2] + "\\}\\}", "([\\w.\\-+]+)");
+        }
+        try {
+          var rx = new RegExp("^\\s*" + regexStr + "\\s*$");
+          var rxMatch = rx.exec(lineClean);
+          if (rxMatch) {
+            var extractedData = {};
+            for (var dk3 in defaultData) extractedData[dk3] = defaultData[dk3];
+            if (tv.actionKey) extractedData[tv.actionKey] = tv.actionVal;
+            if (tv.eventKey) extractedData[tv.eventKey] = tv.eventVal;
+            for (var pi3 = 0; pi3 < placeholders.length; pi3++) {
+              extractedData[placeholders[pi3]] = rxMatch[pi3 + 1] || defaultData[placeholders[pi3]] || "";
+            }
+            return { defId: def.id, data: extractedData, slotDefault: sc.slotDefault };
+          }
+        } catch(eRx) {}
+      }
+    }
+    return null;
   }
 
   // ===== Import nodes from existing clip scripts =====
@@ -3168,10 +4031,53 @@
       try { raw = readSlotViaBridge(clipNode.data, slot) || ""; } catch(e){}
       if (!raw.trim()) continue;
 
-      var parsed = parseCodeToControls(raw);
+      // Strip LT_NODEPANEL markers
+      var stripped = raw;
+      var startMark = "/* LT_NODEPANEL_START */";
+      var endMark = "/* LT_NODEPANEL_END */";
+      var sa = stripped.indexOf(startMark);
+      var sb = stripped.indexOf(endMark);
+      if (sa !== -1 && sb !== -1 && sb > sa) stripped = stripped.slice(sa + startMark.length, sb).trim();
+      if (!stripped.trim()) continue;
+
+      // Split into lines, try matching each against known node defs
+      var lines = stripped.split("\n").map(function(l){ return l.trim(); }).filter(function(l){ return l && l.indexOf("//") !== 0; });
+      var lineMatches = [];
+      var unmatchedLines = [];
+      for (var lmi = 0; lmi < lines.length; lmi++) {
+        var lm = tryMatchNodeDef(lines[lmi]);
+        if (lm) lineMatches.push({ match: lm, line: lines[lmi] });
+        else unmatchedLines.push(lines[lmi]);
+      }
+
+      // Create a proper node for each matched line
+      for (var mni = 0; mni < lineMatches.length; mni++) {
+        var lmatch = lineMatches[mni].match;
+        var matchDef = NodeConfig.byId[lmatch.defId] || null;
+        if (!matchDef) continue;
+        var matchControls = (matchDef.ui && matchDef.ui.controls) ? matchDef.ui.controls : [];
+        var ctrlCount = matchControls.length;
+        var cardH2 = 60 + ctrlCount * 44 + 42;
+        var sn2 = { id:uuid(), kind:"ScriptNode", title:matchDef.label || lmatch.defId,
+          x:nodeX, y:nodeY+yOff, w:320, h:cardH2,
+          ports:[
+            { name:"trigger", dir:"in",  x:0,   y:cardH2-19 },
+            { name:"code",    dir:"out", x:320, y:cardH2-19 }
+          ],
+          defId:lmatch.defId, data:lmatch.data };
+        state.nodes.push(sn2);
+        state.links.push({ id:uuid(), fromNodeId:sn2.id, fromPort:"code", toNodeId:clipNode.id, toPort:slot });
+        yOff += cardH2 + 16;
+        createdAny = true;
+      }
+
+      // Remaining unmatched lines fall back to smartCode / CFG
+      var fallbackSrc = lineMatches.length > 0 ? unmatchedLines.join("\n") : stripped;
+      if (!fallbackSrc.trim()) continue;
+      var parsed = parseCodeToControls(fallbackSrc);
       if (!parsed || !parsed.controls || !parsed.controls.length) continue;
 
-      var nodeData = { _template: parsed.template, _rawCode: raw, _controls: parsed.controls,
+      var nodeData = { _template: parsed.template, _rawCode: fallbackSrc, _controls: parsed.controls,
         _cfgMode: parsed._cfgMode || false, _cfgObj: parsed._cfgObj || null,
         _cfgJsonStr: parsed._cfgJsonStr || null, _cfgVarName: parsed._cfgVarName || null };
       for (var ci = 0; ci < parsed.controls.length; ci++) {
@@ -3179,14 +4085,14 @@
         nodeData[c.key] = (typeof c.default !== "undefined") ? c.default : "";
       }
       var rawTitle = parsed._cfgVarName || "";
-      if (rawTitle) rawTitle = rawTitle.replace(/^LT_/,"").replace(/_/g," ").toLowerCase().replace(/(\w)/g,function(x){return x.toUpperCase();});
+      if (rawTitle) rawTitle = rawTitle.replace(/^LT_/,"").replace(/_/g," ").toLowerCase().replace(/\b(\w)/g,function(x){return x.toUpperCase();});
       var title = rawTitle || (slot.charAt(0).toUpperCase() + slot.slice(1));
-      var cardH = 50 + parsed.controls.length * 62 + 40;
+      var cardH = 60 + parsed.controls.length * 44 + 42;
       var sn = { id:uuid(), kind:"ScriptNode", title:title,
         x:nodeX, y:nodeY+yOff, w:320, h:cardH,
         ports:[
-          { name:"trigger", dir:"in",  x:0,   y:cardH-22 },
-          { name:"code",    dir:"out", x:320, y:cardH-22 }
+          { name:"trigger", dir:"in",  x:0,   y:cardH-21 },
+          { name:"code",    dir:"out", x:320, y:cardH-21 }
         ],
         defId:"smartCode", data:nodeData };
       state.nodes.push(sn);
@@ -3256,6 +4162,21 @@
       state.linking.mouseWorldX = w.x;
       state.linking.mouseWorldY = w.y;
 
+      // Use elementFromPoint to detect pip hover — works during drag unlike mouseenter
+      try {
+        var elUnder = document.elementFromPoint(ev.clientX, ev.clientY);
+        if (elUnder && elUnder.getAttribute) {
+          var pipNode = elUnder.getAttribute("data-port-node");
+          var pipPort = elUnder.getAttribute("data-port-name");
+          if (pipNode && pipPort) {
+            state.hoverIn = { nodeId: pipNode, port: pipPort };
+          } else if (state.hoverIn && state.hoverIn._fromElementFromPoint) {
+            state.hoverIn = null;
+          }
+          if (pipNode) state.hoverIn._fromElementFromPoint = true;
+        }
+      } catch(eEFP) {}
+
       // Proximity snap preview: find nearest valid in-port within snap radius
       var SNAP_RADIUS = 48;
       var bestDist = SNAP_RADIUS;
@@ -3275,19 +4196,22 @@
           if (dist < bestDist){ bestDist = dist; bestNodeId = nd.id; bestPort = np.name; }
         }
       }
-      // Snap wire endpoint to nearest port if close enough
-      if (bestNodeId){
+      // hoverIn takes priority for snap preview
+      var snapNodeId = state.hoverIn ? state.hoverIn.nodeId : bestNodeId;
+      var snapPort   = state.hoverIn ? state.hoverIn.port   : bestPort;
+      if (snapNodeId){
         var sn = null;
-        for (var si=0; si<state.nodes.length; si++) if (state.nodes[si].id === bestNodeId){ sn = state.nodes[si]; break; }
+        for (var si=0; si<state.nodes.length; si++) if (state.nodes[si].id === snapNodeId){ sn = state.nodes[si]; break; }
         if (sn){
           for (var spi=0; spi<sn.ports.length; spi++){
             var sp = sn.ports[spi];
-            if (sp.name === bestPort && sp.dir === "in"){
+            if (sp.name === snapPort && sp.dir === "in"){
               state.linking.mouseWorldX = sn.x + sp.x;
               state.linking.mouseWorldY = sn.y + sp.y;
               break;
             }
           }
+          // If port not found in nd.ports (e.g. else port rendered in DOM only), use hoverIn as-is
         }
       }
       drawLinks();
@@ -3303,45 +4227,63 @@
 
   window.addEventListener("mouseup", function(ev){
     if (state.linking && state.linking.active) {
-      // Proximity snap: find nearest valid input port within SNAP_RADIUS world-units
-      var SNAP_RADIUS = 48;
-      var mw = screenToWorld(ev.clientX, ev.clientY);
-      var bestDist = SNAP_RADIUS;
-      var bestNodeId = null;
-      var bestPort = null;
+      // 1. Check pipRegistry by actual screen rect — most reliable, works during drag
+      var pipHit = null;
+      for (var pri=0; pri<state.pipRegistry.length; pri++) {
+        var pr = state.pipRegistry[pri];
+        if (!pr || !pr.el) continue;
+        try {
+          var rect = pr.el.getBoundingClientRect();
+          var pad = 10; // extra hit padding
+          if (ev.clientX >= rect.left - pad && ev.clientX <= rect.right + pad &&
+              ev.clientY >= rect.top - pad && ev.clientY <= rect.bottom + pad) {
+            pipHit = pr; break;
+          }
+        } catch(eR){}
+      }
+      if (pipHit) {
+        tryCompleteLink(pipHit.nodeId, pipHit.port);
+      // 2. hoverIn fallback
+      } else if (state.hoverIn) {
+        try { tryCompleteLink(state.hoverIn.nodeId, state.hoverIn.port); } catch(eH){ cancelLink(); }
+      } else {
+        // Proximity snap fallback: find nearest valid in-port within SNAP_RADIUS world-units
+        var SNAP_RADIUS = 48;
+        var mw = screenToWorld(ev.clientX, ev.clientY);
+        var bestDist = SNAP_RADIUS;
+        var bestNodeId = null;
+        var bestPort = null;
 
-      for (var ni=0; ni<state.nodes.length; ni++){
-        var nd = state.nodes[ni];
-        if (!nd || nd.id === state.linking.fromNodeId) continue;
-        for (var npi=0; npi<nd.ports.length; npi++){
-          var np = nd.ports[npi];
-          if (np.dir !== "in") continue;
-          var wx = nd.x + np.x;
-          var wy = nd.y + np.y;
-          var dx = mw.x - wx;
-          var dy = mw.y - wy;
-          var dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist < bestDist){
-            bestDist = dist;
-            bestNodeId = nd.id;
-            bestPort = np.name;
+        for (var ni=0; ni<state.nodes.length; ni++){
+          var nd = state.nodes[ni];
+          if (!nd || nd.id === state.linking.fromNodeId) continue;
+          for (var npi=0; npi<nd.ports.length; npi++){
+            var np = nd.ports[npi];
+            if (np.dir !== "in") continue;
+            var wx = nd.x + np.x;
+            var wy = nd.y + np.y;
+            var dx = mw.x - wx;
+            var dy = mw.y - wy;
+            var dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < bestDist){
+              bestDist = dist;
+              bestNodeId = nd.id;
+              bestPort = np.name;
+            }
           }
         }
-      }
 
-      if (bestNodeId) {
-        tryCompleteLink(bestNodeId, bestPort);
-      } else {
-        // Fallback to hoverIn
-        try {
-          if (state.hoverIn) tryCompleteLink(state.hoverIn.nodeId, state.hoverIn.port);
-          else cancelLink();
-        } catch(eL0){ cancelLink(); }
+        if (bestNodeId) {
+          tryCompleteLink(bestNodeId, bestPort);
+        } else {
+          cancelLink();
+        }
       }
     }
     if (state.draggingPan){
       state.draggingPan = false;
       viewport.style.cursor = "grab";
+      try { saveLayout(); } catch(eSP){}
     }
   });
 
@@ -3360,6 +4302,7 @@
     state.panY = cy - wy * newScale;
     applyTransform();
     drawLinks();
+    try { saveLayout(); } catch(eSZ){}
     ev.preventDefault();
   }, { passive:false });
 
@@ -3452,6 +4395,103 @@
   btnRefreshAll.onclick = function(){ refreshClipList(); scheduleInject(); };
   btnFit.onclick = function(){ fitToNodes(); };
 
+  // ── Save layout to JSON file ──
+  btnSave.onclick = function(){
+    try {
+      var payload = {
+        version: 1,
+        nodes: state.nodes,
+        links: state.links,
+        panX: state.panX,
+        panY: state.panY,
+        scale: state.scale,
+        savedAt: new Date().toISOString()
+      };
+      var json = JSON.stringify(payload, null, 2);
+      var blob = new Blob([json], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "nodepanel_layout.json";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+      btnSave.textContent = "Saved ✓";
+      setTimeout(function(){ btnSave.textContent = "Save"; }, 1500);
+    } catch(e) {
+      btnSave.textContent = "Error";
+      setTimeout(function(){ btnSave.textContent = "Save"; }, 1500);
+    }
+  };
+
+  // ── Load layout from JSON file ──
+  btnLoad.onclick = function(){
+    var input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json";
+    input.onchange = function(){
+      var file = input.files && input.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(ev){
+        try {
+          var payload = JSON.parse(ev.target.result);
+          if (!payload || !Array.isArray(payload.nodes)) throw new Error("bad format");
+          state.nodes = payload.nodes;
+          state.links = payload.links || [];
+          if (typeof payload.panX === "number") state.panX = payload.panX;
+          if (typeof payload.panY === "number") state.panY = payload.panY;
+          if (typeof payload.scale === "number") state.scale = payload.scale;
+          drawNodes();
+          applyTransform();
+          btnLoad.textContent = "Loaded ✓";
+          setTimeout(function(){ btnLoad.textContent = "Load"; }, 1500);
+        } catch(e) {
+          btnLoad.textContent = "Bad file";
+          setTimeout(function(){ btnLoad.textContent = "Load"; }, 1500);
+        }
+      };
+      reader.readAsText(file);
+    };
+    document.body.appendChild(input);
+    input.click();
+    setTimeout(function(){ document.body.removeChild(input); }, 1000);
+  };
+
+  function populateWrapDropdown(){
+    wrapSelect.textContent = "";
+    function addWOpt(v, t){
+      var o = el("option");
+      o.value = v;
+      o.textContent = t;
+      wrapSelect.appendChild(o);
+    }
+    // Conditions group
+    var og1 = el("optgroup"); og1.label = "Conditions";
+    function wOpt(v, t){ var o = el("option"); o.value = v; o.textContent = t; og1.appendChild(o); }
+    wOpt("wrap:condition", "If Condition");
+    wOpt("wrap:ifElse",    "If ... Else");
+    wOpt("wrap:ifAnd",     "If A AND B");
+    wOpt("wrap:ifOr",      "If A OR B");
+    wOpt("wrap:ifKey",     "If Key Pressed");
+    wOpt("wrap:ifKeyDown", "If Key Down");
+    wOpt("wrap:ifMouse",   "If Mouse Event");
+    wOpt("wrap:ifVar",     "If Variable");
+    wrapSelect.appendChild(og1);
+    // Loops group
+    var og2 = el("optgroup"); og2.label = "Loops";
+    function wOpt2(v, t){ var o = el("option"); o.value = v; o.textContent = t; og2.appendChild(o); }
+    wOpt2("wrap:whileLoop", "While Loop");
+    wOpt2("wrap:forLoop",   "For Loop");
+    wrapSelect.appendChild(og2);
+    // Other group
+    var og3 = el("optgroup"); og3.label = "Other";
+    function wOpt3(v, t){ var o = el("option"); o.value = v; o.textContent = t; og3.appendChild(o); }
+    wOpt3("wrap:tryBlock",  "Try / Catch");
+    wOpt3("wrap:function",  "Function");
+    wrapSelect.appendChild(og3);
+  }
+
   function populateNodeDropdown(){
     nodeSelect.textContent = "";
     function addOpt(v, t){
@@ -3470,6 +4510,13 @@
       addOpt("tool:" + id, lab);
     }
   }
+
+  btnAddWrap.onclick = function(){
+    var v = "";
+    try { v = String(wrapSelect.value || ""); } catch(e0){ v = ""; }
+    var p = worldCenter();
+    if (v.indexOf("wrap:") === 0) { var wType = v.slice(5); addWrapperNode(p.x, p.y, wType); drawNodes(); return; }
+  };
 
   btnAddNode.onclick = function(){
     var v = "";
@@ -3494,9 +4541,18 @@
   ensureCenterPan();
   applyTransform();
   loadNodeConfig().then(function(loaded){
+    populateWrapDropdown();
     populateNodeDropdown();
     refreshClipList();
+    // Restore saved layout if available — do NOT auto-inject on load to avoid overwriting scripts
+    var restored = loadLayout();
+    _layoutReady = true; // allow saves from here on
     drawNodes();
+    applyTransform();
+    // Only auto-inject if no saved layout (fresh canvas)
+    if (!restored) {
+      scheduleInject();
+    }
   });
 
 })();
