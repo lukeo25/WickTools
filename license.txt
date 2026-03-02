@@ -1,0 +1,71 @@
+Copyright (c) 2026 Luke O’Donnell
+
+Permission is granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software) to use, copy, modify, and distribute the Software for noncommercial purposes only, subject to the terms below.
+
+Definitions
+
+1.1 Licensor means Luke O’Donnell.
+
+1.2 You means the individual or entity exercising permissions under this license.
+
+1.3 Software means the source code, build scripts, configuration files, and any other files included in the repository that are covered by copyright.
+
+1.4 Noncommercial purpose means a purpose that is not primarily intended for, or directed toward, commercial advantage or monetary compensation.
+
+1.5 Commercial purpose includes any of the following:
+a) selling, licensing, renting, or otherwise distributing the Software or a work that includes the Software for a fee
+b) using the Software in a product or service that is sold, licensed, monetized, or offered for a fee
+c) using the Software to provide paid services, consulting, or support
+d) using the Software in internal operations of a for profit entity where the Software supports, enables, or is part of revenue generating activity
+e) using the Software in advertising, lead generation, or other activities intended to generate commercial advantage
+
+Grant of rights for noncommercial use
+
+2.1 Subject to this license, You may use, copy, modify, and distribute the Software for noncommercial purposes.
+
+2.2 You may distribute modified versions of the Software for noncommercial purposes only, provided You comply with Section 3.
+
+Conditions
+
+3.1 License notice and attribution
+Any distribution of the Software, modified or unmodified, must include all copyright notices and a copy of this license.
+
+3.2 No removal of notices
+You may not remove or alter copyright, trademark, or other legal notices contained in the Software.
+
+3.3 No endorsement
+You may not state or imply that the Licensor endorses You or Your use of the Software without prior written permission.
+
+Commercial use prohibited without a separate license
+
+4.1 Commercial use is not permitted under this license.
+
+4.2 If You want to use the Software for any commercial purpose, You must obtain a separate written commercial license from the Licensor before such use.
+
+4.3 If You use the Software for a commercial purpose without a separate written commercial license, You are in material breach of this license and the permissions granted to You under this license terminate automatically under Section 7.
+
+Contributions
+
+5.1 Unless You and the Licensor agree otherwise in writing, any contribution intentionally submitted for inclusion in the Software may be used, modified, and distributed by the Licensor under any terms the Licensor chooses.
+
+Disclaimer of warranty
+
+THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. YOU BEAR ALL RISK OF USING THE SOFTWARE.
+
+Termination
+
+7.1 This license is effective until terminated.
+
+7.2 Your rights under this license terminate automatically if You breach any term of this license.
+
+7.3 Upon termination, You must cease all use and distribution of the Software and any copies in Your control, except that copies distributed to others under this license may remain with them unless they are also in breach.
+
+Limitation of liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+How to request a commercial license
+
+To request a commercial license, contact the Licensor using the contact method listed in the repository README or the Licensor’s GitHub profile.
+
+End of terms
