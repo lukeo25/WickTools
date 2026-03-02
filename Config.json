@@ -125,7 +125,7 @@
           "F_Screen": 0
         },
                 {
-          "id": "Node",
+          "id": "Node_Coder",
           "label": "Node Coder",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Node.svg",
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Nodecoder.txt",
