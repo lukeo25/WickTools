@@ -1,31 +1,121 @@
-var LT_CFG = {"type":"LT_SIDERUNNER","speed":5,"jump":12,"gravity":0.6,"maxFall":15,"lockX":0};
-if (!this._SR) { this._SR = { vy: 0, grounded: false }; }
-var sr = this._SR;
+var LT_CFG = {"type":"LT_SIDERUNNER","speed":3,"jump":9,"gravity":0.6,"maxFall":12,"enableLR":1,"enableJump":1,"enableGrav":1};
 
-// Wick key detection - isKeyDown is the correct Wick API
-var left  = isKeyDown('LEFT')  || isKeyDown('a') || isKeyDown('A');
-var right = isKeyDown('RIGHT') || isKeyDown('d') || isKeyDown('D');
-var jump  = isKeyDown('UP')    || isKeyDown('w') || isKeyDown('W') || isKeyDown('SPACE');
+try{ this.stop(); }catch(e){}
 
-if (!LT_CFG.lockX) {
-  if (left)  this.x -= LT_CFG.speed;
-  if (right) this.x += LT_CFG.speed;
+// Direction frame switching (frame 1 = right, frame 2 = left)
+var _lt_left = false, _lt_right = false;
+try{ _lt_left  = !!isKeyDown('left');  }catch(e){}
+try{ _lt_right = !!isKeyDown('right'); }catch(e){}
+if(_lt_left && !_lt_right){ try{ this.gotoAndStop(2); }catch(e){} }
+else { try{ this.gotoAndStop(1); }catch(e){} }
+
+var p = this.project || null;
+if(p){
+  if(!p._LT_KEYS){ p._LT_KEYS = {left:false,right:false,space:false}; }
+  if(!p._LT_KEYS_INIT){
+    p._LT_KEYS_INIT = true;
+    try{
+      window.addEventListener('keydown',function(e){
+        if(!p||!p._LT_KEYS) return;
+        if(e.key==='ArrowLeft')  p._LT_KEYS.left=true;
+        if(e.key==='ArrowRight') p._LT_KEYS.right=true;
+        if(e.code==='Space')     p._LT_KEYS.space=true;
+      },true);
+      window.addEventListener('keyup',function(e){
+        if(!p||!p._LT_KEYS) return;
+        if(e.key==='ArrowLeft')  p._LT_KEYS.left=false;
+        if(e.key==='ArrowRight') p._LT_KEYS.right=false;
+        if(e.code==='Space')     p._LT_KEYS.space=false;
+      },true);
+    }catch(e){}
+  }
+  if(!p._LT_SOLIDS){ p._LT_SOLIDS = {}; }
+  try{
+    var __k,__s;
+    for(__k in p._LT_SOLIDS){
+      __s=p._LT_SOLIDS[__k]; if(!__s) continue;
+      if(__s._LT_prevX===undefined) __s._LT_prevX=__s.x;
+      if(__s._LT_prevY===undefined) __s._LT_prevY=__s.y;
+      __s._LT_dx=(__s.x-__s._LT_prevX);
+      __s._LT_dy=(__s.y-__s._LT_prevY);
+      __s._LT_prevX=__s.x; __s._LT_prevY=__s.y;
+    }
+  }catch(e){}
 }
 
-sr.vy += LT_CFG.gravity;
-if (sr.vy > LT_CFG.maxFall) sr.vy = LT_CFG.maxFall;
-this.y += sr.vy;
+if(!this._LT_PHYS){ this._LT_PHYS={vx:0,vy:0,onGround:false,ground:null}; }
 
-var groundY = project.height - this.height / 2;
-if (this.y >= groundY) {
-  this.y = groundY;
-  sr.vy = 0;
-  sr.grounded = true;
-} else {
-  sr.grounded = false;
+function __lt_num(v,d){ v=Number(v); return(isFinite(v)?v:d); }
+function __lt_bounds(o){
+  try{
+    if(o&&typeof o.getBounds==='function'){
+      var b=o.getBounds();
+      if(b){
+        if(b.left!==undefined&&b.top!==undefined&&b.right!==undefined&&b.bottom!==undefined)
+          return{l:__lt_num(b.left,0),t:__lt_num(b.top,0),r:__lt_num(b.right,0),b:__lt_num(b.bottom,0)};
+        if(b.x!==undefined&&b.y!==undefined&&b.width!==undefined&&b.height!==undefined)
+          return{l:__lt_num(b.x,0),t:__lt_num(b.y,0),r:__lt_num(b.x,0)+__lt_num(b.width,0),b:__lt_num(b.y,0)+__lt_num(b.height,0)};
+        if(b.topLeft&&b.bottomRight)
+          return{l:__lt_num(b.topLeft.x,0),t:__lt_num(b.topLeft.y,0),r:__lt_num(b.bottomRight.x,0),b:__lt_num(b.bottomRight.y,0)};
+      }
+    }
+  }catch(e){}
+  var w=__lt_num(o&&o.width,50),h=__lt_num(o&&o.height,50),x=__lt_num(o&&o.x,0),y=__lt_num(o&&o.y,0);
+  return{l:x-w*0.5,t:y-h*0.5,r:x+w*0.5,b:y+h*0.5};
+}
+function __lt_inter(a,b){ return!(a.r<=b.l||a.l>=b.r||a.b<=b.t||a.t>=b.b); }
+
+function __lt_resolveX(self,dx){
+  if(!dx) return;
+  self.x+=dx;
+  if(!p||!p._LT_SOLIDS) return;
+  var k,s,a=__lt_bounds(self),hw=(a.r-a.l)*0.5,sb;
+  for(k in p._LT_SOLIDS){
+    s=p._LT_SOLIDS[k]; if(!s||s===self) continue;
+    sb=__lt_bounds(s);
+    if(__lt_inter(a,sb)){
+      self.x=(dx>0)?(sb.l-hw)-0.01:(sb.r+hw)+0.01;
+      self._LT_PHYS.vx=0; a=__lt_bounds(self); break;
+    }
+  }
+}
+function __lt_resolveY(self,dy){
+  self._LT_PHYS.onGround=false; self._LT_PHYS.ground=null;
+  if(!dy) return;
+  self.y+=dy;
+  if(!p||!p._LT_SOLIDS) return;
+  var k,s,a=__lt_bounds(self),hh=(a.b-a.t)*0.5,sb;
+  for(k in p._LT_SOLIDS){
+    s=p._LT_SOLIDS[k]; if(!s||s===self) continue;
+    sb=__lt_bounds(s);
+    if(__lt_inter(a,sb)){
+      if(dy>0){
+        self.y=(sb.t-hh)-0.01; self._LT_PHYS.vy=0;
+        self._LT_PHYS.onGround=true; self._LT_PHYS.ground=s;
+      }else{
+        self.y=(sb.b+hh)+0.01; self._LT_PHYS.vy=0;
+      }
+      a=__lt_bounds(self); break;
+    }
+  }
 }
 
-if (jump && sr.grounded) {
-  sr.vy = -LT_CFG.jump;
-  sr.grounded = false;
+var keys=(p&&p._LT_KEYS)?p._LT_KEYS:{left:false,right:false,space:false};
+var ph=this._LT_PHYS;
+
+if(LT_CFG.enableLR){ ph.vx=(keys.left?-LT_CFG.speed:0)+(keys.right?LT_CFG.speed:0); }
+else{ ph.vx=0; }
+
+if(LT_CFG.enableGrav){ ph.vy+=LT_CFG.gravity; if(ph.vy>LT_CFG.maxFall) ph.vy=LT_CFG.maxFall; }
+
+if(LT_CFG.enableJump && keys.space && ph.onGround){ ph.vy=-LT_CFG.jump; ph.onGround=false; }
+
+__lt_resolveX(this,ph.vx);
+__lt_resolveY(this,ph.vy);
+
+if(ph.onGround&&ph.ground){
+  var __gdx=0,__gdy=0;
+  try{ __gdx=Number(ph.ground._LT_dx)||0; }catch(e){}
+  try{ __gdy=Number(ph.ground._LT_dy)||0; }catch(e){}
+  if(__gdx||__gdy){ this.x+=__gdx; this.y+=__gdy; }
 }
