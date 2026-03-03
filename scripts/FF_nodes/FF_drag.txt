@@ -1,66 +1,75 @@
 var LT_CFG = {"type":"LT_DRAG","snapGrid":0,"gridSize":50,"clampBounds":1,"dragOpacity":0.8,"snapBack":0,"dropZoneName":""};
 (function(){
-if (!this._DRAG) { this._DRAG = { dragging:false, offX:0, offY:0, homeX:this.x, homeY:this.y, dropped:false }; }
-var dr = this._DRAG;
+var _t = this;
+if (!_t._DRAG) { _t._DRAG = { dragging:false, offX:0, offY:0, homeX:_t.x, homeY:_t.y }; }
+var dr = _t._DRAG;
 
-// Wick globals: mouseX, mouseY, mouseIsDown are top-level, not on project
-var mx = 0, my = 0, mdown = false;
-try { mx = mouseX || 0; } catch(e){}
-try { my = mouseY || 0; } catch(e){}
-try { mdown = !!mouseIsDown; } catch(e){}
+// Show pointer cursor on hover
+onEvent('mouseenter', function() {
+  try { showCursor(); } catch(e){}
+  try { document.body.style.cursor = 'pointer'; } catch(e){}
+});
+onEvent('mouseleave', function() {
+  try { document.body.style.cursor = 'default'; } catch(e){}
+});
 
-var hw = (this.width  || 50) / 2;
-var hh = (this.height || 50) / 2;
-var hit = mx >= this.x - hw && mx <= this.x + hw && my >= this.y - hh && my <= this.y + hh;
-
-if (mdown && !dr.dragging && hit) {
+// Start drag
+onEvent('mousedown', function() {
   dr.dragging = true;
-  dr.offX = this.x - mx;
-  dr.offY = this.y - my;
-  dr.dropped = false;
-}
+  dr.offX = _t.x - mouseX;
+  dr.offY = _t.y - mouseY;
+  _t.opacity = LT_CFG.dragOpacity;
+  try { document.body.style.cursor = 'grabbing'; } catch(e){}
+});
 
-if (dr.dragging) {
-  this.opacity = LT_CFG.dragOpacity;
-  var tx = mx + dr.offX;
-  var ty = my + dr.offY;
+// Move while dragging
+onEvent('mousedrag', function() {
+  if (!dr.dragging) return;
+  var tx = mouseX + dr.offX;
+  var ty = mouseY + dr.offY;
   if (LT_CFG.snapGrid && LT_CFG.gridSize > 0) {
     tx = Math.round(tx / LT_CFG.gridSize) * LT_CFG.gridSize;
     ty = Math.round(ty / LT_CFG.gridSize) * LT_CFG.gridSize;
   }
   if (LT_CFG.clampBounds) {
     var pw = 0, ph = 0;
-    try { pw = project.width || 0; } catch(e){}
-    try { ph = project.height || 0; } catch(e){}
+    try { pw = project.width || 0; ph = project.height || 0; } catch(e){}
+    var hw = (_t.width || 50) / 2;
+    var hh = (_t.height || 50) / 2;
     if (pw) tx = Math.max(hw, Math.min(pw - hw, tx));
     if (ph) ty = Math.max(hh, Math.min(ph - hh, ty));
   }
-  this.x = tx;
-  this.y = ty;
-}
+  _t.x = tx;
+  _t.y = ty;
+  // Publish position for dropzone
+  try {
+    if (!project._LT_DRAGGING) project._LT_DRAGGING = {};
+    project._LT_DRAGGING[_t.uuid] = { x:_t.x, y:_t.y, active:true, name:_t.identifier||"" };
+  } catch(e){}
+});
 
-if (!mdown && dr.dragging) {
+// End drag
+onEvent('mousereleased', function() {
+  if (!dr.dragging) return;
   dr.dragging = false;
-  this.opacity = 1;
-  var p = project || null;
-  if (p) {
-    if (!p._LT_DROPS) p._LT_DROPS = [];
-    p._LT_DROPS.push({ uuid: this.uuid, x: this.x, y: this.y, name: this.identifier || "" });
+  _t.opacity = 1;
+  try { document.body.style.cursor = 'default'; } catch(e){}
+  // Write drop event
+  try {
+    if (!project._LT_DROPS) project._LT_DROPS = [];
+    project._LT_DROPS.push({ uuid:_t.uuid, x:_t.x, y:_t.y, name:_t.identifier||"" });
+    if (project._LT_DRAGGING) project._LT_DRAGGING[_t.uuid] = { x:_t.x, y:_t.y, active:false, name:_t.identifier||"" };
+    // Check named drop zone
     var landed = false;
-    if (LT_CFG.dropZoneName && p._LT_ZONES) {
-      var zone = p._LT_ZONES[LT_CFG.dropZoneName];
+    if (LT_CFG.dropZoneName && project._LT_ZONES) {
+      var zone = project._LT_ZONES[LT_CFG.dropZoneName];
       if (zone) {
-        var inZone = this.x >= zone.x - zone.hw && this.x <= zone.x + zone.hw &&
-                     this.y >= zone.y - zone.hh && this.y <= zone.y + zone.hh;
-        if (inZone) { landed = true; dr.dropped = true; }
+        var inZone = _t.x >= zone.x - zone.hw && _t.x <= zone.x + zone.hw &&
+                     _t.y >= zone.y - zone.hh && _t.y <= zone.y + zone.hh;
+        if (inZone) landed = true;
       }
     }
-    if (LT_CFG.snapBack && !landed) {
-      this.x = dr.homeX;
-      this.y = dr.homeY;
-    }
-    if (!p._LT_DRAGGING) p._LT_DRAGGING = {};
-    p._LT_DRAGGING[this.uuid] = { x: this.x, y: this.y, active: dr.dragging, dropped: dr.dropped, name: this.identifier || "" };
-  }
-}
+    if (LT_CFG.snapBack && !landed) { _t.x = dr.homeX; _t.y = dr.homeY; }
+  } catch(e){}
+});
 }).call(this);
