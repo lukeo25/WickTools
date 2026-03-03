@@ -7,3 +7,10 @@ try {
     this.fillColor = "rgb("+Math.round(LT_CFG.r)+","+Math.round(LT_CFG.g)+","+Math.round(LT_CFG.b)+")";
   }
 } catch(e) {}
+
+// Register as a solid so FF_siderunner and other physics nodes can collide with it
+var p = this.project || null;
+if (p) {
+  if (!p._LT_SOLIDS) p._LT_SOLIDS = {};
+  p._LT_SOLIDS[this.uuid || this.identifier || "solid"] = this;
+}
