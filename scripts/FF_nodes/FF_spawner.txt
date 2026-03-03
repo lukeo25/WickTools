@@ -1,4 +1,6 @@
 var LT_CFG = {"type":"LT_SPAWNER","interval":60,"maxCount":10,"spreadX":100,"spreadY":0,"clipName":""};
+(function(){
+var _self=this;
 if (!this._SPW) { this._SPW = { t: 0, count: 0 }; }
 var sp = this._SPW;
 sp.t++;
@@ -14,3 +16,4 @@ try {
   proj._LT_SPAWN.push({ clipName: LT_CFG.clipName, x: sx, y: sy, id: Date.now() + Math.random() });
   sp.count++;
 } catch(e){}
+}).call(this);

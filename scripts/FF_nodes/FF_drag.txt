@@ -1,4 +1,6 @@
 var LT_CFG = {"type":"LT_DRAG","snapGrid":0,"gridSize":50,"clampBounds":1,"dragOpacity":0.8,"snapBack":0,"dropZoneName":""};
+(function(){
+var _self=this;
 if (!this._DRAG) { this._DRAG = { dragging:false, offX:0, offY:0, homeX:this.x, homeY:this.y, dropped:false }; }
 var dr = this._DRAG;
 var proj = this.project || null;
@@ -51,3 +53,4 @@ if (!mdown && dr.dragging) {
 }
 if (!proj._LT_DRAGGING) proj._LT_DRAGGING = {};
 proj._LT_DRAGGING[this.uuid] = { x: this.x, y: this.y, active: dr.dragging, dropped: dr.dropped, name: this.identifier || "" };
+}).call(this);

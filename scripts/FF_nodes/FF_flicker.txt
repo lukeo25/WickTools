@@ -1,4 +1,6 @@
 var LT_CFG = {"type":"LT_FLICKER","onFrames":3,"offFrames":2,"duration":60,"autoStart":0};
+(function(){
+var _self=this;
 if (!this._FLK) { this._FLK = { t: 0, running: LT_CFG.autoStart ? true : false }; }
 var fl = this._FLK;
 var proj = this.project || null;
@@ -10,3 +12,4 @@ fl.t++;
 var cycle = LT_CFG.onFrames + LT_CFG.offFrames;
 this.opacity = (fl.t % cycle < LT_CFG.onFrames) ? 1 : 0;
 if (fl.t >= LT_CFG.duration) { fl.running = false; fl.t = 0; this.opacity = 1; }
+}).call(this);

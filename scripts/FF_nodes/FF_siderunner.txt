@@ -1,5 +1,6 @@
 var LT_CFG = {"type":"LT_SIDERUNNER","speed":3,"jump":9,"gravity":0.6,"maxFall":12,"enableLR":1,"enableJump":1,"enableGrav":1};
-
+(function(){
+var _self=this;
 try{ this.stop(); }catch(e){}
 
 // Direction frame switching (frame 1 = right, frame 2 = left)
@@ -119,3 +120,4 @@ if(ph.onGround&&ph.ground){
   try{ __gdy=Number(ph.ground._LT_dy)||0; }catch(e){}
   if(__gdx||__gdy){ this.x+=__gdx; this.y+=__gdy; }
 }
+}).call(this);

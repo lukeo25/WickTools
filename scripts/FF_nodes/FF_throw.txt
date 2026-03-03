@@ -1,4 +1,6 @@
 var LT_CFG = {"type":"LT_THROW","gravity":0.4,"damping":0.98,"minSpeed":1,"bounceWalls":1};
+(function(){
+var _self=this;
 if (!this._THROW) { this._THROW = { dragging:false, offX:0, offY:0, vx:0, vy:0, px:0, py:0 }; }
 var th = this._THROW;
 var proj = this.project || null;
@@ -31,3 +33,4 @@ if (!th.dragging) {
     if (this.y + hh > proj.height) { this.y = proj.height - hh; th.vy *= -0.6; th.vx *= 0.85; }
   }
 }
+}).call(this);

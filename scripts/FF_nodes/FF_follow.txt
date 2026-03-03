@@ -1,4 +1,6 @@
 var LT_CFG = {"type":"LT_FOLLOW","targetName":"","lerpSpeed":0.08,"offsetX":0,"offsetY":0,"deadZone":5};
+(function(){
+var _self=this;
 var proj = this.project || null;
 if (!proj) return;
 var target = null;
@@ -21,3 +23,4 @@ if (dist > LT_CFG.deadZone) {
   this.x += dx * LT_CFG.lerpSpeed;
   this.y += dy * LT_CFG.lerpSpeed;
 }
+}).call(this);

@@ -1,4 +1,5 @@
 var LT_CFG = {"type":"LT_TIMER","duration":180,"loop":1,"countDown":1,"autoStart":1};
+(function(){
 if (!this._TMR) { this._TMR = { t: LT_CFG.countDown ? LT_CFG.duration : 0, running: LT_CFG.autoStart ? true : false, done: false }; }
 var tm = this._TMR;
 if (!tm.running) return;
@@ -20,3 +21,4 @@ if (proj) {
   if (!proj._LT_TIMERS) proj._LT_TIMERS = {};
   proj._LT_TIMERS[this.uuid] = { t: tm.t, done: tm.done, running: tm.running };
 }
+})();

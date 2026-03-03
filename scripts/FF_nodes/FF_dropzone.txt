@@ -1,4 +1,6 @@
 var LT_CFG = {"type":"LT_DROPZONE","acceptName":"","highlightOnHover":1,"snapToCenter":1,"onDropScale":1.1,"resetAfterFrames":0};
+(function(){
+var _self=this;
 if (!this._DZ) { this._DZ = { hasItem:false, itemName:"", flashT:0, baseScaleX:this.scaleX||1, baseScaleY:this.scaleY||1 }; }
 var dz = this._DZ;
 var proj = this.project || null;
@@ -51,3 +53,4 @@ if (LT_CFG.resetAfterFrames > 0 && dz.hasItem) {
   dz.resetT++;
   if (dz.resetT >= LT_CFG.resetAfterFrames) { dz.hasItem = false; dz.itemName = ""; dz.resetT = 0; }
 }
+}).call(this);

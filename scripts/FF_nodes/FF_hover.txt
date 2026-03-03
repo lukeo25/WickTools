@@ -1,4 +1,6 @@
 var LT_CFG = {"type":"LT_HOVER","scaleUp":1.15,"lerpSpeed":0.12,"colorShift":0,"cursorPointer":1};
+(function(){
+var _self=this;
 if (!this._HOV) { this._HOV = { over: false, scale: 1 }; }
 var hv = this._HOV;
 var proj = this.project || null;
@@ -13,3 +15,4 @@ hv.scale += (targetScale - hv.scale) * LT_CFG.lerpSpeed;
 try { this.scaleX = hv.scale; this.scaleY = hv.scale; } catch(e){}
 if (hv.over && LT_CFG.colorShift) { try { this.opacity = 0.85; } catch(e){} }
 else { try { this.opacity = 1; } catch(e){} }
+}).call(this);

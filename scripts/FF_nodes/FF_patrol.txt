@@ -1,4 +1,6 @@
 var LT_CFG = {"type":"LT_PATROL","rangeX":150,"rangeY":0,"speed":2,"pauseFrames":30};
+(function(){
+var _self=this;
 if (!this._PAT) { this._PAT = { dir:1, baseX:this.x, baseY:this.y, pause:0 }; }
 var pt = this._PAT;
 if (pt.pause > 0) { pt.pause--; return; }
@@ -15,3 +17,4 @@ if (LT_CFG.rangeY > 0 && Math.abs(dyp) >= LT_CFG.rangeY) {
   this.y = pt.baseY + pt.dir * LT_CFG.rangeY;
   pt.dir *= -1; pt.pause = LT_CFG.pauseFrames;
 }
+}).call(this);

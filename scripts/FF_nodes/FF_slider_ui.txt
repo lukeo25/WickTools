@@ -1,4 +1,6 @@
 var LT_CFG = {"type":"LT_SLIDER_UI","minVal":0,"maxVal":100,"axis":"x","varName":"sliderValue","knobSize":20};
+(function(){
+var _self=this;
 if (!this._SLD) { this._SLD = { dragging: false, value: (LT_CFG.minVal + LT_CFG.maxVal) / 2 }; }
 var sl = this._SLD;
 var proj = this.project || null;
@@ -21,3 +23,4 @@ if (sl.dragging) {
 if (LT_CFG.varName && proj) {
   try { proj[LT_CFG.varName] = sl.value; } catch(e){}
 }
+}).call(this);
