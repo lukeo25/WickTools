@@ -116,6 +116,14 @@
           "action": "tool",
           "F_Screen": 1
         },
+                {
+          "id": "Screen Record",
+          "label": "Screen Record",
+          "iconUrl": "/scripts/Panel_SVG/Record.svg",
+          "toolUrl": "/scripts/Tools/Clipper.txt",
+          "action": "tool",
+          "F_Screen": 0
+        },
         {
           "id": "Nuke",
           "label": "Nuke",
