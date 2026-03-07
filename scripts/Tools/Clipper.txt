@@ -15,7 +15,7 @@
 'use strict';
 
 var TOOL_ID='lt-stage-recorder-v5';
-if(window[TOOL_ID]){try{window[TOOL_ID].focus();}catch(e){}return;}
+if(window[TOOL_ID]){ return; } // already loaded — don't re-show panel
 
 // ─── State ────────────────────────────────────────────────────────────────────
 var state={
@@ -649,13 +649,17 @@ function createPanel(){
     position:'fixed',top:'12px',right:'12px',width:'268px',
     background:'#1e1e1e',color:'#f2f2f2',border:'1px solid #3a3a3a',
     borderRadius:'14px',boxShadow:'0 12px 36px rgba(0,0,0,0.55)',
-    zIndex:'2147483647',fontFamily:'Arial,sans-serif',fontSize:'12px',overflow:'hidden'
+    zIndex:'2147483647',fontFamily:'Arial,sans-serif',fontSize:'12px',
+    overflow:'hidden',
+    display:'flex',flexDirection:'column',
+    maxHeight:'calc(100vh - 24px)'
   });
 
   var header=makeEl('div',{
     padding:'10px 12px',background:'#252525',fontWeight:'800',
     fontSize:'13px',borderBottom:'1px solid #333',cursor:'grab',
-    display:'flex',alignItems:'center',justifyContent:'space-between'
+    display:'flex',alignItems:'center',justifyContent:'space-between',
+    flexShrink:'0'
   });
   var headerTitle=makeEl('span',{},'🎥 Stage Recorder v5');
   var closeBtn=makeEl('button',{
@@ -678,7 +682,7 @@ function createPanel(){
   header.appendChild(headerTitle);
   header.appendChild(closeBtn);
 
-  var body=makeEl('div',{padding:'12px'});
+  var body=makeEl('div',{padding:'12px',overflowY:'auto',flex:'1 1 auto',minHeight:'0'});
 
   // Timer
   var tw=makeEl('div',{marginBottom:'10px',padding:'10px',borderRadius:'10px',
