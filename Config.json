@@ -100,6 +100,14 @@
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/SVG_Importer.txt",
           "action": "script",
           "F_Screen": 0
+        },
+        {
+          "id": "Stop Mo",
+          "label": "Stop Mo",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/StopMo.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/StopMo.txt",
+          "action": "script",
+          "F_Screen": 0
         }
       ]
     },
