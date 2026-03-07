@@ -117,6 +117,14 @@
           "F_Screen": 1
         },
         {
+          "id": "Dem Bones",
+          "label": "Dem Bones",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Bone.svg",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/RotoBones.txt",
+          "action": "tool",
+          "F_Screen": 1
+        },        
+        {
           "id": "Screen Record",
           "label": "Screen Record",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main//scripts/Panel_SVG/Record.svg",
