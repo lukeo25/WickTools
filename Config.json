@@ -119,8 +119,8 @@
         {
           "id": "Screen Record",
           "label": "Screen Record",
-          "iconUrl": "/scripts/Panel_SVG/Record.svg",
-          "toolUrl": "/scripts/Tools/Clipper.txt",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main//scripts/Panel_SVG/Record.svg",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main//scripts/Tools/Clipper.txt",
           "action": "tool",
           "F_Screen": 0
         },
