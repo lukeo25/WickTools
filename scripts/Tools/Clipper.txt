@@ -1,8 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LukeTools Stage Recorder</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #141414;
+    color: #f2f2f2;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+<script>
 (function () {
   'use strict';
 
-  var TOOL_ID = 'lt-stage-recorder-clean-v1';
-
+  var TOOL_ID = 'lt-stage-recorder-clipper-v4';
   if (window[TOOL_ID]) {
     try {
       window[TOOL_ID].focus();
@@ -15,7 +34,6 @@
     statusEl: null,
     recordBtn: null,
     findBtn: null,
-    resetBtn: null,
     filenameInput: null,
     timerEl: null,
     canvas: null,
@@ -26,6 +44,7 @@
     lastUrl: '',
     isRecording: false,
     autoDownload: true,
+    startTimer: null,
     captureCanvas: null,
     captureCtx: null,
     captureStream: null,
@@ -52,17 +71,14 @@
 
   function makeEl(tag, styles, text) {
     var el = document.createElement(tag);
-
     if (styles) {
       Object.keys(styles).forEach(function (key) {
         el.style[key] = styles[key];
       });
     }
-
     if (typeof text === 'string') {
       el.textContent = text;
     }
-
     return el;
   }
 
@@ -80,15 +96,11 @@
   }
 
   function updateTimerDisplay() {
-    if (!state.timerEl) {
-      return;
-    }
-
+    if (!state.timerEl) return;
     if (!state.isRecording || !state.recordStartedAt) {
       state.timerEl.textContent = '00:00:00';
       return;
     }
-
     state.timerEl.textContent = formatMs(Date.now() - state.recordStartedAt);
   }
 
@@ -104,19 +116,6 @@
       clearInterval(state.timerInterval);
       state.timerInterval = 0;
     }
-  }
-
-  function resetRecorderUI() {
-    if (state.isRecording) {
-      setStatus('Stop the recording before resetting.');
-      return;
-    }
-
-    state.filenameInput.value = '';
-    state.recordStartedAt = 0;
-    stopTimerDisplay();
-    updateTimerDisplay();
-    setStatus('Reset complete.');
   }
 
   function createPanel() {
@@ -136,30 +135,22 @@
       overflow: 'hidden'
     });
 
-    var header = makeEl(
-      'div',
-      {
-        padding: '9px 10px',
-        background: '#2a2a2a',
-        fontWeight: '700',
-        letterSpacing: '0.2px'
-      },
-      'Luke Tools Stage Recorder'
-    );
+    var header = makeEl('div', {
+      padding: '9px 10px',
+      background: '#2a2a2a',
+      fontWeight: '700',
+      letterSpacing: '0.2px'
+    }, 'Luke Tools Stage Recorder');
 
     var body = makeEl('div', {
       padding: '10px'
     });
 
-    var subtitle = makeEl(
-      'div',
-      {
-        marginBottom: '8px',
-        color: '#cccccc',
-        lineHeight: '1.4'
-      },
-      'Records the visible Wick canvas exactly as shown on stage.'
-    );
+    var subtitle = makeEl('div', {
+      marginBottom: '8px',
+      color: '#cccccc',
+      lineHeight: '1.4'
+    }, 'Records the visible Wick canvas exactly as shown on stage.');
 
     var timerWrap = makeEl('div', {
       marginBottom: '10px',
@@ -170,26 +161,18 @@
       textAlign: 'center'
     });
 
-    var timerLabel = makeEl(
-      'div',
-      {
-        color: '#bdbdbd',
-        fontSize: '11px',
-        marginBottom: '4px'
-      },
-      'Recorded time'
-    );
+    var timerLabel = makeEl('div', {
+      color: '#bdbdbd',
+      fontSize: '11px',
+      marginBottom: '4px'
+    }, 'Recorded time');
 
-    state.timerEl = makeEl(
-      'div',
-      {
-        fontSize: '22px',
-        fontWeight: '700',
-        letterSpacing: '1px',
-        color: '#ffffff'
-      },
-      '00:00:00'
-    );
+    state.timerEl = makeEl('div', {
+      fontSize: '22px',
+      fontWeight: '700',
+      letterSpacing: '1px',
+      color: '#ffffff'
+    }, '00:00:00');
 
     timerWrap.appendChild(timerLabel);
     timerWrap.appendChild(state.timerEl);
@@ -205,25 +188,19 @@
       var wrap = makeEl('div', {
         display: 'block'
       });
-
-      var label = makeEl(
-        'label',
-        {
-          color: '#d8d8d8',
-          display: 'block',
-          marginBottom: '4px',
-          fontSize: '12px'
-        },
-        labelText
-      );
-
+      var label = makeEl('label', {
+        color: '#d8d8d8',
+        display: 'block',
+        marginBottom: '4px',
+        fontSize: '12px'
+      }, labelText);
       wrap.appendChild(label);
       wrap.appendChild(inputEl);
       grid.appendChild(wrap);
     }
 
     function makeInput(value) {
-      var input = makeEl('input', {
+      return makeEl('input', {
         width: '100%',
         boxSizing: 'border-box',
         padding: '7px 9px',
@@ -233,9 +210,6 @@
         color: '#fff',
         outline: 'none'
       });
-
-      input.value = value || '';
-      return input;
     }
 
     state.filenameInput = makeInput('wick-stage-recording');
@@ -251,42 +225,32 @@
     });
 
     function makeButton(text, bg) {
-      return makeEl(
-        'button',
-        {
-          padding: '9px 10px',
-          borderRadius: '7px',
-          border: '1px solid #555',
-          background: bg,
-          color: '#fff',
-          cursor: 'pointer',
-          fontWeight: '700'
-        },
-        text
-      );
+      return makeEl('button', {
+        padding: '9px 10px',
+        borderRadius: '7px',
+        border: '1px solid #555',
+        background: bg,
+        color: '#fff',
+        cursor: 'pointer',
+        fontWeight: '700'
+      }, text);
     }
 
     state.recordBtn = makeButton('Record', '#0b5ed7');
     state.findBtn = makeButton('Find Canvas', '#444');
-    state.resetBtn = makeButton('Reset', '#444');
 
     buttonRow.appendChild(state.recordBtn);
     buttonRow.appendChild(state.findBtn);
-    buttonRow.appendChild(state.resetBtn);
 
-    state.statusEl = makeEl(
-      'div',
-      {
-        marginTop: '10px',
-        padding: '10px',
-        minHeight: '34px',
-        borderRadius: '7px',
-        background: '#111',
-        color: '#cfcfcf',
-        lineHeight: '1.35'
-      },
-      'Ready.'
-    );
+    state.statusEl = makeEl('div', {
+      marginTop: '10px',
+      padding: '10px',
+      minHeight: '34px',
+      borderRadius: '7px',
+      background: '#111',
+      color: '#cfcfcf',
+      lineHeight: '1.35'
+    }, 'Ready.');
 
     body.appendChild(subtitle);
     body.appendChild(timerWrap);
@@ -296,8 +260,8 @@
 
     panel.appendChild(header);
     panel.appendChild(body);
-
     document.body.appendChild(panel);
+
     state.panel = panel;
   }
 
@@ -306,14 +270,8 @@
     var seen = [];
 
     function addDoc(doc) {
-      if (!doc) {
-        return;
-      }
-
-      if (seen.indexOf(doc) !== -1) {
-        return;
-      }
-
+      if (!doc) return;
+      if (seen.indexOf(doc) !== -1) return;
       seen.push(doc);
       docs.push(doc);
     }
@@ -321,37 +279,23 @@
     addDoc(document);
 
     try {
-      if (window.parent && window.parent.document) {
-        addDoc(window.parent.document);
-      }
+      if (window.parent && window.parent.document) addDoc(window.parent.document);
     } catch (e) {}
 
     try {
-      if (window.top && window.top.document) {
-        addDoc(window.top.document);
-      }
+      if (window.top && window.top.document) addDoc(window.top.document);
     } catch (e) {}
 
     return docs;
   }
 
   function getVisibleCanvasScore(canvas) {
-    if (!canvas || !canvas.getBoundingClientRect) {
-      return -1;
-    }
-
+    if (!canvas || !canvas.getBoundingClientRect) return -1;
     var rect = canvas.getBoundingClientRect();
-
-    if (!rect) {
-      return -1;
-    }
-
-    if (rect.width < 20 || rect.height < 20) {
-      return -1;
-    }
+    if (!rect) return -1;
+    if (rect.width < 20 || rect.height < 20) return -1;
 
     var style;
-
     try {
       style = (canvas.ownerDocument.defaultView || window).getComputedStyle(canvas);
     } catch (e) {
@@ -359,33 +303,17 @@
     }
 
     if (style) {
-      if (
-        style.display === 'none' ||
-        style.visibility === 'hidden' ||
-        parseFloat(style.opacity || '1') === 0
-      ) {
-        return -1;
-      }
+      if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity || '1') === 0) return -1;
     }
 
     var score = rect.width * rect.height;
-
-    if (canvas.width && canvas.height) {
-      score += canvas.width * canvas.height * 0.25;
-    }
-
+    if (canvas.width && canvas.height) score += canvas.width * canvas.height * 0.25;
     return score;
   }
 
   function isToolCanvas(canvas) {
-    if (!canvas) {
-      return true;
-    }
-
-    if (state.panel && state.panel.contains(canvas)) {
-      return true;
-    }
-
+    if (!canvas) return true;
+    if (state.panel && state.panel.contains(canvas)) return true;
     return false;
   }
 
@@ -396,7 +324,6 @@
 
     docs.forEach(function (doc) {
       var canvases = [];
-
       try {
         canvases = Array.prototype.slice.call(doc.querySelectorAll('canvas'));
       } catch (e) {
@@ -404,12 +331,8 @@
       }
 
       canvases.forEach(function (canvas) {
-        if (isToolCanvas(canvas)) {
-          return;
-        }
-
+        if (isToolCanvas(canvas)) return;
         var score = getVisibleCanvasScore(canvas);
-
         if (score > bestScore) {
           bestScore = score;
           best = canvas;
@@ -421,29 +344,13 @@
   }
 
   function describeCanvas(canvas) {
-    if (!canvas) {
-      return 'No canvas';
-    }
-
+    if (!canvas) return 'No canvas';
     var rect = canvas.getBoundingClientRect();
-
-    return (
-      'Canvas ' +
-      Math.round(rect.width) +
-      ' x ' +
-      Math.round(rect.height) +
-      ' internal ' +
-      (canvas.width || 0) +
-      ' x ' +
-      (canvas.height || 0)
-    );
+    return 'Canvas ' + Math.round(rect.width) + ' x ' + Math.round(rect.height) + ' internal ' + (canvas.width || 0) + ' x ' + (canvas.height || 0);
   }
 
   function updateRecordButton() {
-    if (!state.recordBtn) {
-      return;
-    }
-
+    if (!state.recordBtn) return;
     if (state.isRecording) {
       state.recordBtn.textContent = 'Stop Recording';
       state.recordBtn.style.background = '#b02a37';
@@ -455,14 +362,12 @@
 
   function ensureCanvas() {
     var canvas = findBestCanvas();
-
     if (!canvas) {
       state.canvas = null;
       state.canvasOwnerWindow = null;
       setStatus('Could not find the Wick stage canvas.');
       return false;
     }
-
     state.canvas = canvas;
     state.canvasOwnerWindow = canvas.ownerDocument.defaultView || window;
     setStatus('Canvas found. ' + describeCanvas(canvas));
@@ -474,7 +379,6 @@
       try {
         URL.revokeObjectURL(state.lastUrl);
       } catch (e) {}
-
       state.lastUrl = '';
     }
   }
@@ -484,49 +388,33 @@
       try {
         cancelAnimationFrame(state.drawLoopId);
       } catch (e) {}
-
       state.drawLoopId = 0;
     }
   }
 
   function cleanupCaptureSurfaces() {
     stopDrawLoop();
-
     if (state.captureStream) {
       try {
-        state.captureStream.getTracks().forEach(function (track) {
-          track.stop();
-        });
+        state.captureStream.getTracks().forEach(function (track) { track.stop(); });
       } catch (e) {}
     }
-
     state.captureCanvas = null;
     state.captureCtx = null;
     state.captureStream = null;
   }
 
   function drawCanvasLoop() {
-    if (!state.captureCtx || !state.captureCanvas || !state.canvas || !state.isRecording) {
-      return;
-    }
+    if (!state.captureCtx || !state.captureCanvas || !state.canvas || !state.isRecording) return;
 
     try {
-      if (
-        state.captureCanvas.width !== state.canvas.width ||
-        state.captureCanvas.height !== state.canvas.height
-      ) {
+      if (state.captureCanvas.width !== state.canvas.width || state.captureCanvas.height !== state.canvas.height) {
         state.captureCanvas.width = state.canvas.width || 1280;
         state.captureCanvas.height = state.canvas.height || 720;
       }
 
       state.captureCtx.clearRect(0, 0, state.captureCanvas.width, state.captureCanvas.height);
-      state.captureCtx.drawImage(
-        state.canvas,
-        0,
-        0,
-        state.captureCanvas.width,
-        state.captureCanvas.height
-      );
+      state.captureCtx.drawImage(state.canvas, 0, 0, state.captureCanvas.width, state.captureCanvas.height);
     } catch (e) {}
 
     state.drawLoopId = requestAnimationFrame(drawCanvasLoop);
@@ -543,59 +431,39 @@
 
     for (var i = 0; i < mimeTypes.length; i++) {
       var type = mimeTypes[i];
-
       try {
-        if (
-          window.MediaRecorder &&
-          MediaRecorder.isTypeSupported &&
-          MediaRecorder.isTypeSupported(type)
-        ) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
           return type;
         }
       } catch (e) {}
     }
-
     return '';
   }
 
   function sanitizeFileName(name) {
     var s = String(name || 'wick-stage-recording').trim();
-
-    if (!s) {
-      s = 'wick-stage-recording';
-    }
-
+    if (!s) s = 'wick-stage-recording';
     s = s.replace(/[\\/:*?"<>|]+/g, '_');
-
-    if (!/\.webm$/i.test(s)) {
-      s += '.webm';
-    }
-
+    if (!/\.webm$/i.test(s)) s += '.webm';
     return s;
   }
 
   function buildRecorder() {
-    if (!state.canvas) {
-      return null;
-    }
+    if (!state.canvas) return null;
 
     state.captureCanvas = document.createElement('canvas');
     state.captureCanvas.width = state.canvas.width || 1280;
     state.captureCanvas.height = state.canvas.height || 720;
     state.captureCtx = state.captureCanvas.getContext('2d', { alpha: false });
+
     state.captureStream = state.captureCanvas.captureStream(30);
 
     var mimeType = chooseMimeType();
     var options = {};
-
-    if (mimeType) {
-      options.mimeType = mimeType;
-    }
-
+    if (mimeType) options.mimeType = mimeType;
     options.videoBitsPerSecond = 8000000;
 
     var recorder;
-
     try {
       recorder = new MediaRecorder(state.captureStream, options);
     } catch (e) {
@@ -629,11 +497,7 @@
       }
 
       releaseLastUrl();
-
-      state.lastBlob = new Blob(state.chunks, {
-        type: recorder.mimeType || 'video/webm'
-      });
-
+      state.lastBlob = new Blob(state.chunks, { type: recorder.mimeType || 'video/webm' });
       state.lastUrl = URL.createObjectURL(state.lastBlob);
       setStatus('Recording saved. ' + formatMs(Date.now() - state.recordStartedAt) + ' captured.');
 
@@ -660,26 +524,20 @@
   }
 
   function startRecording() {
-    if (state.isRecording) {
-      return;
-    }
+    if (state.isRecording) return;
 
-    if (!ensureCanvas()) {
-      return;
-    }
+    if (!ensureCanvas()) return;
 
     setStatus('Canvas found. ' + describeCanvas(state.canvas));
-    state.recorder = buildRecorder();
 
-    if (!state.recorder) {
-      return;
-    }
+    state.recorder = buildRecorder();
+    if (!state.recorder) return;
 
     state.isRecording = true;
     updateRecordButton();
     startTimerDisplay();
-    drawCanvasLoop();
 
+    drawCanvasLoop();
     try {
       state.recorder.start(250);
       setStatus('Recording started. Recording the visible Wick canvas.');
@@ -693,6 +551,11 @@
   }
 
   function stopRecording() {
+    if (state.startTimer) {
+      clearTimeout(state.startTimer);
+      state.startTimer = null;
+    }
+
     if (!state.isRecording) {
       setStatus('Recorder is not running.');
       return;
@@ -722,10 +585,6 @@
       ensureCanvas();
     });
 
-    state.resetBtn.addEventListener('click', function () {
-      resetRecorderUI();
-    });
-
     state.recordBtn.addEventListener('click', function () {
       if (state.isRecording) {
         stopRecording();
@@ -745,3 +604,7 @@
 
   init();
 })();
+
+</script>
+</body>
+</html>
