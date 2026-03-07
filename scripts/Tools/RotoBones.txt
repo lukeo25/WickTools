@@ -3451,8 +3451,8 @@ function __LT_fillBodyClipWithParts(state, bodyClip){
       var __lt_a = (__lt_side === "R") ? aR : (__lt_side === "L" ? aL : aC); // FIX
       var __lt_auid = String((__lt_a && (__lt_a.uuid || __lt_a.id || "")) || ""); // FIX
       if(!__lt_auid){ __LT_err("[LukeTools] Debug wedge asset missing"); return null; } // FIX
-      var __lt_x = stageCX + (Number(__lt_dbg.x || 0) || 0); // FIX
-      var __lt_y = stageCY + (Number(__lt_dbg.y || 0) || 0); // FIX
+      var __lt_x = (Number(__lt_dbg.x || 0) || 0); // FIX: rig world already centered
+      var __lt_y = (Number(__lt_dbg.y || 0) || 0); // FIX: rig world already centered
       var __lt_path = await placeImagePathFromAssetUuid(__lt_auid, __lt_x, __lt_y); // FIX
       if(!__lt_path){ __LT_err("[LukeTools] Debug wedge could not place path"); return null; } // FIX
       selectionSelectSingle(__lt_path); // FIX
@@ -3591,13 +3591,13 @@ function __LT_fillBodyClipWithParts(state, bodyClip){
         var w = null;
         if(state && state.rig && state.rig.world && state.rig.world[bone]){
           w = state.rig.world[bone];
-          try { clipObj.x = stageCX + Number(w.base.x || 0); } catch(e2){}
-          try { clipObj.y = stageCY + Number(w.base.y || 0); } catch(e3){}
+          try { clipObj.x = Number(w.base.x || 0); } catch(e2){} // FIX: rig world coords are center-relative; no stage offset needed
+          try { clipObj.y = Number(w.base.y || 0); } catch(e3){} // FIX: rig world coords are center-relative; no stage offset needed
           try { clipObj.rotation = 0; } catch(e4){}
         } else {
           // Fallback so parts do not overlap if rig world data is missing for a bone
-          try { clipObj.x = stageCX + (i * 40); } catch(e2b){}
-          try { clipObj.y = stageCY; } catch(e3b){}
+          try { clipObj.x = (i * 40); } catch(e2b){} // FIX: no stageCX offset
+          try { clipObj.y = 0; } catch(e3b){} // FIX: no stageCY offset
           try { clipObj.rotation = 0; } catch(e4b){}
           __LT_warn("[LukeTools] Missing rig world for bone", bone, "part", partKey);
         }
@@ -3882,8 +3882,8 @@ createdPartClips.push(clipObj);
       return null;
     }
 
-    try { bodyClip.x = stageCX; } catch(e3){}
-    try { bodyClip.y = stageCY; } catch(e4){}
+    try { bodyClip.x = 0; } catch(e3){} // FIX: rig world coords are already centered at stage origin
+    try { bodyClip.y = 0; } catch(e4){} // FIX: rig world coords are already centered at stage origin
     try { bodyClip.rotation = 0; } catch(e5){}
     try { bodyClip.scaleX = 1; bodyClip.scaleY = 1; } catch(e6){}
 
