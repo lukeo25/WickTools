@@ -116,7 +116,7 @@
           "action": "tool",
           "F_Screen": 1
         },
-                {
+        {
           "id": "Screen Record",
           "label": "Screen Record",
           "iconUrl": "/scripts/Panel_SVG/Record.svg",
@@ -132,7 +132,7 @@
           "action": "tool",
           "F_Screen": 0
         },
-                {
+        {
           "id": "Node_Coder",
           "label": "Node Coder",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Node.svg",
@@ -155,9 +155,9 @@
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Gradient.txt",
           "action": "tool",
           "F_Screen": 0
-        },
+        }
       ]
-
+    },
     {
       "id": "Sandbox",
       "label": "Sandbox",
