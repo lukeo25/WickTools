@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LukeTools Webcam Capture v6</title>
+<style>
+  :root{
+    --bg:#141414; --panel:#1b1b1b; --panel2:#222;
+    --border:#2b2b2b; --text:#e8e8e8; --muted:#888;
+    --accent:#7bd88f; --danger:#ff5a5a;
+    --fs:12px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; max-height:100%; margin:0; overflow:hidden; }
+  body{ font-family:system-ui,Arial,sans-serif; background:var(--bg); color:var(--text); font-size:var(--fs); line-height:1.4; }
+  button,select,input{ font-family:inherit; font-size:var(--fs); }
+
+  /* Root: full page, vertical stack */
+  .root{ position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; }
+
+  /* ── Header ── */
+  .hdr{
+    flex-shrink:0; background:#1e1e1e; border-bottom:1px solid var(--border);
+    padding:8px 12px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .hdr-title{ font-weight:800; font-size:13px; color:var(--accent); }
+  .hdr-sub{ font-size:10px; color:var(--muted); }
+
+  /* ── Preview area — fixed 16:9 aspect, fills width ── */
+  .preview-wrap{
+    flex-shrink:0; width:100%; background:#000;
+    position:relative; overflow:hidden;
+    /* maintain 16:9 aspect ratio */
+    aspect-ratio:16/9;
+    max-height:55vh;
+  }
+  #previewCanvas{
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:contain; display:block;
+  }
+  .preview-overlay{
+    position:absolute; inset:0; display:flex; align-items:center;
+    justify-content:center; color:#333; font-size:13px; pointer-events:none;
+    flex-direction:column; gap:6px;
+  }
+  .cam-icon{ font-size:36px; }
+  .frame-badge{
+    position:absolute; top:8px; left:8px;
+    background:rgba(0,0,0,0.75); color:var(--accent);
+    font-size:11px; font-weight:800; padding:3px 8px;
+    border-radius:20px; border:1px solid #333;
+    pointer-events:none;
+  }
+  .capture-flash{
+    position:absolute; inset:0; background:#fff;
+    opacity:0; pointer-events:none; transition:opacity 0.05s;
+  }
+
+  /* ── Controls — scrollable, takes rest of height ── */
+  .ctrl-area{
+    flex:1; overflow-y:auto; overflow-x:hidden;
+    padding:10px 12px 16px;
+    display:flex; flex-direction:column; gap:6px;
+  }
+
+  /* ── Capture button — big, always visible ── */
+  .btn-capture{
+    width:100%; padding:13px; border-radius:9px;
+    border:2px solid #2a5a30; background:linear-gradient(135deg,#1e4a22,#0d3a12);
+    color:var(--accent); font-weight:900; font-size:15px;
+    cursor:pointer; letter-spacing:0.5px;
+    transition:transform 0.08s, background 0.1s;
+    flex-shrink:0;
+  }
+  .btn-capture:hover{ background:linear-gradient(135deg,#2a6a30,#1a4a1a); }
+  .btn-capture:active{ transform:scale(0.97); }
+
+  /* ── Camera row ── */
+  .cam-row{ display:flex; gap:6px; }
+  .btn{
+    flex:1; padding:7px 6px; border-radius:7px; border:1px solid var(--border);
+    background:var(--panel2); color:var(--text); cursor:pointer;
+    font-weight:700; font-size:11px; transition:background 0.1s;
+  }
+  .btn:hover{ background:#2e2e2e; }
+  .btn-green{ background:#1a3a1e; border-color:#254a28; color:var(--accent); }
+  .btn-green:hover{ background:#224a26; }
+  .btn-red{ background:#3a1a1a; border-color:#4a2222; color:var(--danger); }
+  .btn-red:hover{ background:#4a2020; }
+
+  /* ── Section label ── */
+  .sec{ font-size:10px; font-weight:800; color:var(--muted); letter-spacing:0.8px;
+        text-transform:uppercase; margin-top:4px; flex-shrink:0; }
+
+  /* ── Frame control ── */
+  .frame-ctrl{ display:flex; align-items:center; gap:6px; }
+  .frame-num{
+    flex:1; text-align:center; font-weight:800; font-size:16px;
+    background:#111; border:1px solid var(--border); border-radius:7px;
+    padding:4px 0; color:#fff;
+  }
+  .frame-btn{
+    width:28px; height:28px; border-radius:6px; border:1px solid var(--border);
+    background:var(--panel2); color:var(--muted); cursor:pointer;
+    font-size:16px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  .frame-btn:hover{ background:#2e2e2e; color:var(--text); }
+
+  /* ── Toggle ── */
+  .toggle-row{ display:flex; align-items:center; gap:7px; cursor:pointer; font-size:11px; color:#bbb; }
+  .toggle-row input[type=checkbox]{ accent-color:var(--accent); cursor:pointer; margin:0; }
+
+  /* ── Inputs ── */
+  select, input[type=text]{
+    width:100%; padding:5px 8px; border-radius:6px;
+    border:1px solid var(--border); background:#111; color:var(--text); outline:none;
+  }
+
+  /* ── Onion slider ── */
+  .slider-row{ display:flex; gap:8px; align-items:center; }
+  input[type=range]{ flex:1; accent-color:var(--accent); cursor:pointer; margin:0; }
+  .slider-val{ color:var(--muted); font-size:11px; min-width:30px; text-align:right; }
+
+  /* ── Stats + status ── */
+  .stats-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 9px; background:#111; border:1px solid var(--border); border-radius:7px;
+  }
+  .stat-num{ font-size:18px; font-weight:800; color:var(--accent); line-height:1; }
+  .stat-label{ font-size:10px; color:var(--muted); }
+  .btn-sm{ padding:4px 9px; border-radius:5px; border:1px solid var(--border); background:var(--panel2); color:var(--muted); cursor:pointer; font-size:11px; }
+  .btn-sm:hover{ background:#2e2e2e; }
+
+  .status{
+    padding:7px 9px; border-radius:7px; background:#111;
+    border:1px solid var(--border); color:var(--muted); font-size:11px; line-height:1.5;
+    flex-shrink:0;
+  }
+  .status.err{ color:var(--danger); border-color:#4a2222; }
+  .status.ok{ color:var(--accent); border-color:#254a28; }
+
+  .div{ height:1px; background:var(--border); flex-shrink:0; }
+  .hint{ font-size:10px; color:#444; text-align:center; }
+
+</style>
+</head>
+<body>
+<div class="root">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-title">📷 Webcam Capture v6</div>
+    <div class="hdr-sub">Capture webcam frames to Wick stage</div>
+  </div>
+
+  <!-- Preview — 16:9, fills panel width -->
+  <div class="preview-wrap">
+    <canvas id="previewCanvas"></canvas>
+    <div class="preview-overlay" id="previewOverlay">
+      <div class="cam-icon">📷</div>
+      <div>Start camera to preview</div>
+    </div>
+    <div class="frame-badge" id="frameBadge">Frame 1</div>
+    <div class="capture-flash" id="captureFlash"></div>
+  </div>
+
+  <!-- Controls — scrollable below preview -->
+  <div class="ctrl-area">
+
+    <!-- BIG Capture button first -->
+    <button class="btn-capture" id="captureBtn">📸 Capture Frame</button>
+
+    <!-- Frame control -->
+    <div class="sec">Frame</div>
+    <div class="frame-ctrl">
+      <button class="frame-btn" id="frameMinus">−</button>
+      <div class="frame-num" id="frameNum">1</div>
+      <button class="frame-btn" id="framePlus">+</button>
+    </div>
+    <label class="toggle-row">
+      <input type="checkbox" id="autoAdvCheck" checked>
+      <span>Auto-advance after capture</span>
+    </label>
+
+    <div class="div"></div>
+
+    <!-- Camera -->
+    <div class="sec">Camera</div>
+    <div class="cam-row">
+      <button class="btn btn-green" id="startBtn">▶ Start</button>
+      <button class="btn btn-red" id="stopBtn">■ Stop</button>
+    </div>
+    <select id="deviceSel"><option value="">Default camera</option></select>
+    <label class="toggle-row">
+      <input type="checkbox" id="flipCheck" checked>
+      <span>Mirror horizontal</span>
+    </label>
+
+    <div class="div"></div>
+
+    <!-- Layer + Onion -->
+    <div class="sec">Layer</div>
+    <div style="font-size:11px;color:var(--muted);padding:2px 0 6px;">Places on whichever layer is active in Wick.</div>
+
+    <div class="sec">Onion Skin</div>
+    <div class="slider-row">
+      <input type="range" id="onionSlider" min="0" max="1" step="0.05" value="0.4">
+      <span class="slider-val" id="onionVal">40%</span>
+    </div>
+
+    <div class="sec">Brightness / Contrast</div>
+    <div class="slider-row">
+      <span style="color:var(--muted);font-size:11px;min-width:22px">☀</span>
+      <input type="range" id="brightnessSlider" min="0.5" max="2.5" step="0.05" value="1.3">
+      <span class="slider-val" id="brightnessVal">130%</span>
+    </div>
+    <div class="slider-row">
+      <span style="color:var(--muted);font-size:11px;min-width:22px">◑</span>
+      <input type="range" id="contrastSlider" min="0.5" max="2.5" step="0.05" value="1.1">
+      <span class="slider-val" id="contrastVal">110%</span>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- Stats + status -->
+    <div class="stats-row">
+      <div>
+        <div class="stat-num" id="captureCount">0</div>
+        <div class="stat-label">captured</div>
+      </div>
+      <button class="btn-sm" id="resetBtn">Reset</button>
+    </div>
+
+    <div class="status" id="statusEl">Press Start to begin.</div>
+    <div class="hint">Space bar = capture</div>
+
+  </div>
+</div>
+
+<video id="hiddenVideo" style="display:none" muted playsinline autoplay></video>
+
+<script>
+(function(){
+'use strict';
+
+var TOOL_ID = 'lt-webcam-capture-v2';
+if(window[TOOL_ID]){ return; }
+window[TOOL_ID] = { loaded: true };
+
+// ─── State ──────────────────────────────────────────────────────────────────
+var s = {
+  stream: null,
+  flipH: true,
+  frameTarget: 1,
+  captureCount: 0,
+  autoAdvance: true,
+  onionOpacity: 0.4,
+  onionImageData: null,   // ImageData of last captured frame
+  brightness: 1.3,
+  contrast: 1.1,
+  previewRAF: 0,
+  layerName: 'Webcam',
+  deviceId: null,
+};
+
+// ─── DOM refs ────────────────────────────────────────────────────────────────
+var vid        = document.getElementById('hiddenVideo');
+var canvas     = document.getElementById('previewCanvas');
+var ctx        = canvas.getContext('2d');
+var overlay    = document.getElementById('previewOverlay');
+var frameBadge = document.getElementById('frameBadge');
+var flash      = document.getElementById('captureFlash');
+var statusEl   = document.getElementById('statusEl');
+var countEl    = document.getElementById('captureCount');
+var frameNumEl = document.getElementById('frameNum');
+var deviceSel  = document.getElementById('deviceSel');
+var onionSlider= document.getElementById('onionSlider');
+var onionVal   = document.getElementById('onionVal');
+var flipCheck  = document.getElementById('flipCheck');
+var autoAdvCheck = document.getElementById('autoAdvCheck');
+
+// ─── UI helpers ──────────────────────────────────────────────────────────────
+function setStatus(msg, type){
+  statusEl.textContent = msg;
+  statusEl.className = 'status' + (type ? ' '+type : '');
+}
+function updateFrameUI(){
+  frameNumEl.textContent = s.frameTarget;
+  frameBadge.textContent = 'Frame ' + s.frameTarget;
+}
+function updateCountUI(){
+  countEl.textContent = s.captureCount;
+}
+function showFlash(){
+  flash.style.opacity = '0.6';
+  setTimeout(function(){ flash.style.opacity = '0'; }, 80);
+}
+
+// ─── Wick API helpers (mirrors RotoBones pattern exactly) ────────────────────
+function getEditor(){
+  try { if(window.parent && window.parent.wickEditor) return window.parent.wickEditor; } catch(e){}
+  try { if(window.parent && window.parent.WickEditor && window.parent.WickEditor.editor) return window.parent.WickEditor.editor; } catch(e){}
+  try { if(window.parent && window.parent.editor) return window.parent.editor; } catch(e){}
+  try { if(window.wickEditor) return window.wickEditor; } catch(e){}
+  try { if(window.WickEditor && window.WickEditor.editor) return window.WickEditor.editor; } catch(e){}
+  return null;
+}
+function getProject(){
+  var ed = getEditor();
+  try { if(ed && ed.project) return ed.project; } catch(e){}
+  return null;
+}
+function getWick(){
+  try { if(window.parent && window.parent.Wick) return window.parent.Wick; } catch(e){}
+  try { if(window.Wick) return window.Wick; } catch(e){}
+  var ed = getEditor();
+  if(ed){
+    try { if(ed.Wick) return ed.Wick; } catch(e){}
+    try { if(ed.project && ed.project.Wick) return ed.project.Wick; } catch(e){}
+  }
+  return null;
+}
+function markDirty(){
+  var ed = getEditor();
+  if(!ed) return;
+  try { if(typeof ed.projectDidChange === 'function'){ ed.projectDidChange(); return; } } catch(e){}
+  try { if(ed.project && typeof ed.project.markDirty === 'function'){ ed.project.markDirty(); return; } } catch(e){}
+  try { if(ed.project) ed.project.needsSave = true; } catch(e){}
+}
+function tryCall(obj, names, args){
+  if(!obj) return { ok:false };
+  for(var i=0;i<names.length;i++){
+    try {
+      if(typeof obj[names[i]] === 'function'){
+        return { ok:true, name:names[i], out: obj[names[i]].apply(obj, args||[]) };
+      }
+    } catch(e){ return { ok:false, err:String(e) }; }
+  }
+  return { ok:false };
+}
+
+// ─── Timeline / layer / frame helpers ────────────────────────────────────────
+function getActiveTimeline(project){
+  try { if(project.focus && project.focus.timeline) return project.focus.timeline; } catch(e){}
+  try { if(project.activeTimeline) return project.activeTimeline; } catch(e){}
+  try { if(project.timeline) return project.timeline; } catch(e){}
+  return null;
+}
+function getActiveLayer(project){
+  var tl = getActiveTimeline(project);
+  if(!tl) return null;
+  try { if(tl.activeLayer) return tl.activeLayer; } catch(e){}
+  try { var layers = tl.layers||tl._children; if(layers && layers[0]) return layers[0]; } catch(e){}
+  return null;
+}
+function setActiveLayer(project, layer){
+  // Tell Wick which layer is active so createImagePathFromAsset places on the right one
+  var tl = getActiveTimeline(project);
+  if(!tl || !layer) return;
+  try { if(typeof tl.setActiveLayer === 'function'){ tl.setActiveLayer(layer); return; } } catch(e){}
+  try { if(typeof tl.activateLayer === 'function'){ tl.activateLayer(layer); return; } } catch(e){}
+  try { tl.activeLayer = layer; } catch(e){}
+  try { tl._activeLayer = layer; } catch(e){}
+  // Some builds track active layer by index
+  try {
+    var layers = tl.layers || tl._children;
+    if(layers){
+      for(var i=0;i<layers.length;i++){
+        if(layers[i] === layer){
+          try { tl.activeLayerIndex = i; } catch(e){}
+          try { tl._activeLayerIndex = i; } catch(e){}
+          break;
+        }
+      }
+    }
+  } catch(e){}
+}
+function setPlayhead(project, frameNum){
+  // Wick is 0-based internally, UI is 1-based
+  var ph = Math.max(0, frameNum - 1);
+  try { if(project.focus && project.focus.timeline) project.focus.timeline.playheadPosition = ph; } catch(e){}
+  try { if(project.focus && project.focus.timeline && typeof project.focus.timeline.setPlayheadPosition==='function') project.focus.timeline.setPlayheadPosition(ph); } catch(e){}
+  try { if(project.timeline) project.timeline.playheadPosition = ph; } catch(e){}
+  try { if(project.timeline && typeof project.timeline.setPlayheadPosition==='function') project.timeline.setPlayheadPosition(ph); } catch(e){}
+}
+function getOrCreateLayer(tl, name){
+  var W = getWick();
+  // Wick timelines expose layers via .layers array (NOT ._children which holds other things)
+  var layers = null;
+  try { layers = tl.layers; } catch(e){}
+  // fallback: _children but only if they look like layers (have .frames or .identifier)
+  if(!layers || !layers.length){
+    try {
+      var ch = tl._children;
+      if(ch && ch.length && (ch[0].frames || ch[0].identifier !== undefined)) layers = ch;
+    } catch(e){}
+  }
+  // search existing by name
+  if(layers){
+    for(var i=0;i<layers.length;i++){
+      var l = layers[i]; if(!l) continue;
+      var n = String(l.name || l.identifier || l._name || '');
+      if(n === name) return l;
+    }
+  }
+  // create one new layer
+  try {
+    if(W && W.Layer){
+      var nl = new W.Layer();
+      try { nl.name = name; } catch(e){}
+      try { nl.identifier = name; } catch(e){}
+      // Try the official API first — if it works, done
+      try {
+        if(typeof tl.addLayer === 'function'){ tl.addLayer(nl); return nl; }
+      } catch(e){}
+      // Fallback: push into whichever array holds layers (only one, not both)
+      try {
+        if(tl.layers && Array.isArray(tl.layers)){ tl.layers.unshift(nl); try{nl.parent=tl;}catch(e){} return nl; }
+      } catch(e){}
+      try {
+        if(tl._children && Array.isArray(tl._children)){ tl._children.unshift(nl); try{nl.parent=tl;}catch(e){} return nl; }
+      } catch(e){}
+    }
+  } catch(e){}
+  // absolute fallback: use first existing layer
+  if(layers && layers.length) return layers[0];
+  return null;
+}
+function ensureFrameAt(layer, frameNum){
+  // frameNum is 1-based; Wick frame.start is 0-based
+  var ph = Math.max(0, frameNum - 1);
+  var W = getWick();
+  // check existing
+  try {
+    var frames = layer.frames || layer._children;
+    if(frames){
+      for(var i=0;i<frames.length;i++){
+        var f = frames[i]; if(!f) continue;
+        var st = Number(f.start !== undefined ? f.start : (f.startFrame !== undefined ? f.startFrame : 0));
+        var le = Number(f.length !== undefined ? f.length : (f.duration !== undefined ? f.duration : 1));
+        if(ph >= st && ph < st+le) return f;
+      }
+    }
+  } catch(e){}
+  // create
+  try {
+    if(W && W.Frame){
+      var nf = new W.Frame({ start:ph, length:1 });
+      var r = tryCall(layer, ['addFrame'], [nf]);
+      if(r.ok) return nf;
+      var fa = layer.frames || layer._children;
+      if(fa && Array.isArray(fa)){ fa.push(nf); try{nf.parent=layer;}catch(e){} return nf; }
+    }
+  } catch(e){}
+  try { if(typeof layer.addBlankFrame === 'function') return layer.addBlankFrame(ph); } catch(e){}
+  return null;
+}
+function addToFrame(frame, obj){
+  try { if(typeof frame.addChild === 'function'){ frame.addChild(obj); return true; } } catch(e){}
+  try { if(typeof frame.addObject === 'function'){ frame.addObject(obj); return true; } } catch(e){}
+  try {
+    var ch = frame._children || frame.children;
+    if(ch && Array.isArray(ch)){ ch.push(obj); try{obj._parent=frame;}catch(e){} return true; }
+  } catch(e){}
+  return false;
+}
+
+// ─── Wait for asset in Wick ObjectCache ─────────────────────────────────────
+function sleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+async function waitForAssetInCache(uuid, msMax){
+  var deadline = Date.now() + (msMax || 10000);
+  while(Date.now() < deadline){
+    try {
+      var W = getWick();
+      if(W && W.ObjectCache && typeof W.ObjectCache.getObjectByUUID === 'function'){
+        if(W.ObjectCache.getObjectByUUID(String(uuid))) return true;
+      }
+    } catch(e){}
+    await sleep(60);
+  }
+  return false;
+}
+
+// ─── Import PNG dataURL as Wick asset ────────────────────────────────────────
+async function importPNGAsset(dataUrl, name, project){
+  var W = getWick();
+
+  // Method 1: project helper methods (try all known names)
+  var importMethods = [
+    'addAssetFromDataURL','addAssetFromURL',
+    'importAssetFromDataURL','importAssetFromURL',
+    'importAsset','addImageAssetFromDataURL','addImageAssetFromURL'
+  ];
+  for(var i=0;i<importMethods.length;i++){
+    try {
+      if(typeof project[importMethods[i]] !== 'function') continue;
+      var result = project[importMethods[i]](dataUrl, name);
+      if(result && typeof result.then === 'function') result = await result;
+      if(result && (result.uuid || result.id)){
+        try { if(!result.name) result.name = name; } catch(e){}
+        return result;
+      }
+    } catch(e){}
+  }
+
+  // Method 2: construct asset manually then add to project
+  if(W){
+    var ctors = ['ImageAsset','BitmapAsset','RasterAsset','Asset'];
+    for(var j=0;j<ctors.length;j++){
+      try {
+        if(!W[ctors[j]]) continue;
+        var a = new W[ctors[j]]();
+        try { a.name = name; } catch(e){}
+        try { a.filename = name + '.png'; } catch(e){}
+        // try to assign source
+        var srcProps = ['src','source','data','url','dataURL','dataUrl'];
+        for(var k=0;k<srcProps.length;k++){
+          try { if(srcProps[k] in a){ a[srcProps[k]] = dataUrl; break; } } catch(e){}
+        }
+        try { if(typeof a.loadFromURL === 'function') { a.loadFromURL(dataUrl); await sleep(200); } } catch(e){}
+        var addMethods = ['addAsset','addAssets','addAssetToLibrary','libraryAddAsset'];
+        for(var m=0;m<addMethods.length;m++){
+          try {
+            if(typeof project[addMethods[m]] === 'function'){
+              project[addMethods[m]](a);
+              await sleep(100);
+              return a;
+            }
+          } catch(e){}
+        }
+      } catch(e){}
+    }
+  }
+
+  return null;
+}
+
+// ─── Create image object from asset (via createImagePathFromAsset) ────────────
+async function createImageFromAsset(asset, project, x, y){
+  var W = getWick();
+  if(!asset) return null;
+
+  var uuid = String(asset.uuid || asset.id || '');
+
+  // Wait for asset to appear in ObjectCache (needed for createImagePathFromAsset)
+  if(uuid) await waitForAssetInCache(uuid, 8000);
+
+  // Method 1: project.createImagePathFromAsset (the real Wick way)
+  if(typeof project.createImagePathFromAsset === 'function' && uuid && W && W.ObjectCache){
+    try {
+      var assetObj = null;
+      try { assetObj = W.ObjectCache.getObjectByUUID(uuid); } catch(e){}
+      if(assetObj){
+        var path = await new Promise(function(resolve){
+          try {
+            project.createImagePathFromAsset(assetObj, Number(x||0), Number(y||0), function(p){ resolve(p||null); });
+          } catch(e){ resolve(null); }
+        });
+        if(path) return path;
+      }
+    } catch(e){}
+  }
+
+  // Method 2: construct image object with asset ref
+  if(W){
+    var imgCtors = ['Image','ImagePath','Bitmap','Raster','AssetImage','BitmapObject','ImageObject'];
+    for(var i=0;i<imgCtors.length;i++){
+      try {
+        if(!W[imgCtors[i]]) continue;
+        var o = null;
+        try { o = new W[imgCtors[i]](asset); } catch(e){}
+        try { if(!o) o = new W[imgCtors[i]]({asset:asset}); } catch(e){}
+        try { if(!o) o = new W[imgCtors[i]]({assetUUID:uuid}); } catch(e){}
+        if(o){ return o; }
+      } catch(e){}
+    }
+  }
+
+  // Method 3: direct dataURL path (last resort)
+  return null;
+}
+
+// ─── Main capture + place function ───────────────────────────────────────────
+async function captureAndPlace(){
+  if(!s.stream || !vid.srcObject || vid.readyState < 2){
+    setStatus('Camera not ready — press Start Camera first', 'err'); return;
+  }
+
+  var project = getProject();
+  if(!project){ setStatus('Wick editor not found', 'err'); return; }
+
+  setStatus('Capturing…');
+  showFlash();
+
+  // ── Draw webcam frame to offscreen canvas at project resolution ──
+  var pw = Number(project.width) || 480;
+  var ph = Number(project.height) || 270;
+  var cap = document.createElement('canvas');
+  cap.width = pw; cap.height = ph;
+  var capCtx = cap.getContext('2d');
+
+  var vw = vid.videoWidth  || pw;
+  var vh = vid.videoHeight || ph;
+  var scale = Math.max(pw/vw, ph/vh);
+  var dw = vw*scale, dh = vh*scale;
+  var dx = (pw-dw)*0.5, dy = (ph-dh)*0.5;
+
+  // Apply brightness/contrast filter
+  capCtx.filter = 'brightness(' + s.brightness + ') contrast(' + s.contrast + ')';
+  if(s.flipH){
+    capCtx.save(); capCtx.translate(pw,0); capCtx.scale(-1,1);
+    capCtx.drawImage(vid, dx, dy, dw, dh);
+    capCtx.restore();
+  } else {
+    capCtx.drawImage(vid, dx, dy, dw, dh);
+  }
+  capCtx.filter = 'none';
+
+  // Save as onion skin (copy pixels)
+  s.onionImageData = capCtx.getImageData(0,0,pw,ph);
+
+  var dataUrl = cap.toDataURL('image/png');
+  var frameNum = s.frameTarget;
+  var imgName = 'webcam_f' + String(frameNum).padStart(3,'0') + '_' + (Date.now()%100000);
+
+  setStatus('Importing image asset…');
+
+  try {
+    // 1. Import as asset
+    var asset = await importPNGAsset(dataUrl, imgName, project);
+    if(!asset){ setStatus('Asset import failed — check console', 'err'); return; }
+
+    // 2. Use whichever layer is active in Wick right now
+    var layer = getActiveLayer(project);
+    if(!layer){ setStatus('No active layer — click a layer in Wick first', 'err'); return; }
+
+    var frame = ensureFrameAt(layer, frameNum);
+    if(!frame){ setStatus('Could not create frame ' + frameNum, 'err'); return; }
+
+    // 3. Set active layer + playhead so createImagePathFromAsset lands in the right place
+    setActiveLayer(project, layer);
+    setPlayhead(project, frameNum);
+
+    // 4. Create image path — Wick places it on the now-active layer/frame
+    var cx = pw * 0.5, cy = ph * 0.5;
+    var imgObj = await createImageFromAsset(asset, project, cx, cy);
+
+    if(!imgObj){
+      // Last resort: manually construct and add to frame
+      setStatus('createImagePathFromAsset failed, trying manual insert…');
+      var W = getWick();
+      var ok2 = false;
+      if(W){
+        var imgCtors = ['ImagePath','Image','Bitmap','Raster'];
+        for(var ii=0;ii<imgCtors.length;ii++){
+          try {
+            if(!W[imgCtors[ii]]) continue;
+            var o = new W[imgCtors[ii]](asset);
+            try { o.x = cx; o.y = cy; } catch(e){}
+            ok2 = addToFrame(frame, o);
+            if(ok2){ imgObj = o; break; }
+          } catch(e){}
+        }
+      }
+      if(!ok2){ setStatus('Could not place image', 'err'); return; }
+    }
+
+    // Position at center (createImagePathFromAsset uses x/y we passed, but reinforce)
+    try { imgObj.x = cx; imgObj.y = cy; } catch(e){}
+    try { imgObj.identifier = imgName; } catch(e){}
+    try { imgObj.name = imgName; } catch(e){}
+
+    markDirty();
+    var ok = true;
+
+    if(ok){
+      s.captureCount++;
+      updateCountUI();
+      setStatus('✓ Captured to frame ' + frameNum, 'ok');
+
+      // Advance frame
+      if(s.autoAdvance){
+        s.frameTarget++;
+        updateFrameUI();
+        setPlayhead(project, s.frameTarget);
+      }
+    } else {
+      setStatus('Image created but could not add to frame', 'err');
+    }
+
+  } catch(e){
+    setStatus('Error: ' + String(e), 'err');
+  }
+}
+
+// ─── Preview loop ─────────────────────────────────────────────────────────────
+function resizeCanvas(){
+  var rect = canvas.parentElement.getBoundingClientRect();
+  // Use 16:9 ratio based on actual width
+  var w = Math.max(1, Math.round(rect.width));
+  var h = Math.max(1, Math.round(rect.height));
+  if(canvas.width !== w) canvas.width = w;
+  if(canvas.height !== h) canvas.height = h;
+}
+
+function previewTick(){
+  var w = canvas.width, h = canvas.height;
+
+  ctx.clearRect(0,0,w,h);
+
+  // Onion skin
+  if(s.onionImageData && s.onionOpacity > 0){
+    var tmp = document.createElement('canvas');
+    tmp.width = s.onionImageData.width; tmp.height = s.onionImageData.height;
+    tmp.getContext('2d').putImageData(s.onionImageData, 0, 0);
+    ctx.globalAlpha = s.onionOpacity;
+    // letterbox onion
+    var ow = tmp.width, oh = tmp.height;
+    var osc = Math.min(w/ow, h/oh);
+    var odw = ow*osc, odh = oh*osc, odx = (w-odw)*0.5, ody = (h-odh)*0.5;
+    ctx.drawImage(tmp, odx, ody, odw, odh);
+    ctx.globalAlpha = 1;
+  }
+
+  // Live feed
+  if(s.stream && vid.readyState >= 2){
+    var vw = vid.videoWidth||w, vh = vid.videoHeight||h;
+    var sc = Math.max(w/vw, h/vh);
+    var dw = vw*sc, dh = vh*sc, ddx = (w-dw)*0.5, ddy = (h-dh)*0.5;
+    ctx.filter = 'brightness(' + s.brightness + ') contrast(' + s.contrast + ')';
+    if(s.flipH){
+      ctx.save(); ctx.translate(w,0); ctx.scale(-1,1);
+      ctx.drawImage(vid, ddx, ddy, dw, dh);
+      ctx.restore();
+    } else {
+      ctx.drawImage(vid, ddx, ddy, dw, dh);
+    }
+    ctx.filter = 'none';
+    overlay.style.display = 'none';
+  } else {
+    overlay.style.display = 'flex';
+  }
+
+  s.previewRAF = requestAnimationFrame(previewTick);
+}
+
+// ─── Camera start/stop ────────────────────────────────────────────────────────
+async function startCamera(){
+  if(s.stream) stopCamera();
+  try {
+    var constraints = {
+      video: { deviceId: s.deviceId ? {exact:s.deviceId} : undefined, width:{ideal:1280}, height:{ideal:720} },
+      audio: false
+    };
+    var stream = await navigator.mediaDevices.getUserMedia(constraints);
+    s.stream = stream;
+    vid.srcObject = stream;
+    await vid.play();
+    setStatus('Camera ready — press Capture Frame');
+    populateDevices();
+  } catch(e){
+    setStatus('Camera error: ' + String(e), 'err');
+  }
+}
+function stopCamera(){
+  if(s.stream){ s.stream.getTracks().forEach(function(t){ try{t.stop();}catch(e){} }); s.stream = null; }
+  vid.srcObject = null;
+  setStatus('Camera stopped');
+}
+async function populateDevices(){
+  try {
+    var devs = await navigator.mediaDevices.enumerateDevices();
+    var vids = devs.filter(function(d){ return d.kind==='videoinput'; });
+    deviceSel.innerHTML = '<option value="">Default camera</option>';
+    vids.forEach(function(d,i){
+      var o = document.createElement('option');
+      o.value = d.deviceId;
+      o.textContent = d.label || ('Camera '+(i+1));
+      if(d.deviceId === s.deviceId) o.selected = true;
+      deviceSel.appendChild(o);
+    });
+  } catch(e){}
+}
+
+// ─── Wire events ─────────────────────────────────────────────────────────────
+document.getElementById('startBtn').addEventListener('click', startCamera);
+document.getElementById('stopBtn').addEventListener('click', stopCamera);
+document.getElementById('captureBtn').addEventListener('click', captureAndPlace);
+
+document.getElementById('frameMinus').addEventListener('click', function(){
+  if(s.frameTarget > 1){ s.frameTarget--; updateFrameUI(); }
+});
+document.getElementById('framePlus').addEventListener('click', function(){
+  s.frameTarget++; updateFrameUI();
+});
+
+deviceSel.addEventListener('change', function(){
+  s.deviceId = deviceSel.value || null;
+  if(s.stream) startCamera();
+});
+flipCheck.addEventListener('change', function(){ s.flipH = flipCheck.checked; });
+autoAdvCheck.addEventListener('change', function(){ s.autoAdvance = autoAdvCheck.checked; });
+
+onionSlider.addEventListener('input', function(){
+  s.onionOpacity = parseFloat(onionSlider.value);
+  onionVal.textContent = Math.round(s.onionOpacity*100) + '%';
+});
+
+document.getElementById('resetBtn').addEventListener('click', function(){
+  s.captureCount = 0; updateCountUI();
+});
+
+document.getElementById('brightnessSlider').addEventListener('input', function(){
+  s.brightness = parseFloat(this.value);
+  document.getElementById('brightnessVal').textContent = Math.round(s.brightness*100)+'%';
+});
+document.getElementById('contrastSlider').addEventListener('input', function(){
+  s.contrast = parseFloat(this.value);
+  document.getElementById('contrastVal').textContent = Math.round(s.contrast*100)+'%';
+});
+
+// Space = capture
+document.addEventListener('keydown', function(e){
+  if(e.code === 'Space' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT'){
+    e.preventDefault();
+    captureAndPlace();
+  }
+});
+
+// Resize canvas when window resizes
+window.addEventListener('resize', function(){ resizeCanvas(); });
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+resizeCanvas();
+s.previewRAF = requestAnimationFrame(previewTick);
+populateDevices();
+
+})();
+</script>
+</body>
+</html>
