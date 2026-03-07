@@ -3,608 +3,943 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LukeTools Stage Recorder</title>
+<title>LukeTools Stage Recorder v5</title>
 <style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    background: #141414;
-    color: #f2f2f2;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 13px;
-    height: 100%;
-  }
+  html,body{margin:0;padding:0;background:#141414;color:#f2f2f2;
+    font-family:Arial,Helvetica,sans-serif;font-size:12px;height:100%;}
 </style>
 </head>
 <body>
 <script>
-(function () {
-  'use strict';
+(function(){
+'use strict';
 
-  var TOOL_ID = 'lt-stage-recorder-clipper-v4';
-  if (window[TOOL_ID]) {
-    try {
-      window[TOOL_ID].focus();
-    } catch (e) {}
+var TOOL_ID='lt-stage-recorder-v5';
+if(window[TOOL_ID]){try{window[TOOL_ID].focus();}catch(e){}return;}
+
+// ─── State ────────────────────────────────────────────────────────────────────
+var state={
+  // panel refs
+  panel:null, statusEl:null, recordBtn:null, findBtn:null,
+  zoneToggleBtn:null, zoneClearBtn:null, zoneInfoEl:null,
+  filenameInput:null, timerEl:null,
+  // canvas
+  canvas:null,
+  // recording
+  recorder:null, chunks:[], lastBlob:null, lastUrl:'',
+  isRecording:false, autoDownload:true,
+  captureCanvas:null, captureCtx:null, captureStream:null,
+  drawLoopId:0, recordStartedAt:0, timerInterval:0,
+  // audio
+  micStream:null, sysStream:null, audioCtx:null, audioDest:null,
+  // zone
+  zone:null,          // {x,y,w,h} in canvas INTERNAL pixels — null = full canvas
+  zoneActive:false,   // overlay visible?
+  // overlay
+  overlay:null,       // the overlay div sitting on top of the stage
+  overlayBox:null,    // the inner draggable/resizable box div
+  overlayLabel:null,  // size label
+  // drag/resize
+  _drag:null          // active interaction state
+};
+
+window[TOOL_ID]={focus:function(){if(state.panel)state.panel.style.display='block';}};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function s(v){return(v===null||v===undefined)?'':String(v);}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+function setStatus(t){if(state.statusEl)state.statusEl.textContent=t;}
+function setZoneInfo(t,good){
+  if(!state.zoneInfoEl)return;
+  state.zoneInfoEl.textContent=t;
+  state.zoneInfoEl.style.color=good?'#7bd88f':'#ffb347';
+}
+
+function updateAudioStatus(state_str){
+  var el=document.getElementById('lt-audio-status');
+  if(!el)return;
+  if(state_str==='waiting'){
+    el.textContent='⏳ Requesting permissions…'; el.style.color='#ffcc00';
+  }else if(state_str==='none'){
+    el.textContent='⚠ No audio captured'; el.style.color='#ff7f7f';
+  }else{
+    el.textContent='🎤 Audio: '+state_str; el.style.color='#7bd88f';
+  }
+}
+
+function makeEl(tag,styles,text){
+  var el=document.createElement(tag);
+  if(styles)Object.keys(styles).forEach(function(k){el.style[k]=styles[k];});
+  if(typeof text==='string')el.textContent=text;
+  return el;
+}
+
+function formatMs(ms){
+  var sec=Math.max(0,Math.floor(ms/1000));
+  function pad(n){return String(n).padStart(2,'0');}
+  return pad(Math.floor(sec/3600))+':'+pad(Math.floor((sec%3600)/60))+':'+pad(sec%60);
+}
+
+// ─── Timer ────────────────────────────────────────────────────────────────────
+function updateTimer(){
+  if(!state.timerEl)return;
+  state.timerEl.textContent=(state.isRecording&&state.recordStartedAt)
+    ?formatMs(Date.now()-state.recordStartedAt):'00:00:00';
+}
+function startTimer(){stopTimer();state.recordStartedAt=Date.now();updateTimer();state.timerInterval=setInterval(updateTimer,250);}
+function stopTimer(){if(state.timerInterval){clearInterval(state.timerInterval);state.timerInterval=0;}}
+
+// ─── Canvas discovery ─────────────────────────────────────────────────────────
+function getDocs(){
+  var docs=[],seen=[];
+  function add(d){if(!d||seen.indexOf(d)!==-1)return;seen.push(d);docs.push(d);}
+  add(document);
+  try{add(window.parent.document);}catch(e){}
+  try{add(window.top.document);}catch(e){}
+  return docs;
+}
+
+function isToolEl(el){
+  if(!el)return true;
+  if(state.panel&&state.panel.contains(el))return true;
+  if(state.overlay&&state.overlay.contains(el))return true;
+  if(state.overlay&&el===state.overlay)return true;
+  return false;
+}
+
+function findBestCanvas(){
+  var best=null,bs=-1;
+  getDocs().forEach(function(doc){
+    var cs=[];try{cs=Array.prototype.slice.call(doc.querySelectorAll('canvas'));}catch(e){}
+    cs.forEach(function(c){
+      if(isToolEl(c))return;
+      var r=c.getBoundingClientRect();
+      if(!r||r.width<20||r.height<20)return;
+      try{
+        var st=(c.ownerDocument.defaultView||window).getComputedStyle(c);
+        if(st.display==='none'||st.visibility==='hidden'||parseFloat(st.opacity||'1')===0)return;
+      }catch(e){}
+      var sc=r.width*r.height+(c.width&&c.height?c.width*c.height*0.25:0);
+      if(sc>bs){bs=sc;best=c;}
+    });
+  });
+  return best;
+}
+
+function ensureCanvas(){
+  var c=findBestCanvas();
+  if(!c){state.canvas=null;setStatus('Canvas not found.');return false;}
+  state.canvas=c;
+  var r=c.getBoundingClientRect();
+  setStatus('Canvas: '+Math.round(r.width)+'×'+Math.round(r.height)+
+    ' ('+c.width+'×'+c.height+' internal)');
+  return true;
+}
+
+// ─── Zone overlay — draggable + 8-handle resize ───────────────────────────────
+//
+// We create a transparent full-size div sitting exactly over the Wick canvas
+// (in display-pixel coordinates). Inside it lives the crop box.
+// On mouseup we convert the box's display-px rect → internal canvas pixels
+// and store in state.zone.
+
+var HANDLE_SIZE = 10; // px, handle square half-size
+var HANDLE_DIRS = ['nw','n','ne','e','se','s','sw','w'];
+var HANDLE_CURSORS = {nw:'nw-resize',n:'n-resize',ne:'ne-resize',e:'e-resize',
+                     se:'se-resize',s:'s-resize',sw:'sw-resize',w:'w-resize'};
+
+function removeOverlay(){
+  if(state.overlay&&state.overlay.parentNode)state.overlay.parentNode.removeChild(state.overlay);
+  state.overlay=null; state.overlayBox=null; state.overlayLabel=null;
+  state._drag=null;
+}
+
+// displayRect: {left,top,width,height} of the Wick canvas in viewport px
+// Returns the overlay container that sits over the canvas
+function createOverlayOnCanvas(canvas){
+  removeOverlay();
+
+  var dr=canvas.getBoundingClientRect();
+
+  // Find a suitable parent to append to — try canvas parent, body, document.body
+  var parent=canvas.parentNode;
+  if(!parent)parent=document.body;
+
+  // We need the overlay to be position:absolute inside a positioned parent
+  // Check if parent is positioned; if not walk up
+  var par=parent;
+  while(par&&par!==document.body){
+    var ps=getComputedStyle(par).position;
+    if(ps==='relative'||ps==='absolute'||ps==='fixed')break;
+    par=par.parentNode;
+  }
+  if(!par||par===document.body){
+    // Fall back: place fixed overlay on body
+    par=document.body;
+  }
+
+  // Compute overlay position relative to par
+  var parRect=(par===document.body)?{left:0,top:0}:par.getBoundingClientRect();
+
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:absolute;pointer-events:none;z-index:8000;'+
+    'left:'+(dr.left-parRect.left)+'px;'+
+    'top:'+(dr.top-parRect.top)+'px;'+
+    'width:'+dr.width+'px;'+
+    'height:'+dr.height+'px;'+
+    'overflow:visible;';
+
+  // Dim layer (covers full canvas)
+  var dim=document.createElement('div');
+  dim.style.cssText='position:absolute;inset:0;background:rgba(0,0,0,0.35);pointer-events:none;';
+  overlay.appendChild(dim);
+  overlay._dim=dim;
+
+  // Crop box (inside overlay, coordinates relative to overlay)
+  var box=document.createElement('div');
+  // Start at 25% inset
+  var bx=Math.round(dr.width*0.25),  by=Math.round(dr.height*0.25);
+  var bw=Math.round(dr.width*0.5),   bh=Math.round(dr.height*0.5);
+  box.style.cssText='position:absolute;'+
+    'left:'+bx+'px;top:'+by+'px;width:'+bw+'px;height:'+bh+'px;'+
+    'border:2px solid #ffcc00;box-sizing:border-box;cursor:move;'+
+    'pointer-events:all;';
+
+  // Cut-out: we use a clip-path on the dim layer to show canvas through the box
+  // (can't do it with CSS easily in all cases, so we'll use SVG mask trick or just
+  //  leave dim as-is — the yellow border makes the zone clear enough)
+
+  // Label
+  var label=document.createElement('div');
+  label.style.cssText='position:absolute;top:-22px;left:0;'+
+    'background:rgba(0,0,0,0.7);color:#ffcc00;font-size:11px;font-weight:700;'+
+    'padding:2px 6px;border-radius:4px;white-space:nowrap;pointer-events:none;font-family:Arial,sans-serif;';
+  box.appendChild(label);
+  state.overlayLabel=label;
+
+  // 8 resize handles
+  HANDLE_DIRS.forEach(function(dir){
+    var h=document.createElement('div');
+    h.dataset.handle=dir;
+    var hs=HANDLE_SIZE;
+    var css='position:absolute;width:'+hs+'px;height:'+hs+'px;'+
+      'background:#ffcc00;border:1px solid #000;box-sizing:border-box;'+
+      'cursor:'+HANDLE_CURSORS[dir]+';pointer-events:all;z-index:2;';
+    // Position each handle
+    var hh=hs/2;
+    if(dir==='nw') css+='left:-'+hh+'px;top:-'+hh+'px;';
+    if(dir==='n')  css+='left:calc(50% - '+hh+'px);top:-'+hh+'px;';
+    if(dir==='ne') css+='right:-'+hh+'px;top:-'+hh+'px;';
+    if(dir==='e')  css+='right:-'+hh+'px;top:calc(50% - '+hh+'px);';
+    if(dir==='se') css+='right:-'+hh+'px;bottom:-'+hh+'px;';
+    if(dir==='s')  css+='left:calc(50% - '+hh+'px);bottom:-'+hh+'px;';
+    if(dir==='sw') css+='left:-'+hh+'px;bottom:-'+hh+'px;';
+    if(dir==='w')  css+='left:-'+hh+'px;top:calc(50% - '+hh+'px);';
+    h.style.cssText=css;
+    box.appendChild(h);
+  });
+
+  overlay.appendChild(box);
+  state.overlayBox=box;
+
+  if(getComputedStyle(par).position==='static') par.style.position='relative';
+  par.appendChild(overlay);
+  state.overlay=overlay;
+  state.overlay._canvas=canvas;
+  state.overlay._parRect=parRect;
+  state.overlay._par=par;
+
+  updateOverlayDim();
+  updateZoneFromBox();
+
+  // ── Interaction ────────────────────────────────────────────────────────────
+
+  var ownerDoc=canvas.ownerDocument||document;
+
+  function getBoxRect(){
+    return{
+      x:parseFloat(box.style.left)||0,
+      y:parseFloat(box.style.top)||0,
+      w:parseFloat(box.style.width)||100,
+      h:parseFloat(box.style.height)||100
+    };
+  }
+
+  function setBoxRect(x,y,w,h){
+    var dr2=canvas.getBoundingClientRect();
+    var maxW=dr2.width,maxH=dr2.height;
+    w=Math.max(20,w); h=Math.max(20,h);
+    x=clamp(x,0,maxW-w); y=clamp(y,0,maxH-h);
+    box.style.left=x+'px'; box.style.top=y+'px';
+    box.style.width=w+'px'; box.style.height=h+'px';
+  }
+
+  function startDrag(ev,type,dir){
+    ev.preventDefault(); ev.stopPropagation();
+    var br=getBoxRect();
+    state._drag={
+      type:type, dir:dir,
+      startX:ev.clientX, startY:ev.clientY,
+      origX:br.x, origY:br.y, origW:br.w, origH:br.h
+    };
+  }
+
+  // Box drag
+  box.addEventListener('mousedown',function(ev){
+    if(ev.target.dataset&&ev.target.dataset.handle)return; // handled by handle
+    startDrag(ev,'move',null);
+  },true);
+
+  // Handle drag
+  box.querySelectorAll('[data-handle]').forEach(function(h){
+    h.addEventListener('mousedown',function(ev){
+      startDrag(ev,'resize',h.dataset.handle);
+    },true);
+  });
+
+  ownerDoc.addEventListener('mousemove',onMouseMove,true);
+  ownerDoc.addEventListener('mouseup',  onMouseUp,  true);
+  // Also listen on our window in case canvas is in parent
+  if(ownerDoc!==document){
+    document.addEventListener('mousemove',onMouseMove,true);
+    document.addEventListener('mouseup',  onMouseUp,  true);
+  }
+
+  function onMouseMove(ev){
+    if(!state._drag)return;
+    var dx=ev.clientX-state._drag.startX;
+    var dy=ev.clientY-state._drag.startY;
+    var d=state._drag;
+
+    if(d.type==='move'){
+      setBoxRect(d.origX+dx, d.origY+dy, d.origW, d.origH);
+    } else {
+      // Resize based on handle direction
+      var nx=d.origX, ny=d.origY, nw=d.origW, nh=d.origH;
+      var dir=d.dir;
+      if(dir.indexOf('e')!==-1){ nw=d.origW+dx; }
+      if(dir.indexOf('s')!==-1){ nh=d.origH+dy; }
+      if(dir.indexOf('w')!==-1){ nx=d.origX+dx; nw=d.origW-dx; }
+      if(dir.indexOf('n')!==-1){ ny=d.origY+dy; nh=d.origH-dy; }
+      setBoxRect(nx,ny,nw,nh);
+    }
+    updateOverlayDim();
+    updateZoneFromBox();
+  }
+
+  function onMouseUp(){
+    if(!state._drag)return;
+    state._drag=null;
+    updateZoneFromBox();
+  }
+
+  return overlay;
+}
+
+// Re-position overlay when window resizes
+function syncOverlayPosition(){
+  if(!state.overlay||!state.overlay._canvas)return;
+  var canvas=state.overlay._canvas;
+  var dr=canvas.getBoundingClientRect();
+  var par=state.overlay._par;
+  var parRect=(par===document.body)?{left:0,top:0}:par.getBoundingClientRect();
+  state.overlay.style.left=(dr.left-parRect.left)+'px';
+  state.overlay.style.top=(dr.top-parRect.top)+'px';
+  state.overlay.style.width=dr.width+'px';
+  state.overlay.style.height=dr.height+'px';
+}
+
+// Update the SVG cut-out dim effect
+function updateOverlayDim(){
+  if(!state.overlay||!state.overlayBox)return;
+  var box=state.overlayBox;
+  var bx=parseFloat(box.style.left)||0;
+  var by=parseFloat(box.style.top)||0;
+  var bw=parseFloat(box.style.width)||0;
+  var bh=parseFloat(box.style.height)||0;
+  var ow=parseFloat(state.overlay.style.width)||1;
+  var oh=parseFloat(state.overlay.style.height)||1;
+
+  // Use clip-path polygon on the dim layer to punch a hole
+  // Outer rect clockwise, inner rect counter-clockwise = hole
+  var dim=state.overlay._dim;
+  if(dim){
+    // Use SVG-style clip via CSS clip-path with polygon
+    // outer: 0 0, W 0, W H, 0 H
+    // hole (inner CCW): bx by, bx bh+by, bx+bw bh+by, bx+bw by
+    var p='polygon(evenodd, '+
+      '0px 0px, '+ow+'px 0px, '+ow+'px '+oh+'px, 0px '+oh+'px, '+
+      '0px 0px, '+
+      bx+'px '+by+'px, '+(bx+bw)+'px '+by+'px, '+(bx+bw)+'px '+(by+bh)+'px, '+bx+'px '+(by+bh)+'px, '+bx+'px '+by+'px'+
+    ')';
+    dim.style.clipPath=p;
+  }
+
+  // Update label
+  if(state.overlayLabel){
+    var z=state.zone;
+    if(z)state.overlayLabel.textContent=z.w+' × '+z.h+' px';
+  }
+}
+
+// Convert display-px box rect → internal canvas pixels → state.zone
+function updateZoneFromBox(){
+  if(!state.overlayBox||!state.canvas)return;
+  var box=state.overlayBox;
+  var dr=state.canvas.getBoundingClientRect();
+  var scaleX=(state.canvas.width||dr.width)/dr.width;
+  var scaleY=(state.canvas.height||dr.height)/dr.height;
+
+  var bx=parseFloat(box.style.left)||0;
+  var by=parseFloat(box.style.top)||0;
+  var bw=parseFloat(box.style.width)||0;
+  var bh=parseFloat(box.style.height)||0;
+
+  var x=Math.max(0,Math.round(bx*scaleX));
+  var y=Math.max(0,Math.round(by*scaleY));
+  var w=Math.round(bw*scaleX);
+  var h=Math.round(bh*scaleY);
+  var cw=state.canvas.width||Math.round(dr.width);
+  var ch=state.canvas.height||Math.round(dr.height);
+  w=Math.min(w,cw-x); h=Math.min(h,ch-y);
+  if(w<1||h<1){state.zone=null;setZoneInfo('Zone too small',false);return;}
+
+  state.zone={x:x,y:y,w:w,h:h};
+  setZoneInfo('Zone: '+x+', '+y+'  '+w+' × '+h+' px',true);
+  updateOverlayDim();
+}
+
+function showZoneOverlay(){
+  if(!state.canvas){ensureCanvas();}
+  if(!state.canvas){setStatus('Cannot show zone — canvas not found');return;}
+  state.zoneActive=true;
+  createOverlayOnCanvas(state.canvas);
+  if(state.zoneToggleBtn){state.zoneToggleBtn.textContent='✕ Hide Zone';state.zoneToggleBtn.style.background='#3a1e1e';}
+}
+
+function hideZoneOverlay(){
+  state.zoneActive=false;
+  removeOverlay();
+  state.zone=null;
+  setZoneInfo('No zone — full canvas',false);
+  if(state.zoneToggleBtn){state.zoneToggleBtn.textContent='📐 Set Crop Zone';state.zoneToggleBtn.style.background='#1e2e1e';}
+}
+
+// ─── Recording ────────────────────────────────────────────────────────────────
+function updateRecordBtn(){
+  if(!state.recordBtn)return;
+  if(state.isRecording){state.recordBtn.textContent='⏹ Stop Recording';state.recordBtn.style.background='#b02a37';}
+  else{state.recordBtn.textContent='⏺ Record';state.recordBtn.style.background='#0b5ed7';}
+}
+function releaseUrl(){if(state.lastUrl){try{URL.revokeObjectURL(state.lastUrl);}catch(e){}state.lastUrl='';}}
+function stopDrawLoop(){if(state.drawLoopId){try{cancelAnimationFrame(state.drawLoopId);}catch(e){}state.drawLoopId=0;}}
+function cleanupCapture(){
+  stopDrawLoop();
+  if(state.captureStream){try{state.captureStream.getTracks().forEach(function(t){t.stop();});}catch(e){}}
+  if(state.micStream){try{state.micStream.getTracks().forEach(function(t){t.stop();});}catch(e){}}
+  if(state.sysStream){try{state.sysStream.getTracks().forEach(function(t){t.stop();});}catch(e){}}
+  if(state.audioCtx){try{state.audioCtx.close();}catch(e){}}
+  state.captureCanvas=null;state.captureCtx=null;state.captureStream=null;
+  state.micStream=null;state.sysStream=null;state.audioCtx=null;state.audioDest=null;
+}
+
+function drawLoop(){
+  if(!state.captureCtx||!state.captureCanvas||!state.canvas||!state.isRecording)return;
+  try{
+    var z=state.zone;
+    if(z&&z.w>0&&z.h>0){
+      state.captureCtx.clearRect(0,0,state.captureCanvas.width,state.captureCanvas.height);
+      state.captureCtx.drawImage(state.canvas,z.x,z.y,z.w,z.h,0,0,state.captureCanvas.width,state.captureCanvas.height);
+    }else{
+      if(state.captureCanvas.width!==state.canvas.width||state.captureCanvas.height!==state.canvas.height){
+        state.captureCanvas.width=state.canvas.width||1280;
+        state.captureCanvas.height=state.canvas.height||720;
+      }
+      state.captureCtx.clearRect(0,0,state.captureCanvas.width,state.captureCanvas.height);
+      state.captureCtx.drawImage(state.canvas,0,0,state.captureCanvas.width,state.captureCanvas.height);
+    }
+  }catch(e){}
+  state.drawLoopId=requestAnimationFrame(drawLoop);
+}
+
+function chooseMime(){
+  var t=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  for(var i=0;i<t.length;i++){try{if(MediaRecorder.isTypeSupported(t[i]))return t[i];}catch(e){}}
+  return'';
+}
+function sanitizeName(n){
+  var s2=s(n||'wick-recording').trim()||'wick-recording';
+  s2=s2.replace(/[\\/:*?"<>|]+/g,'_');
+  if(!/\.webm$/i.test(s2))s2+='.webm';
+  return s2;
+}
+
+function buildRecorder(combinedStream){
+  if(!state.canvas)return null;
+  var z=state.zone;
+  var outW,outH;
+  if(z&&z.w>0&&z.h>0){
+    var sc=Math.max(1,Math.ceil(720/z.h));
+    outW=z.w*sc; outH=z.h*sc;
+  }else{
+    outW=state.canvas.width||1280; outH=state.canvas.height||720;
+  }
+  state.captureCanvas=document.createElement('canvas');
+  state.captureCanvas.width=outW; state.captureCanvas.height=outH;
+  state.captureCtx=state.captureCanvas.getContext('2d',{alpha:false});
+  state.captureStream=state.captureCanvas.captureStream(30);
+
+  // Build final stream: canvas video + any audio tracks
+  var finalStream=new MediaStream();
+  state.captureStream.getVideoTracks().forEach(function(t){finalStream.addTrack(t);});
+  if(combinedStream){
+    combinedStream.getAudioTracks().forEach(function(t){finalStream.addTrack(t);});
+  }
+
+  var mime=chooseMime();
+  var opts={videoBitsPerSecond:8000000};
+  if(mime)opts.mimeType=mime;
+
+  var rec;
+  try{rec=new MediaRecorder(finalStream,opts);}
+  catch(e){setStatus('MediaRecorder failed: '+(e&&e.message?e.message:e));cleanupCapture();return null;}
+
+  state.chunks=[];
+  rec.ondataavailable=function(ev){if(ev.data&&ev.data.size>0)state.chunks.push(ev.data);};
+  rec.onerror=function(ev){setStatus('Recorder error: '+((ev&&ev.error)?ev.error.message:'?'));};
+  rec.onstop=function(){
+    state.isRecording=false; updateRecordBtn(); stopTimer(); cleanupCapture();
+    // Restore overlay visibility after recording
+    if(state.overlay)state.overlay.style.display='';
+    if(!state.chunks.length){setStatus('Stopped — no data captured.');return;}
+    releaseUrl();
+    state.lastBlob=new Blob(state.chunks,{type:rec.mimeType||'video/webm'});
+    state.lastUrl=URL.createObjectURL(state.lastBlob);
+    setStatus('✓ Done  '+formatMs(Date.now()-state.recordStartedAt));
+    if(state.autoDownload)doDownload();
+  };
+  return rec;
+}
+
+function doDownload(){
+  if(!state.lastBlob||!state.lastUrl){setStatus('Nothing to download.');return;}
+  var a=document.createElement('a');
+  a.href=state.lastUrl;
+  a.download=sanitizeName(state.filenameInput?state.filenameInput.value:'');
+  document.body.appendChild(a);a.click();a.remove();
+}
+
+function mixAudioStreams(streams){
+  // Mix all audio tracks from multiple streams into one destination using WebAudio
+  try{
+    var ctx=new (window.AudioContext||window.webkitAudioContext)();
+    var dest=ctx.createMediaStreamDestination();
+    streams.forEach(function(stream){
+      if(!stream)return;
+      var tracks=stream.getAudioTracks();
+      if(!tracks.length)return;
+      var src=ctx.createMediaStreamSource(stream);
+      src.connect(dest);
+    });
+    state.audioCtx=ctx;
+    state.audioDest=dest;
+    return dest.stream;
+  }catch(e){
+    setStatus('Audio mix failed: '+(e&&e.message?e.message:e));
+    return null;
+  }
+}
+
+function getSelectedAudioMode(){
+  var radios=document.querySelectorAll('input[name="lt-audio-mode"]');
+  for(var i=0;i<radios.length;i++){ if(radios[i].checked) return radios[i].value; }
+  return 'none';
+}
+
+function startRecording(){
+  if(state.isRecording)return;
+  if(!ensureCanvas())return;
+  if(state.zoneActive&&state.overlayBox) updateZoneFromBox();
+
+  var audioMode=getSelectedAudioMode();
+
+  // Build promises based on selected mode
+  var micPromise   = Promise.resolve(null);
+  var sysPromise   = Promise.resolve(null);
+
+  if(audioMode==='mic'||audioMode==='both'){
+    setStatus('Requesting mic…');
+    updateAudioStatus('waiting');
+    micPromise=navigator.mediaDevices.getUserMedia({audio:true,video:false})
+      .then(function(stream){ state.micStream=stream; return stream; })
+      .catch(function(e){ setStatus('Mic denied: '+(e&&e.message?e.message:e)); return null; });
+  }
+
+  if(audioMode==='system'||audioMode==='both'){
+    setStatus('Opening screen-share picker — tick "Share tab audio"…');
+    updateAudioStatus('waiting');
+    sysPromise=navigator.mediaDevices.getDisplayMedia({video:true,audio:true})
+      .then(function(stream){
+        state.sysStream=stream;
+        stream.getVideoTracks().forEach(function(t){t.stop();}); // only want audio
+        return stream;
+      })
+      .catch(function(e){ setStatus('System audio cancelled: '+(e&&e.message?e.message:e)); return null; });
+  }
+
+  Promise.all([micPromise, sysPromise]).then(function(streams){
+    var audioStreams=streams.filter(Boolean);
+    var combinedAudio=(audioStreams.length>0&&audioMode!=='none') ? mixAudioStreams(audioStreams) : null;
+
+    state.recorder=buildRecorder(combinedAudio);
+    if(!state.recorder)return;
+
+    state.isRecording=true; updateRecordBtn(); startTimer();
+    if(state.overlay)state.overlay.style.display='none';
+
+    var audioDesc=[];
+    if(state.micStream&&state.micStream.getAudioTracks().length) audioDesc.push('mic');
+    if(state.sysStream&&state.sysStream.getAudioTracks().length) audioDesc.push('system');
+    if(audioMode==='none') audioDesc=[];
+    updateAudioStatus(audioDesc.length?audioDesc.join('+'):'none');
+
+    drawLoop();
+    try{
+      state.recorder.start(250);
+      var zoneDesc=state.zone
+        ?('Zone '+state.zone.w+'×'+state.zone.h+' → '+state.captureCanvas.width+'×'+state.captureCanvas.height)
+        :'Full canvas';
+      setStatus('Recording… '+zoneDesc+(audioDesc.length?' 🎤 '+audioDesc.join('+'):''));
+    }catch(e){
+      state.isRecording=false; updateRecordBtn(); stopTimer(); cleanupCapture();
+      if(state.overlay)state.overlay.style.display='';
+      setStatus('Start failed: '+(e&&e.message?e.message:e));
+    }
+  });
+}
+
+function stopRecording(){
+  if(!state.isRecording){setStatus('Not recording.');return;}
+  if(state.recorder&&state.recorder.state!=='inactive'){
+    try{state.recorder.stop();}
+    catch(e){
+      state.isRecording=false;updateRecordBtn();stopTimer();cleanupCapture();
+      if(state.overlay)state.overlay.style.display='';
+      setStatus('Stop failed: '+(e&&e.message?e.message:e));
+    }
+  }else{
+    state.isRecording=false;updateRecordBtn();stopTimer();cleanupCapture();
+    if(state.overlay)state.overlay.style.display='';
+    setStatus('Stopped.');
+  }
+}
+
+// ─── Panel UI ─────────────────────────────────────────────────────────────────
+function mkBtn(txt,bg,color){
+  return makeEl('button',{
+    width:'100%',padding:'9px',borderRadius:'7px',border:'1px solid #3a3a3a',
+    background:bg||'#2a2a2a',color:color||'#fff',cursor:'pointer',
+    fontWeight:'700',fontSize:'12px',marginBottom:'6px'
+  },txt);
+}
+
+function createPanel(){
+  var panel=makeEl('div',{
+    position:'fixed',top:'12px',right:'12px',width:'268px',
+    background:'#1e1e1e',color:'#f2f2f2',border:'1px solid #3a3a3a',
+    borderRadius:'14px',boxShadow:'0 12px 36px rgba(0,0,0,0.55)',
+    zIndex:'2147483647',fontFamily:'Arial,sans-serif',fontSize:'12px',overflow:'hidden'
+  });
+
+  var header=makeEl('div',{
+    padding:'10px 12px',background:'#252525',fontWeight:'800',
+    fontSize:'13px',borderBottom:'1px solid #333',cursor:'grab',
+    display:'flex',alignItems:'center',justifyContent:'space-between'
+  });
+  var headerTitle=makeEl('span',{},'🎥 Stage Recorder v5');
+  var closeBtn=makeEl('button',{
+    background:'none',border:'none',color:'#888',fontSize:'16px',
+    cursor:'pointer',lineHeight:'1',padding:'0 2px',fontWeight:'400'
+  },'×');
+  closeBtn.title='Close panel';
+  closeBtn.addEventListener('mouseover',function(){closeBtn.style.color='#fff';});
+  closeBtn.addEventListener('mouseout',function(){closeBtn.style.color='#888';});
+  closeBtn.addEventListener('click',function(ev){
+    ev.stopPropagation();
+    // Stop recording if active
+    if(state.isRecording) stopRecording();
+    // Remove crop overlay
+    if(state.zoneActive) hideZoneOverlay();
+    // Hide panel
+    panel.style.display='none';
+    // Allow re-open via TOOL_ID.focus()
+  });
+  header.appendChild(headerTitle);
+  header.appendChild(closeBtn);
+
+  var body=makeEl('div',{padding:'12px'});
+
+  // Timer
+  var tw=makeEl('div',{marginBottom:'10px',padding:'10px',borderRadius:'10px',
+    background:'#111',border:'1px solid #2a2a2a',textAlign:'center'});
+  tw.appendChild(makeEl('div',{color:'#888',fontSize:'11px',marginBottom:'3px'},'Recorded time'));
+  state.timerEl=makeEl('div',{fontSize:'24px',fontWeight:'700',letterSpacing:'2px',color:'#fff'},'00:00:00');
+  tw.appendChild(state.timerEl);
+  body.appendChild(tw);
+
+  // File name
+  body.appendChild(makeEl('div',{color:'#999',fontSize:'11px',marginBottom:'4px'},'File name'));
+  state.filenameInput=makeEl('input',{
+    width:'100%',boxSizing:'border-box',padding:'7px 9px',borderRadius:'7px',
+    border:'1px solid #3a3a3a',background:'#111',color:'#fff',outline:'none',
+    fontSize:'12px',marginBottom:'10px'
+  });
+  state.filenameInput.type='text'; state.filenameInput.value='wick-recording';
+  body.appendChild(state.filenameInput);
+
+  body.appendChild(makeEl('div',{height:'1px',background:'#2a2a2a',margin:'2px 0 10px'}));
+
+  // Zone section
+  body.appendChild(makeEl('div',{fontWeight:'800',fontSize:'12px',color:'#e0e0e0',marginBottom:'5px'},'📐 Crop Zone'));
+  body.appendChild(makeEl('div',{fontSize:'11px',color:'#666',lineHeight:'1.5',marginBottom:'8px'},
+    'Draw a crop box on the stage. Drag to move, handles to resize. Hidden while recording.'));
+
+  var zoneBtnRow = makeEl('div',{display:'flex',gap:'6px',marginBottom:'6px'});
+  state.zoneToggleBtn = makeEl('button',{flex:'1',padding:'9px',borderRadius:'7px',
+    border:'1px solid #3a3a3a',background:'#1e2e1e',color:'#7bd88f',cursor:'pointer',
+    fontWeight:'700',fontSize:'12px'},'📐 Set Crop Zone');
+  state.zoneClearBtn = makeEl('button',{padding:'9px 12px',borderRadius:'7px',
+    border:'1px solid #3a2020',background:'#2a1e1e',color:'#ff7f7f',cursor:'pointer',
+    fontWeight:'700',fontSize:'12px'},'✕ Clear');
+  zoneBtnRow.appendChild(state.zoneToggleBtn);
+  zoneBtnRow.appendChild(state.zoneClearBtn);
+  body.appendChild(zoneBtnRow);
+
+  state.zoneInfoEl=makeEl('div',{
+    fontSize:'11px',color:'#ffb347',minHeight:'14px',marginBottom:'8px'
+  },'No zone — full canvas');
+  body.appendChild(state.zoneInfoEl);
+
+  // Save current zone
+  var saveRow = makeEl('div',{display:'flex',gap:'5px',marginBottom:'6px'});
+  var saveNameInput = makeEl('input',{flex:'1',padding:'6px 8px',borderRadius:'6px',
+    border:'1px solid #3a3a3a',background:'#111',color:'#fff',fontSize:'11px',outline:'none'});
+  saveNameInput.id = 'lt-zone-save-name';
+  saveNameInput.type = 'text';
+  saveNameInput.placeholder = 'Zone name…';
+  var saveZoneBtn = makeEl('button',{padding:'6px 10px',borderRadius:'6px',
+    border:'1px solid #3a3a3a',background:'#1e2535',color:'#7aaeff',cursor:'pointer',
+    fontSize:'11px',fontWeight:'700',whiteSpace:'nowrap'},'💾 Save');
+  saveZoneBtn.id = 'lt-zone-save-btn';
+  saveRow.appendChild(saveNameInput);
+  saveRow.appendChild(saveZoneBtn);
+  body.appendChild(saveRow);
+
+  // Saved zones list
+  body.appendChild(makeEl('div',{color:'#666',fontSize:'10px',marginBottom:'4px',
+    letterSpacing:'0.3px'},'SAVED ZONES'));
+  var zoneList = makeEl('div',{minHeight:'18px',marginBottom:'8px'});
+  zoneList.id = 'lt-zone-list';
+  body.appendChild(zoneList);
+
+  body.appendChild(makeEl('div',{height:'1px',background:'#2a2a2a',margin:'2px 0 10px'}));
+
+  // Record + find
+  state.recordBtn=mkBtn('⏺ Record','#0b5ed7');
+  body.appendChild(state.recordBtn);
+  state.findBtn=mkBtn('Find Canvas','#2a2a2a','#bbb');
+  body.appendChild(state.findBtn);
+
+  // Audio mode selector
+  var audioBox=makeEl('div',{padding:'8px',borderRadius:'7px',background:'#111',
+    border:'1px solid #2a2a2a',marginBottom:'8px',fontSize:'11px',lineHeight:'1.6'});
+  audioBox.appendChild(makeEl('div',{fontWeight:'700',color:'#ccc',marginBottom:'6px'},'🎙 Audio Mode'));
+
+  var AUDIO_MODES=[
+    {val:'none',    label:'No audio',           hint:'Video only.'},
+    {val:'mic',     label:'Microphone only',     hint:'Allows mic access.'},
+    {val:'system',  label:'System / tab audio',  hint:'Screen-share picker — tick "Share tab audio".'},
+    {val:'both',    label:'Mic + system audio',  hint:'Both permissions requested.'},
+  ];
+
+  var radioGroup=makeEl('div',{display:'flex',flexDirection:'column',gap:'4px',marginBottom:'6px'});
+  AUDIO_MODES.forEach(function(mode){
+    var row=makeEl('div',{display:'flex',alignItems:'flex-start',gap:'6px',cursor:'pointer',padding:'3px 0'});
+    var radio=document.createElement('input');
+    radio.type='radio'; radio.name='lt-audio-mode'; radio.value=mode.val;
+    radio.style.cssText='margin-top:2px;cursor:pointer;accent-color:#7bd88f;flex-shrink:0;';
+    if(mode.val==='none') radio.checked=true;
+    var labelWrap=makeEl('div',{});
+    var labelEl=makeEl('span',{color:'#ddd',fontWeight:'700'},mode.label);
+    var hintEl=makeEl('div',{color:'#666',fontSize:'10px'},mode.hint);
+    labelWrap.appendChild(labelEl);
+    labelWrap.appendChild(hintEl);
+    row.appendChild(radio);
+    row.appendChild(labelWrap);
+    row.addEventListener('click',function(){ radio.checked=true; updateHintVis(); });
+    radioGroup.appendChild(row);
+  });
+  audioBox.appendChild(radioGroup);
+
+  var audioStatusEl=makeEl('div',{color:'#888',fontSize:'11px',minHeight:'14px'},'');
+  audioStatusEl.id='lt-audio-status';
+  audioBox.appendChild(audioStatusEl);
+  body.appendChild(audioBox);
+
+  function updateHintVis(){ /* hints already inline per radio */ }
+
+  // Status
+  state.statusEl=makeEl('div',{
+    padding:'8px',minHeight:'28px',borderRadius:'7px',
+    background:'#111',color:'#aaa',lineHeight:'1.4',fontSize:'11px'
+  },'Ready.');
+  body.appendChild(state.statusEl);
+
+  panel.appendChild(header); panel.appendChild(body);
+  document.body.appendChild(panel);
+  state.panel=panel;
+
+  // Draggable panel header
+  var dx=0,dy=0,drag=false;
+  header.addEventListener('mousedown',function(ev){
+    drag=true; header.style.cursor='grabbing';
+    var r=panel.getBoundingClientRect(); dx=ev.clientX-r.left; dy=ev.clientY-r.top;
+    ev.preventDefault();
+  });
+  document.addEventListener('mousemove',function(ev){
+    if(!drag)return;
+    panel.style.right='auto';
+    panel.style.left=(ev.clientX-dx)+'px';
+    panel.style.top=(ev.clientY-dy)+'px';
+  });
+  document.addEventListener('mouseup',function(){drag=false;header.style.cursor='grab';});
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+// ── Zone save/load ────────────────────────────────────────────────────────────
+var ZONE_STORAGE_KEY = 'lt_recorder_zones_v1';
+
+function loadSavedZones(){
+  try{ return JSON.parse(localStorage.getItem(ZONE_STORAGE_KEY)||'{}'); }catch(e){ return {}; }
+}
+
+function saveZones(zones){
+  try{ localStorage.setItem(ZONE_STORAGE_KEY, JSON.stringify(zones)); }catch(e){}
+}
+
+function refreshZoneList(){
+  var list = document.getElementById('lt-zone-list');
+  if(!list) return;
+  list.innerHTML = '';
+  var zones = loadSavedZones();
+  var keys = Object.keys(zones);
+  if(!keys.length){
+    var empty = makeEl('div',{color:'#555',fontSize:'11px',padding:'4px 0'},'No saved zones');
+    list.appendChild(empty);
     return;
   }
+  keys.forEach(function(name){
+    var z = zones[name];
+    var row = makeEl('div',{display:'flex',alignItems:'center',gap:'5px',marginBottom:'4px'});
 
-  var state = {
-    panel: null,
-    statusEl: null,
-    recordBtn: null,
-    findBtn: null,
-    filenameInput: null,
-    timerEl: null,
-    canvas: null,
-    canvasOwnerWindow: null,
-    recorder: null,
-    chunks: [],
-    lastBlob: null,
-    lastUrl: '',
-    isRecording: false,
-    autoDownload: true,
-    startTimer: null,
-    captureCanvas: null,
-    captureCtx: null,
-    captureStream: null,
-    drawLoopId: 0,
-    recordStartedAt: 0,
-    timerInterval: 0
-  };
+    var lbl = makeEl('div',{flex:'1',fontSize:'11px',color:'#ccc',overflow:'hidden',
+      textOverflow:'ellipsis',whiteSpace:'nowrap'});
+    lbl.title = name+': '+z.x+','+z.y+' '+z.w+'×'+z.h;
+    lbl.textContent = name;
 
-  window[TOOL_ID] = {
-    focus: function () {
-      if (state.panel) {
-        state.panel.style.display = 'block';
-        state.panel.style.opacity = '1';
-      }
-    }
-  };
-
-  function setStatus(text) {
-    if (state.statusEl) {
-      state.statusEl.textContent = text;
-    }
-    console.log('[LukeTools Recorder]', text);
-  }
-
-  function makeEl(tag, styles, text) {
-    var el = document.createElement(tag);
-    if (styles) {
-      Object.keys(styles).forEach(function (key) {
-        el.style[key] = styles[key];
-      });
-    }
-    if (typeof text === 'string') {
-      el.textContent = text;
-    }
-    return el;
-  }
-
-  function formatMs(ms) {
-    var totalSeconds = Math.max(0, Math.floor(ms / 1000));
-    var hours = Math.floor(totalSeconds / 3600);
-    var minutes = Math.floor((totalSeconds % 3600) / 60);
-    var seconds = totalSeconds % 60;
-
-    function pad(n) {
-      return String(n).padStart(2, '0');
-    }
-
-    return pad(hours) + ':' + pad(minutes) + ':' + pad(seconds);
-  }
-
-  function updateTimerDisplay() {
-    if (!state.timerEl) return;
-    if (!state.isRecording || !state.recordStartedAt) {
-      state.timerEl.textContent = '00:00:00';
-      return;
-    }
-    state.timerEl.textContent = formatMs(Date.now() - state.recordStartedAt);
-  }
-
-  function startTimerDisplay() {
-    stopTimerDisplay();
-    state.recordStartedAt = Date.now();
-    updateTimerDisplay();
-    state.timerInterval = setInterval(updateTimerDisplay, 250);
-  }
-
-  function stopTimerDisplay() {
-    if (state.timerInterval) {
-      clearInterval(state.timerInterval);
-      state.timerInterval = 0;
-    }
-  }
-
-  function createPanel() {
-    var panel = makeEl('div', {
-      position: 'fixed',
-      top: '12px',
-      right: '12px',
-      width: '260px',
-      background: '#1e1e1e',
-      color: '#f2f2f2',
-      border: '1px solid #444',
-      borderRadius: '12px',
-      boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
-      zIndex: '2147483647',
-      fontFamily: 'Arial, Helvetica, sans-serif',
-      fontSize: '12px',
-      overflow: 'hidden'
+    var loadBtn = makeEl('button',{padding:'3px 7px',borderRadius:'5px',border:'1px solid #3a3a3a',
+      background:'#1e2e1e',color:'#7bd88f',cursor:'pointer',fontSize:'10px',fontWeight:'700',
+      whiteSpace:'nowrap'},'Load');
+    loadBtn.addEventListener('click',function(){
+      if(!state.canvas){ ensureCanvas(); }
+      if(!state.canvas){ setStatus('Canvas not found'); return; }
+      // Show overlay if not already active
+      if(!state.zoneActive) showZoneOverlay();
+      // Apply saved display-px coords to the box
+      applyZoneToBox(z);
+      setStatus('Zone "'+name+'" loaded');
     });
 
-    var header = makeEl('div', {
-      padding: '9px 10px',
-      background: '#2a2a2a',
-      fontWeight: '700',
-      letterSpacing: '0.2px'
-    }, 'Luke Tools Stage Recorder');
-
-    var body = makeEl('div', {
-      padding: '10px'
+    var delBtn = makeEl('button',{padding:'3px 7px',borderRadius:'5px',border:'1px solid #3a2020',
+      background:'#2a1e1e',color:'#ff7f7f',cursor:'pointer',fontSize:'10px',fontWeight:'700',
+      whiteSpace:'nowrap'},'✕');
+    delBtn.addEventListener('click',function(){
+      var zones2 = loadSavedZones();
+      delete zones2[name];
+      saveZones(zones2);
+      refreshZoneList();
     });
 
-    var subtitle = makeEl('div', {
-      marginBottom: '8px',
-      color: '#cccccc',
-      lineHeight: '1.4'
-    }, 'Records the visible Wick canvas exactly as shown on stage.');
-
-    var timerWrap = makeEl('div', {
-      marginBottom: '10px',
-      padding: '10px',
-      borderRadius: '8px',
-      background: '#111',
-      border: '1px solid #444',
-      textAlign: 'center'
-    });
-
-    var timerLabel = makeEl('div', {
-      color: '#bdbdbd',
-      fontSize: '11px',
-      marginBottom: '4px'
-    }, 'Recorded time');
-
-    state.timerEl = makeEl('div', {
-      fontSize: '22px',
-      fontWeight: '700',
-      letterSpacing: '1px',
-      color: '#ffffff'
-    }, '00:00:00');
-
-    timerWrap.appendChild(timerLabel);
-    timerWrap.appendChild(state.timerEl);
-
-    var grid = makeEl('div', {
-      display: 'grid',
-      gridTemplateColumns: '1fr',
-      gap: '8px',
-      alignItems: 'stretch'
-    });
-
-    function addRow(labelText, inputEl) {
-      var wrap = makeEl('div', {
-        display: 'block'
-      });
-      var label = makeEl('label', {
-        color: '#d8d8d8',
-        display: 'block',
-        marginBottom: '4px',
-        fontSize: '12px'
-      }, labelText);
-      wrap.appendChild(label);
-      wrap.appendChild(inputEl);
-      grid.appendChild(wrap);
-    }
-
-    function makeInput(value) {
-      return makeEl('input', {
-        width: '100%',
-        boxSizing: 'border-box',
-        padding: '7px 9px',
-        borderRadius: '7px',
-        border: '1px solid #555',
-        background: '#111',
-        color: '#fff',
-        outline: 'none'
-      });
-    }
-
-    state.filenameInput = makeInput('wick-stage-recording');
-    state.filenameInput.type = 'text';
-
-    addRow('File name', state.filenameInput);
-
-    var buttonRow = makeEl('div', {
-      display: 'grid',
-      gridTemplateColumns: '1fr',
-      gap: '6px',
-      marginTop: '10px'
-    });
-
-    function makeButton(text, bg) {
-      return makeEl('button', {
-        padding: '9px 10px',
-        borderRadius: '7px',
-        border: '1px solid #555',
-        background: bg,
-        color: '#fff',
-        cursor: 'pointer',
-        fontWeight: '700'
-      }, text);
-    }
-
-    state.recordBtn = makeButton('Record', '#0b5ed7');
-    state.findBtn = makeButton('Find Canvas', '#444');
-
-    buttonRow.appendChild(state.recordBtn);
-    buttonRow.appendChild(state.findBtn);
-
-    state.statusEl = makeEl('div', {
-      marginTop: '10px',
-      padding: '10px',
-      minHeight: '34px',
-      borderRadius: '7px',
-      background: '#111',
-      color: '#cfcfcf',
-      lineHeight: '1.35'
-    }, 'Ready.');
-
-    body.appendChild(subtitle);
-    body.appendChild(timerWrap);
-    body.appendChild(grid);
-    body.appendChild(buttonRow);
-    body.appendChild(state.statusEl);
-
-    panel.appendChild(header);
-    panel.appendChild(body);
-    document.body.appendChild(panel);
-
-    state.panel = panel;
-  }
-
-  function getDocumentsToSearch() {
-    var docs = [];
-    var seen = [];
-
-    function addDoc(doc) {
-      if (!doc) return;
-      if (seen.indexOf(doc) !== -1) return;
-      seen.push(doc);
-      docs.push(doc);
-    }
-
-    addDoc(document);
-
-    try {
-      if (window.parent && window.parent.document) addDoc(window.parent.document);
-    } catch (e) {}
-
-    try {
-      if (window.top && window.top.document) addDoc(window.top.document);
-    } catch (e) {}
-
-    return docs;
-  }
-
-  function getVisibleCanvasScore(canvas) {
-    if (!canvas || !canvas.getBoundingClientRect) return -1;
-    var rect = canvas.getBoundingClientRect();
-    if (!rect) return -1;
-    if (rect.width < 20 || rect.height < 20) return -1;
-
-    var style;
-    try {
-      style = (canvas.ownerDocument.defaultView || window).getComputedStyle(canvas);
-    } catch (e) {
-      style = null;
-    }
-
-    if (style) {
-      if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity || '1') === 0) return -1;
-    }
-
-    var score = rect.width * rect.height;
-    if (canvas.width && canvas.height) score += canvas.width * canvas.height * 0.25;
-    return score;
-  }
-
-  function isToolCanvas(canvas) {
-    if (!canvas) return true;
-    if (state.panel && state.panel.contains(canvas)) return true;
-    return false;
-  }
-
-  function findBestCanvas() {
-    var docs = getDocumentsToSearch();
-    var best = null;
-    var bestScore = -1;
-
-    docs.forEach(function (doc) {
-      var canvases = [];
-      try {
-        canvases = Array.prototype.slice.call(doc.querySelectorAll('canvas'));
-      } catch (e) {
-        canvases = [];
-      }
-
-      canvases.forEach(function (canvas) {
-        if (isToolCanvas(canvas)) return;
-        var score = getVisibleCanvasScore(canvas);
-        if (score > bestScore) {
-          bestScore = score;
-          best = canvas;
-        }
-      });
-    });
-
-    return best;
-  }
-
-  function describeCanvas(canvas) {
-    if (!canvas) return 'No canvas';
-    var rect = canvas.getBoundingClientRect();
-    return 'Canvas ' + Math.round(rect.width) + ' x ' + Math.round(rect.height) + ' internal ' + (canvas.width || 0) + ' x ' + (canvas.height || 0);
-  }
-
-  function updateRecordButton() {
-    if (!state.recordBtn) return;
-    if (state.isRecording) {
-      state.recordBtn.textContent = 'Stop Recording';
-      state.recordBtn.style.background = '#b02a37';
-    } else {
-      state.recordBtn.textContent = 'Record';
-      state.recordBtn.style.background = '#0b5ed7';
-    }
-  }
-
-  function ensureCanvas() {
-    var canvas = findBestCanvas();
-    if (!canvas) {
-      state.canvas = null;
-      state.canvasOwnerWindow = null;
-      setStatus('Could not find the Wick stage canvas.');
-      return false;
-    }
-    state.canvas = canvas;
-    state.canvasOwnerWindow = canvas.ownerDocument.defaultView || window;
-    setStatus('Canvas found. ' + describeCanvas(canvas));
-    return true;
-  }
-
-  function releaseLastUrl() {
-    if (state.lastUrl) {
-      try {
-        URL.revokeObjectURL(state.lastUrl);
-      } catch (e) {}
-      state.lastUrl = '';
-    }
-  }
-
-  function stopDrawLoop() {
-    if (state.drawLoopId) {
-      try {
-        cancelAnimationFrame(state.drawLoopId);
-      } catch (e) {}
-      state.drawLoopId = 0;
-    }
-  }
-
-  function cleanupCaptureSurfaces() {
-    stopDrawLoop();
-    if (state.captureStream) {
-      try {
-        state.captureStream.getTracks().forEach(function (track) { track.stop(); });
-      } catch (e) {}
-    }
-    state.captureCanvas = null;
-    state.captureCtx = null;
-    state.captureStream = null;
-  }
-
-  function drawCanvasLoop() {
-    if (!state.captureCtx || !state.captureCanvas || !state.canvas || !state.isRecording) return;
-
-    try {
-      if (state.captureCanvas.width !== state.canvas.width || state.captureCanvas.height !== state.canvas.height) {
-        state.captureCanvas.width = state.canvas.width || 1280;
-        state.captureCanvas.height = state.canvas.height || 720;
-      }
-
-      state.captureCtx.clearRect(0, 0, state.captureCanvas.width, state.captureCanvas.height);
-      state.captureCtx.drawImage(state.canvas, 0, 0, state.captureCanvas.width, state.captureCanvas.height);
-    } catch (e) {}
-
-    state.drawLoopId = requestAnimationFrame(drawCanvasLoop);
-  }
-
-  function chooseMimeType() {
-    var mimeTypes = [
-      'video/webm;codecs=vp9,opus',
-      'video/webm;codecs=vp8,opus',
-      'video/webm;codecs=vp9',
-      'video/webm;codecs=vp8',
-      'video/webm'
-    ];
-
-    for (var i = 0; i < mimeTypes.length; i++) {
-      var type = mimeTypes[i];
-      try {
-        if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
-          return type;
-        }
-      } catch (e) {}
-    }
-    return '';
-  }
-
-  function sanitizeFileName(name) {
-    var s = String(name || 'wick-stage-recording').trim();
-    if (!s) s = 'wick-stage-recording';
-    s = s.replace(/[\\/:*?"<>|]+/g, '_');
-    if (!/\.webm$/i.test(s)) s += '.webm';
-    return s;
-  }
-
-  function buildRecorder() {
-    if (!state.canvas) return null;
-
-    state.captureCanvas = document.createElement('canvas');
-    state.captureCanvas.width = state.canvas.width || 1280;
-    state.captureCanvas.height = state.canvas.height || 720;
-    state.captureCtx = state.captureCanvas.getContext('2d', { alpha: false });
-
-    state.captureStream = state.captureCanvas.captureStream(30);
-
-    var mimeType = chooseMimeType();
-    var options = {};
-    if (mimeType) options.mimeType = mimeType;
-    options.videoBitsPerSecond = 8000000;
-
-    var recorder;
-    try {
-      recorder = new MediaRecorder(state.captureStream, options);
-    } catch (e) {
-      setStatus('Could not create MediaRecorder. ' + (e && e.message ? e.message : e));
-      cleanupCaptureSurfaces();
-      return null;
-    }
-
-    state.chunks = [];
-
-    recorder.ondataavailable = function (event) {
-      if (event.data && event.data.size > 0) {
-        state.chunks.push(event.data);
-      }
-    };
-
-    recorder.onerror = function (event) {
-      var err = event && event.error ? event.error.message || String(event.error) : 'Unknown recorder error';
-      setStatus('Recorder error. ' + err);
-    };
-
-    recorder.onstop = function () {
-      state.isRecording = false;
-      updateRecordButton();
-      stopTimerDisplay();
-      cleanupCaptureSurfaces();
-
-      if (!state.chunks.length) {
-        setStatus('Recording stopped, but no video data was captured.');
-        return;
-      }
-
-      releaseLastUrl();
-      state.lastBlob = new Blob(state.chunks, { type: recorder.mimeType || 'video/webm' });
-      state.lastUrl = URL.createObjectURL(state.lastBlob);
-      setStatus('Recording saved. ' + formatMs(Date.now() - state.recordStartedAt) + ' captured.');
-
-      if (state.autoDownload) {
-        downloadLastRecording();
-      }
-    };
-
-    return recorder;
-  }
-
-  function downloadLastRecording() {
-    if (!state.lastBlob || !state.lastUrl) {
-      setStatus('No recording to download yet.');
-      return;
-    }
-
-    var a = document.createElement('a');
-    a.href = state.lastUrl;
-    a.download = sanitizeFileName(state.filenameInput.value);
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
-
-  function startRecording() {
-    if (state.isRecording) return;
-
-    if (!ensureCanvas()) return;
-
-    setStatus('Canvas found. ' + describeCanvas(state.canvas));
-
-    state.recorder = buildRecorder();
-    if (!state.recorder) return;
-
-    state.isRecording = true;
-    updateRecordButton();
-    startTimerDisplay();
-
-    drawCanvasLoop();
-    try {
-      state.recorder.start(250);
-      setStatus('Recording started. Recording the visible Wick canvas.');
-    } catch (e) {
-      state.isRecording = false;
-      updateRecordButton();
-      stopTimerDisplay();
-      cleanupCaptureSurfaces();
-      setStatus('Could not start recording. ' + (e && e.message ? e.message : e));
-    }
-  }
-
-  function stopRecording() {
-    if (state.startTimer) {
-      clearTimeout(state.startTimer);
-      state.startTimer = null;
-    }
-
-    if (!state.isRecording) {
-      setStatus('Recorder is not running.');
-      return;
-    }
-
-    if (state.recorder && state.recorder.state !== 'inactive') {
-      try {
-        state.recorder.stop();
-      } catch (e) {
-        state.isRecording = false;
-        updateRecordButton();
-        stopTimerDisplay();
-        cleanupCaptureSurfaces();
-        setStatus('Stop failed. ' + (e && e.message ? e.message : e));
-      }
-    } else {
-      state.isRecording = false;
-      updateRecordButton();
-      stopTimerDisplay();
-      cleanupCaptureSurfaces();
-      setStatus('Recording stopped.');
-    }
-  }
-
-  function wireEvents() {
-    state.findBtn.addEventListener('click', function () {
-      ensureCanvas();
-    });
-
-    state.recordBtn.addEventListener('click', function () {
-      if (state.isRecording) {
-        stopRecording();
-      } else {
-        startRecording();
-      }
+    row.appendChild(lbl); row.appendChild(loadBtn); row.appendChild(delBtn);
+    list.appendChild(row);
+  });
+}
+
+// Apply a saved zone (stored as internal canvas px) back to the display box
+function applyZoneToBox(z){
+  if(!state.overlayBox || !state.canvas) return;
+  var dr = state.canvas.getBoundingClientRect();
+  var scaleX = dr.width  / (state.canvas.width  || dr.width);
+  var scaleY = dr.height / (state.canvas.height || dr.height);
+  var bx = Math.round(z.x * scaleX);
+  var by = Math.round(z.y * scaleY);
+  var bw = Math.round(z.w * scaleX);
+  var bh = Math.round(z.h * scaleY);
+  state.overlayBox.style.left   = bx+'px';
+  state.overlayBox.style.top    = by+'px';
+  state.overlayBox.style.width  = bw+'px';
+  state.overlayBox.style.height = bh+'px';
+  updateOverlayDim();
+  updateZoneFromBox();
+}
+
+function init(){
+  createPanel();
+
+  state.findBtn.addEventListener('click',function(){ ensureCanvas(); if(state.zoneActive) syncOverlayPosition(); });
+
+  state.zoneToggleBtn.addEventListener('click',function(){
+    if(state.zoneActive){ hideZoneOverlay(); } else { showZoneOverlay(); }
+  });
+
+  state.zoneClearBtn.addEventListener('click',function(){ hideZoneOverlay(); });
+
+  state.recordBtn.addEventListener('click',function(){
+    if(state.isRecording) stopRecording(); else startRecording();
+  });
+
+  // Save zone button
+  var saveZoneBtn = document.getElementById('lt-zone-save-btn');
+  if(saveZoneBtn){
+    saveZoneBtn.addEventListener('click',function(){
+      if(!state.zone){ setStatus('No active zone to save'); return; }
+      var nameEl = document.getElementById('lt-zone-save-name');
+      var name = nameEl ? nameEl.value.trim() : '';
+      if(!name){ setStatus('Enter a name to save'); return; }
+      var zones = loadSavedZones();
+      zones[name] = { x:state.zone.x, y:state.zone.y, w:state.zone.w, h:state.zone.h };
+      saveZones(zones);
+      refreshZoneList();
+      setStatus('Zone "'+name+'" saved');
     });
   }
 
-  function init() {
-    createPanel();
-    wireEvents();
-    updateRecordButton();
-    updateTimerDisplay();
-    ensureCanvas();
-  }
+  // Re-sync overlay on window resize
+  window.addEventListener('resize',function(){ if(state.zoneActive) syncOverlayPosition(); });
 
-  init();
+  // Clean up overlay if this iframe/window is hidden or unloaded
+  window.addEventListener('beforeunload', function(){ if(state.zoneActive) hideZoneOverlay(); });
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='hidden' && state.zoneActive) hideZoneOverlay();
+  });
+
+  updateRecordBtn(); updateTimer(); ensureCanvas();
+  refreshZoneList();
+}
+
+init();
 })();
-
 </script>
 </body>
 </html>
