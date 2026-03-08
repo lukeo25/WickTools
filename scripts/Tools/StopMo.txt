@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LukeTools Webcam Capture v6</title>
+<title>LukeTools Webcam Capture v12</title>
 <style>
   :root{
     --bg:#141414; --panel:#1b1b1b; --panel2:#222;
@@ -150,7 +150,7 @@
 
   <!-- Header -->
   <div class="hdr">
-    <div class="hdr-title">📷 Webcam Capture v6</div>
+    <div class="hdr-title">📷 Webcam Capture v12</div>
     <div class="hdr-sub">Capture webcam frames to Wick stage</div>
   </div>
 
@@ -193,8 +193,8 @@
     </div>
     <select id="deviceSel"><option value="">Default camera</option></select>
     <label class="toggle-row">
-      <input type="checkbox" id="flipCheck" checked>
-      <span>Mirror horizontal</span>
+      <input type="checkbox" id="flipCheck">
+      <span>Flip captured image</span>
     </label>
 
     <div class="div"></div>
@@ -251,7 +251,7 @@ window[TOOL_ID] = { loaded: true };
 // ─── State ──────────────────────────────────────────────────────────────────
 var s = {
   stream: null,
-  flipH: true,
+  flipH: false,
   frameTarget: 1,
   captureCount: 0,
   autoAdvance: true,
@@ -428,10 +428,12 @@ function getOrCreateLayer(tl, name){
   return null;
 }
 function ensureFrameAt(layer, frameNum){
-  // frameNum is 1-based; Wick frame.start is 0-based
-  var ph = Math.max(0, frameNum - 1);
+  // Wick frame.start is 1-based (frame 1 = start:1)
+  var ph = frameNum;
   var W = getWick();
-  // check existing
+
+  // Check if there's already a length-1 frame exactly at ph
+  // (not a long spanning frame — those swallow every capture into one frame)
   try {
     var frames = layer.frames || layer._children;
     if(frames){
@@ -439,11 +441,22 @@ function ensureFrameAt(layer, frameNum){
         var f = frames[i]; if(!f) continue;
         var st = Number(f.start !== undefined ? f.start : (f.startFrame !== undefined ? f.startFrame : 0));
         var le = Number(f.length !== undefined ? f.length : (f.duration !== undefined ? f.duration : 1));
-        if(ph >= st && ph < st+le) return f;
+        // Only reuse if it is a single-frame exactly at this position
+        if(st === ph && le === 1) return f;
       }
     }
   } catch(e){}
-  // create
+
+  // Use addBlankFrame — this is Wick's native way to insert a fresh 1-frame
+  // at the playhead position, splitting any long frame that spans it
+  try {
+    if(typeof layer.addBlankFrame === 'function'){
+      var bf = layer.addBlankFrame(ph);
+      if(bf) return bf;
+    }
+  } catch(e){}
+
+  // Fallback: construct a new Frame directly
   try {
     if(W && W.Frame){
       var nf = new W.Frame({ start:ph, length:1 });
@@ -453,7 +466,7 @@ function ensureFrameAt(layer, frameNum){
       if(fa && Array.isArray(fa)){ fa.push(nf); try{nf.parent=layer;}catch(e){} return nf; }
     }
   } catch(e){}
-  try { if(typeof layer.addBlankFrame === 'function') return layer.addBlankFrame(ph); } catch(e){}
+
   return null;
 }
 function addToFrame(frame, obj){
@@ -631,55 +644,86 @@ async function captureAndPlace(){
     var asset = await importPNGAsset(dataUrl, imgName, project);
     if(!asset){ setStatus('Asset import failed — check console', 'err'); return; }
 
-    // 2. Use whichever layer is active in Wick right now
+    // 2. Get active layer
     var layer = getActiveLayer(project);
     if(!layer){ setStatus('No active layer — click a layer in Wick first', 'err'); return; }
 
-    var frame = ensureFrameAt(layer, frameNum);
-    if(!frame){ setStatus('Could not create frame ' + frameNum, 'err'); return; }
+    var W = getWick();
+    var cx = pw * 0.5, cy = ph * 0.5;
 
-    // 3. Set active layer + playhead so createImagePathFromAsset lands in the right place
-    setActiveLayer(project, layer);
+    // 3. Move playhead to target frame FIRST so Wick knows where we are
     setPlayhead(project, frameNum);
 
-    // 4. Create image path — Wick places it on the now-active layer/frame
-    var cx = pw * 0.5, cy = ph * 0.5;
-    var imgObj = await createImageFromAsset(asset, project, cx, cy);
-
-    if(!imgObj){
-      // Last resort: manually construct and add to frame
-      setStatus('createImagePathFromAsset failed, trying manual insert…');
-      var W = getWick();
-      var ok2 = false;
-      if(W){
-        var imgCtors = ['ImagePath','Image','Bitmap','Raster'];
-        for(var ii=0;ii<imgCtors.length;ii++){
-          try {
-            if(!W[imgCtors[ii]]) continue;
-            var o = new W[imgCtors[ii]](asset);
-            try { o.x = cx; o.y = cy; } catch(e){}
-            ok2 = addToFrame(frame, o);
-            if(ok2){ imgObj = o; break; }
-          } catch(e){}
+    // 4. Get or create a length-1 frame exactly at frameNum
+    //    First: trim any existing long frame that spans this position down
+    //    so it ends just before here, freeing the slot
+    var ph0 = frameNum; // Wick frame.start is 1-based
+    var frame = null;
+    try {
+      var frames = layer.frames || layer._children || [];
+      for(var fi=0; fi<frames.length; fi++){
+        var ef = frames[fi]; if(!ef) continue;
+        var est = Number(ef.start !== undefined ? ef.start : 0);
+        var ele = Number(ef.length !== undefined ? ef.length : 1);
+        if(est === ph0 && ele === 1){ frame = ef; break; } // already perfect
+        if(est < ph0 && est + ele > ph0){
+          // This frame spans our target — trim it to end just before ph0
+          try { ef.length = ph0 - est; } catch(e){}
+          try { ef.end   = ph0 - 1;   } catch(e){}
+          break;
         }
       }
-      if(!ok2){ setStatus('Could not place image', 'err'); return; }
+    } catch(e){}
+    // Now create a fresh 1-frame at ph0
+    if(!frame){
+      try {
+        if(W && W.Frame){
+          var nf = new W.Frame({ start: ph0, length: 1 });
+          try { layer.addFrame(nf); frame = nf; } catch(e){}
+          if(!frame){
+            var fa = layer.frames || layer._children;
+            if(fa && Array.isArray(fa)){ fa.push(nf); try{nf.parent=layer;}catch(e){} frame = nf; }
+          }
+        }
+      } catch(e){}
     }
+    if(!frame){ setStatus('Could not create frame ' + frameNum, 'err'); return; }
 
-    // Position at center (createImagePathFromAsset uses x/y we passed, but reinforce)
+    // 5. Build image object from asset and add directly to that frame
+    //    Do NOT use createImagePathFromAsset — it places on the active frame
+    //    independently of our frame reference, causing all images to stack on frame 1
+    var imgObj = null;
+    if(W){
+      var imgCtors = ['ImagePath','Image','Bitmap','Raster','AssetImage'];
+      for(var ii=0;ii<imgCtors.length;ii++){
+        try {
+          if(!W[imgCtors[ii]]) continue;
+          var o = null;
+          try { o = new W[imgCtors[ii]](asset); } catch(e){}
+          try { if(!o) o = new W[imgCtors[ii]]({asset:asset}); } catch(e){}
+          try { if(!o) o = new W[imgCtors[ii]]({assetUUID: asset.uuid||asset.id}); } catch(e){}
+          if(o){ imgObj = o; break; }
+        } catch(e){}
+      }
+    }
+    // Last resort: try createImagePathFromAsset (may land on wrong frame but better than nothing)
+    if(!imgObj){
+      imgObj = await createImageFromAsset(asset, project, cx, cy);
+    }
+    if(!imgObj){ setStatus('Could not create image object', 'err'); return; }
+
     try { imgObj.x = cx; imgObj.y = cy; } catch(e){}
     try { imgObj.identifier = imgName; } catch(e){}
     try { imgObj.name = imgName; } catch(e){}
 
+    var ok = addToFrame(frame, imgObj);
     markDirty();
-    var ok = true;
 
     if(ok){
       s.captureCount++;
       updateCountUI();
       setStatus('✓ Captured to frame ' + frameNum, 'ok');
 
-      // Advance frame
       if(s.autoAdvance){
         s.frameTarget++;
         updateFrameUI();
