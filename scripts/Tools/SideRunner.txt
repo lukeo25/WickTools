@@ -764,16 +764,61 @@ function buildUpdateScript(opts){
   function injectUpdateScript(scriptText){
     var bridge = getBridge();
     if(!bridge){
-      setStatus("LukeToolsBridge not found. This tool must run inside the Luke Tools panel.", "bad");
+      setStatus("LukeToolsBridge not found.", "bad");
       return false;
     }
     if(typeof bridge.setUpdateScriptOnSelection !== "function"){
-      setStatus("Bridge missing setUpdateScriptOnSelection. Use BridgeTool_FIXED35_UpdateScript_FIX.txt or newer.", "bad");
+      setStatus("Bridge missing setUpdateScriptOnSelection.", "bad");
       return false;
     }
     try{
-      var r = bridge.setUpdateScriptOnSelection(scriptText);
-      if (r && r.ok === false) { throw new Error(r.reason || 'update script failed'); }
+      // Read existing script first
+      var existing = "";
+      try{
+        if(typeof bridge.getUpdateScriptOnSelection === "function"){
+          existing = bridge.getUpdateScriptOnSelection() || "";
+        }
+      }catch(e0){}
+
+      var finalScript = scriptText;
+
+      if(existing && existing.trim()){
+        // Extract the CFG variable name from new script
+        var cfgMatch = scriptText.match(/var\s+([A-Z_][A-Z0-9_]*(?:_?CFG))\s*=\s*(\{[^}]+\})/);
+        if(cfgMatch){
+          var cfgVarName = cfgMatch[1];
+          var newCfgJson = cfgMatch[2];
+          // Check if this CFG block already exists in the script
+          var existingCfgRx = new RegExp("var\\s+" + cfgVarName + "\\s*=\\s*\\{[^}]+\\}");
+          if(existingCfgRx.test(existing)){
+            // Replace just the CFG line - targeted update
+            finalScript = existing.replace(existingCfgRx, "var " + cfgVarName + " = " + newCfgJson);
+          } else {
+            // Append new behaviour block to existing script
+            // Find the // End marker and insert before it, or just append
+            var endMarker = "// End";
+            if(existing.indexOf(endMarker) !== -1){
+              // Extract just the behaviour code (skip the // LukeTools comment header)
+              var behaviourLines = scriptText.split("\n");
+              var startIdx = 0;
+              for(var i=0; i<behaviourLines.length; i++){
+                if(behaviourLines[i].indexOf("var LT") !== -1 || behaviourLines[i].indexOf("var _LT") !== -1){
+                  startIdx = i;
+                  break;
+                }
+              }
+              var behaviourCode = behaviourLines.slice(startIdx).join("\n");
+              finalScript = existing.replace(endMarker, "\n// --- Appended Behaviour ---\n" + behaviourCode);
+            } else {
+              // No end marker, just append
+              finalScript = existing.trim() + "\n\n// --- Appended Behaviour ---\n" + scriptText;
+            }
+          }
+        }
+      }
+
+      var r = bridge.setUpdateScriptOnSelection(finalScript);
+      if(r && r.ok === false) throw new Error(r.reason || "update script failed");
       return true;
     }catch(e){
       setStatus("Inject failed: " + (e && e.message ? e.message : String(e)), "bad");
