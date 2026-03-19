@@ -174,7 +174,7 @@
 
     return [
 "// LukeTools Behaviour: Sine Block",
-"var LT_CFG = " + JSON.stringify(cfg, null, 0) + ";",
+"var LT_SINE_CFG = " + JSON.stringify(cfg, null, 0) + ";",
 "",
 "if(!this._LT_SINE){",
 "  this._LT_SINE = { baseX: this.x, baseY: this.y, t: 0 };",
@@ -197,11 +197,11 @@
 "",
 "st.t += dt;",
 "",
-"var w = (Math.PI * 2) * (LT_CFG.speed || 0);",
-"var xOff = (LT_CFG.amp || 0) * Math.sin((w * st.t) + (LT_CFG.phase || 0));",
+"var w = (Math.PI * 2) * (LT_SINE_CFG.speed || 0);",
+"var xOff = (LT_SINE_CFG.amp || 0) * Math.sin((w * st.t) + (LT_SINE_CFG.phase || 0));",
 "",
 "this.x = st.baseX + xOff;",
-"if (LT_CFG.lockY) {",
+"if (LT_SINE_CFG.lockY) {",
 "  this.y = st.baseY;",
 "}",
 "",
