@@ -38,6 +38,14 @@
           "action": "script",
           "F_Screen": 0
         },
+                {
+          "id": "Drag Drop",
+          "label": "Drag Drop",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Drag.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DragDrop.txt",
+          "action": "script",
+          "F_Screen": 0
+        },
         {
           "id": "Solid",
           "label": "Solid",
