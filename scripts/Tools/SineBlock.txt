@@ -136,7 +136,10 @@
   }
 
   function getBridge(){
-    return window.LukeToolsBridge || null;
+    try{ if(window.LukeToolsBridge) return window.LukeToolsBridge; }catch(e0){}
+    try{ if(window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; }catch(e1){}
+    try{ if(window.top && window.top.LukeToolsBridge) return window.top.LukeToolsBridge; }catch(e2){}
+    return null;
   }
 
   function getSelection(){
