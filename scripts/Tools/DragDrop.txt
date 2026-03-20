@@ -1,0 +1,553 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LukeTools Behaviour: Drag & Drop</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{
+      --text:#e7e7ea;
+      --muted:#a8a8b3;
+      --radius:12px;
+      --radius2:10px;
+      --font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    html,body{height:100%;margin:0;background:transparent;color:var(--text);font-family:var(--font);}
+    .wrap{padding:14px;box-sizing:border-box;}
+    .card{background:rgba(20,20,22,0.92);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);padding:14px;box-sizing:border-box;}
+    .title{font-size:15px;font-weight:700;margin:0 0 10px 0;}
+    .section{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin:12px 0 6px 0;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0;}
+    .pill{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted);}
+    .pill strong{color:var(--text);}
+    .btn{appearance:none;border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.06);color:var(--text);border-radius:var(--radius2);padding:8px 12px;cursor:pointer;font-weight:700;font-size:13px;}
+    .btn.green{background:rgba(46,204,113,0.18);border-color:rgba(46,204,113,0.35);}
+    .btn:active{transform:translateY(1px);}
+    .field{display:flex;flex-direction:column;gap:5px;flex:1;}
+    label{font-size:12px;color:var(--muted);}
+    input[type="text"],input[type="number"]{background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.10);color:var(--text);border-radius:var(--radius2);padding:8px 10px;font-size:13px;outline:none;width:100%;box-sizing:border-box;}
+    input[type="range"]{width:100%;accent-color:#21b26b;}
+    .divider{height:1px;background:rgba(255,255,255,0.08);margin:10px 0;}
+    .correct-box{border:1px solid rgba(46,204,113,0.2);border-radius:var(--radius2);padding:10px;background:rgba(46,204,113,0.04);margin-bottom:10px;}
+    .wrong-box{border:1px solid rgba(231,76,60,0.2);border-radius:var(--radius2);padding:10px;background:rgba(231,76,60,0.04);}
+    .box-title{font-size:12px;font-weight:700;margin-bottom:10px;}
+    .correct-box .box-title{color:#2ecc71;}
+    .wrong-box .box-title{color:#e74c3c;}
+    .effect-step{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px;margin-bottom:8px;}
+    .step-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+    .step-num{font-size:11px;font-weight:700;color:var(--muted);}
+    .remove-btn{background:none;border:none;color:#e74c3c;cursor:pointer;font-size:14px;padding:0 4px;}
+    .radio-group{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+    .radio-option{display:flex;align-items:center;gap:4px;cursor:pointer;}
+    .radio-option input{accent-color:#21b26b;cursor:pointer;}
+    .radio-option span{font-size:12px;}
+    .speed-row{display:flex;gap:8px;align-items:center;}
+    .speed-row label{font-size:11px;color:var(--muted);white-space:nowrap;}
+    .speed-row input[type="number"]{width:60px;padding:4px 8px;font-size:12px;}
+    .speed-row input[type="range"]{flex:1;}
+    .add-step-btn{background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.15);border-radius:8px;color:var(--muted);cursor:pointer;width:100%;padding:8px;font-size:12px;margin-top:4px;}
+    .add-step-btn:hover{background:rgba(255,255,255,0.08);}
+    .score-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
+    .score-row label{font-size:12px;color:var(--muted);white-space:nowrap;}
+    .score-row input{width:70px;}
+    .status{margin-top:12px;padding:10px;border-radius:var(--radius2);border:1px solid rgba(255,255,255,0.08);background:rgba(0,0,0,0.22);font-size:12px;color:var(--muted);white-space:pre-wrap;}
+    .status.good{border-color:rgba(46,204,113,0.35);background:rgba(46,204,113,0.12);color:#d9ffe9;}
+    .status.bad{border-color:rgba(231,76,60,0.35);background:rgba(231,76,60,0.12);color:#ffd9d6;}
+    .status.warn{border-color:rgba(241,196,15,0.35);background:rgba(241,196,15,0.10);color:#fff2c2;}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="title">BEHAVIOUR: DRAG & DROP</div>
+
+    <div class="row">
+      <div class="pill"><strong>Clip</strong> <span id="selLabel">No Clip Chosen</span></div>
+      <button class="btn" id="btnRefresh">Refresh</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label>Target clip name (exact)</label>
+      <input type="text" id="targetName" placeholder="e.g. DropZone">
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- CORRECT -->
+    <div class="correct-box">
+      <div class="box-title">✓ CORRECT DROP</div>
+      <div id="correctSteps"></div>
+      <button class="add-step-btn" onclick="addStep('correct')">+ Add Effect Step</button>
+      <div class="score-row">
+        <label>Score var</label>
+        <input type="text" id="scoreVar" value="LT_score" style="width:90px;">
+        <label>+</label>
+        <input type="number" id="correctScore" value="10" style="width:60px;">
+      </div>
+      <div style="margin-top:8px;">
+        <label style="font-size:12px;color:var(--muted);">Go to frame/clip</label>
+        <div id="correctGotos"></div>
+        <button class="add-step-btn" onclick="addGoto('correct')">+ Add Go To</button>
+      </div>
+    </div>
+
+    <!-- WRONG -->
+    <div class="wrong-box">
+      <div class="box-title">✗ WRONG DROP</div>
+      <div id="wrongSteps"></div>
+      <button class="add-step-btn" onclick="addStep('wrong')">+ Add Effect Step</button>
+      <div class="score-row">
+        <label>Score var</label>
+        <input type="text" id="scoreVar2" value="LT_score" style="width:90px;">
+        <label>-</label>
+        <input type="number" id="wrongScore" value="5" style="width:60px;">
+      </div>
+      <div style="margin-top:8px;">
+        <label style="font-size:12px;color:var(--muted);">Go to frame/clip</label>
+        <div id="wrongGotos"></div>
+        <button class="add-step-btn" onclick="addGoto('wrong')">+ Add Go To</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <button class="btn green" id="btnCreate" style="width:100%;">Create</button>
+    <div id="status" class="status">Ready. Select a clip then click Create.</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var EFFECTS = [
+    {id:"fade",      label:"Fade"},
+    {id:"shrink",    label:"Shrink"},
+    {id:"shake",     label:"Shake"},
+    {id:"return",    label:"Return"},
+    {id:"disappear", label:"Disappear"}
+  ];
+
+  var correctSteps = [];
+  var wrongSteps = [];
+  var correctGotos = [];
+  var wrongGotos = [];
+
+  function addGoto(which){
+    var arr = which === "correct" ? correctGotos : wrongGotos;
+    arr.push({ id: makeStepId(), frame: "", clip: "" });
+    renderGotos(which);
+  }
+
+  function removeGoto(which, id){
+    if(which === "correct") correctGotos = correctGotos.filter(function(g){ return g.id !== id; });
+    else wrongGotos = wrongGotos.filter(function(g){ return g.id !== id; });
+    renderGotos(which);
+  }
+
+  function renderGotos(which){
+    var arr = which === "correct" ? correctGotos : wrongGotos;
+    var container = document.getElementById(which + "Gotos");
+    container.innerHTML = "";
+    arr.forEach(function(goto){
+      var row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:6px;align-items:center;margin-top:4px;";
+
+      var frameInp = document.createElement("input");
+      frameInp.type = "text";
+      frameInp.placeholder = "frame e.g. 2 or happy";
+      frameInp.value = goto.frame;
+      frameInp.style.flex = "1";
+      frameInp.oninput = function(){ goto.frame = frameInp.value; };
+
+      var lbl = document.createElement("label");
+      lbl.textContent = "on";
+      lbl.style.cssText = "font-size:11px;color:var(--muted);white-space:nowrap;";
+
+      var clipInp = document.createElement("input");
+      clipInp.type = "text";
+      clipInp.placeholder = "self or clip name";
+      clipInp.value = goto.clip;
+      clipInp.style.flex = "1";
+      clipInp.oninput = function(){ goto.clip = clipInp.value; };
+
+      var rmBtn = document.createElement("button");
+      rmBtn.className = "remove-btn";
+      rmBtn.textContent = "✕";
+      rmBtn.onclick = (function(w, id){ return function(){ removeGoto(w, id); }; })(which, goto.id);
+
+      row.appendChild(frameInp);
+      row.appendChild(lbl);
+      row.appendChild(clipInp);
+      row.appendChild(rmBtn);
+      container.appendChild(row);
+    });
+  }
+
+  window.addGoto = addGoto;
+
+  function makeStepId(){ return "s" + Date.now() + Math.random().toString(36).slice(2,6); }
+
+  function addStep(which){
+    var arr = which === "correct" ? correctSteps : wrongSteps;
+    arr.push({ id: makeStepId(), effect: "fade", speed: 0.05 });
+    renderSteps(which);
+  }
+
+  function removeStep(which, id){
+    if(which === "correct") correctSteps = correctSteps.filter(function(s){ return s.id !== id; });
+    else wrongSteps = wrongSteps.filter(function(s){ return s.id !== id; });
+    renderSteps(which);
+  }
+
+  function renderSteps(which){
+    var arr = which === "correct" ? correctSteps : wrongSteps;
+    var container = document.getElementById(which + "Steps");
+    container.innerHTML = "";
+    arr.forEach(function(step, i){
+      var div = document.createElement("div");
+      div.className = "effect-step";
+
+      // Header
+      var header = document.createElement("div");
+      header.className = "step-header";
+      var num = document.createElement("span");
+      num.className = "step-num";
+      num.textContent = "STEP " + (i+1);
+      var rmBtn = document.createElement("button");
+      rmBtn.className = "remove-btn";
+      rmBtn.textContent = "✕";
+      rmBtn.onclick = (function(w,id){ return function(){ removeStep(w,id); }; })(which, step.id);
+      header.appendChild(num);
+      header.appendChild(rmBtn);
+      div.appendChild(header);
+
+      // Radio buttons
+      var radioGroup = document.createElement("div");
+      radioGroup.className = "radio-group";
+      EFFECTS.forEach(function(eff){
+        var lbl = document.createElement("label");
+        lbl.className = "radio-option";
+        var inp = document.createElement("input");
+        inp.type = "radio";
+        inp.name = "effect_" + step.id;
+        inp.value = eff.id;
+        inp.checked = (step.effect === eff.id);
+        inp.onchange = (function(s, v){ return function(){ s.effect = v; updateSpeedDefaults(s); renderSpeedRow(s, speedRow); }; })(step, eff.id);
+        var span = document.createElement("span");
+        span.textContent = eff.label;
+        lbl.appendChild(inp);
+        lbl.appendChild(span);
+        radioGroup.appendChild(lbl);
+      });
+      div.appendChild(radioGroup);
+
+      // Speed row
+      var speedRow = document.createElement("div");
+      speedRow.className = "speed-row";
+      renderSpeedRow(step, speedRow);
+      div.appendChild(speedRow);
+
+      container.appendChild(div);
+    });
+  }
+
+  function getSpeedConfig(effect){
+    // duration in seconds 0.1 to 3.0
+    if(effect === "shake")   return { min:0.1, max:3.0, step:0.1, def:0.5, label:"Duration (s)" };
+    if(effect === "return")  return { min:0.1, max:3.0, step:0.1, def:0.5, label:"Duration (s)" };
+    if(effect === "fade")    return { min:0.1, max:3.0, step:0.1, def:0.5, label:"Duration (s)" };
+    if(effect === "shrink")  return { min:0.1, max:3.0, step:0.1, def:0.5, label:"Duration (s)" };
+    return { min:0.1, max:3.0, step:0.1, def:0.5, label:"Duration (s)" };
+  }
+
+  function updateSpeedDefaults(step){
+    var cfg = getSpeedConfig(step.effect);
+    step.speed = cfg.def;
+  }
+
+  function renderSpeedRow(step, container){
+    container.innerHTML = "";
+    if(step.effect === "disappear") return;
+    var cfg = getSpeedConfig(step.effect);
+
+    var lbl = document.createElement("label");
+    lbl.textContent = cfg.label || "Duration (s)";
+    container.appendChild(lbl);
+
+    var numInp = document.createElement("input");
+    numInp.type = "number";
+    numInp.min = cfg.min;
+    numInp.max = cfg.max;
+    numInp.step = cfg.step;
+    numInp.value = step.speed;
+    container.appendChild(numInp);
+
+    var slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = cfg.min;
+    slider.max = cfg.max;
+    slider.step = cfg.step;
+    slider.value = step.speed;
+    container.appendChild(slider);
+
+    numInp.oninput = function(){
+      step.speed = parseFloat(numInp.value) || cfg.def;
+      slider.value = step.speed;
+    };
+    slider.oninput = function(){
+      step.speed = parseFloat(slider.value);
+      numInp.value = step.speed;
+    };
+  }
+
+  // Default steps
+  correctSteps = [{ id:makeStepId(), effect:"shrink", speed:0.5 }, { id:makeStepId(), effect:"fade", speed:0.5 }];
+  wrongSteps   = [{ id:makeStepId(), effect:"shake",  speed:0.5 }, { id:makeStepId(), effect:"return", speed:0.5 }];
+  renderSteps("correct");
+  renderSteps("wrong");
+
+  window.addStep = addStep;
+
+  // Bridge
+  function getBridge(){
+    try{ if(window.LukeToolsBridge) return window.LukeToolsBridge; }catch(e0){}
+    try{ if(window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; }catch(e1){}
+    try{ if(window.top && window.top.LukeToolsBridge) return window.top.LukeToolsBridge; }catch(e2){}
+    return null;
+  }
+
+  function setStatus(msg, kind){
+    var el = document.getElementById("status");
+    el.className = "status" + (kind ? " " + kind : "");
+    el.textContent = msg;
+  }
+
+  function refreshSelection(){
+    var bridge = getBridge();
+    if(!bridge){ document.getElementById("selLabel").textContent = "No bridge"; return null; }
+    try{
+      if(typeof bridge.getSelectionInfo === "function"){
+        var info = bridge.getSelectionInfo();
+        if(info && info.uuid){
+          document.getElementById("selLabel").textContent = info.identifier || info.name || info.uuid;
+          return info;
+        }
+      }
+    }catch(e){}
+    document.getElementById("selLabel").textContent = "No Clip Chosen";
+    return null;
+  }
+
+  function buildStepCode(steps, prefix){
+    // Each step runs sequentially using frame counter at 60fps
+    var lines = [];
+    steps.forEach(function(step, i){
+      var doneFlag  = prefix + "_done"  + i;
+      var startFlag = prefix + "_start" + i;
+      var tFlag     = prefix + "_t"     + i;
+      var dur = parseFloat(step.speed) || 0.5; // duration in seconds
+      var totalFrames = Math.max(1, Math.round(dur * 12)); // Wick default 12fps
+
+      if(i === 0){
+        lines.push("if(!" + doneFlag + "){");
+      } else {
+        lines.push("if(" + prefix + "_done" + (i-1) + " && !" + doneFlag + "){");
+      }
+
+      if(step.effect === "disappear"){
+        lines.push("  this.opacity = 0;");
+        lines.push("  " + doneFlag + " = true;");
+      } else if(step.effect === "fade"){
+        lines.push("  if(!" + startFlag + "){ " + startFlag + "=true; " + tFlag + "=0; }");
+        lines.push("  " + tFlag + " += 1;");
+        lines.push("  this.opacity = Math.max(0, 1 - (" + tFlag + "/" + totalFrames + "));");
+        lines.push("  if(" + tFlag + " >= " + totalFrames + "){ this.opacity=0; " + doneFlag + "=true; }");
+      } else if(step.effect === "shrink"){
+        lines.push("  if(!" + startFlag + "){ " + startFlag + "=true; " + tFlag + "=0; }");
+        lines.push("  " + tFlag + " += 1;");
+        lines.push("  var _sc"+i+" = Math.max(0, 1 - (" + tFlag + "/" + totalFrames + "));");
+        lines.push("  this.scaleX = _sc"+i+"; this.scaleY = _sc"+i+";");
+        lines.push("  if(" + tFlag + " >= " + totalFrames + "){ this.scaleX=0; this.scaleY=0; "+doneFlag+"=true; }");
+      } else if(step.effect === "shake"){
+        lines.push("  if(!" + startFlag + "){ " + startFlag + "=true; " + tFlag + "=0; this._LT_DD_shakeOriX=this.x; }");
+        lines.push("  " + tFlag + " += 1;");
+        lines.push("  var _prog"+i+" = " + tFlag + "/" + totalFrames + ";");
+        lines.push("  var _sa"+i+" = 12 * (1 - _prog"+i+");");
+        lines.push("  this.x = this._LT_DD_shakeOriX + Math.sin(" + tFlag + " * 0.8) * _sa"+i+";");
+        lines.push("  if(" + tFlag + " >= " + totalFrames + "){ this.x=this._LT_DD_shakeOriX; "+doneFlag+"=true; }");
+      } else if(step.effect === "return"){
+        lines.push("  if(!" + startFlag + "){ " + startFlag + "=true; " + tFlag + "=0; this._LT_DD_retSX=this.x; this._LT_DD_retSY=this.y; }");
+        lines.push("  " + tFlag + " += 1;");
+        lines.push("  var _prog"+i+" = Math.min(1, " + tFlag + "/" + totalFrames + ");");
+        lines.push("  this.x = this._LT_DD_retSX + (this._LT_DD_startX - this._LT_DD_retSX) * _prog"+i+";");
+        lines.push("  this.y = this._LT_DD_retSY + (this._LT_DD_startY - this._LT_DD_retSY) * _prog"+i+";");
+        lines.push("  if(" + tFlag + " >= " + totalFrames + "){ this.x=this._LT_DD_startX; this.y=this._LT_DD_startY; "+doneFlag+"=true; }");
+      }
+      lines.push("}");
+    });
+    return lines.join("\n");
+  }
+
+  function buildScript(opts){
+    var t  = opts.targetName  || "DropZone";
+    var sv = opts.scoreVar    || "LT_score";
+    var sv2= opts.scoreVar2   || "LT_score";
+    var cs = Number(opts.correctScore) || 10;
+    var ws = Number(opts.wrongScore)   || 5;
+
+    var cfgObj = {
+      type:"LT_DRAG_DROP",
+      target:t,
+      scoreVar:sv,
+      scoreVar2:sv2,
+      correctScore:cs,
+      wrongScore:ws
+    };
+
+    // Build gotoAndStop code for correct - multiple
+    var correctGotoCode = (opts.correctGotos || []).filter(function(g){ return g.frame; }).map(function(g){
+      var target = !g.clip || g.clip === "self" ? "this" :
+        "_siblings.find(function(c){ return (c.identifier||c.name||\"\")==\""+g.clip+"\"; })";
+      var val = isNaN(Number(g.frame)) ? "\""+g.frame+"\"" : Number(g.frame);
+      return "try{ var _gc="+target+"; if(_gc) _gc.gotoAndStop("+val+"); }catch(e){}";
+    }).join("\n                    ");
+
+    // Build gotoAndStop code for wrong - multiple
+    var wrongGotoCode = (opts.wrongGotos || []).filter(function(g){ return g.frame; }).map(function(g){
+      var target = !g.clip || g.clip === "self" ? "this" :
+        "_siblings.find(function(c){ return (c.identifier||c.name||\"\")==\""+g.clip+"\"; })";
+      var val = isNaN(Number(g.frame)) ? "\""+g.frame+"\"" : Number(g.frame);
+      return "try{ var _gc="+target+"; if(_gc) _gc.gotoAndStop("+val+"); }catch(e){}";
+    }).join("\n        ");
+
+    var correctStepCode = buildStepCode(opts.correctSteps, "this._LT_DD_C");
+    var wrongStepCode   = buildStepCode(opts.wrongSteps,   "this._LT_DD_W");
+
+    var defaultScript = [
+      "// LukeTools Drag & Drop - Default",
+      "window.selected = window.selected || false;",
+      "this._LT_DD_startX = this.x;",
+      "this._LT_DD_startY = this.y;"
+    ].join("\n");
+
+    var updateLines = [
+      "// LukeTools Behaviour: Drag & Drop",
+      "var LT_DD_CFG = " + JSON.stringify(cfgObj) + ";",
+      "",
+      "// Drag logic",
+      "if((this._mouseState===\"down\" && !window.selected) || (isMouseDown() && window.selected===this)){",
+      "    if(!window.selected){",
+      "        // Reset all effect flags when starting a new drag",
+      "        var _k;",
+      "        for(_k in this){ if(String(_k).indexOf('_LT_DD_C')===0 || String(_k).indexOf('_LT_DD_W')===0){ this[_k]=false; } }",
+      "        this._LT_DD_correct = false;",
+      "        this._LT_DD_wrong = false;",
+      "        this.opacity = 1;",
+      "        this.scaleX = 1;",
+      "        this.scaleY = 1;",
+      "    }",
+      "    window.selected = this;",
+      "    this.x = mouseX;",
+      "    this.y = mouseY;",
+      "    this.cursor = \"grabbing\";",
+      "} else if(window.selected === this && !isMouseDown()){",
+      "    window.selected = false;",
+      "    this.cursor = \"grab\";",
+      "    var _proj = this.project || null;",
+      "    var _dropped = false;",
+      "    try{",
+      "        var _siblings = [];",
+      "        try{",
+      "            var _parent = this.parentClip || (_proj && _proj.root ? _proj.root : null);",
+      "            if(_parent && _parent.clips) _siblings = _parent.clips;",
+      "            else if(_parent && _parent.children) _siblings = _parent.children;",
+      "            else if(_proj && _proj.clips) _siblings = _proj.clips;",
+      "            else if(_proj && _proj.children) _siblings = _proj.children;",
+      "            else if(_proj && _proj.activeFrame && _proj.activeFrame.clips) _siblings = _proj.activeFrame.clips;",
+      "            console.log(\"[DD] siblings count:\"+_siblings.length);",
+      "        }catch(e2){ console.log(\"[DD] siblings error:\"+e2); }",
+      "        for(var _ci=0; _ci<_siblings.length; _ci++){",
+      "            var _tc = _siblings[_ci];",
+      "            console.log(\"[DD] clip:\"+(_tc.identifier||_tc.name||_tc.id||\"\")); ",
+      "            if((_tc.identifier||_tc.name||_tc.id||\"\") === LT_DD_CFG.target){",
+      "                var _dx = Math.abs(this.x - _tc.x);",
+      "                var _dy = Math.abs(this.y - _tc.y);",
+      "                var _thresh = Math.min(_tc.width||100, _tc.height||100) / 2;",
+      "                if(_dx < _thresh && _dy < _thresh){",
+      "                    _dropped = true;",
+      "                    if(_proj){ _proj[LT_DD_CFG.scoreVar] = (_proj[LT_DD_CFG.scoreVar]||0) + LT_DD_CFG.correctScore; }",
+      "                    this._LT_DD_correct = true;",
+      "                    this._LT_DD_wrong = false;",
+      "                    console.log(\"[DD] CORRECT DROP\");",
+      correctGotoCode ? ("                    "+correctGotoCode) : "",
+      "                }",
+      "                break;",
+      "            }",
+      "        }",
+      "    }catch(e){}",
+      "    if(!_dropped){",
+      "        if(_proj){ _proj[LT_DD_CFG.scoreVar2] = (_proj[LT_DD_CFG.scoreVar2]||0) - LT_DD_CFG.wrongScore; }",
+      "        this._LT_DD_wrong = true;",
+      wrongGotoCode ? ("        "+wrongGotoCode) : "",
+      "    }",
+      "} else {",
+      "    this.cursor = \"grab\";",
+      "}",
+      "",
+      "// Correct effects",
+      "if(this._LT_DD_correct){",
+      correctStepCode,
+      "}",
+      "",
+      "// Wrong effects",
+      "if(this._LT_DD_wrong){",
+      wrongStepCode,
+      "}",
+      "",
+      "// End"
+    ];
+
+    return { defaultScript: defaultScript, updateScript: updateLines.join("\n") };
+  }
+
+  document.getElementById("btnRefresh").addEventListener("click", function(){ refreshSelection(); });
+
+  document.getElementById("btnCreate").addEventListener("click", function(){
+    var info = refreshSelection();
+    if(!info || !info.uuid){ setStatus("No Clip Chosen.", "warn"); return; }
+    var t = document.getElementById("targetName").value.trim();
+    if(!t){ setStatus("Please enter a target clip name.", "warn"); return; }
+
+    var opts = {
+      targetName:    t,
+      scoreVar:      document.getElementById("scoreVar").value.trim()      || "LT_score",
+      scoreVar2:     document.getElementById("scoreVar2").value.trim()     || "LT_score",
+      correctScore:  document.getElementById("correctScore").value,
+      wrongScore:    document.getElementById("wrongScore").value,
+      correctGotos:  correctGotos.map(function(g){ return {frame:g.frame.trim(), clip:g.clip.trim()}; }),
+      wrongGotos:    wrongGotos.map(function(g){   return {frame:g.frame.trim(), clip:g.clip.trim()}; }),
+      correctSteps:  correctSteps.map(function(s){ return {effect:s.effect, speed:parseFloat(s.speed)||0.5}; }),
+      wrongSteps:    wrongSteps.map(function(s){   return {effect:s.effect, speed:parseFloat(s.speed)||0.5}; })
+    };
+
+    var scripts = buildScript(opts);
+    var bridge = getBridge();
+    if(!bridge){ setStatus("Bridge not found.", "bad"); return; }
+    try{
+      var r1 = bridge.setDefaultScriptOnSelection(scripts.defaultScript);
+      if(r1 && r1.ok === false) throw new Error(r1.reason || "default script failed");
+      var r2 = bridge.setUpdateScriptOnSelection(scripts.updateScript);
+      if(r2 && r2.ok === false) throw new Error(r2.reason || "update script failed");
+      setStatus("Success! Added to: " + document.getElementById("selLabel").textContent, "good");
+    }catch(e){
+      setStatus("Failed: " + e.message, "bad");
+    }
+  });
+
+  refreshSelection();
+})();
+</script>
+</body>
+</html>
