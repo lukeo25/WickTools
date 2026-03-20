@@ -15,6 +15,14 @@
           "action": "script",
           "F_Screen": 0
         },
+         {
+          "id": "Rando",
+          "label": "Rando",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Rando.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Rando.txt",
+          "action": "script",
+          "F_Screen": 0
+        },
         {
           "id": "Jump_Through",
           "label": "Jump Through",
