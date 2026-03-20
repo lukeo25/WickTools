@@ -187,15 +187,12 @@
 "",
 "var dt = 1/60;",
 "try {",
-"  var p = this.project || null;",
-"  if (p && typeof p._LT_lastTimeMs === 'number') {",
-"    var now = Date.now();",
-"    dt = (now - p._LT_lastTimeMs) / 1000;",
+"  var now = Date.now();",
+"  if (typeof this._LT_SINE_lastMs === 'number') {",
+"    dt = (now - this._LT_SINE_lastMs) / 1000;",
 "    if (!isFinite(dt) || dt <= 0 || dt > 0.25) dt = 1/60;",
-"    p._LT_lastTimeMs = now;",
-"  } else if (p) {",
-"    p._LT_lastTimeMs = Date.now();",
 "  }",
+"  this._LT_SINE_lastMs = now;",
 "} catch(e) { }",
 "",
 "st.t += dt;",
@@ -231,63 +228,7 @@
       return false;
     }
     try{
-      var existing = "";
-      try{
-        if(typeof bridge.getUpdateScriptOnSelection === "function"){
-          existing = bridge.getUpdateScriptOnSelection() || "";
-        }
-      }catch(e0){}
-
-      var finalScript = scriptText;
-
-      if(existing && existing.trim()){
-        // Find CFG var name from new script using simple string search
-        var cfgVarName = null;
-        var cfgJsonStr = null;
-        var lines = scriptText.split("\n");
-        for(var i=0; i<lines.length; i++){
-          var line = lines[i].trim();
-          if(line.indexOf("var LT_") === 0 && line.indexOf(" = {") !== -1){
-            cfgVarName = line.split(" ")[1];
-            var jsonStart = line.indexOf("{");
-            var jsonEnd = line.lastIndexOf("}");
-            if(jsonStart !== -1 && jsonEnd !== -1) cfgJsonStr = line.slice(jsonStart, jsonEnd+1);
-            break;
-          }
-        }
-        if(cfgVarName){
-          var searchStr = "var " + cfgVarName + " = ";
-          if(existing.indexOf(searchStr) !== -1){
-            // Replace just the existing CFG line
-            var eLines = existing.split("\n");
-            for(var j=0; j<eLines.length; j++){
-              if(eLines[j].trim().indexOf(searchStr) === 0){
-                eLines[j] = "var " + cfgVarName + " = " + cfgJsonStr + ";";
-                break;
-              }
-            }
-            finalScript = eLines.join("\n");
-          } else {
-            // Append before // End or at bottom
-            var endMarker = "// End";
-            var behaviourLines = scriptText.split("\n");
-            var startIdx = 0;
-            for(var k=0; k<behaviourLines.length; k++){
-              if(behaviourLines[k].indexOf("var LT_") !== -1){
-                startIdx = k; break;
-              }
-            }
-            var behaviourCode = behaviourLines.slice(startIdx).join("\n");
-            if(existing.indexOf(endMarker) !== -1){
-              finalScript = existing.replace(endMarker, "\n// --- Appended Behaviour ---\n" + behaviourCode);
-            } else {
-              finalScript = existing.trim() + "\n\n// --- Appended Behaviour ---\n" + scriptText;
-            }
-          }
-        }
-      }
-
-      var r = bridge.setUpdateScriptOnSelection(finalScript);
+      var r = bridge.setUpdateScriptOnSelection(scriptText);
       if(r && r.ok === false) throw new Error(r.reason || "update script failed");
       return true;
     }catch(e){
@@ -296,7 +237,7 @@
     }
   }
 
-  $("btnRefresh").addEventListener("click", function(){
+    $("btnRefresh").addEventListener("click", function(){
     refreshSelection();
   });
 
