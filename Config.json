@@ -38,7 +38,7 @@
           "action": "script",
           "F_Screen": 0
         },
-                {
+        {
           "id": "Drag Drop",
           "label": "Drag Drop",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Drag.svg",
