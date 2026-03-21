@@ -1,0 +1,95 @@
+// FF_RandoPlus - Random Number Generator with Conditional Actions
+// Compatible with LukeTools Node Editor (uses var LT_CFG format)
+// Place in scripts/FF_nodes/ folder on GitHub repo
+
+var LT_CFG = {"slot":"update","min":0,"max":10,"isInt":1,"onlyOnce":0,"storeVar":1,"varName":"rng","threshold":5,"action":"none","targetClip":"self","targetFrame":1};
+
+// ── FF_RandoPlus BEGIN ──────────────────────────────────────────
+(function() {
+  var cfg = LT_CFG;
+  var vn = String(cfg.varName || "rng").replace(/[^a-zA-Z0-9_]/g, "_") || "rng";
+  var mn = parseFloat(cfg.min) || 0;
+  var mx = parseFloat(cfg.max) || 10;
+  var isInt = cfg.isInt === 1 || cfg.isInt === true || cfg.isInt === "1" || cfg.isInt === "true";
+  var onlyOnce = cfg.onlyOnce === 1 || cfg.onlyOnce === true || cfg.onlyOnce === "1" || cfg.onlyOnce === "true";
+  var storeVar = cfg.storeVar === 1 || cfg.storeVar === true || cfg.storeVar === "1" || cfg.storeVar === "true";
+  var threshold = parseFloat(cfg.threshold) || 5;
+  var action = String(cfg.action || "none");
+  var targetClip = String(cfg.targetClip || "self");
+  var targetFrame = cfg.targetFrame;
+  
+  // Check if we should skip (onlyOnce mode)
+  if (onlyOnce && this["_ffrando_" + vn + "_done"]) return;
+  
+  // Generate random number
+  var result;
+  if (isInt) {
+    result = Math.floor(Math.random() * (mx - mn + 1) + mn);
+  } else {
+    result = +(Math.random() * (mx - mn) + mn).toFixed(4);
+  }
+  
+  // Store on clip if requested
+  if (storeVar) {
+    this[vn] = result;
+  }
+  
+  // Mark as done for onlyOnce mode
+  if (onlyOnce) {
+    this["_ffrando_" + vn + "_done"] = true;
+  }
+  
+  // Resolve target
+  var tgt = (targetClip === "self" || targetClip === "") ? this : this[targetClip];
+  if (!tgt) tgt = this;
+  
+  // Execute conditional action if result >= threshold
+  if (result >= threshold && action !== "none") {
+    try {
+      switch(action) {
+        case "gotoAndStop":
+          var f = isNaN(Number(targetFrame)) ? String(targetFrame) : Number(targetFrame);
+          tgt.gotoAndStop(f);
+          break;
+        case "gotoAndPlay":
+          var f2 = isNaN(Number(targetFrame)) ? String(targetFrame) : Number(targetFrame);
+          tgt.gotoAndPlay(f2);
+          break;
+        case "stop":
+          tgt.stop();
+          break;
+        case "play":
+          tgt.play();
+          break;
+        case "gotoNextFrame":
+          tgt.gotoNextFrame();
+          break;
+        case "gotoPrevFrame":
+          tgt.gotoPrevFrame();
+          break;
+        case "setOpacity":
+          tgt.opacity = result / mx;
+          break;
+        case "setX":
+          tgt.x = result;
+          break;
+        case "setY":
+          tgt.y = result;
+          break;
+        case "setScale":
+          tgt.scaleX = result / mx;
+          tgt.scaleY = result / mx;
+          break;
+        case "setRotation":
+          tgt.rotation = result;
+          break;
+      }
+    } catch(e) {
+      console.warn("[FF_RandoPlus] Action failed:", e);
+    }
+  }
+  
+  // Also set local var for chaining
+  window["_ffrando_last_" + vn] = result;
+})();
+// ── FF_RandoPlus END ────────────────────────────────────────────

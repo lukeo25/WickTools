@@ -1,0 +1,41 @@
+// FF_Rando - Random Number Generator for WickEditor
+// Compatible with LukeTools Node Editor (uses var LT_CFG format)
+// Place in scripts/FF_nodes/ folder on GitHub repo
+
+var LT_CFG = {"slot":"update","min":0,"max":10,"isInt":1,"onlyOnce":0,"storeVar":1,"varName":"rng"};
+
+// ── FF_Rando BEGIN ──────────────────────────────────────────
+(function() {
+  var cfg = LT_CFG;
+  var vn = String(cfg.varName || "rng").replace(/[^a-zA-Z0-9_]/g, "_") || "rng";
+  var mn = parseFloat(cfg.min) || 0;
+  var mx = parseFloat(cfg.max) || 10;
+  var isInt = cfg.isInt === 1 || cfg.isInt === true || cfg.isInt === "1" || cfg.isInt === "true";
+  var onlyOnce = cfg.onlyOnce === 1 || cfg.onlyOnce === true || cfg.onlyOnce === "1" || cfg.onlyOnce === "true";
+  var storeVar = cfg.storeVar === 1 || cfg.storeVar === true || cfg.storeVar === "1" || cfg.storeVar === "true";
+  
+  // Check if we should skip (onlyOnce mode)
+  if (onlyOnce && this["_ffrando_" + vn + "_done"]) return;
+  
+  // Generate random number
+  var result;
+  if (isInt) {
+    result = Math.floor(Math.random() * (mx - mn + 1) + mn);
+  } else {
+    result = +(Math.random() * (mx - mn) + mn).toFixed(4);
+  }
+  
+  // Store on clip if requested
+  if (storeVar) {
+    this[vn] = result;
+  }
+  
+  // Mark as done for onlyOnce mode
+  if (onlyOnce) {
+    this["_ffrando_" + vn + "_done"] = true;
+  }
+  
+  // Also set local var for chaining (available to subsequent code in same slot)
+  window["_ffrando_last_" + vn] = result;
+})();
+// ── FF_Rando END ────────────────────────────────────────────
