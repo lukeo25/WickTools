@@ -113,69 +113,29 @@ function setStatus(msg,kind){
 var currentInfo=null;
 var childNames=[];
 
+// Simplified tryLoadExisting (from working v7)
 function tryLoadExisting(){
-  var bridge=getBridge();
-  if(!bridge){ setStatus("No bridge found.", "bad"); return; }
+  var bridge=getBridge(); if(!bridge) return;
   if(!currentInfo||!currentInfo.uuid){ setStatus("Select a clip then click Create."); return; }
-
   var script="";
-  var method="none";
-
-  // Method 1: getUpdateScriptByInfo — by UUID, no selection needed
+  // Use getUpdateScriptByInfo — reads by UUID, no selection required
   try{
     if(typeof bridge.getUpdateScriptByInfo==="function"){
-      var r1=bridge.getUpdateScriptByInfo(currentInfo);
-      if(typeof r1==="string"&&r1.length){ script=r1; method="byInfo"; }
+      script=bridge.getUpdateScriptByInfo(currentInfo)||"";
     }
-  }catch(e){ setStatus("getUpdateScriptByInfo error: "+e.message,"bad"); return; }
-
-  // Method 2: direct clip object walk
+  }catch(e){}
+  // Fallback: getUpdateScriptOnSelection (only works if clip happens to be selected)
   if(!script){
-    try{
-      var ed=getEditor(), proj=getProject();
-      var clip=null;
-      var sel=proj&&proj.selection||ed&&ed.selection||null;
-      if(sel&&typeof sel.getSelectedObject==="function") clip=sel.getSelectedObject();
-      if(!clip&&ed&&ed.selectedObjects) clip=ed.selectedObjects[0]||null;
-      if(clip){
-        var target=clip.clipAsset||clip;
-        // Try every known script reading method
-        if(!script&&typeof target.getScript==="function"){ var gs=target.getScript("update"); if(typeof gs==="string") script=gs; else if(gs&&gs.source) script=gs.source; }
-        if(!script&&target.scripts&&target.scripts.update){ var us=target.scripts.update; script=typeof us==="string"?us:(us.src||us.source||us.code||us.script||""); }
-        if(!script&&target.updateScript) script=target.updateScript;
-        if(script) method="directClip";
-      }
-    }catch(e){}
+    try{ if(typeof bridge.getUpdateScriptOnSelection==="function") script=bridge.getUpdateScriptOnSelection()||""; }catch(e){}
   }
-
-  // Method 3: getUpdateScriptOnSelection
-  if(!script){
-    try{
-      if(typeof bridge.getUpdateScriptOnSelection==="function"){
-        var r3=bridge.getUpdateScriptOnSelection();
-        if(typeof r3==="string"&&r3.length){ script=r3; method="onSelection"; }
-      }
-    }catch(e){}
-  }
-
-  if(!script){
-    setStatus("Clip loaded ("+( currentInfo.identifier||currentInfo.uuid)+") — no script found. Configure and click Create.");
-    return;
-  }
-
-  var hasRando=script.indexOf("Rando BEGIN")>=0;
-  if(!hasRando){
-    setStatus("Clip loaded — script exists ("+method+") but no Rando block. Configure and click Create.");
-    return;
-  }
-
+  if(!script){ setStatus("Clip loaded — no existing script found. Configure and click Create."); return; }
   var parsed=parseConfig(script);
   if(parsed&&parsed.length){
     rngs=parsed;
     renderAll();
-    setStatus("✎ Loaded "+parsed.length+" RNG(s) via "+method+" — edit and click Create to update.", "warn");
+    setStatus("✎ Loaded existing Rando config ("+parsed.length+" RNG"+(parsed.length>1?"s":"")+") — edit and click Create to update.", "warn");
   } else {
-    setStatus("Rando block found but config comment missing — cannot parse. Re-inject to upgrade.", "warn");
+    setStatus("Clip loaded — no existing Rando config. Configure and click Create.");
   }
 }
 
