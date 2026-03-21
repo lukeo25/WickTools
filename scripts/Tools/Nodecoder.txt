@@ -2364,6 +2364,27 @@ function addScriptNodeFromDef(x, y, def){
  function renderNodeLine(def, data){
  // Smart code node — regenerate from template + current values
  if (def && (def.id === "smartCode" || def.id === "customCode") && data && data._template) {
+ // RANDO mode: rebuild the RANDO_CONFIG array with updated values and regenerate full code
+ if (data._cfgMode && data._randoMode && data._randoConfig) {
+ var updatedRando = [];
+ var rngCount = data._randoConfig.length;
+ for (var rri = 0; rri < rngCount; rri++) {
+ var origRng = data._randoConfig[rri];
+ var prefix = rngCount > 1 ? "rng" + (rri+1) + "_" : "";
+ var newRng = {
+ varName: data[prefix+"varName"] !== undefined ? data[prefix+"varName"] : (origRng.varName || "rng"),
+ min: data[prefix+"min"] !== undefined ? String(data[prefix+"min"]) : String(origRng.min || "0"),
+ max: data[prefix+"max"] !== undefined ? String(data[prefix+"max"]) : String(origRng.max || "10"),
+ isInt: data[prefix+"isInt"] === "true" || data[prefix+"isInt"] === true,
+ onlyOnce: data[prefix+"onlyOnce"] === "true" || data[prefix+"onlyOnce"] === true,
+ storeVar: data[prefix+"storeVar"] === "true" || data[prefix+"storeVar"] === true,
+ rules: origRng.rules || []
+ };
+ updatedRando.push(newRng);
+ }
+ // Regenerate the Rando script from the updated config
+ return buildRandoScript(updatedRando);
+ }
  // CFG mode: rebuild the JSON object with updated slider values
  if (data._cfgMode && data._cfgObj && data._cfgJsonStr) {
  var updatedCfg = {};
@@ -2393,6 +2414,8 @@ function addScriptNodeFromDef(x, y, def){
  data._controls = smartParsed.controls;
  data._rawCode = data.code;
  data._cfgMode = smartParsed._cfgMode || false;
+ data._randoMode = smartParsed._randoMode || false;
+ data._randoConfig = smartParsed._randoConfig || null;
  data._cfgObj = smartParsed._cfgObj || null;
  data._cfgJsonStr = smartParsed._cfgJsonStr || null;
  data._cfgVarName = smartParsed._cfgVarName || null;
@@ -4424,6 +4447,54 @@ var SLOTS = [
  if (!code || !code.trim()) return null;
  var src = code.trim();
 
+ // Priority 0: RANDO_CONFIG comment format (from Rando tool)
+ // Matches: // RANDO_CONFIG: [{...}] or // RANDO_CONFIG: {...}
+ var randoRx = /\/\/\s*RANDO_CONFIG:\s*(\[[\s\S]*?\]|\{[\s\S]*?\})/;
+ var randoMatch = src.match(randoRx);
+ if (randoMatch) {
+ var randoJsonStr = randoMatch[1];
+ var randoObj = null;
+ try { randoObj = JSON.parse(randoJsonStr); } catch(eRJ) {}
+ if (randoObj) {
+ var randoArr = Array.isArray(randoObj) ? randoObj : [randoObj];
+ var controls = [];
+ // Create controls for each RNG in the array
+ for (var ri = 0; ri < randoArr.length; ri++) {
+ var rng = randoArr[ri];
+ var prefix = randoArr.length > 1 ? "rng" + (ri+1) + "_" : "";
+ // varName control
+ controls.push({ type:"text", key:prefix+"varName", label:(prefix?"RNG"+(ri+1)+" ":"")+"Variable", default:rng.varName||"rng" });
+ // min/max controls
+ var minVal = parseFloat(rng.min) || 0;
+ var maxVal = parseFloat(rng.max) || 10;
+ controls.push({ type:"number", key:prefix+"min", label:(prefix?"RNG"+(ri+1)+" ":"")+"Min", default:minVal, min:-1000, max:1000, step:1 });
+ controls.push({ type:"number", key:prefix+"max", label:(prefix?"RNG"+(ri+1)+" ":"")+"Max", default:maxVal, min:-1000, max:1000, step:1 });
+ // isInt toggle
+ controls.push({ type:"select", key:prefix+"isInt", label:(prefix?"RNG"+(ri+1)+" ":"")+"Integer", default:rng.isInt?"true":"false",
+ options:[{value:"true",label:"yes"},{value:"false",label:"no"}] });
+ // onlyOnce toggle
+ controls.push({ type:"select", key:prefix+"onlyOnce", label:(prefix?"RNG"+(ri+1)+" ":"")+"Once", default:rng.onlyOnce?"true":"false",
+ options:[{value:"true",label:"yes"},{value:"false",label:"no"}] });
+ // storeVar toggle
+ controls.push({ type:"select", key:prefix+"storeVar", label:(prefix?"RNG"+(ri+1)+" ":"")+"Store", default:rng.storeVar?"true":"false",
+ options:[{value:"true",label:"yes"},{value:"false",label:"no"}] });
+ }
+ if (controls.length > 0) {
+ return {
+ controls: controls,
+ template: src,
+ _cfgMode: true,
+ _randoMode: true,
+ _randoConfig: randoArr,
+ _randoJsonStr: randoJsonStr,
+ _cfgVarName: "RANDO_CONFIG",
+ _cfgJsonStr: randoJsonStr,
+ _cfgObj: { _randoArray: randoArr }
+ };
+ }
+ }
+ }
+
  // Priority 1: LT_CFG / any *_CFG JSON config object
  var cfgRx = /var\s+([A-Z_][A-Z0-9_]*(?:_CFG|_CONFIG|_PARAMS))\s*=\s*(\{[^}]+\})/;
  var cfgMatch = src.match(cfgRx);
@@ -4441,7 +4512,7 @@ var SLOTS = [
  var controls = [];
  for (var cfgKey in cfgObj) {
  if (!cfgObj.hasOwnProperty(cfgKey)) continue;
- if (cfgKey === "type") continue;
+ if (cfgKey === "type" || cfgKey === "slot") continue;
  var cfgVal = cfgObj[cfgKey];
  var cfgType = typeof cfgVal;
  if (cfgType === "number") {
@@ -4459,6 +4530,7 @@ var SLOTS = [
  else if (cfgKey === "gravity") { cfgMax = Math.max(5, Math.abs(cfgVal)*10); cfgStep = 0.01; }
  else if (cfgKey === "jump") { cfgMax = Math.max(20, Math.abs(cfgVal)*5); cfgStep = 0.1; }
  else if (cfgKey === "maxFall" || cfgKey === "maxfall") { cfgMax = Math.max(30, Math.abs(cfgVal)*5); cfgStep = 0.1; }
+ else if (cfgKey === "min" || cfgKey === "max" || cfgKey === "minVal" || cfgKey === "maxVal") { cfgMin = -1000; cfgMax = 1000; cfgStep = 1; }
  controls.push({ type:"number", key:cfgKey, label:cfgKey, default:cfgVal, min:cfgMin, max:cfgMax, step:cfgStep });
  } else if (cfgType === "boolean") {
  controls.push({ type:"select", key:cfgKey, label:cfgKey, default:String(cfgVal),
@@ -4479,6 +4551,61 @@ var SLOTS = [
  // Priority 2 & 3 removed: bare number/bool extraction creates too many unhelpful cards.
  // Only CFG-style blocks (var X_CFG = {...}) are worth showing as editable nodes.
  return null;
+ }
+
+ // ===== Rando script generator (mirrors Rando.txt buildScript) =====
+ function buildRandoScript(rngList) {
+ if (!rngList || !rngList.length) return "";
+ var L = [];
+ L.push("// ── Rando BEGIN ──────────────────────────────────────────");
+ L.push("// RANDO_CONFIG: " + JSON.stringify(rngList));
+ for (var ri = 0; ri < rngList.length; ri++) {
+ var r = rngList[ri];
+ var vn = (r.varName || "rng").replace(/[^a-zA-Z0-9_]/g, "_") || ("rng" + ri);
+ var mn = parseFloat(r.min) || 0;
+ var mx = parseFloat(r.max) || 10;
+ L.push("");
+ L.push("// RNG: " + vn);
+ if (r.onlyOnce) L.push("if(this._rando_" + vn + "_done===undefined){");
+ var ind = r.onlyOnce ? "  " : "";
+ // Roll
+ if (r.isInt) {
+ L.push(ind + "var " + vn + " = Math.floor(Math.random()*(" + (mx - mn + 1) + ")+" + mn + ");");
+ } else {
+ L.push(ind + "var " + vn + " = +(Math.random()*(" + mx + "-" + mn + ")+" + mn + ").toFixed(4);");
+ }
+ if (r.storeVar) L.push(ind + "this." + vn + " = " + vn + ";");
+ // Rules (simplified - full rule support would need more UI)
+ if (r.rules && r.rules.length) {
+ for (var rui = 0; rui < r.rules.length; rui++) {
+ var rule = r.rules[rui];
+ if (rule.action === "none") continue;
+ var hasIf = (String(rule.val || "").trim() !== "");
+ var ci = ind + (hasIf ? "  " : "");
+ var tgt = rule.clipName || "self";
+ var tRef = (tgt === "self" || tgt === "") ? "this" : "this." + tgt;
+ if (hasIf) L.push(ind + "if(" + vn + " " + rule.op + " " + String(rule.val).trim() + "){");
+ var fn = rule.action, fv = String(rule.frame || "1").trim();
+ if (fn === "gotoAndStop" || fn === "gotoAndPlay") {
+ var fvStr = isNaN(Number(fv)) ? "\"" + fv + "\"" : fv;
+ L.push(ci + "try{ " + tRef + "." + fn + "(" + fvStr + "); }catch(e){}");
+ } else if (fn === "stop" || fn === "play" || fn === "gotoNextFrame" || fn === "gotoPrevFrame") {
+ L.push(ci + "try{ " + tRef + "." + fn + "(); }catch(e){}");
+ } else if (fn === "setOpacity") {
+ L.push(ci + "try{ " + tRef + ".opacity=" + vn + "; }catch(e){}");
+ } else if (fn === "setX") {
+ L.push(ci + "try{ " + tRef + ".x=" + vn + "; }catch(e){}");
+ } else if (fn === "setY") {
+ L.push(ci + "try{ " + tRef + ".y=" + vn + "; }catch(e){}");
+ }
+ if (hasIf) L.push(ind + "}");
+ }
+ }
+ if (r.onlyOnce) { L.push("  this._rando_" + vn + "_done=true;"); L.push("}"); }
+ }
+ L.push("");
+ L.push("// ── Rando END ────────────────────────────────────────────");
+ return L.join("\n");
  }
 
 
@@ -5206,7 +5333,7 @@ var SLOTS = [
 
   function addFFNodeFromCode(filename, code) {
     var parsed = parseCodeToControls(code);
-    if (!parsed) { console.warn("[LT FF] No LT_CFG found in", filename); return; }
+    if (!parsed) { console.warn("[LT FF] No LT_CFG or RANDO_CONFIG found in", filename); return; }
     var label = filename.replace(/\.txt$/i, "");
     // Detect slot from CFG type or default to update
     var slot = "update";
@@ -5218,6 +5345,8 @@ var SLOTS = [
       _template: code, _rawCode: code, _controls: parsed.controls,
       _cfgMode: true, _cfgVarName: parsed._cfgVarName,
       _cfgJsonStr: parsed._cfgJsonStr, _cfgObj: parsed._cfgObj,
+      _randoMode: parsed._randoMode || false,
+      _randoConfig: parsed._randoConfig || null,
       slot: slot
     };
     for (var ci=0; ci<parsed.controls.length; ci++) {
