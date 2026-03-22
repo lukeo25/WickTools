@@ -282,7 +282,7 @@ var ACTIONS=[
 ];
 
 function newRng(){
-  return {id:mkId(), varName:"rng"+_rc, min:"0", max:"10", isInt:true, onlyOnce:false, storeVar:false, timerSec:"0", rules:[newRule()]};
+  return {id:mkId(), varName:"rng"+_rc, min:"0", max:"10", isInt:true, onlyOnce:false, storeVar:false, rules:[newRule()]};
 }
 function newRule(){
   return {id:mkId(), op:"==", val:"", clipName:"self", action:"none", frame:"1"};
@@ -327,15 +327,6 @@ function makeRngBlock(r){
   checks.appendChild(makeChk("Run once",r.onlyOnce,function(v){r.onlyOnce=v;}));
   checks.appendChild(makeChk("Store on clip",r.storeVar,function(v){r.storeVar=v;}));
   div.appendChild(checks);
-
-  // Timer input
-  var timerRow=document.createElement("div"); timerRow.style.marginTop="8px";
-  appendField(timerRow,"Timer (sec, 0 = every frame)",function(){
-    var i=document.createElement("input"); i.type="number"; i.value=r.timerSec||"0"; i.step="0.1"; i.min="0";
-    i.oninput=function(){r.timerSec=i.value;};
-    return i;
-  });
-  div.appendChild(timerRow);
 
   // Rules
   var sec=document.createElement("div"); sec.className="section"; sec.style.marginTop="12px"; sec.textContent="IF / THEN RULES";
@@ -448,7 +439,6 @@ function parseConfig(scriptText){
         isInt: !!r.isInt,
         onlyOnce: !!r.onlyOnce,
         storeVar: !!r.storeVar,
-        timerSec: String(r.timerSec||"0"),
         rules: (r.rules||[]).map(function(rule){
           return { id:mkId(), op:rule.op||"==", val:String(rule.val||""), clipName:rule.clipName||"self", action:rule.action||"none", frame:String(rule.frame||"1") };
         })
@@ -466,26 +456,10 @@ function buildScript(rngList){
     var vn=(r.varName||"rng").replace(/[^a-zA-Z0-9_]/g,"_")||"rng"+ri;
     var mn=parseFloat(r.min)||0;
     var mx=parseFloat(r.max)||10;
-    var timerSec=parseFloat(r.timerSec)||0;
     L.push("");
     L.push("// RNG: "+vn);
-    
-    var ind="";
-    
-    // Timer wrapper
-    if(timerSec>0){
-      L.push("if(!this._rando_"+vn+"_lastTime) this._rando_"+vn+"_lastTime = 0;");
-      L.push("var _now = Date.now();");
-      L.push("if(_now - this._rando_"+vn+"_lastTime >= "+(timerSec*1000)+"){");
-      L.push("this._rando_"+vn+"_lastTime = _now;");
-      ind="  ";
-    }
-    
-    // OnlyOnce wrapper
-    if(r.onlyOnce){
-      L.push(ind+"if(this._rando_"+vn+"_done===undefined){");
-      ind+="  ";
-    }
+    if(r.onlyOnce) L.push("if(this._rando_"+vn+"_done===undefined){");
+    var ind=r.onlyOnce?"  ":"";
 
     // Roll
     if(r.isInt){
@@ -523,17 +497,7 @@ function buildScript(rngList){
       if(hasIf) L.push(ind+"}");
     });
 
-    // Close onlyOnce
-    if(r.onlyOnce){
-      var unind=ind.slice(2);
-      L.push(unind+"  this._rando_"+vn+"_done=true;");
-      L.push(unind+"}");
-    }
-    
-    // Close timer
-    if(timerSec>0){
-      L.push("}");
-    }
+    if(r.onlyOnce){ L.push("  this._rando_"+vn+"_done=true;"); L.push("}"); }
   });
   L.push("");
   L.push("// ── Rando END ────────────────────────────────────────────");
@@ -552,10 +516,8 @@ document.getElementById("btnCreate").addEventListener("click", function(){
   // Read by UUID — no selection needed
   try{ if(typeof bridge.getUpdateScriptByInfo==="function") existing=bridge.getUpdateScriptByInfo(currentInfo)||""; }catch(e){}
   if(!existing){ try{ if(typeof bridge.getUpdateScriptOnSelection==="function") existing=bridge.getUpdateScriptOnSelection()||""; }catch(e){} }
-  existing=existing.replace(/\/\/ ── Rando BEGIN[\s\S]*?\/\/ ── Rando END[^\n]*\n?/g,"").trim();
+  existing=existing.replace(/\/\/ ── Rando BEGIN[\s\S]*?\/\/ ── Rando END\n?/g,"").trim();
   var combined=(existing?existing+"\n\n":"")+code;
-  // Clean up excessive blank lines
-  combined=combined.replace(/\n{3,}/g,"\n\n").trim();
 
   try{
     // Write by UUID — no selection needed
