@@ -113,29 +113,69 @@ function setStatus(msg,kind){
 var currentInfo=null;
 var childNames=[];
 
-// Simplified tryLoadExisting (from working v7)
 function tryLoadExisting(){
-  var bridge=getBridge(); if(!bridge) return;
+  var bridge=getBridge();
+  if(!bridge){ setStatus("No bridge found.", "bad"); return; }
   if(!currentInfo||!currentInfo.uuid){ setStatus("Select a clip then click Create."); return; }
+
   var script="";
-  // Use getUpdateScriptByInfo — reads by UUID, no selection required
+  var method="none";
+
+  // Method 1: getUpdateScriptByInfo — by UUID, no selection needed
   try{
     if(typeof bridge.getUpdateScriptByInfo==="function"){
-      script=bridge.getUpdateScriptByInfo(currentInfo)||"";
+      var r1=bridge.getUpdateScriptByInfo(currentInfo);
+      if(typeof r1==="string"&&r1.length){ script=r1; method="byInfo"; }
     }
-  }catch(e){}
-  // Fallback: getUpdateScriptOnSelection (only works if clip happens to be selected)
+  }catch(e){ setStatus("getUpdateScriptByInfo error: "+e.message,"bad"); return; }
+
+  // Method 2: direct clip object walk
   if(!script){
-    try{ if(typeof bridge.getUpdateScriptOnSelection==="function") script=bridge.getUpdateScriptOnSelection()||""; }catch(e){}
+    try{
+      var ed=getEditor(), proj=getProject();
+      var clip=null;
+      var sel=proj&&proj.selection||ed&&ed.selection||null;
+      if(sel&&typeof sel.getSelectedObject==="function") clip=sel.getSelectedObject();
+      if(!clip&&ed&&ed.selectedObjects) clip=ed.selectedObjects[0]||null;
+      if(clip){
+        var target=clip.clipAsset||clip;
+        // Try every known script reading method
+        if(!script&&typeof target.getScript==="function"){ var gs=target.getScript("update"); if(typeof gs==="string") script=gs; else if(gs&&gs.source) script=gs.source; }
+        if(!script&&target.scripts&&target.scripts.update){ var us=target.scripts.update; script=typeof us==="string"?us:(us.src||us.source||us.code||us.script||""); }
+        if(!script&&target.updateScript) script=target.updateScript;
+        if(script) method="directClip";
+      }
+    }catch(e){}
   }
-  if(!script){ setStatus("Clip loaded — no existing script found. Configure and click Create."); return; }
+
+  // Method 3: getUpdateScriptOnSelection
+  if(!script){
+    try{
+      if(typeof bridge.getUpdateScriptOnSelection==="function"){
+        var r3=bridge.getUpdateScriptOnSelection();
+        if(typeof r3==="string"&&r3.length){ script=r3; method="onSelection"; }
+      }
+    }catch(e){}
+  }
+
+  if(!script){
+    setStatus("Clip loaded ("+( currentInfo.identifier||currentInfo.uuid)+") — no script found. Configure and click Create.");
+    return;
+  }
+
+  var hasRando=script.indexOf("Rando BEGIN")>=0;
+  if(!hasRando){
+    setStatus("Clip loaded — script exists ("+method+") but no Rando block. Configure and click Create.");
+    return;
+  }
+
   var parsed=parseConfig(script);
   if(parsed&&parsed.length){
     rngs=parsed;
     renderAll();
-    setStatus("✎ Loaded existing Rando config ("+parsed.length+" RNG"+(parsed.length>1?"s":"")+") — edit and click Create to update.", "warn");
+    setStatus("✎ Loaded "+parsed.length+" RNG(s) via "+method+" — edit and click Create to update.", "warn");
   } else {
-    setStatus("Clip loaded — no existing Rando config. Configure and click Create.");
+    setStatus("Rando block found but config comment missing — cannot parse. Re-inject to upgrade.", "warn");
   }
 }
 
@@ -242,7 +282,7 @@ var ACTIONS=[
 ];
 
 function newRng(){
-  return {id:mkId(), varName:"rng"+_rc, min:"0", max:"10", isInt:true, onlyOnce:false, storeVar:false, rules:[newRule()]};
+  return {id:mkId(), varName:"rng"+_rc, min:"0", max:"10", isInt:true, onlyOnce:false, storeVar:false, timerSec:"0", rules:[newRule()]};
 }
 function newRule(){
   return {id:mkId(), op:"==", val:"", clipName:"self", action:"none", frame:"1"};
@@ -287,6 +327,15 @@ function makeRngBlock(r){
   checks.appendChild(makeChk("Run once",r.onlyOnce,function(v){r.onlyOnce=v;}));
   checks.appendChild(makeChk("Store on clip",r.storeVar,function(v){r.storeVar=v;}));
   div.appendChild(checks);
+
+  // Timer input
+  var timerRow=document.createElement("div"); timerRow.style.marginTop="8px";
+  appendField(timerRow,"Timer (sec, 0 = every frame)",function(){
+    var i=document.createElement("input"); i.type="number"; i.value=r.timerSec||"0"; i.step="0.1"; i.min="0";
+    i.oninput=function(){r.timerSec=i.value;};
+    return i;
+  });
+  div.appendChild(timerRow);
 
   // Rules
   var sec=document.createElement("div"); sec.className="section"; sec.style.marginTop="12px"; sec.textContent="IF / THEN RULES";
@@ -399,6 +448,7 @@ function parseConfig(scriptText){
         isInt: !!r.isInt,
         onlyOnce: !!r.onlyOnce,
         storeVar: !!r.storeVar,
+        timerSec: String(r.timerSec||"0"),
         rules: (r.rules||[]).map(function(rule){
           return { id:mkId(), op:rule.op||"==", val:String(rule.val||""), clipName:rule.clipName||"self", action:rule.action||"none", frame:String(rule.frame||"1") };
         })
@@ -416,10 +466,26 @@ function buildScript(rngList){
     var vn=(r.varName||"rng").replace(/[^a-zA-Z0-9_]/g,"_")||"rng"+ri;
     var mn=parseFloat(r.min)||0;
     var mx=parseFloat(r.max)||10;
+    var timerSec=parseFloat(r.timerSec)||0;
     L.push("");
     L.push("// RNG: "+vn);
-    if(r.onlyOnce) L.push("if(this._rando_"+vn+"_done===undefined){");
-    var ind=r.onlyOnce?"  ":"";
+    
+    var ind="";
+    
+    // Timer wrapper
+    if(timerSec>0){
+      L.push("if(!this._rando_"+vn+"_lastTime) this._rando_"+vn+"_lastTime = 0;");
+      L.push("var _now = Date.now();");
+      L.push("if(_now - this._rando_"+vn+"_lastTime >= "+(timerSec*1000)+"){");
+      L.push("this._rando_"+vn+"_lastTime = _now;");
+      ind="  ";
+    }
+    
+    // OnlyOnce wrapper
+    if(r.onlyOnce){
+      L.push(ind+"if(this._rando_"+vn+"_done===undefined){");
+      ind+="  ";
+    }
 
     // Roll
     if(r.isInt){
@@ -457,7 +523,17 @@ function buildScript(rngList){
       if(hasIf) L.push(ind+"}");
     });
 
-    if(r.onlyOnce){ L.push("  this._rando_"+vn+"_done=true;"); L.push("}"); }
+    // Close onlyOnce
+    if(r.onlyOnce){
+      var unind=ind.slice(2);
+      L.push(unind+"  this._rando_"+vn+"_done=true;");
+      L.push(unind+"}");
+    }
+    
+    // Close timer
+    if(timerSec>0){
+      L.push("}");
+    }
   });
   L.push("");
   L.push("// ── Rando END ────────────────────────────────────────────");
