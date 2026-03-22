@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Luke Tools - SVG Layer Importer (Curves)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 20px; background: #1a1a1f; color: #eaeaea; font-family: Arial, sans-serif; min-height: 100vh; }
+    .panel { max-width: 700px; margin: 0 auto; border: 1px solid #444; background: rgba(0,0,0,0.35); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .title { font-size: 14px; color: #9aa; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 8px; display:flex; align-items:center; gap:10px; }
+    .brand { width: 26px; height: 26px; border-radius: 4px; background:#111; border:1px solid #333; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .brand img { width:100%; height:100%; object-fit:cover; display:block; }
+    .drop-zone { width: 100%; padding: 30px; background: #1a1a1a; color: #aaa; border: 2px dashed #555; border-radius: 6px; text-align:center; cursor:pointer; transition: all 0.2s; }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #21b26b; background: rgba(33,178,107,0.1); }
+    .drop-zone input { display: none; }
+    button { padding: 12px 16px; border: none; border-radius: 6px; background: #21b26b; color: #fff; font-weight: bold; cursor: pointer; font-size: 13px; }
+    button.secondary { background:#3a3a3a; }
+    button:disabled { opacity: 0.55; cursor: default; }
+    #consoleLog { background: #111; border: 1px solid #333; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; color: #0f0; height: 140px; overflow-y: auto; white-space: pre-wrap; }
+    .settings { font-size: 12px; color: #cfcfcf; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+    .chk { display:flex; align-items:center; gap:6px; }
+    .chk input { accent-color: #21b26b; }
+    .hint { font-size: 11px; color: #888; line-height: 1.4; }
+    .row { display:flex; gap:10px; flex-wrap: wrap; }
+    .row > button { flex:1; min-width: 120px; }
+    .layers-list { background: #111; border: 1px solid #333; border-radius: 6px; max-height: 300px; overflow-y: auto; }
+    .layer-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #222; font-size: 12px; }
+    .layer-item:last-child { border-bottom: none; }
+    .layer-item:hover { background: rgba(255,255,255,0.05); }
+    .layer-item input[type="checkbox"] { accent-color: #21b26b; width: 16px; height: 16px; }
+    .layer-thumb { width: 50px; height: 50px; object-fit: contain; background: repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50% / 8px 8px; border-radius: 4px; flex-shrink: 0; border: 1px solid #444; }
+    .layer-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .layer-info { font-size: 10px; color: #888; }
+    .empty-msg { padding: 30px; text-align: center; color: #666; }
+    .depth-0 { padding-left: 12px; }
+    .depth-1 { padding-left: 28px; }
+    .depth-2 { padding-left: 44px; }
+    .depth-3 { padding-left: 60px; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="title">
+      <span class="brand" title="Luke Tools">
+        <img alt="LT" src="https://raw.githubusercontent.com/lukeo25/WickTools/main/LukeToolsBrand.png" onerror="this.style.display='none'">
+      </span>
+      <span>SVG Layer Importer (Curves)</span>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <p style="margin:0 0 8px 0; font-size: 14px;">📁 Drop an .SVG file here or click to browse</p>
+      <p style="margin:0; font-size: 11px; color: #666;">Each &lt;g&gt; group becomes a Wick Clip with vector paths</p>
+      <input type="file" id="svgInput" accept=".svg">
+    </div>
+
+    <div class="settings">
+      <span class="chk">
+        <input type="checkbox" id="wrapAsClip" checked>
+        <label for="wrapAsClip">Convert each layer to Clip</label>
+      </span>
+      <span class="chk">
+        <input type="checkbox" id="topLevelOnly" checked>
+        <label for="topLevelOnly">Top-level groups only</label>
+      </span>
+      <span class="chk">
+        <input type="checkbox" id="separatePaths">
+        <label for="separatePaths">Keep paths separate</label>
+      </span>
+    </div>
+
+    <div class="layers-list" id="layersList">
+      <div class="empty-msg">Ready! Drop an SVG file above.</div>
+    </div>
+
+    <div class="row">
+      <button id="selectAllBtn" class="secondary" type="button">Select All</button>
+      <button id="selectNoneBtn" class="secondary" type="button">Select None</button>
+      <button id="importBtn" disabled>Import as Curves</button>
+    </div>
+
+    <div class="hint">
+      Each &lt;g&gt; group is imported as editable vector paths using Paper.js, then wrapped into a Clip with the group name.
+    </div>
+
+    <div class="row">
+      <button id="clearLogBtn" class="secondary" type="button">Clear Log</button>
+    </div>
+
+    <div id="consoleLog">SVG Layer Importer (Curves) ready.</div>
+  </div>
+
+<script>
+var F_Screen = 1;
+(function () {
+  "use strict";
+
+  var logEl = document.getElementById("consoleLog");
+  var importBtn = document.getElementById("importBtn");
+  var clearLogBtn = document.getElementById("clearLogBtn");
+  var selectAllBtn = document.getElementById("selectAllBtn");
+  var selectNoneBtn = document.getElementById("selectNoneBtn");
+  var dropZone = document.getElementById("dropZone");
+  var svgInput = document.getElementById("svgInput");
+  var layersList = document.getElementById("layersList");
+
+  var parsedLayers = [];
+  var svgSourceDoc = null;
+  var svgWidth = 0;
+  var svgHeight = 0;
+
+  function s(v) { try { return String(v == null ? "" : v); } catch (e) { return ""; } }
+
+  function log(msg) {
+    logEl.textContent += (logEl.textContent ? "\n" : "") + msg;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function setLog(msg) {
+    logEl.textContent = msg || "";
+  }
+
+  clearLogBtn.addEventListener("click", function () { setLog("Ready."); });
+
+  // ===== Bridge / Editor Access =====
+  function getBridge() {
+    try { if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; } catch (e) {}
+    try { if (window.parent && window.parent.LukeToolsLocalPanelBridge) return window.parent.LukeToolsLocalPanelBridge; } catch (e) {}
+    return null;
+  }
+
+  function getEditor(bridge) {
+    try { if (bridge && typeof bridge.getEditor === "function") return bridge.getEditor(); } catch (e) {}
+    try { if (window.parent && window.parent.wickEditor) return window.parent.wickEditor; } catch (e) {}
+    try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e) {}
+    return null;
+  }
+
+  function getProject(ed) {
+    try { if (ed && ed.project) return ed.project; } catch (e) {}
+    return null;
+  }
+
+  function getWick() {
+    try { if (window.parent && window.parent.Wick) return window.parent.Wick; } catch (e) {}
+    try { if (window.Wick) return window.Wick; } catch (e) {}
+    return null;
+  }
+
+  function getPaper() {
+    try { if (window.parent && window.parent.paper) return window.parent.paper; } catch (e) {}
+    return null;
+  }
+
+  // ===== Timeline / Frame Access =====
+  function findActiveTimeline(project) {
+    if (!project) return null;
+    try { if (project.activeTimeline) return project.activeTimeline; } catch (e) {}
+    try { if (project.timeline) return project.timeline; } catch (e) {}
+    try { if (project.focus && project.focus.timeline) return project.focus.timeline; } catch (e) {}
+    return null;
+  }
+
+  function getCurrentFrameNumber(project) {
+    var n = 1;
+    try { if (typeof project.currentFrameNumber === "number") n = project.currentFrameNumber; } catch (e) {}
+    return (n && isFinite(n)) ? n : 1;
+  }
+
+  function findFrameFromTimeline(tl, frameNum) {
+    if (!tl) return null;
+    try { if (typeof tl.getFrameAtPlayhead === "function") { var f = tl.getFrameAtPlayhead(); if (f) return f; } } catch (e) {}
+    try { if (typeof tl.getCurrentFrame === "function") { var f = tl.getCurrentFrame(frameNum); if (f) return f; } } catch (e) {}
+    try { if (typeof tl.getActiveFrame === "function") { var f = tl.getActiveFrame(); if (f) return f; } } catch (e) {}
+    try { if (tl.layers && tl.layers.length && tl.layers[0].frames && tl.layers[0].frames.length) return tl.layers[0].frames[0]; } catch (e) {}
+    return null;
+  }
+
+  function insertPathIntoFrame(frame, pathObj) {
+    if (!frame || !pathObj) return false;
+    var fns = ["addPath", "addObject", "addChild", "insertPath", "insertObject"];
+    for (var i = 0; i < fns.length; i++) {
+      try { if (typeof frame[fns[i]] === "function") { frame[fns[i]](pathObj); return true; } } catch (e) {}
+    }
+    var props = ["paths", "objects", "wickObjects", "children"];
+    for (var j = 0; j < props.length; j++) {
+      try { if (frame[props[j]] && typeof frame[props[j]].push === "function") { frame[props[j]].push(pathObj); return true; } } catch (e) {}
+    }
+    return false;
+  }
+
+  // ===== Selection & Clip Creation =====
+  function selectionClear(project, ed) {
+    try { if (project && project.selection && typeof project.selection.clear === "function") project.selection.clear(); } catch (e) {}
+    try { if (ed && typeof ed.clearSelection === "function") ed.clearSelection(); } catch (e) {}
+  }
+
+  function selectionSelectSingle(project, ed, obj) {
+    selectionClear(project, ed);
+    try {
+      if (project && project.selection && typeof project.selection.select === "function") {
+        project.selection.select(obj);
+        return true;
+      }
+    } catch (e) {}
+    try {
+      if (project && project.selection && typeof project.selection.selectMultipleObjects === "function") {
+        project.selection.selectMultipleObjects([obj]);
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  function selectionSelectMultiple(project, ed, objs) {
+    selectionClear(project, ed);
+    try {
+      if (project && project.selection && typeof project.selection.selectMultipleObjects === "function") {
+        project.selection.selectMultipleObjects(objs);
+        return true;
+      }
+    } catch (e) {}
+    // Fallback: select one by one
+    for (var i = 0; i < objs.length; i++) {
+      try {
+        if (project && project.selection && typeof project.selection.select === "function") {
+          project.selection.select(objs[i]);
+        }
+      } catch (e) {}
+    }
+    return true;
+  }
+
+  function createClipFromSelection(project, ed, identifier) {
+    try {
+      if (project && typeof project.createClipFromSelection === "function") {
+        project.createClipFromSelection({ identifier: String(identifier || "Clip"), type: "Clip" });
+        return { ok: true };
+      }
+    } catch (e) {}
+    try {
+      if (ed && typeof ed.createClipFromSelection === "function") {
+        ed.createClipFromSelection(String(identifier || "Clip"), true);
+        return { ok: true };
+      }
+    } catch (e) {}
+    try {
+      if (ed && ed.actionManager && typeof ed.actionManager.doAction === "function") {
+        ed.actionManager.doAction(["createClipFromSelection"], [String(identifier || "Clip")]);
+        return { ok: true };
+      }
+    } catch (e) {}
+    return { ok: false };
+  }
+
+  function markDirty(ed) {
+    try { if (ed && ed.project && typeof ed.project.markAsModified === "function") ed.project.markAsModified(); } catch (e) {}
+    try { if (ed && ed.project) ed.project.unsavedChanges = true; } catch (e) {}
+    try { if (ed && typeof ed.projectDidChange === "function") ed.projectDidChange({ actionName: "LukeTools" }); } catch (e) {}
+    try { if (ed && typeof ed.syncToEngine === "function") ed.syncToEngine(); } catch (e) {}
+  }
+
+  // ===== SVG Sanitization =====
+  function sanitizeSvg(svgText) {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(svgText, "image/svg+xml");
+    var svg = doc.documentElement;
+    if (!svg || svg.nodeName.toLowerCase() !== "svg") throw new Error("Not an SVG");
+
+    var banned = ["script", "foreignobject", "iframe", "object", "embed"];
+    banned.forEach(function (tag) {
+      var nodes = doc.getElementsByTagName(tag);
+      var list = [];
+      for (var i = 0; i < nodes.length; i++) list.push(nodes[i]);
+      list.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
+    });
+
+    if (!svg.getAttribute("viewBox")) {
+      var w = parseFloat(svg.getAttribute("width")) || 100;
+      var h = parseFloat(svg.getAttribute("height")) || 100;
+      svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+    }
+
+    return new XMLSerializer().serializeToString(doc);
+  }
+
+  // ===== Paper.js SVG → Wick.Path Conversion =====
+  function ensurePaperProject(paper) {
+    try { if (!paper.project) new paper.Project(); } catch (e) {}
+  }
+
+  function importSvgAsGroup(paper, svgText) {
+    ensurePaperProject(paper);
+    try { return paper.project.importSVG(svgText, { insert: false }); } catch (e) { return null; }
+  }
+
+  function getAllPathsAndCompound(paper, item) {
+    var out = [];
+    if (!item) return out;
+    try { var ps = item.getItems({ class: paper.Path }) || []; for (var i = 0; i < ps.length; i++) out.push(ps[i]); } catch (e) {}
+    try { var cps = item.getItems({ class: paper.CompoundPath }) || []; for (var j = 0; j < cps.length; j++) out.push(cps[j]); } catch (e) {}
+    return out;
+  }
+
+  function convertGroupToJsonList(paper, group, separate) {
+    var list = [];
+    if (!group) return list;
+
+    if (separate) {
+      var items = getAllPathsAndCompound(paper, group);
+      for (var i = 0; i < items.length; i++) {
+        try {
+          var clone = items[i].clone({ insert: false });
+          var json = clone.exportJSON({ asString: false });
+          clone.remove();
+          if (json) list.push(json);
+        } catch (e) {}
+      }
+    } else {
+      try {
+        var compound = new paper.CompoundPath({ insert: false });
+        var source = getAllPathsAndCompound(paper, group);
+        for (var si = 0; si < source.length; si++) {
+          var src = source[si];
+          if (!src) continue;
+          if (src.className === "CompoundPath" && src.children && src.children.length) {
+            for (var ci = 0; ci < src.children.length; ci++) {
+              try { compound.addChild(src.children[ci].clone({ insert: false })); } catch (e) {}
+            }
+          } else {
+            try { compound.addChild(src.clone({ insert: false })); } catch (e) {}
+          }
+        }
+        if (compound.children && compound.children.length) {
+          if (source[0]) {
+            try { compound.fillColor = source[0].fillColor; } catch (e) {}
+            try { compound.strokeColor = source[0].strokeColor; } catch (e) {}
+            try { compound.strokeWidth = source[0].strokeWidth; } catch (e) {}
+          }
+          list.push(compound.exportJSON({ asString: false }));
+        }
+        try { compound.remove(); } catch (e) {}
+      } catch (e) {
+        try { list.push(group.exportJSON({ asString: false })); } catch (e2) {}
+      }
+    }
+
+    return list;
+  }
+
+  // ===== Helpers =====
+  function escapeHtml(str) {
+    var div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  function sanitizeName(str) {
+    return (str || "layer").replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 50);
+  }
+
+  function delay(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
+  // ===== SVG Parsing =====
+  function getGroupName(g) {
+    return g.getAttribute("inkscape:label") || g.getAttribute("label") || g.id || null;
+  }
+
+  function extractLayers(svgDoc, topLevelOnly) {
+    var layers = [];
+    var svg = svgDoc.querySelector("svg");
+    if (!svg) return layers;
+
+    var vb = svg.getAttribute("viewBox");
+    if (vb) {
+      var parts = vb.split(/[\s,]+/).map(parseFloat);
+      svgWidth = parts[2] || 100;
+      svgHeight = parts[3] || 100;
+    } else {
+      svgWidth = parseFloat(svg.getAttribute("width")) || 100;
+      svgHeight = parseFloat(svg.getAttribute("height")) || 100;
+    }
+
+    function traverse(parent, depth) {
+      var children = parent.children;
+      for (var i = 0; i < children.length; i++) {
+        var el = children[i];
+        if (el.tagName.toLowerCase() === "g") {
+          var name = getGroupName(el);
+          if (name) {
+            var groupSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgWidth + ' ' + svgHeight + '">';
+            var defs = svg.querySelector("defs");
+            if (defs) groupSvg += defs.outerHTML;
+            groupSvg += el.outerHTML + '</svg>';
+
+            layers.push({
+              name: name,
+              svgText: groupSvg,
+              depth: depth,
+              selected: true,
+              thumbnail: null
+            });
+          }
+          if (!topLevelOnly) {
+            traverse(el, depth + 1);
+          }
+        }
+      }
+    }
+
+    traverse(svg, 0);
+    return layers;
+  }
+
+  // ===== Thumbnail Generation =====
+  function generateThumbnail(svgText, maxSize) {
+    return new Promise(function (resolve) {
+      try {
+        var blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+        var url = URL.createObjectURL(blob);
+        var img = new Image();
+        img.onload = function () {
+          var scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+          var w = Math.round(img.width * scale) || maxSize;
+          var h = Math.round(img.height * scale) || maxSize;
+          var canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = function () {
+          URL.revokeObjectURL(url);
+          resolve("");
+        };
+        img.src = url;
+      } catch (e) {
+        resolve("");
+      }
+    });
+  }
+
+  // ===== Drag & Drop =====
+  dropZone.addEventListener("click", function () { svgInput.click(); });
+  dropZone.addEventListener("dragover", function (e) { e.preventDefault(); dropZone.classList.add("dragover"); });
+  dropZone.addEventListener("dragleave", function () { dropZone.classList.remove("dragover"); });
+  dropZone.addEventListener("drop", function (e) {
+    e.preventDefault();
+    dropZone.classList.remove("dragover");
+    if (e.dataTransfer.files[0]) loadSVGFile(e.dataTransfer.files[0]);
+  });
+  svgInput.addEventListener("change", function () {
+    if (svgInput.files[0]) loadSVGFile(svgInput.files[0]);
+  });
+
+  // ===== Load SVG =====
+  function loadSVGFile(file) {
+    if (!file.name.toLowerCase().endsWith(".svg")) {
+      log("ERROR: Not an .svg file");
+      return;
+    }
+
+    log("Reading: " + file.name + "...");
+    parsedLayers = [];
+
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        var parser = new DOMParser();
+        svgSourceDoc = parser.parseFromString(e.target.result, "image/svg+xml");
+
+        var parseError = svgSourceDoc.querySelector("parsererror");
+        if (parseError) {
+          log("ERROR: Invalid SVG file");
+          return;
+        }
+
+        var topLevelOnly = document.getElementById("topLevelOnly").checked;
+        parsedLayers = extractLayers(svgSourceDoc, topLevelOnly);
+
+        log("Parsed! Found " + parsedLayers.length + " groups. Canvas: " + svgWidth + "×" + svgHeight);
+
+        if (parsedLayers.length === 0) {
+          log("No named <g> groups found. Groups need id or inkscape:label.");
+        }
+
+        renderLayerList();
+        importBtn.disabled = parsedLayers.length === 0;
+
+        // Generate thumbnails async
+        parsedLayers.forEach(function (L, idx) {
+          generateThumbnail(L.svgText, 50).then(function (thumb) {
+            L.thumbnail = thumb;
+            var img = layersList.querySelector('.layer-thumb[data-idx="' + idx + '"]');
+            if (img && thumb) img.src = thumb;
+          });
+        });
+
+      } catch (err) {
+        log("ERROR: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function renderLayerList() {
+    if (parsedLayers.length === 0) {
+      layersList.innerHTML = '<div class="empty-msg">No named groups found</div>';
+      return;
+    }
+    var html = "";
+    for (var i = 0; i < parsedLayers.length; i++) {
+      var L = parsedLayers[i];
+      var depthClass = "depth-" + Math.min(L.depth, 3);
+      html += '<div class="layer-item ' + depthClass + '">';
+      html += '<input type="checkbox" data-idx="' + i + '" ' + (L.selected ? "checked" : "") + '>';
+      html += '<img class="layer-thumb" data-idx="' + i + '" src="' + (L.thumbnail || "") + '">';
+      html += '<span class="layer-name">' + escapeHtml(L.name) + '</span>';
+      html += '<span class="layer-info">depth: ' + L.depth + '</span>';
+      html += '</div>';
+    }
+    layersList.innerHTML = html;
+    layersList.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        var idx = parseInt(this.getAttribute("data-idx"), 10);
+        if (!isNaN(idx)) parsedLayers[idx].selected = this.checked;
+      });
+    });
+  }
+
+  selectAllBtn.addEventListener("click", function () {
+    parsedLayers.forEach(function (L) { L.selected = true; });
+    layersList.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = true; });
+  });
+
+  selectNoneBtn.addEventListener("click", function () {
+    parsedLayers.forEach(function (L) { L.selected = false; });
+    layersList.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
+  });
+
+  document.getElementById("topLevelOnly").addEventListener("change", function () {
+    if (svgSourceDoc) {
+      parsedLayers = extractLayers(svgSourceDoc, this.checked);
+      renderLayerList();
+      importBtn.disabled = parsedLayers.length === 0;
+      log("Re-scanned: " + parsedLayers.length + " groups");
+      parsedLayers.forEach(function (L, idx) {
+        generateThumbnail(L.svgText, 50).then(function (thumb) {
+          L.thumbnail = thumb;
+          var img = layersList.querySelector('.layer-thumb[data-idx="' + idx + '"]');
+          if (img && thumb) img.src = thumb;
+        });
+      });
+    }
+  });
+
+  // ===== Import =====
+  importBtn.addEventListener("click", async function () {
+    var bridge = getBridge();
+    var ed = getEditor(bridge);
+    var project = getProject(ed);
+    var Wick = getWick();
+    var paper = getPaper();
+
+    if (!ed) { log("ERROR: Editor not found"); return; }
+    if (!project) { log("ERROR: Project not found"); return; }
+    if (!Wick) { log("ERROR: Wick namespace not found"); return; }
+    if (!Wick.Path) { log("ERROR: Wick.Path not found"); return; }
+    if (!paper) { log("ERROR: paper.js not found"); return; }
+
+    var tl = findActiveTimeline(project);
+    if (!tl) { log("ERROR: No active timeline"); return; }
+
+    var frameNum = getCurrentFrameNumber(project);
+    var stageFrame = findFrameFromTimeline(tl, frameNum);
+    if (!stageFrame) { log("ERROR: No current frame"); return; }
+
+    var selected = parsedLayers.filter(function (L) { return L.selected; });
+    if (!selected.length) { log("ERROR: No layers selected"); return; }
+
+    var wrapAsClip = document.getElementById("wrapAsClip").checked;
+    var separatePaths = document.getElementById("separatePaths").checked;
+
+    importBtn.disabled = true;
+    log("Importing " + selected.length + " groups as curves...");
+
+    var totalInserted = 0;
+    var totalFailed = 0;
+
+    for (var idx = 0; idx < selected.length; idx++) {
+      var L = selected[idx];
+      log("[" + (idx + 1) + "/" + selected.length + "] " + L.name);
+
+      try {
+        var sanitized = sanitizeSvg(L.svgText);
+        var group = importSvgAsGroup(paper, sanitized);
+        if (!group) {
+          log("  → WARN: Paper.js import failed");
+          totalFailed++;
+          continue;
+        }
+
+        var jsonList = convertGroupToJsonList(paper, group, separatePaths);
+        try { group.remove(); } catch (e) {}
+
+        if (!jsonList.length) {
+          log("  → WARN: No paths found");
+          totalFailed++;
+          continue;
+        }
+
+        // Insert paths into the current frame
+        var insertedPaths = [];
+        for (var i = 0; i < jsonList.length; i++) {
+          var wp = null;
+          try { wp = new Wick.Path({ json: jsonList[i], project: project }); } catch (e) { wp = null; }
+          if (!wp) { try { wp = new Wick.Path({ json: jsonList[i] }); } catch (e) { wp = null; } }
+          if (wp && insertPathIntoFrame(stageFrame, wp)) {
+            insertedPaths.push(wp);
+          }
+        }
+
+        if (insertedPaths.length === 0) {
+          log("  → WARN: Could not insert paths");
+          totalFailed++;
+          continue;
+        }
+
+        totalInserted += insertedPaths.length;
+
+        if (wrapAsClip) {
+          // Select all the paths we just inserted, then createClipFromSelection
+          selectionSelectMultiple(project, ed, insertedPaths);
+          await delay(50); // Give Wick time to process selection
+
+          var r = createClipFromSelection(project, ed, L.name);
+          if (r.ok) {
+            log("  → Clip: " + L.name + " (" + insertedPaths.length + " paths)");
+          } else {
+            log("  → Paths added, clip wrap failed");
+          }
+        } else {
+          log("  → Stage: " + insertedPaths.length + " paths");
+        }
+
+        markDirty(ed);
+        await delay(30);
+
+      } catch (err) {
+        log("  → ERROR: " + err.message);
+        totalFailed++;
+      }
+    }
+
+    markDirty(ed);
+    log("Done! Inserted " + totalInserted + " paths, " + totalFailed + " groups failed");
+    importBtn.disabled = false;
+  });
+
+})();
+</script>
+</body>
+</html>
