@@ -552,8 +552,10 @@ document.getElementById("btnCreate").addEventListener("click", function(){
   // Read by UUID — no selection needed
   try{ if(typeof bridge.getUpdateScriptByInfo==="function") existing=bridge.getUpdateScriptByInfo(currentInfo)||""; }catch(e){}
   if(!existing){ try{ if(typeof bridge.getUpdateScriptOnSelection==="function") existing=bridge.getUpdateScriptOnSelection()||""; }catch(e){} }
-  existing=existing.replace(/\/\/ ── Rando BEGIN[\s\S]*?\/\/ ── Rando END\n?/g,"").trim();
+  existing=existing.replace(/\/\/ ── Rando BEGIN[\s\S]*?\/\/ ── Rando END[^\n]*\n?/g,"").trim();
   var combined=(existing?existing+"\n\n":"")+code;
+  // Clean up excessive blank lines
+  combined=combined.replace(/\n{3,}/g,"\n\n").trim();
 
   try{
     // Write by UUID — no selection needed
