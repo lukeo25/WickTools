@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>GPT SVG Layer Importer Frames V20 fix</title>
+  <title>SVG Layer Importer - Pngs Only</title>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 20px; background: #1a1a1f; color: #eaeaea; font-family: Arial, sans-serif; min-height: 100vh; }
