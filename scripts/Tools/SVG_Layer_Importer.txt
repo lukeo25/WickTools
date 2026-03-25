@@ -2,40 +2,51 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Luke Tools - SVG Layer Importer (Curves)</title>
+  <title>GPT SVG Layer Importer Frames V20 fix</title>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 20px; background: #1a1a1f; color: #eaeaea; font-family: Arial, sans-serif; min-height: 100vh; }
-    .panel { max-width: 700px; margin: 0 auto; border: 1px solid #444; background: rgba(0,0,0,0.35); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .panel { max-width: 750px; margin: 0 auto; border: 1px solid #444; background: rgba(0,0,0,0.35); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
     .title { font-size: 14px; color: #9aa; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 8px; display:flex; align-items:center; gap:10px; }
     .brand { width: 26px; height: 26px; border-radius: 4px; background:#111; border:1px solid #333; display:flex; align-items:center; justify-content:center; overflow:hidden; }
     .brand img { width:100%; height:100%; object-fit:cover; display:block; }
-    .drop-zone { width: 100%; padding: 30px; background: #1a1a1a; color: #aaa; border: 2px dashed #555; border-radius: 6px; text-align:center; cursor:pointer; transition: all 0.2s; }
+    .drop-zone { width: 100%; padding: 24px; background: #1a1a1a; color: #aaa; border: 2px dashed #555; border-radius: 6px; text-align:center; cursor:pointer; transition: all 0.2s; }
     .drop-zone:hover, .drop-zone.dragover { border-color: #21b26b; background: rgba(33,178,107,0.1); }
     .drop-zone input { display: none; }
-    button { padding: 12px 16px; border: none; border-radius: 6px; background: #21b26b; color: #fff; font-weight: bold; cursor: pointer; font-size: 13px; }
+    button { padding: 10px 14px; border: none; border-radius: 6px; background: #21b26b; color: #fff; font-weight: bold; cursor: pointer; font-size: 13px; }
     button.secondary { background:#3a3a3a; }
     button:disabled { opacity: 0.55; cursor: default; }
-    #consoleLog { background: #111; border: 1px solid #333; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; color: #0f0; height: 140px; overflow-y: auto; white-space: pre-wrap; }
-    .settings { font-size: 12px; color: #cfcfcf; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+    #consoleLog { background: #111; border: 1px solid #333; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; color: #0f0; height: 220px; overflow-y: auto; white-space: pre-wrap; }
+    .settings { font-size: 12px; color: #cfcfcf; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
     .chk { display:flex; align-items:center; gap:6px; }
     .chk input { accent-color: #21b26b; }
-    .hint { font-size: 11px; color: #888; line-height: 1.4; }
+    .hint { font-size: 11px; color: #888; line-height: 1.6; background: #111; padding: 10px; border-radius: 6px; }
+    .hint code { background: #222; padding: 2px 6px; border-radius: 3px; color: #21b26b; }
+    .hint b { color: #f90; }
     .row { display:flex; gap:10px; flex-wrap: wrap; }
-    .row > button { flex:1; min-width: 120px; }
-    .layers-list { background: #111; border: 1px solid #333; border-radius: 6px; max-height: 300px; overflow-y: auto; }
-    .layer-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #222; font-size: 12px; }
-    .layer-item:last-child { border-bottom: none; }
-    .layer-item:hover { background: rgba(255,255,255,0.05); }
-    .layer-item input[type="checkbox"] { accent-color: #21b26b; width: 16px; height: 16px; }
-    .layer-thumb { width: 50px; height: 50px; object-fit: contain; background: repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50% / 8px 8px; border-radius: 4px; flex-shrink: 0; border: 1px solid #444; }
-    .layer-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .layer-info { font-size: 10px; color: #888; }
+    .row > button { flex:1; min-width: 100px; }
+    .clips-list { background: #111; border: 1px solid #333; border-radius: 6px; max-height: 250px; overflow-y: auto; }
+    .clip-group { border-bottom: 1px solid #333; }
+    .clip-group:last-child { border-bottom: none; }
+    .clip-header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #1a1a2a; }
+    .clip-header input[type="checkbox"] { accent-color: #21b26b; width: 16px; height: 16px; }
+    .clip-name { font-weight: bold; color: #21b26b; flex: 1; }
+    .clip-count { font-size: 10px; color: #888; background: #333; padding: 2px 8px; border-radius: 10px; }
+    .frame-list { padding: 4px 12px 8px 36px; }
+    .frame-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 11px; color: #aaa; }
+    .frame-item input[type="checkbox"] { accent-color: #21b26b; width: 14px; height: 14px; }
+    .frame-thumb { width: 36px; height: 36px; object-fit: contain; background: repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50% / 6px 6px; border-radius: 3px; border: 1px solid #444; }
+    .frame-name { flex: 1; }
+    .frame-num { color: #666; font-size: 10px; }
     .empty-msg { padding: 30px; text-align: center; color: #666; }
-    .depth-0 { padding-left: 12px; }
-    .depth-1 { padding-left: 28px; }
-    .depth-2 { padding-left: 44px; }
-    .depth-3 { padding-left: 60px; }
+    .separator-row { display: flex; align-items: center; gap: 10px; font-size: 12px; flex-wrap: wrap; }
+    .separator-row label { color: #aaa; }
+    .separator-row input[type="text"] { width: 50px; padding: 6px 10px; background: #111; border: 1px solid #444; border-radius: 4px; color: #fff; text-align: center; font-family: monospace; }
+    .separator-row select { padding: 6px 10px; background: #111; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 12px; }
+    .solo-clips { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #333; }
+    .solo-label { font-size: 10px; color: #666; padding: 4px 12px; }
+    .pivot-icon { color: #f90; margin-left: 4px; }
+    .file-name { font-size: 12px; color: #21b26b; background: #1a2a1a; padding: 8px 12px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -44,49 +55,63 @@
       <span class="brand" title="Luke Tools">
         <img alt="LT" src="https://raw.githubusercontent.com/lukeo25/WickTools/main/LukeToolsBrand.png" onerror="this.style.display='none'">
       </span>
-      <span>SVG Layer Importer (Curves)</span>
+      <span>GPT SVG Layer Importer Frames V20 fix</span>
     </div>
 
     <div class="drop-zone" id="dropZone">
-      <p style="margin:0 0 8px 0; font-size: 14px;">📁 Drop an .SVG file here or click to browse</p>
-      <p style="margin:0; font-size: 11px; color: #666;">Each &lt;g&gt; group becomes a Wick Clip with vector paths</p>
+      <p style="margin:0 0 6px 0; font-size: 14px;">📁 Drop an .SVG file here</p>
+      <p style="margin:0; font-size: 11px; color: #666;">Creates main clip → component clips → frames</p>
       <input type="file" id="svgInput" accept=".svg">
     </div>
 
+    <div class="separator-row">
+      <label>Delimiter:</label>
+      <input type="text" id="delimiter" value="|" maxlength="3">
+      <label>Resolution:</label>
+      <select id="resolution">
+        <option value="0.5">Low (0.5x)</option>
+        <option value="1" selected>Medium (1x)</option>
+        <option value="2">High (2x)</option>
+        <option value="3">Ultra (3x)</option>
+      </select>
+      <button id="regroupBtn" class="secondary" style="padding:6px 12px;">Re-group</button>
+    </div>
+
+    <div class="hint">
+      <b>Structure:</b> MainClip → ComponentClips → Frames<br>
+      <b>Position:</b> Components placed where their pivot sits in SVG<br>
+      <b>Frames:</b> Named from text after <code>|</code>
+    </div>
+
     <div class="settings">
-      <span class="chk">
-        <input type="checkbox" id="wrapAsClip" checked>
-        <label for="wrapAsClip">Convert each layer to Clip</label>
-      </span>
       <span class="chk">
         <input type="checkbox" id="topLevelOnly" checked>
         <label for="topLevelOnly">Top-level groups only</label>
       </span>
       <span class="chk">
-        <input type="checkbox" id="separatePaths">
-        <label for="separatePaths">Keep paths separate</label>
+        <input type="checkbox" id="usePivot" checked>
+        <label for="usePivot">Use Inkscape pivot</label>
       </span>
     </div>
 
-    <div class="layers-list" id="layersList">
+    <div id="fileNameDisplay" class="file-name" style="display:none;"></div>
+
+    <div class="clips-list" id="clipsList">
       <div class="empty-msg">Ready! Drop an SVG file above.</div>
     </div>
 
     <div class="row">
       <button id="selectAllBtn" class="secondary" type="button">Select All</button>
       <button id="selectNoneBtn" class="secondary" type="button">Select None</button>
-      <button id="importBtn" disabled>Import as Curves</button>
-    </div>
-
-    <div class="hint">
-      Each &lt;g&gt; group is imported as editable vector paths using Paper.js, then wrapped into a Clip with the group name.
+      <button id="importBtn" disabled>Import Assembled Rig</button>
     </div>
 
     <div class="row">
       <button id="clearLogBtn" class="secondary" type="button">Clear Log</button>
     </div>
 
-    <div id="consoleLog">SVG Layer Importer (Curves) ready.</div>
+    <div id="consoleLog">Assembled Rig Importer ready.
+v20: Fixed parse break and kept original pivot reading and embed behavior</div>
   </div>
 
 <script>
@@ -99,564 +124,708 @@ var F_Screen = 1;
   var clearLogBtn = document.getElementById("clearLogBtn");
   var selectAllBtn = document.getElementById("selectAllBtn");
   var selectNoneBtn = document.getElementById("selectNoneBtn");
+  var regroupBtn = document.getElementById("regroupBtn");
   var dropZone = document.getElementById("dropZone");
   var svgInput = document.getElementById("svgInput");
-  var layersList = document.getElementById("layersList");
+  var clipsList = document.getElementById("clipsList");
+  var delimiterInput = document.getElementById("delimiter");
+  var resolutionSelect = document.getElementById("resolution");
+  var fileNameDisplay = document.getElementById("fileNameDisplay");
 
-  var parsedLayers = [];
+  var rawLayers = [];
+  var clipGroups = [];
   var svgSourceDoc = null;
-  var svgWidth = 0;
-  var svgHeight = 0;
+  var svgWidth = 0, svgHeight = 0;
+  var svgFileName = "";
 
-  function s(v) { try { return String(v == null ? "" : v); } catch (e) { return ""; } }
-
-  function log(msg) {
-    logEl.textContent += (logEl.textContent ? "\n" : "") + msg;
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-
-  function setLog(msg) {
-    logEl.textContent = msg || "";
-  }
-
+  function log(msg) { logEl.textContent += "\n" + msg; logEl.scrollTop = logEl.scrollHeight; }
+  function setLog(msg) { logEl.textContent = msg || ""; }
   clearLogBtn.addEventListener("click", function () { setLog("Ready."); });
 
-  // ===== Bridge / Editor Access =====
+  // ===== Wick Access =====
   function getBridge() {
     try { if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; } catch (e) {}
     try { if (window.parent && window.parent.LukeToolsLocalPanelBridge) return window.parent.LukeToolsLocalPanelBridge; } catch (e) {}
     return null;
   }
-
   function getEditor(bridge) {
     try { if (bridge && typeof bridge.getEditor === "function") return bridge.getEditor(); } catch (e) {}
     try { if (window.parent && window.parent.wickEditor) return window.parent.wickEditor; } catch (e) {}
     try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e) {}
     return null;
   }
+  function getProject(ed) { try { return ed && ed.project; } catch (e) { return null; } }
+  function getWick() { try { return window.parent && window.parent.Wick; } catch (e) { return null; } }
 
-  function getProject(ed) {
-    try { if (ed && ed.project) return ed.project; } catch (e) {}
+  // ===== Timeline =====
+  function getActiveLayer(project) {
+    try { if (project.activeLayer) return project.activeLayer; } catch (e) {}
+    try { if (project.focus && project.focus.timeline && project.focus.timeline.activeLayer) return project.focus.timeline.activeLayer; } catch (e) {}
     return null;
   }
 
-  function getWick() {
-    try { if (window.parent && window.parent.Wick) return window.parent.Wick; } catch (e) {}
-    try { if (window.Wick) return window.Wick; } catch (e) {}
+  function getCurrentFrame(project) {
+    try { if (project.activeFrame) return project.activeFrame; } catch (e) {}
+    try { if (project.focus && project.focus.timeline) return project.focus.timeline.activeFrame; } catch (e) {}
     return null;
   }
 
-  function getPaper() {
-    try { if (window.parent && window.parent.paper) return window.parent.paper; } catch (e) {}
-    return null;
+  function setPlayhead(project, frameNum) {
+    try { project.focus.timeline.playheadPosition = frameNum; } catch (e) {}
+    try { if (project.activeTimeline) project.activeTimeline.playheadPosition = frameNum; } catch (e) {}
   }
 
-  // ===== Timeline / Frame Access =====
-  function findActiveTimeline(project) {
-    if (!project) return null;
-    try { if (project.activeTimeline) return project.activeTimeline; } catch (e) {}
-    try { if (project.timeline) return project.timeline; } catch (e) {}
-    try { if (project.focus && project.focus.timeline) return project.focus.timeline; } catch (e) {}
-    return null;
+  function setFrameName(frame, name) {
+    if (!frame || !name) return;
+    try { frame.name = name; } catch (e) {}
+    try { frame.identifier = name; } catch (e) {}
   }
 
-  function getCurrentFrameNumber(project) {
-    var n = 1;
-    try { if (typeof project.currentFrameNumber === "number") n = project.currentFrameNumber; } catch (e) {}
-    return (n && isFinite(n)) ? n : 1;
-  }
-
-  function findFrameFromTimeline(tl, frameNum) {
-    if (!tl) return null;
-    try { if (typeof tl.getFrameAtPlayhead === "function") { var f = tl.getFrameAtPlayhead(); if (f) return f; } } catch (e) {}
-    try { if (typeof tl.getCurrentFrame === "function") { var f = tl.getCurrentFrame(frameNum); if (f) return f; } } catch (e) {}
-    try { if (typeof tl.getActiveFrame === "function") { var f = tl.getActiveFrame(); if (f) return f; } } catch (e) {}
-    try { if (tl.layers && tl.layers.length && tl.layers[0].frames && tl.layers[0].frames.length) return tl.layers[0].frames[0]; } catch (e) {}
-    return null;
-  }
-
-  function insertPathIntoFrame(frame, pathObj) {
-    if (!frame || !pathObj) return false;
-    var fns = ["addPath", "addObject", "addChild", "insertPath", "insertObject"];
-    for (var i = 0; i < fns.length; i++) {
-      try { if (typeof frame[fns[i]] === "function") { frame[fns[i]](pathObj); return true; } } catch (e) {}
-    }
-    var props = ["paths", "objects", "wickObjects", "children"];
-    for (var j = 0; j < props.length; j++) {
-      try { if (frame[props[j]] && typeof frame[props[j]].push === "function") { frame[props[j]].push(pathObj); return true; } } catch (e) {}
-    }
-    return false;
-  }
-
-  // ===== Selection & Clip Creation =====
-  function selectionClear(project, ed) {
-    try { if (project && project.selection && typeof project.selection.clear === "function") project.selection.clear(); } catch (e) {}
-    try { if (ed && typeof ed.clearSelection === "function") ed.clearSelection(); } catch (e) {}
+  function selectionClear(project) {
+    try { if (project.selection && project.selection.clear) project.selection.clear(); } catch (e) {}
   }
 
   function selectionSelectSingle(project, ed, obj) {
-    selectionClear(project, ed);
-    try {
-      if (project && project.selection && typeof project.selection.select === "function") {
-        project.selection.select(obj);
-        return true;
-      }
-    } catch (e) {}
-    try {
-      if (project && project.selection && typeof project.selection.selectMultipleObjects === "function") {
-        project.selection.selectMultipleObjects([obj]);
-        return true;
-      }
-    } catch (e) {}
+    selectionClear(project);
+    try { if (project.selection && project.selection.select) { project.selection.select(obj); return true; } } catch (e) {}
     return false;
   }
 
-  function selectionSelectMultiple(project, ed, objs) {
-    selectionClear(project, ed);
-    try {
-      if (project && project.selection && typeof project.selection.selectMultipleObjects === "function") {
-        project.selection.selectMultipleObjects(objs);
-        return true;
-      }
-    } catch (e) {}
-    // Fallback: select one by one
-    for (var i = 0; i < objs.length; i++) {
-      try {
-        if (project && project.selection && typeof project.selection.select === "function") {
-          project.selection.select(objs[i]);
-        }
-      } catch (e) {}
-    }
-    return true;
+  function selectionSelectMultiple(project, objs) {
+    selectionClear(project);
+    try { if (project.selection && project.selection.selectMultipleObjects) { project.selection.selectMultipleObjects(objs); return true; } } catch (e) {}
+    return false;
   }
 
-  function createClipFromSelection(project, ed, identifier) {
+  function createClipFromSelection(project, ed, name) {
+    try { if (project.createClipFromSelection) { project.createClipFromSelection({ identifier: name, type: "Clip" }); return true; } } catch (e) {}
+    try { if (ed.createClipFromSelection) { ed.createClipFromSelection(name, true); return true; } } catch (e) {}
+    return false;
+  }
+
+  function getSelectedClip(project) {
     try {
-      if (project && typeof project.createClipFromSelection === "function") {
-        project.createClipFromSelection({ identifier: String(identifier || "Clip"), type: "Clip" });
-        return { ok: true };
+      var sel = project.selection.getSelectedObject ? project.selection.getSelectedObject() : null;
+      if (sel && (sel.classname === "Clip" || sel.isClip)) return sel;
+      var objs = project.selection.getSelectedObjects ? project.selection.getSelectedObjects() : [];
+      for (var i = 0; i < objs.length; i++) {
+        if (objs[i] && (objs[i].classname === "Clip" || objs[i].isClip)) return objs[i];
       }
     } catch (e) {}
+    return null;
+  }
+
+  function focusClip(project, clip) {
+    try { project.focus = clip; return true; } catch (e) {}
+    return false;
+  }
+
+  function focusRoot(project) {
+    try { while (project.focus && !project.focus.isRoot) { project.focus = project.focus.parentClip; } return true; } catch (e) {}
+    return false;
+  }
+
+  function ensureFrameAt(layer, frameNum, Wick) {
+    if (!layer) return null;
+    var frames = layer.frames || [];
+    for (var i = 0; i < frames.length; i++) {
+      var f = frames[i];
+      var start = f.start || 1;
+      var end = start + (f.length || 1) - 1;
+      if (frameNum >= start && frameNum <= end) return f;
+    }
+    try { if (typeof layer.addFrame === "function") { return layer.addFrame(frameNum); } } catch (e) {}
     try {
-      if (ed && typeof ed.createClipFromSelection === "function") {
-        ed.createClipFromSelection(String(identifier || "Clip"), true);
-        return { ok: true };
+      if (Wick && Wick.Frame) {
+        var nf = new Wick.Frame({ start: frameNum, length: 1 });
+        layer.frames.push(nf);
+        return nf;
       }
     } catch (e) {}
-    try {
-      if (ed && ed.actionManager && typeof ed.actionManager.doAction === "function") {
-        ed.actionManager.doAction(["createClipFromSelection"], [String(identifier || "Clip")]);
-        return { ok: true };
-      }
-    } catch (e) {}
-    return { ok: false };
+    return null;
+  }
+
+  function getObjectsInFrame(frame) {
+    if (!frame) return [];
+    var objs = [];
+    try { if (frame.paths) objs = objs.concat(frame.paths); } catch (e) {}
+    try { if (frame.clips) objs = objs.concat(frame.clips); } catch (e) {}
+    return objs;
   }
 
   function markDirty(ed) {
-    try { if (ed && ed.project && typeof ed.project.markAsModified === "function") ed.project.markAsModified(); } catch (e) {}
-    try { if (ed && ed.project) ed.project.unsavedChanges = true; } catch (e) {}
-    try { if (ed && typeof ed.projectDidChange === "function") ed.projectDidChange({ actionName: "LukeTools" }); } catch (e) {}
-    try { if (ed && typeof ed.syncToEngine === "function") ed.syncToEngine(); } catch (e) {}
+    try { if (ed.project) ed.project.unsavedChanges = true; } catch (e) {}
+    try { if (ed.projectDidChange) ed.projectDidChange({ actionName: "LukeTools" }); } catch (e) {}
+    try { if (ed.syncInterfaces) ed.syncInterfaces(); } catch (e) {}
   }
 
-  // ===== SVG Sanitization =====
-  function sanitizeSvg(svgText) {
-    var parser = new DOMParser();
-    var doc = parser.parseFromString(svgText, "image/svg+xml");
-    var svg = doc.documentElement;
-    if (!svg || svg.nodeName.toLowerCase() !== "svg") throw new Error("Not an SVG");
+  // ===== Asset helpers =====
+  function listAssetUUIDs(project) {
+    var assets = (project && typeof project.getAssets === "function") ? project.getAssets() : (project && project.assets) ? project.assets : [];
+    return (assets || []).map(function (a) { return a && a.uuid; }).filter(Boolean);
+  }
 
-    var banned = ["script", "foreignobject", "iframe", "object", "embed"];
-    banned.forEach(function (tag) {
-      var nodes = doc.getElementsByTagName(tag);
-      var list = [];
-      for (var i = 0; i < nodes.length; i++) list.push(nodes[i]);
-      list.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
+  function waitForNewAsset(project, beforeUUIDs, timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      var start = Date.now();
+      function poll() {
+        var assets = (project && typeof project.getAssets === "function") ? project.getAssets() : (project && project.assets) ? project.assets : [];
+        assets = assets || [];
+        for (var j = 0; j < assets.length; j++) {
+          var a = assets[j];
+          if (a && a.uuid && beforeUUIDs.indexOf(a.uuid) === -1) {
+            return resolve(a);
+          }
+        }
+        if (Date.now() - start > timeoutMs) {
+          return reject(new Error("Timeout"));
+        }
+        setTimeout(poll, 50);
+      }
+      poll();
     });
-
-    if (!svg.getAttribute("viewBox")) {
-      var w = parseFloat(svg.getAttribute("width")) || 100;
-      var h = parseFloat(svg.getAttribute("height")) || 100;
-      svg.setAttribute("viewBox", "0 0 " + w + " " + h);
-    }
-
-    return new XMLSerializer().serializeToString(doc);
   }
 
-  // ===== Paper.js SVG → Wick.Path Conversion =====
-  function ensurePaperProject(paper) {
-    try { if (!paper.project) new paper.Project(); } catch (e) {}
-  }
-
-  function importSvgAsGroup(paper, svgText) {
-    ensurePaperProject(paper);
-    try { return paper.project.importSVG(svgText, { insert: false }); } catch (e) { return null; }
-  }
-
-  function getAllPathsAndCompound(paper, item) {
-    var out = [];
-    if (!item) return out;
-    try { var ps = item.getItems({ class: paper.Path }) || []; for (var i = 0; i < ps.length; i++) out.push(ps[i]); } catch (e) {}
-    try { var cps = item.getItems({ class: paper.CompoundPath }) || []; for (var j = 0; j < cps.length; j++) out.push(cps[j]); } catch (e) {}
-    return out;
-  }
-
-  function convertGroupToJsonList(paper, group, separate) {
-    var list = [];
-    if (!group) return list;
-
-    if (separate) {
-      var items = getAllPathsAndCompound(paper, group);
-      for (var i = 0; i < items.length; i++) {
-        try {
-          var clone = items[i].clone({ insert: false });
-          var json = clone.exportJSON({ asString: false });
-          clone.remove();
-          if (json) list.push(json);
-        } catch (e) {}
-      }
-    } else {
+  function placeImagePathFromAsset(project, assetUuid, x, y) {
+    var Wick = getWick();
+    return new Promise(function (resolve, reject) {
       try {
-        var compound = new paper.CompoundPath({ insert: false });
-        var source = getAllPathsAndCompound(paper, group);
-        for (var si = 0; si < source.length; si++) {
-          var src = source[si];
-          if (!src) continue;
-          if (src.className === "CompoundPath" && src.children && src.children.length) {
-            for (var ci = 0; ci < src.children.length; ci++) {
-              try { compound.addChild(src.children[ci].clone({ insert: false })); } catch (e) {}
-            }
-          } else {
-            try { compound.addChild(src.clone({ insert: false })); } catch (e) {}
-          }
+        var assetObj = Wick.ObjectCache.getObjectByUUID(assetUuid);
+        if (!assetObj) return reject(new Error("Asset not found"));
+        if (typeof project.createImagePathFromAsset !== "function") {
+          return reject(new Error("createImagePathFromAsset not available"));
         }
-        if (compound.children && compound.children.length) {
-          if (source[0]) {
-            try { compound.fillColor = source[0].fillColor; } catch (e) {}
-            try { compound.strokeColor = source[0].strokeColor; } catch (e) {}
-            try { compound.strokeWidth = source[0].strokeWidth; } catch (e) {}
-          }
-          list.push(compound.exportJSON({ asString: false }));
-        }
-        try { compound.remove(); } catch (e) {}
+        project.createImagePathFromAsset(assetObj, x, y, function (path) {
+          resolve(path);
+        });
       } catch (e) {
-        try { list.push(group.exportJSON({ asString: false })); } catch (e2) {}
+        reject(e);
+      }
+    });
+  }
+
+  // ===== SVG to PNG with auto-crop =====
+  function rasterizeSvgToPng(svgText, scale) {
+    return new Promise(function(resolve) {
+      try {
+        var doc = new DOMParser().parseFromString(svgText, "image/svg+xml");
+        var svg = doc.documentElement;
+        
+        var vb = svg.getAttribute("viewBox");
+        var fullW, fullH;
+        if (vb) {
+          var parts = vb.split(/[\s,]+/).map(parseFloat);
+          fullW = parts[2] || 100;
+          fullH = parts[3] || 100;
+        } else {
+          fullW = parseFloat(svg.getAttribute("width")) || 100;
+          fullH = parseFloat(svg.getAttribute("height")) || 100;
+        }
+        
+        var tempCanvas = document.createElement("canvas");
+        tempCanvas.width = Math.ceil(fullW * scale);
+        tempCanvas.height = Math.ceil(fullH * scale);
+        var tempCtx = tempCanvas.getContext("2d");
+        
+        var blob = new Blob([svgText], { type: "image/svg+xml" });
+        var url = URL.createObjectURL(blob);
+        
+        var img = new Image();
+        img.onload = function() {
+          tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+          URL.revokeObjectURL(url);
+          
+          var imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+          var data = imageData.data;
+          var minX = tempCanvas.width, minY = tempCanvas.height, maxX = 0, maxY = 0;
+          var found = false;
+          
+          for (var y = 0; y < tempCanvas.height; y++) {
+            for (var x = 0; x < tempCanvas.width; x++) {
+              var alpha = data[(y * tempCanvas.width + x) * 4 + 3];
+              if (alpha > 0) {
+                found = true;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+              }
+            }
+          }
+          
+          if (!found) { resolve(null); return; }
+          
+          minX = Math.max(0, minX - 1);
+          minY = Math.max(0, minY - 1);
+          maxX = Math.min(tempCanvas.width - 1, maxX + 1);
+          maxY = Math.min(tempCanvas.height - 1, maxY + 1);
+          
+          var cropW = maxX - minX + 1;
+          var cropH = maxY - minY + 1;
+          
+          var cropCanvas = document.createElement("canvas");
+          cropCanvas.width = cropW;
+          cropCanvas.height = cropH;
+          var cropCtx = cropCanvas.getContext("2d");
+          cropCtx.drawImage(tempCanvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+          
+          cropCanvas.toBlob(function(blob) {
+            resolve({
+              blob: blob,
+              cropBox: {
+                x: minX / scale,
+                y: minY / scale,
+                width: cropW / scale,
+                height: cropH / scale
+              },
+              scale: scale
+            });
+          }, "image/png");
+        };
+        img.onerror = function() { URL.revokeObjectURL(url); resolve(null); };
+        img.src = url;
+      } catch (e) { resolve(null); }
+    });
+  }
+
+  function blobToFile(blob, filename) {
+    return new File([blob], filename, { type: blob.type });
+  }
+
+  // ===== Pivot =====
+  function findInkscapePivotAttrs(el) {
+    var tcx = el.getAttribute("inkscape:transform-center-x");
+    var tcy = el.getAttribute("inkscape:transform-center-y");
+    if (tcx !== null || tcy !== null) {
+      return { tcx: parseFloat(tcx) || 0, tcy: parseFloat(tcy) || 0 };
+    }
+    var all = el.querySelectorAll("*");
+    for (var i = 0; i < all.length; i++) {
+      tcx = all[i].getAttribute("inkscape:transform-center-x");
+      tcy = all[i].getAttribute("inkscape:transform-center-y");
+      if (tcx !== null || tcy !== null) {
+        return { tcx: parseFloat(tcx) || 0, tcy: parseFloat(tcy) || 0 };
       }
     }
-
-    return list;
+    return null;
   }
 
-  // ===== Helpers =====
-  function escapeHtml(str) {
-    var div = document.createElement("div");
-    div.textContent = str || "";
-    return div.innerHTML;
+  function calcPivotInSvgCoords(cropBox, pivotAttrs) {
+    var bboxCenterX = cropBox.x + cropBox.width / 2;
+    var bboxCenterY = cropBox.y + cropBox.height / 2;
+    
+    if (!pivotAttrs) {
+      return { x: bboxCenterX, y: bboxCenterY };
+    }
+    
+    return {
+      x: bboxCenterX + pivotAttrs.tcx,
+      y: bboxCenterY - pivotAttrs.tcy
+    };
   }
 
-  function sanitizeName(str) {
-    return (str || "layer").replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 50);
+  function calcPngCenterInSvgCoords(cropBox) { // FIX
+    return { // FIX
+      x: cropBox.x + cropBox.width / 2, // FIX
+      y: cropBox.y + cropBox.height / 2 // FIX
+    }; // FIX
+  } // FIX
+
+  function buildPlacementDataFromPngData(pngData, pivotAttrs, scale) { // FIX
+    if (!pngData || !pngData.blob) return null; // FIX
+    var pivotInSvg = calcPivotInSvgCoords(pngData.cropBox, pivotAttrs); // FIX
+    var pngCenter = calcPngCenterInSvgCoords(pngData.cropBox); // FIX
+    return { // FIX
+      pngData: pngData, // FIX
+      pivotInSvg: pivotInSvg, // FIX
+      pngCenter: pngCenter, // FIX
+      localOffset: { // FIX
+        x: (pngCenter.x - pivotInSvg.x) * scale, // FIX
+        y: (pngCenter.y - pivotInSvg.y) * scale // FIX
+      } // FIX
+    }; // FIX
+  } // FIX
+
+  function offsetObjectsForPivot(objects, localOffset) { // FIX
+    if (!objects || !objects.length || !localOffset) return null; // FIX
+    
+    var offsetX = Number(localOffset.x) || 0; // FIX
+    var offsetY = Number(localOffset.y) || 0; // FIX
+    
+    objects.forEach(function(obj) {
+      try {
+        obj.x = (Number(obj.x) || 0) + offsetX;
+        obj.y = (Number(obj.y) || 0) + offsetY;
+      } catch (e) {}
+    });
+    
+    return { x: offsetX, y: offsetY };
   }
 
-  function delay(ms) {
-    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  // ===== Grouping =====
+  function parseLayerName(name, delim) {
+    var idx = name.indexOf(delim);
+    if (idx === -1) return { clipName: name.trim(), frameName: null };
+    return { clipName: name.substring(0, idx).trim(), frameName: name.substring(idx + delim.length).trim() };
+  }
+
+  function groupLayers(layers, delim) {
+    var groups = {}, order = [];
+    layers.forEach(function(layer) {
+      var p = parseLayerName(layer.name, delim);
+      if (!groups[p.clipName]) { 
+        groups[p.clipName] = { clipName: p.clipName, frames: [], selected: true, hasMulti: false }; 
+        order.push(p.clipName); 
+      }
+      groups[p.clipName].frames.push({ frameName: p.frameName, layer: layer, selected: true });
+    });
+    order.forEach(function(k) { 
+      groups[k].hasMulti = groups[k].frames.length > 1 || (groups[k].frames[0] && groups[k].frames[0].frameName !== null);
+    });
+    return order.map(function(k) { return groups[k]; });
   }
 
   // ===== SVG Parsing =====
-  function getGroupName(g) {
-    return g.getAttribute("inkscape:label") || g.getAttribute("label") || g.id || null;
-  }
+  function getGroupName(g) { return g.getAttribute("inkscape:label") || g.getAttribute("label") || g.id || null; }
 
-  function extractLayers(svgDoc, topLevelOnly) {
-    var layers = [];
-    var svg = svgDoc.querySelector("svg");
+  function extractLayers(svgDoc, topOnly) {
+    var layers = [], svg = svgDoc.querySelector("svg");
     if (!svg) return layers;
-
     var vb = svg.getAttribute("viewBox");
-    if (vb) {
-      var parts = vb.split(/[\s,]+/).map(parseFloat);
-      svgWidth = parts[2] || 100;
-      svgHeight = parts[3] || 100;
-    } else {
-      svgWidth = parseFloat(svg.getAttribute("width")) || 100;
-      svgHeight = parseFloat(svg.getAttribute("height")) || 100;
-    }
-
-    function traverse(parent, depth) {
-      var children = parent.children;
-      for (var i = 0; i < children.length; i++) {
-        var el = children[i];
+    if (vb) { var p = vb.split(/[\s,]+/).map(parseFloat); svgWidth = p[2] || 100; svgHeight = p[3] || 100; }
+    else { svgWidth = parseFloat(svg.getAttribute("width")) || 100; svgHeight = parseFloat(svg.getAttribute("height")) || 100; }
+    
+    function traverse(parent) {
+      Array.from(parent.children).forEach(function(el) {
         if (el.tagName.toLowerCase() === "g") {
           var name = getGroupName(el);
           if (name) {
-            var groupSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgWidth + ' ' + svgHeight + '">';
-            var defs = svg.querySelector("defs");
-            if (defs) groupSvg += defs.outerHTML;
-            groupSvg += el.outerHTML + '</svg>';
-
-            layers.push({
-              name: name,
-              svgText: groupSvg,
-              depth: depth,
-              selected: true,
-              thumbnail: null
+            var gs = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 ' + svgWidth + ' ' + svgHeight + '">';
+            var defs = svg.querySelector("defs"); if (defs) gs += defs.outerHTML;
+            gs += el.outerHTML + '</svg>';
+            var pivotAttrs = findInkscapePivotAttrs(el);
+            layers.push({ 
+              name: name, 
+              svgText: gs, 
+              hasPivot: pivotAttrs !== null, 
+              pivotAttrs: pivotAttrs
             });
           }
-          if (!topLevelOnly) {
-            traverse(el, depth + 1);
-          }
+          if (!topOnly) traverse(el);
         }
-      }
+      });
     }
-
-    traverse(svg, 0);
+    traverse(svg);
     return layers;
   }
 
-  // ===== Thumbnail Generation =====
-  function generateThumbnail(svgText, maxSize) {
-    return new Promise(function (resolve) {
+  // ===== Thumbnail =====
+  function genThumb(svgText, size) {
+    return new Promise(function(res) {
       try {
-        var blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
-        var url = URL.createObjectURL(blob);
+        var url = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }));
         var img = new Image();
-        img.onload = function () {
-          var scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
-          var w = Math.round(img.width * scale) || maxSize;
-          var h = Math.round(img.height * scale) || maxSize;
-          var canvas = document.createElement("canvas");
-          canvas.width = w;
-          canvas.height = h;
-          var ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, w, h);
-          URL.revokeObjectURL(url);
-          resolve(canvas.toDataURL("image/png"));
+        img.onload = function() {
+          var s = Math.min(size / img.width, size / img.height, 1);
+          var c = document.createElement("canvas"); c.width = img.width * s || size; c.height = img.height * s || size;
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url); res(c.toDataURL());
         };
-        img.onerror = function () {
-          URL.revokeObjectURL(url);
-          resolve("");
-        };
+        img.onerror = function() { URL.revokeObjectURL(url); res(""); };
         img.src = url;
-      } catch (e) {
-        resolve("");
-      }
+      } catch (e) { res(""); }
     });
   }
 
-  // ===== Drag & Drop =====
-  dropZone.addEventListener("click", function () { svgInput.click(); });
-  dropZone.addEventListener("dragover", function (e) { e.preventDefault(); dropZone.classList.add("dragover"); });
-  dropZone.addEventListener("dragleave", function () { dropZone.classList.remove("dragover"); });
-  dropZone.addEventListener("drop", function (e) {
-    e.preventDefault();
-    dropZone.classList.remove("dragover");
-    if (e.dataTransfer.files[0]) loadSVGFile(e.dataTransfer.files[0]);
-  });
-  svgInput.addEventListener("change", function () {
-    if (svgInput.files[0]) loadSVGFile(svgInput.files[0]);
-  });
-
-  // ===== Load SVG =====
-  function loadSVGFile(file) {
-    if (!file.name.toLowerCase().endsWith(".svg")) {
-      log("ERROR: Not an .svg file");
-      return;
-    }
-
-    log("Reading: " + file.name + "...");
-    parsedLayers = [];
-
-    var reader = new FileReader();
-    reader.onload = function (e) {
-      try {
-        var parser = new DOMParser();
-        svgSourceDoc = parser.parseFromString(e.target.result, "image/svg+xml");
-
-        var parseError = svgSourceDoc.querySelector("parsererror");
-        if (parseError) {
-          log("ERROR: Invalid SVG file");
-          return;
-        }
-
-        var topLevelOnly = document.getElementById("topLevelOnly").checked;
-        parsedLayers = extractLayers(svgSourceDoc, topLevelOnly);
-
-        log("Parsed! Found " + parsedLayers.length + " groups. Canvas: " + svgWidth + "×" + svgHeight);
-
-        if (parsedLayers.length === 0) {
-          log("No named <g> groups found. Groups need id or inkscape:label.");
-        }
-
-        renderLayerList();
-        importBtn.disabled = parsedLayers.length === 0;
-
-        // Generate thumbnails async
-        parsedLayers.forEach(function (L, idx) {
-          generateThumbnail(L.svgText, 50).then(function (thumb) {
-            L.thumbnail = thumb;
-            var img = layersList.querySelector('.layer-thumb[data-idx="' + idx + '"]');
-            if (img && thumb) img.src = thumb;
-          });
-        });
-
-      } catch (err) {
-        log("ERROR: " + err.message);
-      }
-    };
-    reader.readAsText(file);
-  }
-
-  function renderLayerList() {
-    if (parsedLayers.length === 0) {
-      layersList.innerHTML = '<div class="empty-msg">No named groups found</div>';
-      return;
-    }
+  // ===== UI =====
+  function renderList() {
+    if (!clipGroups.length) { clipsList.innerHTML = '<div class="empty-msg">No groups found</div>'; return; }
+    var multi = clipGroups.filter(function(g) { return g.hasMulti; });
+    var single = clipGroups.filter(function(g) { return !g.hasMulti; });
     var html = "";
-    for (var i = 0; i < parsedLayers.length; i++) {
-      var L = parsedLayers[i];
-      var depthClass = "depth-" + Math.min(L.depth, 3);
-      html += '<div class="layer-item ' + depthClass + '">';
-      html += '<input type="checkbox" data-idx="' + i + '" ' + (L.selected ? "checked" : "") + '>';
-      html += '<img class="layer-thumb" data-idx="' + i + '" src="' + (L.thumbnail || "") + '">';
-      html += '<span class="layer-name">' + escapeHtml(L.name) + '</span>';
-      html += '<span class="layer-info">depth: ' + L.depth + '</span>';
+
+    multi.forEach(function(g) {
+      var ri = clipGroups.indexOf(g);
+      var hasPivot = g.frames.some(function(f) { return f.layer.hasPivot; });
+      var pivotIcon = hasPivot ? '<span class="pivot-icon" title="Has Inkscape pivot">⊕</span>' : '';
+      html += '<div class="clip-group"><div class="clip-header">';
+      html += '<input type="checkbox" class="clip-check" data-g="' + ri + '"' + (g.selected ? ' checked' : '') + '>';
+      html += '<span class="clip-name">' + g.clipName + pivotIcon + '</span><span class="clip-count">' + g.frames.length + ' frames</span></div>';
+      html += '<div class="frame-list">';
+      g.frames.forEach(function(f, fi) {
+        var fpivot = f.layer.hasPivot ? '<span class="pivot-icon">⊕</span>' : '';
+        html += '<div class="frame-item"><input type="checkbox" class="frame-check" data-g="' + ri + '" data-f="' + fi + '"' + (f.selected ? ' checked' : '') + '>';
+        html += '<img class="frame-thumb" data-g="' + ri + '" data-f="' + fi + '" src="">';
+        html += '<span class="frame-num">F' + (fi + 1) + '</span><span class="frame-name">' + (f.frameName || "(unnamed)") + fpivot + '</span></div>';
+      });
+      html += '</div></div>';
+    });
+
+    if (single.length) {
+      html += '<div class="solo-clips"><div class="solo-label">Single-frame clips</div>';
+      single.forEach(function(g) {
+        var ri = clipGroups.indexOf(g);
+        var hasPivot = g.frames[0] && g.frames[0].layer.hasPivot;
+        var pivotIcon = hasPivot ? '<span class="pivot-icon">⊕</span>' : '';
+        html += '<div class="clip-group"><div class="clip-header">';
+        html += '<input type="checkbox" class="clip-check" data-g="' + ri + '"' + (g.selected ? ' checked' : '') + '>';
+        html += '<span class="clip-name" style="color:#aaa">' + g.clipName + pivotIcon + '</span></div>';
+        html += '<div class="frame-list"><div class="frame-item"><img class="frame-thumb" data-g="' + ri + '" data-f="0" src=""></div></div></div>';
+      });
       html += '</div>';
     }
-    layersList.innerHTML = html;
-    layersList.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
-      cb.addEventListener("change", function () {
-        var idx = parseInt(this.getAttribute("data-idx"), 10);
-        if (!isNaN(idx)) parsedLayers[idx].selected = this.checked;
+
+    clipsList.innerHTML = html;
+    clipsList.querySelectorAll('.clip-check').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        var gi = +this.dataset.g; clipGroups[gi].selected = this.checked;
+        clipGroups[gi].frames.forEach(function(f) { f.selected = cb.checked; });
+        clipsList.querySelectorAll('.frame-check[data-g="' + gi + '"]').forEach(function(fc) { fc.checked = cb.checked; });
+      });
+    });
+    clipsList.querySelectorAll('.frame-check').forEach(function(cb) {
+      cb.addEventListener('change', function() { clipGroups[+this.dataset.g].frames[+this.dataset.f].selected = this.checked; });
+    });
+    clipGroups.forEach(function(g, gi) {
+      g.frames.forEach(function(f, fi) {
+        genThumb(f.layer.svgText, 36).then(function(t) {
+          var img = clipsList.querySelector('.frame-thumb[data-g="' + gi + '"][data-f="' + fi + '"]');
+          if (img && t) img.src = t;
+        });
       });
     });
   }
 
-  selectAllBtn.addEventListener("click", function () {
-    parsedLayers.forEach(function (L) { L.selected = true; });
-    layersList.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = true; });
-  });
+  function regroup() {
+    clipGroups = groupLayers(rawLayers, delimiterInput.value || "|");
+    renderList();
+    importBtn.disabled = !clipGroups.length;
+    var m = clipGroups.filter(function(g) { return g.hasMulti; }).length;
+    var withPivot = rawLayers.filter(function(l) { return l.hasPivot; }).length;
+    log("Grouped: " + m + " multi-frame, " + (clipGroups.length - m) + " single. " + withPivot + " with pivots.");
+  }
 
-  selectNoneBtn.addEventListener("click", function () {
-    parsedLayers.forEach(function (L) { L.selected = false; });
-    layersList.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
-  });
+  // ===== Events =====
+  dropZone.addEventListener("click", function() { svgInput.click(); });
+  dropZone.addEventListener("dragover", function(e) { e.preventDefault(); dropZone.classList.add("dragover"); });
+  dropZone.addEventListener("dragleave", function() { dropZone.classList.remove("dragover"); });
+  dropZone.addEventListener("drop", function(e) { e.preventDefault(); dropZone.classList.remove("dragover"); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+  svgInput.addEventListener("change", function() { if (svgInput.files[0]) loadFile(svgInput.files[0]); });
 
-  document.getElementById("topLevelOnly").addEventListener("change", function () {
-    if (svgSourceDoc) {
-      parsedLayers = extractLayers(svgSourceDoc, this.checked);
-      renderLayerList();
-      importBtn.disabled = parsedLayers.length === 0;
-      log("Re-scanned: " + parsedLayers.length + " groups");
-      parsedLayers.forEach(function (L, idx) {
-        generateThumbnail(L.svgText, 50).then(function (thumb) {
-          L.thumbnail = thumb;
-          var img = layersList.querySelector('.layer-thumb[data-idx="' + idx + '"]');
-          if (img && thumb) img.src = thumb;
-        });
-      });
-    }
-  });
+  function loadFile(file) {
+    if (!file.name.toLowerCase().endsWith(".svg")) { log("ERROR: Not SVG"); return; }
+    svgFileName = file.name.replace(/\.svg$/i, "");
+    fileNameDisplay.textContent = "Main clip: " + svgFileName;
+    fileNameDisplay.style.display = "block";
+    log("Reading " + file.name + "...");
+    var r = new FileReader();
+    r.onload = function(e) {
+      svgSourceDoc = new DOMParser().parseFromString(e.target.result, "image/svg+xml");
+      if (svgSourceDoc.querySelector("parsererror")) { log("ERROR: Invalid SVG"); return; }
+      rawLayers = extractLayers(svgSourceDoc, document.getElementById("topLevelOnly").checked);
+      log("Found " + rawLayers.length + " layers");
+      regroup();
+    };
+    r.readAsText(file);
+  }
+
+  regroupBtn.addEventListener("click", regroup);
+  document.getElementById("topLevelOnly").addEventListener("change", function() { if (svgSourceDoc) { rawLayers = extractLayers(svgSourceDoc, this.checked); regroup(); } });
+  selectAllBtn.addEventListener("click", function() { clipGroups.forEach(function(g) { g.selected = true; g.frames.forEach(function(f) { f.selected = true; }); }); clipsList.querySelectorAll('input[type="checkbox"]').forEach(function(c) { c.checked = true; }); });
+  selectNoneBtn.addEventListener("click", function() { clipGroups.forEach(function(g) { g.selected = false; g.frames.forEach(function(f) { f.selected = false; }); }); clipsList.querySelectorAll('input[type="checkbox"]').forEach(function(c) { c.checked = false; }); });
+
+  function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
 
   // ===== Import =====
-  importBtn.addEventListener("click", async function () {
-    var bridge = getBridge();
-    var ed = getEditor(bridge);
-    var project = getProject(ed);
-    var Wick = getWick();
-    var paper = getPaper();
+  importBtn.addEventListener("click", async function() {
+    var bridge = getBridge(), ed = getEditor(bridge), project = getProject(ed), Wick = getWick();
+    if (!ed || !project) { log("ERROR: No editor/project"); return; }
+    if (!Wick) { log("ERROR: No Wick"); return; }
+    if (typeof ed.createAssets !== "function") { log("ERROR: createAssets not available"); return; }
 
-    if (!ed) { log("ERROR: Editor not found"); return; }
-    if (!project) { log("ERROR: Project not found"); return; }
-    if (!Wick) { log("ERROR: Wick namespace not found"); return; }
-    if (!Wick.Path) { log("ERROR: Wick.Path not found"); return; }
-    if (!paper) { log("ERROR: paper.js not found"); return; }
-
-    var tl = findActiveTimeline(project);
-    if (!tl) { log("ERROR: No active timeline"); return; }
-
-    var frameNum = getCurrentFrameNumber(project);
-    var stageFrame = findFrameFromTimeline(tl, frameNum);
-    if (!stageFrame) { log("ERROR: No current frame"); return; }
-
-    var selected = parsedLayers.filter(function (L) { return L.selected; });
-    if (!selected.length) { log("ERROR: No layers selected"); return; }
-
-    var wrapAsClip = document.getElementById("wrapAsClip").checked;
-    var separatePaths = document.getElementById("separatePaths").checked;
+    var usePivot = document.getElementById("usePivot").checked;
+    var scale = parseFloat(resolutionSelect.value) || 1;
+    var selected = clipGroups.filter(function(g) { return g.selected; });
+    if (!selected.length) { log("ERROR: Nothing selected"); return; }
 
     importBtn.disabled = true;
-    log("Importing " + selected.length + " groups as curves...");
+    log("Building rig: " + svgFileName + " (" + selected.length + " components) at " + scale + "x...");
 
-    var totalInserted = 0;
-    var totalFailed = 0;
+    var componentClips = [];
+    var svgCenterX = svgWidth / 2;
+    var svgCenterY = svgHeight / 2;
 
-    for (var idx = 0; idx < selected.length; idx++) {
-      var L = selected[idx];
-      log("[" + (idx + 1) + "/" + selected.length + "] " + L.name);
+    for (var gi = 0; gi < selected.length; gi++) {
+      var group = selected[gi];
+      var frames = group.frames.filter(function(f) { return f.selected; });
+      if (!frames.length) continue;
 
-      try {
-        var sanitized = sanitizeSvg(L.svgText);
-        var group = importSvgAsGroup(paper, sanitized);
-        if (!group) {
-          log("  → WARN: Paper.js import failed");
-          totalFailed++;
-          continue;
-        }
+      var hasMultipleFrames = frames.length > 1;
+      log("[" + (gi + 1) + "/" + selected.length + "] " + group.clipName + " (" + frames.length + " frames)");
 
-        var jsonList = convertGroupToJsonList(paper, group, separatePaths);
-        try { group.remove(); } catch (e) {}
+      focusRoot(project);
+      await delay(50);
 
-        if (!jsonList.length) {
-          log("  → WARN: No paths found");
-          totalFailed++;
-          continue;
-        }
+      // === STEP 1: Rasterize first frame ===
+      var firstFrame = frames[0];
+      var pngData = await rasterizeSvgToPng(firstFrame.layer.svgText, scale);
+      if (!pngData || !pngData.blob) { log("  → WARN: Rasterize failed"); continue; }
 
-        // Insert paths into the current frame
-        var insertedPaths = [];
-        for (var i = 0; i < jsonList.length; i++) {
-          var wp = null;
-          try { wp = new Wick.Path({ json: jsonList[i], project: project }); } catch (e) { wp = null; }
-          if (!wp) { try { wp = new Wick.Path({ json: jsonList[i] }); } catch (e) { wp = null; } }
-          if (wp && insertPathIntoFrame(stageFrame, wp)) {
-            insertedPaths.push(wp);
-          }
-        }
+      var pivotAttrs = usePivot ? firstFrame.layer.pivotAttrs : null;
+      var firstPlacement = buildPlacementDataFromPngData(pngData, pivotAttrs, scale); // FIX
+      if (!firstPlacement) { log("  → WARN: Placement failed"); continue; } // FIX
+      var pivotInSvg = firstPlacement.pivotInSvg; // FIX
+      
+      // Component position = where pivot sits relative to SVG center (scaled)
+      var componentX = (pivotInSvg.x - svgCenterX) * scale;
+      var componentY = (pivotInSvg.y - svgCenterY) * scale;
 
-        if (insertedPaths.length === 0) {
-          log("  → WARN: Could not insert paths");
-          totalFailed++;
-          continue;
-        }
+      var filename = group.clipName + "_" + (firstFrame.frameName || "f1") + ".png";
+      var file = blobToFile(pngData.blob, filename);
 
-        totalInserted += insertedPaths.length;
+      var beforeUUIDs = listAssetUUIDs(project);
+      ed.createAssets([file], []);
 
-        if (wrapAsClip) {
-          // Select all the paths we just inserted, then createClipFromSelection
-          selectionSelectMultiple(project, ed, insertedPaths);
-          await delay(50); // Give Wick time to process selection
+      var asset;
+      try { asset = await waitForNewAsset(project, beforeUUIDs, 10000); } 
+      catch (e) { log("  → WARN: Asset timeout"); continue; }
 
-          var r = createClipFromSelection(project, ed, L.name);
-          if (r.ok) {
-            log("  → Clip: " + L.name + " (" + insertedPaths.length + " paths)");
-          } else {
-            log("  → Paths added, clip wrap failed");
-          }
-        } else {
-          log("  → Stage: " + insertedPaths.length + " paths");
-        }
+      var path;
+      try { path = await placeImagePathFromAsset(project, asset.uuid, 0, 0); } 
+      catch (e) { log("  → WARN: Place failed"); continue; }
 
-        markDirty(ed);
-        await delay(30);
+      // === STEP 2: Create component clip ===
+      selectionSelectSingle(project, ed, path);
+      await delay(60);
 
-      } catch (err) {
-        log("  → ERROR: " + err.message);
-        totalFailed++;
+      if (!createClipFromSelection(project, ed, group.clipName)) {
+        log("  → WARN: Clip creation failed"); continue;
       }
+      await delay(80);
+
+      var componentClip = getSelectedClip(project);
+      if (!componentClip) { log("  → WARN: No clip"); continue; }
+
+      // === STEP 3: Enter clip and offset first frame for pivot ===
+      if (!focusClip(project, componentClip)) {
+        log("  → WARN: Can't enter clip");
+        focusRoot(project); continue;
+      }
+      await delay(60);
+
+      var clipFrame = getCurrentFrame(project);
+      if (clipFrame) {
+        if (firstPlacement.localOffset) { // FIX
+          var objs = getObjectsInFrame(clipFrame);
+          var firstOffset = offsetObjectsForPivot(objs, firstPlacement.localOffset); // FIX
+          if (firstOffset) { // FIX
+            log("  → F1 Offset: (" + firstOffset.x.toFixed(1) + ", " + firstOffset.y.toFixed(1) + ")"); // FIX
+          } // FIX
+        }
+        if (firstFrame.frameName) {
+          setFrameName(clipFrame, firstFrame.frameName);
+          log("  → F1: " + firstFrame.frameName);
+        }
+      }
+
+      // === STEP 4: Add additional frames ===
+      if (hasMultipleFrames) {
+        var layer = getActiveLayer(project);
+        if (layer) {
+          markDirty(ed);
+
+          for (var fi = 1; fi < frames.length; fi++) {
+            var fd = frames[fi];
+            var frameNum = fi + 1;
+
+            // Create new frame
+            var newFrame = ensureFrameAt(layer, frameNum, Wick);
+            if (!newFrame) { log("    → F" + frameNum + ": frame create failed"); continue; }
+
+            // Name frame
+            if (fd.frameName) {
+              setFrameName(newFrame, fd.frameName);
+            }
+
+            // Move playhead BEFORE placing image
+            setPlayhead(project, frameNum);
+            await delay(50);
+
+            // Rasterize this frame's content
+            var fPngData = await rasterizeSvgToPng(fd.layer.svgText, scale);
+            if (!fPngData || !fPngData.blob) { log("    → F" + frameNum + ": rasterize failed"); continue; }
+
+            var fPivotAttrs = usePivot ? fd.layer.pivotAttrs : null; // FIX
+            var fPlacement = buildPlacementDataFromPngData(fPngData, fPivotAttrs, scale); // FIX
+            if (!fPlacement) { log("    → F" + frameNum + ": placement failed"); continue; } // FIX
+
+            var fFilename = group.clipName + "_" + (fd.frameName || "f" + frameNum) + ".png";
+            var fFile = blobToFile(fPngData.blob, fFilename);
+
+            var fBeforeUUIDs = listAssetUUIDs(project);
+            ed.createAssets([fFile], []);
+
+            var fAsset;
+            try { fAsset = await waitForNewAsset(project, fBeforeUUIDs, 10000); } 
+            catch (e) { log("    → F" + frameNum + ": asset timeout"); continue; }
+
+            // Place image at (0,0) - it goes on current frame (playhead position)
+            var fPath;
+            try { fPath = await placeImagePathFromAsset(project, fAsset.uuid, 0, 0); } 
+            catch (e) { log("    → F" + frameNum + ": place failed"); continue; }
+
+            // Offset for pivot
+            if (fPlacement.localOffset && fPath) { // FIX
+              try {
+                fPath.x = (Number(fPath.x) || 0) + fPlacement.localOffset.x; // FIX
+                fPath.y = (Number(fPath.y) || 0) + fPlacement.localOffset.y; // FIX
+              } catch (e) {}
+              log("    + F" + frameNum + " Offset: (" + fPlacement.localOffset.x.toFixed(1) + ", " + fPlacement.localOffset.y.toFixed(1) + ")"); // FIX
+            }
+
+            log("    + F" + frameNum + ": " + (fd.frameName || "(unnamed)"));
+            await delay(30);
+          }
+        }
+      }
+
+      // Exit component clip
+      focusRoot(project);
+      await delay(50);
+
+      // === STEP 5: Position component clip ===
+      componentClip.x = componentX;
+      componentClip.y = componentY;
+      log("  → Pos: (" + componentX.toFixed(1) + ", " + componentY.toFixed(1) + ")");
+
+      componentClips.push(componentClip);
+      
+      selectionClear(project);
+      markDirty(ed);
+      await delay(40);
     }
 
+    // === STEP 6: Wrap all into main clip ===
+    if (componentClips.length > 0) {
+      log("Wrapping " + componentClips.length + " components into: " + svgFileName);
+      
+      focusRoot(project);
+      await delay(50);
+
+      selectionSelectMultiple(project, componentClips);
+      await delay(60);
+
+      if (createClipFromSelection(project, ed, svgFileName)) {
+        log("✓ Created main clip: " + svgFileName);
+      } else {
+        log("→ WARN: Could not create main clip");
+      }
+      await delay(80);
+    }
+
+    selectionClear(project);
     markDirty(ed);
-    log("Done! Inserted " + totalInserted + " paths, " + totalFailed + " groups failed");
+    log("Done!");
     importBtn.disabled = false;
   });
 
