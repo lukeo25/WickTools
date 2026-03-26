@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>SVG Layer Importer - Pngs Only</title>
+  <title>SVG NESTED RIG V12 SUBLAYERS + CENTER FIX</title>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 20px; background: #1a1a1f; color: #eaeaea; font-family: Arial, sans-serif; min-height: 100vh; }
@@ -55,12 +55,12 @@
       <span class="brand" title="Luke Tools">
         <img alt="LT" src="https://raw.githubusercontent.com/lukeo25/WickTools/main/LukeToolsBrand.png" onerror="this.style.display='none'">
       </span>
-      <span>GPT SVG Layer Importer Frames V20 fix</span>
+      <span>SVG NESTED RIG V12 SUBLAYERS + CENTER FIX</span>
     </div>
 
     <div class="drop-zone" id="dropZone">
       <p style="margin:0 0 6px 0; font-size: 14px;">📁 Drop an .SVG file here</p>
-      <p style="margin:0; font-size: 11px; color: #666;">Creates main clip → component clips → frames</p>
+      <p style="margin:0; font-size: 11px; color: #666;">Creates main clip → component clips → frames, with real nested sublayer traversal</p>
       <input type="file" id="svgInput" accept=".svg">
     </div>
 
@@ -85,7 +85,7 @@
 
     <div class="settings">
       <span class="chk">
-        <input type="checkbox" id="topLevelOnly" checked>
+        <input type="checkbox" id="topLevelOnly">
         <label for="topLevelOnly">Top-level groups only</label>
       </span>
       <span class="chk">
@@ -111,7 +111,7 @@
     </div>
 
     <div id="consoleLog">Assembled Rig Importer ready.
-v20: Fixed parse break and kept original pivot reading and embed behavior</div>
+v12: Preserves V7 pivot behavior, adds real nested sublayer traversal, and centers final wrapper clip on stage</div>
   </div>
 
 <script>
@@ -156,6 +156,15 @@ var F_Screen = 1;
   }
   function getProject(ed) { try { return ed && ed.project; } catch (e) { return null; } }
   function getWick() { try { return window.parent && window.parent.Wick; } catch (e) { return null; } }
+  function getStageCenter(project) {
+    var w = 0, h = 0;
+    try { w = Number(project && project.width) || 0; } catch (e) {}
+    try { h = Number(project && project.height) || 0; } catch (e) {}
+    try { if ((!w || !h) && project && project.focus) { w = Number(project.focus.width) || w; h = Number(project.focus.height) || h; } } catch (e) {}
+    if (!w) w = svgWidth || 0;
+    if (!h) h = svgHeight || 0;
+    return { x: w / 2, y: h / 2, width: w, height: h };
+  }
 
   // ===== Timeline =====
   function getActiveLayer(project) {
@@ -487,6 +496,16 @@ var F_Screen = 1;
 
   // ===== SVG Parsing =====
   function getGroupName(g) { return g.getAttribute("inkscape:label") || g.getAttribute("label") || g.id || null; }
+  function isInkscapeLayer(g) {
+    try { return (g.getAttribute("inkscape:groupmode") || "").toLowerCase() === "layer"; } catch (e) { return false; }
+  }
+  function buildLayerSvg(svg, el) {
+    var gs = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 ' + svgWidth + ' ' + svgHeight + '">';
+    var defs = svg.querySelector("defs");
+    if (defs) gs += defs.outerHTML;
+    gs += el.outerHTML + '</svg>';
+    return gs;
+  }
 
   function extractLayers(svgDoc, topOnly) {
     var layers = [], svg = svgDoc.querySelector("svg");
@@ -494,28 +513,49 @@ var F_Screen = 1;
     var vb = svg.getAttribute("viewBox");
     if (vb) { var p = vb.split(/[\s,]+/).map(parseFloat); svgWidth = p[2] || 100; svgHeight = p[3] || 100; }
     else { svgWidth = parseFloat(svg.getAttribute("width")) || 100; svgHeight = parseFloat(svg.getAttribute("height")) || 100; }
-    
-    function traverse(parent) {
-      Array.from(parent.children).forEach(function(el) {
-        if (el.tagName.toLowerCase() === "g") {
-          var name = getGroupName(el);
-          if (name) {
-            var gs = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 ' + svgWidth + ' ' + svgHeight + '">';
-            var defs = svg.querySelector("defs"); if (defs) gs += defs.outerHTML;
-            gs += el.outerHTML + '</svg>';
-            var pivotAttrs = findInkscapePivotAttrs(el);
-            layers.push({ 
-              name: name, 
-              svgText: gs, 
-              hasPivot: pivotAttrs !== null, 
-              pivotAttrs: pivotAttrs
-            });
-          }
-          if (!topOnly) traverse(el);
-        }
+
+    var trueLayers = Array.from(svg.querySelectorAll('g')).filter(function(el) { return isInkscapeLayer(el); });
+    var usingTrueLayers = trueLayers.length > 0;
+
+    function pushLayer(el, name) {
+      var pivotAttrs = findInkscapePivotAttrs(el);
+      layers.push({
+        name: name,
+        svgText: buildLayerSvg(svg, el),
+        hasPivot: pivotAttrs !== null,
+        pivotAttrs: pivotAttrs
       });
     }
-    traverse(svg);
+
+    function traverseTrueLayers(parent, depth) {
+      Array.from(parent.children).forEach(function(el) {
+        if ((el.tagName || '').toLowerCase() !== 'g') return;
+        if (!isInkscapeLayer(el)) {
+          if (!topOnly) traverseTrueLayers(el, depth + 1);
+          return;
+        }
+        var name = getGroupName(el);
+        if (name) pushLayer(el, name);
+        if (!topOnly) traverseTrueLayers(el, depth + 1);
+      });
+    }
+
+    function traverseLegacy(parent, depth) {
+      Array.from(parent.children).forEach(function(el) {
+        if ((el.tagName || '').toLowerCase() !== 'g') return;
+        var name = getGroupName(el);
+        if (name) pushLayer(el, name);
+        if (!topOnly) traverseLegacy(el, depth + 1);
+      });
+    }
+
+    if (usingTrueLayers) {
+      log('Using real SVG layer traversal' + (topOnly ? ' at top level only.' : ' including sublayers.'));
+      traverseTrueLayers(svg, 0);
+    } else {
+      log('No real SVG layers found, using legacy named group traversal' + (topOnly ? ' at top level only.' : ' including nested groups.'));
+      traverseLegacy(svg, 0);
+    }
     return layers;
   }
 
@@ -808,7 +848,7 @@ var F_Screen = 1;
     // === STEP 6: Wrap all into main clip ===
     if (componentClips.length > 0) {
       log("Wrapping " + componentClips.length + " components into: " + svgFileName);
-      
+
       focusRoot(project);
       await delay(50);
 
@@ -816,7 +856,18 @@ var F_Screen = 1;
       await delay(60);
 
       if (createClipFromSelection(project, ed, svgFileName)) {
-        log("✓ Created main clip: " + svgFileName);
+        await delay(80);
+        var mainClip = getSelectedClip(project);
+        if (mainClip) {
+          var stageCenter = getStageCenter(project);
+          mainClip.x = stageCenter.x;
+          mainClip.y = stageCenter.y;
+          log("✓ Created main clip: " + svgFileName);
+          log("✓ Stage size: " + stageCenter.width + " x " + stageCenter.height);
+          log("✓ Main clip centered at: (" + stageCenter.x + ", " + stageCenter.y + ")");
+        } else {
+          log("✓ Created main clip: " + svgFileName + " but could not reselect it for centering");
+        }
       } else {
         log("→ WARN: Could not create main clip");
       }
