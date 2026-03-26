@@ -53,7 +53,7 @@
   <div class="panel">
     <div class="title">
       <span class="brand" title="Luke Tools">
-        <img alt="LT" src="https://raw.githubusercontent.com/lukeo25/WickTools/main/LukeToolsBrand.png" onerror="this.style.display='none'">
+        <img alt="LT" src="https://raw.githubusercontent.com/lukeo25/WickTools/scripts/Panel_SVG/SVGL.svg" onerror="this.style.display='none'">
       </span>
       <span>SVG NESTED RIG V12 SUBLAYERS + CENTER FIX</span>
     </div>
