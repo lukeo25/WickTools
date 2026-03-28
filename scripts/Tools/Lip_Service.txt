@@ -1914,10 +1914,8 @@ function sendToWick(){
         // Stop playback if it is running so scrubbing is predictable
         if (App.isPlaying) stopPlayback();
 
-        // Seek immediately to the drag start point
-        App.playheadFrame = frameFromClientX(ev.clientX, false);
-        redrawAll(false);
-        scrubAtFrame(App.playheadFrame);
+        // Don't seek on initial click - wait for drag movement
+        // This prevents the playhead from jumping to click position
       });
 
       phHandle.addEventListener("pointermove", function(ev){
