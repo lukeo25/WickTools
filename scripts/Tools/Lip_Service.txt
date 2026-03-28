@@ -126,9 +126,19 @@
       overflow-x:auto;
       overflow-y:hidden;
       background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.18));
-      scrollbar-width:none;
+      scrollbar-width:thin;
+      scrollbar-color: rgba(255,255,255,0.25) rgba(0,0,0,0.2);
+      cursor:grab;
     }
-    .timeline-scroll::-webkit-scrollbar{ height:0; }
+    .timeline-scroll:active{ cursor:grabbing; }
+    .timeline-scroll::-webkit-scrollbar{ height:12px; }
+    .timeline-scroll::-webkit-scrollbar-track{ background: rgba(0,0,0,0.25); }
+    .timeline-scroll::-webkit-scrollbar-thumb{
+      background: rgba(255,255,255,0.22);
+      border-radius:6px;
+      border:2px solid rgba(0,0,0,0.25);
+    }
+    .timeline-scroll::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,0.35); }
 
     .timeline-surface{
       position:relative;
@@ -1948,19 +1958,21 @@ let drag = {
       active: false,
       mode: "",
       startClientX: 0,
+      startClientY: 0,
       startScrollLeft: 0,
       blockId: "",
       origStart: 0,
       origEnd: 0,
       grabOffset: 0,
       blockIndex: -1,
-      snapshot: null
+      snapshot: null,
+      seekFrame: 0
     };
 
     function setCursorForHover(ev){
       const hit = hitTestBlock(ev.clientX, ev.clientY);
       if (!hit){
-        canvas.style.cursor = "";
+        canvas.style.cursor = "grab";
         return;
       }
       if (hit.part === "body") canvas.style.cursor = "grab";
@@ -1973,6 +1985,7 @@ let drag = {
       drag.blockId = "";
       drag.blockIndex = -1;
       drag.snapshot = null;
+      drag.seekFrame = 0;
       stopScrubSound();
     }
 
@@ -2019,13 +2032,10 @@ let drag = {
         return;
       }
 
-      // Seek
-      drag.mode = "seek";
-      const f = frameFromClientX(ev.clientX, false);
-      App.playheadFrame = f;
+      // Empty space: start in mayPan mode - will become pan if dragged, or seek if clicked
+      drag.mode = "mayPan";
+      drag.seekFrame = frameFromClientX(ev.clientX, false);
       App.selectedBlockId = "";
-      redrawAll(false);
-      scrubAtFrame(App.playheadFrame);
     });
 
     canvas.addEventListener("pointermove", function(ev){
@@ -2038,6 +2048,16 @@ let drag = {
         const dx = ev.clientX - drag.startClientX;
         const maxScroll = Math.max(0, (App.totalFrames * App.pxPerFrame) - scroll.clientWidth);
         scroll.scrollLeft = clamp(drag.startScrollLeft - dx, 0, maxScroll);
+        return;
+      }
+
+      // mayPan: if user drags more than 5px, switch to pan mode
+      if (drag.mode === "mayPan"){
+        const dx = ev.clientX - drag.startClientX;
+        if (Math.abs(dx) > 5){
+          drag.mode = "pan";
+          canvas.style.cursor = "grabbing";
+        }
         return;
       }
 
@@ -2079,6 +2099,13 @@ let drag = {
     });
 
     canvas.addEventListener("pointerup", function(){
+      // If mayPan and didn't drag enough to pan, then seek to the clicked position
+      if (drag.mode === "mayPan"){
+        App.playheadFrame = drag.seekFrame;
+        redrawAll(false);
+        scrubAtFrame(App.playheadFrame);
+      }
+      canvas.style.cursor = "";
       endDrag();
     });
 
