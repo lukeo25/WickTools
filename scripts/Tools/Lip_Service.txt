@@ -1901,6 +1901,9 @@ function sendToWick(){
     // Drag handle on the playhead (scrub bar)
     const phHandle = App.ui.playheadHandle;
     let phDragging = false;
+    let phDragStartX = 0;
+    let phDragStartFrame = 0;
+    let phDragStartScroll = 0;
 
     if (phHandle){
       phHandle.addEventListener("pointerdown", function(ev){
@@ -1910,6 +1913,9 @@ function sendToWick(){
 
         try { phHandle.setPointerCapture(ev.pointerId); } catch(e){}
         phDragging = true;
+        phDragStartX = ev.clientX;
+        phDragStartFrame = App.playheadFrame;
+        phDragStartScroll = scroll.scrollLeft;
 
         // Stop playback if it is running so scrubbing is predictable
         if (App.isPlaying) stopPlayback();
@@ -1921,9 +1927,17 @@ function sendToWick(){
       phHandle.addEventListener("pointermove", function(ev){
         if (!phDragging) return;
         ev.preventDefault();
-        App.playheadFrame = frameFromClientX(ev.clientX, false);
-        redrawAll(false);
-        scrubAtFrame(App.playheadFrame);
+        // Calculate frame based on relative mouse movement, not absolute position
+        // This prevents jumps when scrollLeft changes
+        const dx = ev.clientX - phDragStartX;
+        const scrollDelta = scroll.scrollLeft - phDragStartScroll;
+        const frameDelta = Math.round((dx + scrollDelta) / App.pxPerFrame);
+        const newFrame = clamp(phDragStartFrame + frameDelta, 0, Math.max(0, App.totalFrames - 1));
+        if (newFrame !== App.playheadFrame){
+          App.playheadFrame = newFrame;
+          redrawAll(false);
+          scrubAtFrame(App.playheadFrame);
+        }
       });
 
       const endPhDrag = function(ev){
