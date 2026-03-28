@@ -1857,7 +1857,11 @@ function sendToWick(){
 
     function pxFromClientX(clientX){
       const rect = canvas.getBoundingClientRect();
-      return clientX - rect.left + scroll.scrollLeft;
+      // Note: Do NOT add scroll.scrollLeft here.
+      // getBoundingClientRect() returns the canvas position relative to viewport,
+      // which already reflects the scroll position (canvas moves as you scroll).
+      // Adding scrollLeft would double-count the scroll offset.
+      return clientX - rect.left;
     }
 
     function yFromClientY(clientY){
