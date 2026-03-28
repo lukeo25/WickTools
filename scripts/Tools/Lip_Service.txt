@@ -2032,10 +2032,21 @@ let drag = {
         return;
       }
 
-      // Empty space: start in mayPan mode - will become pan if dragged, or seek if clicked
-      drag.mode = "mayPan";
-      drag.seekFrame = frameFromClientX(ev.clientX, false);
-      App.selectedBlockId = "";
+      // Empty space: check if user wants to seek (shift+click) or pan (normal drag)
+      if (ev.shiftKey){
+        // Shift+click = seek immediately
+        drag.mode = "seek";
+        const f = frameFromClientX(ev.clientX, false);
+        App.playheadFrame = f;
+        App.selectedBlockId = "";
+        redrawAll(false);
+        scrubAtFrame(App.playheadFrame);
+      } else {
+        // Normal click = pan mode for dragging the timeline
+        drag.mode = "pan";
+        App.selectedBlockId = "";
+        canvas.style.cursor = "grabbing";
+      }
     });
 
     canvas.addEventListener("pointermove", function(ev){
@@ -2048,16 +2059,6 @@ let drag = {
         const dx = ev.clientX - drag.startClientX;
         const maxScroll = Math.max(0, (App.totalFrames * App.pxPerFrame) - scroll.clientWidth);
         scroll.scrollLeft = clamp(drag.startScrollLeft - dx, 0, maxScroll);
-        return;
-      }
-
-      // mayPan: if user drags more than 5px, switch to pan mode
-      if (drag.mode === "mayPan"){
-        const dx = ev.clientX - drag.startClientX;
-        if (Math.abs(dx) > 5){
-          drag.mode = "pan";
-          canvas.style.cursor = "grabbing";
-        }
         return;
       }
 
@@ -2099,12 +2100,6 @@ let drag = {
     });
 
     canvas.addEventListener("pointerup", function(){
-      // If mayPan and didn't drag enough to pan, then seek to the clicked position
-      if (drag.mode === "mayPan"){
-        App.playheadFrame = drag.seekFrame;
-        redrawAll(false);
-        scrubAtFrame(App.playheadFrame);
-      }
       canvas.style.cursor = "";
       endDrag();
     });
