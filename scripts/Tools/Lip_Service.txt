@@ -526,9 +526,6 @@
       <button class="btn small" id="btn-load">Load Audio</button>
       <button class="btn small" id="btn-load-project">Load Project</button>
 
-      <button class="btn small" id="btn-play">Play</button>
-      <button class="btn small danger" id="btn-stop">Stop</button>
-
       <div class="group">
         <span class="label">FPS</span>
         <input id="inp-fps" type="number" min="1" max="120" value="24">
@@ -589,6 +586,8 @@
     </div>
 
     <div class="menu secondary" id="menuMouth">
+      <button class="btn small" id="btn-play">Play</button>
+      <button class="btn small danger" id="btn-stop">Stop</button>
       <button class="btn small" id="btn-zoom-out">Zoom</button>
       <button class="btn small" id="btn-zoom-in">Zoom+</button>
       <button class="btn small" id="btn-clear">Clear</button>
@@ -2048,21 +2047,12 @@ let drag = {
         return;
       }
 
-      // Empty space: check if user wants to seek (shift+click) or pan (normal drag)
-      if (ev.shiftKey){
-        // Shift+click = seek immediately
-        drag.mode = "seek";
-        const f = frameFromClientX(ev.clientX, false);
-        App.playheadFrame = f;
-        App.selectedBlockId = "";
-        redrawAll(false);
-        scrubAtFrame(App.playheadFrame);
-      } else {
-        // Normal click = pan mode for dragging the timeline
-        drag.mode = "pan";
-        App.selectedBlockId = "";
-        canvas.style.cursor = "grabbing";
-      }
+      // Empty space: start in mayPan mode
+      // - If user just clicks (no drag or small drag), seek playhead to that position
+      // - If user drags more than a few pixels, pan the timeline
+      drag.mode = "mayPan";
+      drag.seekFrame = frameFromClientX(ev.clientX, false);
+      App.selectedBlockId = "";
     });
 
     canvas.addEventListener("pointermove", function(ev){
@@ -2075,6 +2065,19 @@ let drag = {
         const dx = ev.clientX - drag.startClientX;
         const maxScroll = Math.max(0, (App.totalFrames * App.pxPerFrame) - scroll.clientWidth);
         scroll.scrollLeft = clamp(drag.startScrollLeft - dx, 0, maxScroll);
+        return;
+      }
+
+      // mayPan: if user drags more than 5px, switch to pan mode
+      if (drag.mode === "mayPan"){
+        const dx = ev.clientX - drag.startClientX;
+        if (Math.abs(dx) > 5){
+          drag.mode = "pan";
+          canvas.style.cursor = "grabbing";
+          // Apply the pan immediately
+          const maxScroll = Math.max(0, (App.totalFrames * App.pxPerFrame) - scroll.clientWidth);
+          scroll.scrollLeft = clamp(drag.startScrollLeft - dx, 0, maxScroll);
+        }
         return;
       }
 
@@ -2116,6 +2119,13 @@ let drag = {
     });
 
     canvas.addEventListener("pointerup", function(){
+      // If mayPan and didn't drag enough to become pan, seek to clicked position
+      if (drag.mode === "mayPan"){
+        App.playheadFrame = drag.seekFrame;
+        redrawAll(false);
+        scrubAtFrame(App.playheadFrame);
+        stopScrubSound();
+      }
       canvas.style.cursor = "";
       endDrag();
     });
