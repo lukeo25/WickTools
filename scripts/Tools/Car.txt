@@ -1,0 +1,425 @@
+<!doctype html>
+<html data-f-screen="0">
+<head>
+<meta charset="utf-8">
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: transparent; font-family: Arial, sans-serif; color: #eaeaea; }
+body { padding: 10px; }
+.title { font-size: 15px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.title-icon { width: 22px; height: 22px; }
+.section { margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px; }
+.section-title { font-size: 10px; font-weight: 700; color: #f97316; margin-bottom: 6px; text-transform: uppercase; }
+.field { margin-bottom: 6px; }
+.field label { display: block; font-size: 10px; color: #aaa; margin-bottom: 3px; }
+.sliderRow { display: flex; align-items: center; gap: 6px; }
+.sliderRow input[type="range"] { flex: 1; }
+.numBox { width: 65px; padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #fff; font-size: 12px; text-align: right; }
+.numBox:focus { outline: none; border-color: #f97316; }
+.checkbox-field { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; font-size: 10px; }
+.checkbox-field input { width: 13px; height: 13px; }
+.btn { width: 100%; padding: 10px; border-radius: 6px; border: none; background: #f97316; color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
+.btn:hover { background: #fb923c; }
+.row { display: flex; gap: 8px; margin-bottom: 10px; }
+.row .btn { flex: 1; }
+.btn.ghost { background: rgba(255,255,255,0.08); }
+.status { margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 11px; display: none; }
+.status.success { display: block; background: rgba(33,178,107,0.2); border: 1px solid rgba(33,178,107,0.4); color: #4ade80; }
+.status.error { display: block; background: rgba(220,38,38,0.2); border: 1px solid rgba(220,38,38,0.4); color: #f87171; }
+.pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; padding: 5px 10px; font-size: 11px; color: #aaa; margin-bottom: 10px; }
+.pill strong { color: #fff; }
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+input[type=number]{-moz-appearance:textfield;appearance:textfield;}
+</style>
+</head>
+<body>
+<script>var F_Screen = 0;</script>
+
+<div class="title">
+    <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2">
+        <rect x="3" y="8" width="18" height="10" rx="2"/>
+        <circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>
+        <path d="M5 8V6a2 2 0 012-2h10a2 2 0 012 2v2"/>
+    </svg>
+    Car Movement
+</div>
+
+<div class="pill"><strong>Selected</strong> <span id="selLabel">No Clip</span></div>
+
+<div class="section">
+    <div class="section-title">Speed &amp; Handling</div>
+    <div class="field">
+        <label>maxSpeed</label>
+        <div class="sliderRow">
+            <input id="maxSpeed" type="range" min="1" max="30" step="1" value="12">
+            <input class="numBox" id="maxSpeedVal" type="number" min="1" max="30" step="0.5" value="12">
+        </div>
+    </div>
+    <div class="field">
+        <label>acceleration</label>
+        <div class="sliderRow">
+            <input id="accel" type="range" min="0.1" max="3" step="0.1" value="0.8">
+            <input class="numBox" id="accelVal" type="number" min="0.1" max="3" step="0.1" value="0.8">
+        </div>
+    </div>
+    <div class="field">
+        <label>brake</label>
+        <div class="sliderRow">
+            <input id="brake" type="range" min="0.1" max="3" step="0.1" value="0.6">
+            <input class="numBox" id="brakeVal" type="number" min="0.1" max="3" step="0.1" value="0.6">
+        </div>
+    </div>
+    <div class="field">
+        <label>friction</label>
+        <div class="sliderRow">
+            <input id="friction" type="range" min="0.9" max="1" step="0.005" value="0.985">
+            <input class="numBox" id="frictionVal" type="number" min="0.9" max="1" step="0.005" value="0.985">
+        </div>
+    </div>
+    <div class="field">
+        <label>turnSpeed</label>
+        <div class="sliderRow">
+            <input id="turnSpeed" type="range" min="1" max="15" step="0.5" value="5">
+            <input class="numBox" id="turnSpeedVal" type="number" min="1" max="15" step="0.5" value="5">
+        </div>
+    </div>
+    <div class="field">
+        <label>reverseMax</label>
+        <div class="sliderRow">
+            <input id="reverseMax" type="range" min="1" max="15" step="0.5" value="6">
+            <input class="numBox" id="reverseMaxVal" type="number" min="1" max="15" step="0.5" value="6">
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-title">Terrain</div>
+    <div class="field">
+        <label>shakeIntensity</label>
+        <div class="sliderRow">
+            <input id="shake" type="range" min="0" max="10" step="0.5" value="2">
+            <input class="numBox" id="shakeVal" type="number" min="0" max="10" step="0.5" value="2">
+        </div>
+    </div>
+    <div class="checkbox-field"><input type="checkbox" id="enableRough" checked><label>Enable rough terrain mode</label></div>
+</div>
+
+<div class="section">
+    <div class="section-title">Controls</div>
+    <div class="checkbox-field"><input type="checkbox" id="useArrows" checked><label>Arrow keys</label></div>
+    <div class="checkbox-field"><input type="checkbox" id="useWASD" checked><label>WASD</label></div>
+    <div class="checkbox-field"><input type="checkbox" id="useMouse"><label>Mouse aim + click</label></div>
+    <div class="checkbox-field"><input type="checkbox" id="useClips"><label>Clip buttons (btn_gas, etc)</label></div>
+</div>
+
+<div class="section">
+    <div class="section-title">Collision</div>
+    <div class="checkbox-field"><input type="checkbox" id="solidCollision" checked><label>Collide with Solids</label></div>
+    <div class="checkbox-field"><input type="checkbox" id="bounceOnHit"><label>Bounce on collision</label></div>
+</div>
+
+<div class="row">
+    <button class="btn ghost" id="btnRefresh">Refresh</button>
+    <button class="btn" id="btnApply">Apply</button>
+</div>
+<div class="status" id="status"></div>
+
+<script>
+(function() {
+    "use strict";
+    function $(id) { return document.getElementById(id); }
+
+    var Bridge = null;
+    try { Bridge = window.LukeToolsBridge || parent.LukeToolsBridge; } catch(e) {}
+
+    function linkRangeNumber(rangeId, numId) {
+        var r = $(rangeId), n = $(numId);
+        if (!r || !n) return;
+        function sync(src, dst) { dst.value = src.value; }
+        r.addEventListener("input", function() { sync(r, n); });
+        r.addEventListener("change", function() { sync(r, n); });
+        n.addEventListener("input", function() { sync(n, r); });
+        n.addEventListener("change", function() { sync(n, r); });
+    }
+    
+    linkRangeNumber("maxSpeed", "maxSpeedVal");
+    linkRangeNumber("accel", "accelVal");
+    linkRangeNumber("brake", "brakeVal");
+    linkRangeNumber("friction", "frictionVal");
+    linkRangeNumber("turnSpeed", "turnSpeedVal");
+    linkRangeNumber("reverseMax", "reverseMaxVal");
+    linkRangeNumber("shake", "shakeVal");
+
+    function showStatus(msg, kind) {
+        var el = $("status");
+        el.textContent = msg;
+        el.className = "status " + (kind || "");
+    }
+
+    function getSelection() {
+        if (!Bridge) return null;
+        try { return Bridge.getSelectionInfo(); } catch(e) { return null; }
+    }
+
+    function refreshSelection() {
+        var info = getSelection();
+        $("selLabel").textContent = (info && info.ok) ? (info.name || info.identifier || "Selected") : "No Clip";
+        
+        if (info && info.ok && Bridge) {
+            try {
+                var script = Bridge.getUpdateScriptOnSelection() || "";
+                var match = script.match(/var\s+LT_CFG\s*=\s*(\{[^}]+\})/);
+                if (match) {
+                    var cfg = JSON.parse(match[1]);
+                    if (cfg.type === "LT_CAR") {
+                        if (cfg.maxSpeed !== undefined) { $("maxSpeed").value = cfg.maxSpeed; $("maxSpeedVal").value = cfg.maxSpeed; }
+                        if (cfg.accel !== undefined) { $("accel").value = cfg.accel; $("accelVal").value = cfg.accel; }
+                        if (cfg.brake !== undefined) { $("brake").value = cfg.brake; $("brakeVal").value = cfg.brake; }
+                        if (cfg.friction !== undefined) { $("friction").value = cfg.friction; $("frictionVal").value = cfg.friction; }
+                        if (cfg.turnSpeed !== undefined) { $("turnSpeed").value = cfg.turnSpeed; $("turnSpeedVal").value = cfg.turnSpeed; }
+                        if (cfg.reverseMax !== undefined) { $("reverseMax").value = cfg.reverseMax; $("reverseMaxVal").value = cfg.reverseMax; }
+                        if (cfg.shake !== undefined) { $("shake").value = cfg.shake; $("shakeVal").value = cfg.shake; }
+                        if (cfg.enableRough !== undefined) $("enableRough").checked = cfg.enableRough;
+                        if (cfg.useArrows !== undefined) $("useArrows").checked = cfg.useArrows;
+                        if (cfg.useWASD !== undefined) $("useWASD").checked = cfg.useWASD;
+                        if (cfg.useMouse !== undefined) $("useMouse").checked = cfg.useMouse;
+                        if (cfg.useClips !== undefined) $("useClips").checked = cfg.useClips;
+                        if (cfg.solidCollision !== undefined) $("solidCollision").checked = cfg.solidCollision;
+                        if (cfg.bounceOnHit !== undefined) $("bounceOnHit").checked = cfg.bounceOnHit;
+                        showStatus("Found 1 block, 14 variables", "success");
+                        return info;
+                    }
+                }
+            } catch(e) {}
+        }
+        return info;
+    }
+
+    function generateScript() {
+        var cfg = {
+            type: "LT_CAR",
+            maxSpeed: parseFloat($("maxSpeedVal").value) || 12,
+            accel: parseFloat($("accelVal").value) || 0.8,
+            brake: parseFloat($("brakeVal").value) || 0.6,
+            friction: parseFloat($("frictionVal").value) || 0.985,
+            turnSpeed: parseFloat($("turnSpeedVal").value) || 5,
+            reverseMax: parseFloat($("reverseMaxVal").value) || 6,
+            shake: parseFloat($("shakeVal").value) || 2,
+            enableRough: $("enableRough").checked,
+            useArrows: $("useArrows").checked,
+            useWASD: $("useWASD").checked,
+            useMouse: $("useMouse").checked,
+            useClips: $("useClips").checked,
+            solidCollision: $("solidCollision").checked,
+            bounceOnHit: $("bounceOnHit").checked
+        };
+
+        // Build the script as array of lines
+        var lines = [];
+        
+        lines.push('// LukeTools Type: Car');
+        lines.push('var LT_CFG = ' + JSON.stringify(cfg) + ';');
+        lines.push('var p = this.project || null;');
+        lines.push('');
+        lines.push('// Init speed on this clip');
+        lines.push('if (this._carSpd === undefined) this._carSpd = 0;');
+        lines.push('');
+        
+        // AABB helper functions (same pattern as SideRunner)
+        lines.push('// AABB collision helpers');
+        lines.push('function __car_num(v, d) { v = Number(v); return isFinite(v) ? v : d; }');
+        lines.push('function __car_bounds(o) {');
+        lines.push('  try {');
+        lines.push('    if (o && typeof o.getBounds === "function") {');
+        lines.push('      var b = o.getBounds();');
+        lines.push('      if (b) {');
+        lines.push('        if (b.left !== undefined) return {l:__car_num(b.left,0), t:__car_num(b.top,0), r:__car_num(b.right,0), b:__car_num(b.bottom,0)};');
+        lines.push('        if (b.x !== undefined && b.width !== undefined) return {l:__car_num(b.x,0), t:__car_num(b.y,0), r:__car_num(b.x,0)+__car_num(b.width,0), b:__car_num(b.y,0)+__car_num(b.height,0)};');
+        lines.push('      }');
+        lines.push('    }');
+        lines.push('  } catch(e) {}');
+        lines.push('  var w = __car_num(o && o.width, 50);');
+        lines.push('  var h = __car_num(o && o.height, 50);');
+        lines.push('  var x = __car_num(o && o.x, 0);');
+        lines.push('  var y = __car_num(o && o.y, 0);');
+        lines.push('  return {l:x-w*0.5, t:y-h*0.5, r:x+w*0.5, b:y+h*0.5};');
+        lines.push('}');
+        lines.push('function __car_inter(a, b) { return !(a.r <= b.l || a.l >= b.r || a.b <= b.t || a.t >= b.b); }');
+        lines.push('');
+        
+        // Resolve X movement with AABB collision
+        lines.push('function __car_resolveX(self, dx) {');
+        lines.push('  if (!dx) return false;');
+        lines.push('  if (!p || !p._LT_SOLIDS) { self.x += dx; return false; }');
+        lines.push('  self.x += dx;');
+        lines.push('  var a = __car_bounds(self);');
+        lines.push('  var hw = (a.r - a.l) * 0.5;');
+        lines.push('  for (var k in p._LT_SOLIDS) {');
+        lines.push('    var s = p._LT_SOLIDS[k];');
+        lines.push('    if (!s || s === self) continue;');
+        lines.push('    var sb = __car_bounds(s);');
+        lines.push('    if (__car_inter(a, sb)) {');
+        lines.push('      if (dx > 0) self.x = sb.l - hw - 0.01;');
+        lines.push('      else self.x = sb.r + hw + 0.01;');
+        lines.push('      return true;');
+        lines.push('    }');
+        lines.push('  }');
+        lines.push('  return false;');
+        lines.push('}');
+        lines.push('');
+        
+        // Resolve Y movement with AABB collision
+        lines.push('function __car_resolveY(self, dy) {');
+        lines.push('  if (!dy) return false;');
+        lines.push('  if (!p || !p._LT_SOLIDS) { self.y += dy; return false; }');
+        lines.push('  self.y += dy;');
+        lines.push('  var a = __car_bounds(self);');
+        lines.push('  var hh = (a.b - a.t) * 0.5;');
+        lines.push('  for (var k in p._LT_SOLIDS) {');
+        lines.push('    var s = p._LT_SOLIDS[k];');
+        lines.push('    if (!s || s === self) continue;');
+        lines.push('    var sb = __car_bounds(s);');
+        lines.push('    if (__car_inter(a, sb)) {');
+        lines.push('      if (dy > 0) self.y = sb.t - hh - 0.01;');
+        lines.push('      else self.y = sb.b + hh + 0.01;');
+        lines.push('      return true;');
+        lines.push('    }');
+        lines.push('  }');
+        lines.push('  return false;');
+        lines.push('}');
+        lines.push('');
+        
+        // Input
+        lines.push('// Input');
+        lines.push('var _gas = false, _brk = false, _left = false, _right = false;');
+        lines.push('if (LT_CFG.useArrows) {');
+        lines.push('  if (isKeyDown("up")) _gas = true;');
+        lines.push('  if (isKeyDown("down")) _brk = true;');
+        lines.push('  if (isKeyDown("left")) _left = true;');
+        lines.push('  if (isKeyDown("right")) _right = true;');
+        lines.push('}');
+        lines.push('if (LT_CFG.useWASD) {');
+        lines.push('  if (isKeyDown("w")) _gas = true;');
+        lines.push('  if (isKeyDown("s")) _brk = true;');
+        lines.push('  if (isKeyDown("a")) _left = true;');
+        lines.push('  if (isKeyDown("d")) _right = true;');
+        lines.push('}');
+        lines.push('if (LT_CFG.useMouse && mouseDown) {');
+        lines.push('  _gas = true;');
+        lines.push('  var _tdx = mouseX - this.x, _tdy = mouseY - this.y;');
+        lines.push('  var _tAng = Math.atan2(_tdy, _tdx) * 180 / Math.PI + 90;');
+        lines.push('  var _aDif = _tAng - this.rotation;');
+        lines.push('  while (_aDif > 180) _aDif -= 360;');
+        lines.push('  while (_aDif < -180) _aDif += 360;');
+        lines.push('  if (Math.abs(this._carSpd) > 0.1) {');
+        lines.push('    if (_aDif > 2) _right = true;');
+        lines.push('    else if (_aDif < -2) _left = true;');
+        lines.push('  }');
+        lines.push('}');
+        lines.push('if (LT_CFG.useClips) {');
+        lines.push('  try { var _bg = project.findClipByName("btn_gas"); if (_bg && _bg.isHoveredOver && mouseDown) _gas = true; } catch(e) {}');
+        lines.push('  try { var _bb = project.findClipByName("btn_brake"); if (_bb && _bb.isHoveredOver && mouseDown) _brk = true; } catch(e) {}');
+        lines.push('  try { var _bl = project.findClipByName("btn_left"); if (_bl && _bl.isHoveredOver && mouseDown) _left = true; } catch(e) {}');
+        lines.push('  try { var _br = project.findClipByName("btn_right"); if (_br && _br.isHoveredOver && mouseDown) _right = true; } catch(e) {}');
+        lines.push('}');
+        lines.push('');
+        
+        // Speed - use LT_CFG values directly
+        lines.push('// Speed');
+        lines.push('if (_gas) {');
+        lines.push('  this._carSpd += LT_CFG.accel;');
+        lines.push('  if (this._carSpd > LT_CFG.maxSpeed) this._carSpd = LT_CFG.maxSpeed;');
+        lines.push('} else if (_brk) {');
+        lines.push('  this._carSpd -= LT_CFG.brake;');
+        lines.push('  if (this._carSpd < -LT_CFG.reverseMax) this._carSpd = -LT_CFG.reverseMax;');
+        lines.push('} else {');
+        lines.push('  this._carSpd *= LT_CFG.friction;');
+        lines.push('  if (Math.abs(this._carSpd) < 0.08) this._carSpd = 0;');
+        lines.push('}');
+        lines.push('');
+        
+        // Steering
+        lines.push('// Steering');
+        lines.push('if (Math.abs(this._carSpd) > 0.2) {');
+        lines.push('  var _dir = this._carSpd > 0 ? 1 : -1;');
+        lines.push('  if (_left) this.rotation -= LT_CFG.turnSpeed * _dir;');
+        lines.push('  if (_right) this.rotation += LT_CFG.turnSpeed * _dir;');
+        lines.push('}');
+        lines.push('');
+        
+        // Movement with AABB collision
+        lines.push('// Movement');
+        lines.push('var _rad = (this.rotation - 90) * Math.PI / 180;');
+        lines.push('var _mx = Math.cos(_rad) * this._carSpd;');
+        lines.push('var _my = Math.sin(_rad) * this._carSpd;');
+        lines.push('');
+        lines.push('var _hitX = false, _hitY = false;');
+        lines.push('if (LT_CFG.solidCollision) {');
+        lines.push('  _hitX = __car_resolveX(this, _mx);');
+        lines.push('  _hitY = __car_resolveY(this, _my);');
+        lines.push('  if (_hitX || _hitY) {');
+        lines.push('    if (LT_CFG.bounceOnHit) this._carSpd = -this._carSpd * 0.3;');
+        lines.push('    else this._carSpd *= 0.5;');
+        lines.push('  }');
+        lines.push('} else {');
+        lines.push('  this.x += _mx;');
+        lines.push('  this.y += _my;');
+        lines.push('}');
+        lines.push('');
+        
+        // Rough terrain
+        lines.push('// Rough terrain');
+        lines.push('if (LT_CFG.enableRough && this._carRough && Math.abs(this._carSpd) > 0.5) {');
+        lines.push('  this.x += (Math.random() - 0.5) * LT_CFG.shake;');
+        lines.push('  this.y += (Math.random() - 0.5) * LT_CFG.shake;');
+        lines.push('}');
+        lines.push('// End');
+
+        return lines.join('\n');
+    }
+
+    function applyScript() {
+        if (!Bridge) { showStatus("Bridge not available", "error"); return; }
+
+        var info = getSelection();
+        if (!info || !info.ok) { showStatus("No clip selected", "error"); return; }
+
+        // Always replace the full script
+        var existing = "";
+        try { existing = Bridge.getUpdateScriptOnSelection() || ""; } catch(e) {}
+
+        var newScript = generateScript();
+
+        // Remove old car code if present
+        if (existing.indexOf('// LukeTools Type: Car') !== -1) {
+            var start = existing.indexOf('// LukeTools Type: Car');
+            var end = existing.indexOf('// End', start);
+            if (end !== -1) {
+                end = existing.indexOf('\n', end);
+                if (end === -1) end = existing.length;
+                else end += 1;
+                existing = existing.substring(0, start) + existing.substring(end);
+                existing = existing.trim();
+            }
+        }
+        
+        var finalScript = existing ? (existing + '\n\n' + newScript) : newScript;
+        var result = Bridge.setUpdateScriptOnSelection(finalScript);
+        
+        if (result && result.ok) {
+            showStatus("Applied to " + (info.name || info.identifier), "success");
+        } else {
+            showStatus("Error: " + (result ? result.reason : "Failed"), "error");
+        }
+    }
+
+    $("btnRefresh").addEventListener("click", refreshSelection);
+    $("btnApply").addEventListener("click", applyScript);
+
+    document.addEventListener("click", function() { setTimeout(refreshSelection, 50); });
+
+    refreshSelection();
+})();
+</script>
+</body>
+</html>
