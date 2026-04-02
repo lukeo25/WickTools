@@ -5,21 +5,31 @@
 <style>
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: transparent; font-family: Arial, sans-serif; color: #eaeaea; }
-body { padding: 12px; }
-.title { font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-.title-icon { width: 24px; height: 24px; }
-.field { margin-bottom: 10px; }
-.field label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; }
-.field input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #fff; font-size: 13px; }
-.field input:focus { outline: none; border-color: rgba(255,255,255,0.3); }
-.checkbox-field { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; }
-.checkbox-field input[type="checkbox"] { width: 16px; height: 16px; }
-.btn { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #e65c00; color: white; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+body { padding: 10px; }
+.title { font-size: 15px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.title-icon { width: 22px; height: 22px; }
+.section { margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px; }
+.section-title { font-size: 11px; font-weight: 700; color: #e65c00; margin-bottom: 8px; text-transform: uppercase; }
+.field { margin-bottom: 8px; }
+.field label { display: block; font-size: 11px; color: #aaa; margin-bottom: 4px; }
+.sliderRow { display: flex; align-items: center; gap: 8px; }
+.sliderRow input[type="range"] { flex: 1; }
+.numBox { width: 60px; padding: 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #fff; font-size: 12px; text-align: right; }
+.checkbox-field { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 11px; }
+.checkbox-field input { width: 14px; height: 14px; }
+.btn { width: 100%; padding: 10px; border-radius: 6px; border: none; background: #e65c00; color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
 .btn:hover { background: #ff6a00; }
-.status { margin-top: 10px; padding: 8px; border-radius: 6px; font-size: 12px; display: none; }
+.row { display: flex; gap: 8px; margin-bottom: 10px; }
+.row .btn { flex: 1; }
+.btn.ghost { background: rgba(255,255,255,0.08); }
+.status { margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 11px; display: none; }
 .status.success { display: block; background: rgba(33,178,107,0.2); border: 1px solid rgba(33,178,107,0.4); color: #4ade80; }
 .status.error { display: block; background: rgba(220,38,38,0.2); border: 1px solid rgba(220,38,38,0.4); color: #f87171; }
-.info { font-size: 11px; color: #888; margin-top: 8px; line-height: 1.4; }
+.status.warn { display: block; background: rgba(241,196,15,0.15); border: 1px solid rgba(241,196,15,0.4); color: #fef08a; }
+.pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; padding: 5px 10px; font-size: 11px; color: #aaa; margin-bottom: 10px; }
+.pill strong { color: #fff; }
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 </style>
 </head>
 <body>
@@ -33,135 +43,252 @@ body { padding: 12px; }
     8 Direction Movement
 </div>
 
-<div class="field">
-    <label>Speed (pixels per frame)</label>
-    <input type="number" id="speed" value="5" min="1" max="50" step="0.5">
+<div class="pill"><strong>Selected</strong> <span id="selLabel">No Clip</span></div>
+
+<div class="section">
+    <div class="section-title">Movement</div>
+    <div class="field">
+        <label>speed</label>
+        <div class="sliderRow">
+            <input id="speed" type="range" min="0.5" max="20" step="0.5" value="5">
+            <input class="numBox" id="speedVal" type="number" min="0.5" max="20" step="0.5" value="5">
+        </div>
+    </div>
 </div>
 
-<div class="checkbox-field">
-    <input type="checkbox" id="useWASD" checked>
-    <label for="useWASD">Use WASD keys</label>
+<div class="section">
+    <div class="section-title">Options</div>
+    <div class="checkbox-field"><input type="checkbox" id="useWASD" checked><label>WASD keys</label></div>
+    <div class="checkbox-field"><input type="checkbox" id="useArrows" checked><label>Arrow keys</label></div>
+    <div class="checkbox-field"><input type="checkbox" id="diagonal" checked><label>Allow diagonal</label></div>
+    <div class="checkbox-field"><input type="checkbox" id="normalize" checked><label>Normalize diagonal speed</label></div>
+    <div class="checkbox-field"><input type="checkbox" id="solidCollision" checked><label>Collide with Solids</label></div>
 </div>
 
-<div class="checkbox-field">
-    <input type="checkbox" id="useArrows" checked>
-    <label for="useArrows">Use Arrow keys</label>
+<div class="row">
+    <button class="btn ghost" id="btnRefresh">Refresh</button>
+    <button class="btn" id="btnApply">Apply</button>
 </div>
-
-<div class="checkbox-field">
-    <input type="checkbox" id="diagonal" checked>
-    <label for="diagonal">Allow diagonal movement</label>
-</div>
-
-<div class="checkbox-field">
-    <input type="checkbox" id="normalize" checked>
-    <label for="normalize">Normalize diagonal speed</label>
-</div>
-
-<button class="btn" id="applyBtn">Apply to Selected Clip</button>
-
 <div class="status" id="status"></div>
-
-<div class="info">Select a clip on the stage, configure options, then click Apply.</div>
 
 <script>
 (function() {
+    "use strict";
+    function $(id) { return document.getElementById(id); }
+
     var Bridge = null;
-    try { Bridge = parent.LukeToolsBridge || window.LukeToolsBridge; } catch(e) {}
+    try { Bridge = window.LukeToolsBridge || parent.LukeToolsBridge; } catch(e) {}
 
-    var applyBtn = document.getElementById('applyBtn');
-    var statusEl = document.getElementById('status');
+    function linkRangeNumber(rangeId, numId) {
+        var r = $(rangeId), n = $(numId);
+        if (!r || !n) return;
+        function sync(src, dst) { dst.value = src.value; }
+        r.addEventListener("input", function() { sync(r, n); });
+        r.addEventListener("change", function() { sync(r, n); });
+        n.addEventListener("input", function() { sync(n, r); });
+        n.addEventListener("change", function() { sync(n, r); });
+    }
+    linkRangeNumber("speed", "speedVal");
 
-    function showStatus(msg, isError) {
-        statusEl.textContent = msg;
-        statusEl.className = 'status ' + (isError ? 'error' : 'success');
+    function showStatus(msg, kind) {
+        var el = $("status");
+        el.textContent = msg;
+        el.className = "status " + (kind || "");
     }
 
-    function generateCode() {
-        var speed = parseFloat(document.getElementById('speed').value) || 5;
-        var useWASD = document.getElementById('useWASD').checked;
-        var useArrows = document.getElementById('useArrows').checked;
-        var diagonal = document.getElementById('diagonal').checked;
-        var normalize = document.getElementById('normalize').checked;
-
-        var code = [];
-        code.push('// 8 Direction Movement - LukeTools');
-        code.push('var _8DIR_SPEED = ' + speed + ';');
-        code.push('var _8DIR_dx = 0;');
-        code.push('var _8DIR_dy = 0;');
-
-        var leftKeys = [], rightKeys = [], upKeys = [], downKeys = [];
-
-        if (useArrows) {
-            leftKeys.push('isKeyDown("left")');
-            rightKeys.push('isKeyDown("right")');
-            upKeys.push('isKeyDown("up")');
-            downKeys.push('isKeyDown("down")');
-        }
-        if (useWASD) {
-            leftKeys.push('isKeyDown("a")');
-            rightKeys.push('isKeyDown("d")');
-            upKeys.push('isKeyDown("w")');
-            downKeys.push('isKeyDown("s")');
-        }
-        if (leftKeys.length === 0) {
-            leftKeys.push('false'); rightKeys.push('false'); upKeys.push('false'); downKeys.push('false');
-        }
-
-        code.push('if (' + leftKeys.join(' || ') + ') { _8DIR_dx = -1; }');
-        code.push('else if (' + rightKeys.join(' || ') + ') { _8DIR_dx = 1; }');
-        code.push('else { _8DIR_dx = 0; }');
-        code.push('if (' + upKeys.join(' || ') + ') { _8DIR_dy = -1; }');
-        code.push('else if (' + downKeys.join(' || ') + ') { _8DIR_dy = 1; }');
-        code.push('else { _8DIR_dy = 0; }');
-
-        if (!diagonal) {
-            code.push('if (_8DIR_dx !== 0 && _8DIR_dy !== 0) { _8DIR_dy = 0; }');
-        }
-        if (normalize && diagonal) {
-            code.push('if (_8DIR_dx !== 0 && _8DIR_dy !== 0) {');
-            code.push('  var _8DIR_len = Math.sqrt(_8DIR_dx*_8DIR_dx + _8DIR_dy*_8DIR_dy);');
-            code.push('  _8DIR_dx /= _8DIR_len; _8DIR_dy /= _8DIR_len;');
-            code.push('}');
-        }
-
-        code.push('this.x += _8DIR_dx * _8DIR_SPEED;');
-        code.push('this.y += _8DIR_dy * _8DIR_SPEED;');
-
-        return code.join('\n');
+    function getSelection() {
+        if (!Bridge) return null;
+        try { return Bridge.getSelectionInfo(); } catch(e) { return null; }
     }
 
-    applyBtn.addEventListener('click', function() {
-        if (!Bridge) { showStatus('Error: Bridge not available', true); return; }
+    function refreshSelection() {
+        var info = getSelection();
+        $("selLabel").textContent = (info && info.ok) ? (info.name || info.identifier || "Selected") : "No Clip";
+        
+        if (info && info.ok && Bridge) {
+            try {
+                var script = Bridge.getUpdateScriptOnSelection() || "";
+                var match = script.match(/var\s+LT_CFG\s*=\s*(\{[^}]+\})/);
+                if (match) {
+                    var cfg = JSON.parse(match[1]);
+                    if (cfg.type === "LT_8DIR") {
+                        if (cfg.speed !== undefined) { $("speed").value = cfg.speed; $("speedVal").value = cfg.speed; }
+                        if (cfg.useWASD !== undefined) $("useWASD").checked = cfg.useWASD;
+                        if (cfg.useArrows !== undefined) $("useArrows").checked = cfg.useArrows;
+                        if (cfg.diagonal !== undefined) $("diagonal").checked = cfg.diagonal;
+                        if (cfg.normalize !== undefined) $("normalize").checked = cfg.normalize;
+                        if (cfg.solidCollision !== undefined) $("solidCollision").checked = cfg.solidCollision;
+                        showStatus("Found 1 block, 6 variables", "success");
+                        return info;
+                    }
+                }
+            } catch(e) {}
+        }
+        return info;
+    }
 
-        var info = Bridge.getSelectionInfo();
-        if (!info || !info.ok) { showStatus('Error: No clip selected', true); return; }
+    function generateScript() {
+        var cfg = {
+            type: "LT_8DIR",
+            speed: parseFloat($("speedVal").value) || 5,
+            useWASD: $("useWASD").checked,
+            useArrows: $("useArrows").checked,
+            diagonal: $("diagonal").checked,
+            normalize: $("normalize").checked,
+            solidCollision: $("solidCollision").checked
+        };
 
-        var existing = '';
-        try { existing = Bridge.getUpdateScriptOnSelection() || ''; } catch(e) {}
+        var lines = [];
+        lines.push('// LukeTools Type: 8 Direction');
+        lines.push('var LT_CFG = ' + JSON.stringify(cfg) + ';');
+        lines.push('var p = this.project || null;');
+        lines.push('');
+        
+        // AABB helper functions
+        lines.push('// AABB collision helpers');
+        lines.push('function __8d_num(v, d) { v = Number(v); return isFinite(v) ? v : d; }');
+        lines.push('function __8d_bounds(o) {');
+        lines.push('  try {');
+        lines.push('    if (o && typeof o.getBounds === "function") {');
+        lines.push('      var b = o.getBounds();');
+        lines.push('      if (b) {');
+        lines.push('        if (b.left !== undefined) return {l:__8d_num(b.left,0), t:__8d_num(b.top,0), r:__8d_num(b.right,0), b:__8d_num(b.bottom,0)};');
+        lines.push('        if (b.x !== undefined && b.width !== undefined) return {l:__8d_num(b.x,0), t:__8d_num(b.y,0), r:__8d_num(b.x,0)+__8d_num(b.width,0), b:__8d_num(b.y,0)+__8d_num(b.height,0)};');
+        lines.push('      }');
+        lines.push('    }');
+        lines.push('  } catch(e) {}');
+        lines.push('  var w = __8d_num(o && o.width, 50);');
+        lines.push('  var h = __8d_num(o && o.height, 50);');
+        lines.push('  var x = __8d_num(o && o.x, 0);');
+        lines.push('  var y = __8d_num(o && o.y, 0);');
+        lines.push('  return {l:x-w*0.5, t:y-h*0.5, r:x+w*0.5, b:y+h*0.5};');
+        lines.push('}');
+        lines.push('function __8d_inter(a, b) { return !(a.r <= b.l || a.l >= b.r || a.b <= b.t || a.t >= b.b); }');
+        lines.push('');
+        
+        // Resolve X
+        lines.push('function __8d_resolveX(self, dx) {');
+        lines.push('  if (!dx) return;');
+        lines.push('  if (!p || !p._LT_SOLIDS) { self.x += dx; return; }');
+        lines.push('  self.x += dx;');
+        lines.push('  var a = __8d_bounds(self);');
+        lines.push('  var hw = (a.r - a.l) * 0.5;');
+        lines.push('  for (var k in p._LT_SOLIDS) {');
+        lines.push('    var s = p._LT_SOLIDS[k];');
+        lines.push('    if (!s || s === self) continue;');
+        lines.push('    var sb = __8d_bounds(s);');
+        lines.push('    if (__8d_inter(a, sb)) {');
+        lines.push('      if (dx > 0) self.x = sb.l - hw - 0.01;');
+        lines.push('      else self.x = sb.r + hw + 0.01;');
+        lines.push('      a = __8d_bounds(self);');
+        lines.push('    }');
+        lines.push('  }');
+        lines.push('}');
+        lines.push('');
+        
+        // Resolve Y
+        lines.push('function __8d_resolveY(self, dy) {');
+        lines.push('  if (!dy) return;');
+        lines.push('  if (!p || !p._LT_SOLIDS) { self.y += dy; return; }');
+        lines.push('  self.y += dy;');
+        lines.push('  var a = __8d_bounds(self);');
+        lines.push('  var hh = (a.b - a.t) * 0.5;');
+        lines.push('  for (var k in p._LT_SOLIDS) {');
+        lines.push('    var s = p._LT_SOLIDS[k];');
+        lines.push('    if (!s || s === self) continue;');
+        lines.push('    var sb = __8d_bounds(s);');
+        lines.push('    if (__8d_inter(a, sb)) {');
+        lines.push('      if (dy > 0) self.y = sb.t - hh - 0.01;');
+        lines.push('      else self.y = sb.b + hh + 0.01;');
+        lines.push('      a = __8d_bounds(self);');
+        lines.push('    }');
+        lines.push('  }');
+        lines.push('}');
+        lines.push('');
+        
+        // Input
+        lines.push('// Input');
+        lines.push('var _dx = 0, _dy = 0;');
+        lines.push('if (LT_CFG.useArrows) {');
+        lines.push('  if (isKeyDown("left")) _dx = -1;');
+        lines.push('  else if (isKeyDown("right")) _dx = 1;');
+        lines.push('  if (isKeyDown("up")) _dy = -1;');
+        lines.push('  else if (isKeyDown("down")) _dy = 1;');
+        lines.push('}');
+        lines.push('if (LT_CFG.useWASD) {');
+        lines.push('  if (isKeyDown("a")) _dx = -1;');
+        lines.push('  else if (isKeyDown("d")) _dx = 1;');
+        lines.push('  if (isKeyDown("w")) _dy = -1;');
+        lines.push('  else if (isKeyDown("s")) _dy = 1;');
+        lines.push('}');
+        lines.push('');
+        
+        // Diagonal handling
+        lines.push('// Diagonal');
+        lines.push('if (!LT_CFG.diagonal && _dx !== 0 && _dy !== 0) _dy = 0;');
+        lines.push('if (LT_CFG.normalize && _dx !== 0 && _dy !== 0) {');
+        lines.push('  var _len = Math.sqrt(_dx*_dx + _dy*_dy);');
+        lines.push('  _dx /= _len; _dy /= _len;');
+        lines.push('}');
+        lines.push('');
+        
+        // Apply movement
+        lines.push('// Movement');
+        lines.push('var _mx = _dx * LT_CFG.speed;');
+        lines.push('var _my = _dy * LT_CFG.speed;');
+        lines.push('');
+        lines.push('if (LT_CFG.solidCollision) {');
+        lines.push('  __8d_resolveX(this, _mx);');
+        lines.push('  __8d_resolveY(this, _my);');
+        lines.push('} else {');
+        lines.push('  this.x += _mx;');
+        lines.push('  this.y += _my;');
+        lines.push('}');
+        lines.push('// End');
 
-        var newCode = generateCode();
+        return lines.join('\n');
+    }
 
-        if (existing.indexOf('// 8 Direction Movement') !== -1) {
-            var start = existing.indexOf('// 8 Direction Movement');
-            var end = existing.indexOf('this.y += _8DIR_dy * _8DIR_SPEED;');
-            if (start !== -1 && end !== -1) {
+    function applyScript() {
+        if (!Bridge) { showStatus("Bridge not available", "error"); return; }
+
+        var info = getSelection();
+        if (!info || !info.ok) { showStatus("No clip selected", "error"); return; }
+
+        var existing = "";
+        try { existing = Bridge.getUpdateScriptOnSelection() || ""; } catch(e) {}
+
+        var newScript = generateScript();
+
+        // Remove old 8DIR code if present
+        if (existing.indexOf('// LukeTools Type: 8 Direction') !== -1) {
+            var start = existing.indexOf('// LukeTools Type: 8 Direction');
+            var end = existing.indexOf('// End', start);
+            if (end !== -1) {
                 end = existing.indexOf('\n', end);
                 if (end === -1) end = existing.length;
+                else end += 1;
                 existing = existing.substring(0, start) + existing.substring(end);
                 existing = existing.trim();
             }
         }
-
-        var finalScript = existing ? (existing + '\n\n' + newCode) : newCode;
+        
+        var finalScript = existing ? (existing + '\n\n' + newScript) : newScript;
         var result = Bridge.setUpdateScriptOnSelection(finalScript);
-
+        
         if (result && result.ok) {
-            showStatus('Applied to "' + (info.name || info.identifier || 'clip') + '"', false);
+            showStatus("Applied to " + (info.name || info.identifier), "success");
         } else {
-            showStatus('Error: ' + (result ? result.reason : 'Failed'), true);
+            showStatus("Error: " + (result ? result.reason : "Failed"), "error");
         }
-    });
+    }
+
+    $("btnRefresh").addEventListener("click", refreshSelection);
+    $("btnApply").addEventListener("click", applyScript);
+
+    document.addEventListener("click", function() { setTimeout(refreshSelection, 50); });
+
+    refreshSelection();
 })();
 </script>
 </body>
