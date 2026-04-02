@@ -169,6 +169,30 @@
         </div>
 
         <div class="field"> <!-- FIX -->
+          <label for="accel">Acceleration</label>
+          <div class="sliderRow"> <!-- FIX -->
+            <input id="accel" type="range" min="0.05" max="10" step="0.05" value="0.35"> <!-- FIX -->
+            <input class="numBox" id="accelVal" type="number" min="0.05" max="10" step="0.05" value="0.35"> <!-- FIX -->
+          </div>
+        </div>
+
+        <div class="field"> <!-- FIX -->
+          <label for="friction">Slide friction</label>
+          <div class="sliderRow"> <!-- FIX -->
+            <input id="friction" type="range" min="0.01" max="2" step="0.01" value="0.12"> <!-- FIX -->
+            <input class="numBox" id="frictionVal" type="number" min="0.01" max="2" step="0.01" value="0.12"> <!-- FIX -->
+          </div>
+        </div>
+
+        <div class="field"> <!-- FIX -->
+          <label for="airControl">Air control</label>
+          <div class="sliderRow"> <!-- FIX -->
+            <input id="airControl" type="range" min="0" max="1" step="0.05" value="0.35"> <!-- FIX -->
+            <input class="numBox" id="airControlVal" type="number" min="0" max="1" step="0.05" value="0.35"> <!-- FIX -->
+          </div>
+        </div>
+
+        <div class="field"> <!-- FIX -->
           <label for="jump">Jump strength</label>
           <div class="sliderRow"> <!-- FIX -->
             <input id="jump" type="range" min="0" max="100" step="0.5" value="9.0"> <!-- FIX -->
@@ -181,6 +205,22 @@
           <div class="sliderRow"> <!-- FIX -->
             <input id="grav" type="range" min="0" max="100" step="0.1" value="0.6"> <!-- FIX -->
             <input class="numBox" id="gravVal" type="number" min="0" max="100" step="0.1" value="0.6"> <!-- FIX --> <!-- FIX -->
+          </div>
+        </div>
+
+        <div class="field"> <!-- FIX -->
+          <label for="riseGrav">Rise gravity</label>
+          <div class="sliderRow"> <!-- FIX -->
+            <input id="riseGrav" type="range" min="0.05" max="5" step="0.05" value="0.65"> <!-- FIX -->
+            <input class="numBox" id="riseGravVal" type="number" min="0.05" max="5" step="0.05" value="0.65"> <!-- FIX -->
+          </div>
+        </div>
+
+        <div class="field"> <!-- FIX -->
+          <label for="fallGrav">Fall gravity</label>
+          <div class="sliderRow"> <!-- FIX -->
+            <input id="fallGrav" type="range" min="0.05" max="5" step="0.05" value="1.35"> <!-- FIX -->
+            <input class="numBox" id="fallGravVal" type="number" min="0.05" max="5" step="0.05" value="1.35"> <!-- FIX -->
           </div>
         </div>
 
@@ -274,8 +314,13 @@
   }
 
   __LT_linkRangeNumber("speed", "speedVal", 0, 100, 0.25); // FIX
+  __LT_linkRangeNumber("accel", "accelVal", 0.05, 10, 0.05); // FIX
+  __LT_linkRangeNumber("friction", "frictionVal", 0.01, 2, 0.01); // FIX
+  __LT_linkRangeNumber("airControl", "airControlVal", 0, 1, 0.05); // FIX
   __LT_linkRangeNumber("jump", "jumpVal", 0, 100, 0.5); // FIX
   __LT_linkRangeNumber("grav", "gravVal", 0, 100, 0.1); // FIX
+  __LT_linkRangeNumber("riseGrav", "riseGravVal", 0.05, 5, 0.05); // FIX
+  __LT_linkRangeNumber("fallGrav", "fallGravVal", 0.05, 5, 0.05); // FIX
   __LT_linkRangeNumber("maxfall", "maxfallVal", 0, 100, 0.5); // FIX
   function __LT_syncSlider(id, outId) { // FIX
     try {
@@ -290,8 +335,13 @@
   }
 
   __LT_syncSlider("speed", "speedVal"); // FIX
+  __LT_syncSlider("accel", "accelVal"); // FIX
+  __LT_syncSlider("friction", "frictionVal"); // FIX
+  __LT_syncSlider("airControl", "airControlVal"); // FIX
   __LT_syncSlider("jump", "jumpVal"); // FIX
   __LT_syncSlider("grav", "gravVal"); // FIX
+  __LT_syncSlider("riseGrav", "riseGravVal"); // FIX
+  __LT_syncSlider("fallGrav", "fallGravVal"); // FIX
   __LT_syncSlider("maxfall", "maxfallVal"); // FIX
   var elSel = $("selLabel");
   var elStatus = $("status");
@@ -567,197 +617,147 @@
 
 function buildUpdateScript(opts){
     var cfg = {
-      type: "LT_GAME_SPRITE",
+      type: "LT_GAME_SPRITE_LITE", // FIX
       enableLR: !!opts.enableLR,
       enableJump: !!opts.enableJump,
       enableGrav: !!opts.enableGrav,
       speed: Number(opts.speed)||3,
+      accel: Number(opts.accel)||0.35, // FIX
+      friction: Number(opts.friction)||0.12, // FIX
+      airControl: (isFinite(Number(opts.airControl)) ? Number(opts.airControl) : 0.35), // FIX
       jump: Number(opts.jump)||9,
       gravity: Number(opts.gravity)||0.6,
+      riseGravity: Number(opts.riseGravity)||0.65, // FIX
+      fallGravity: Number(opts.fallGravity)||1.35, // FIX
       maxFall: Number(opts.maxFall)||12
     };
 
     return [
-"// LukeTools Type: Game Sprite",
-"// Injected update script. Uses Update Script slot.",
-"try{ this.stop(); }catch(e){}", // FIX: keep state frames stopped
-"",
-"// FIX: direction switching by arrow keys (Right frame 1, Left frame 2)",
-"var _LT_left = false;",
-"var _LT_right = false;",
-"try{ _LT_left = !!isKeyDown(\'left\'); }catch(e0){}",
-"try{ _LT_right = !!isKeyDown(\'right\'); }catch(e1){}",
-"if(_LT_left && !_LT_right){",
-"  try{ this.gotoAndStop(2); }catch(e2){}",
-"}else if(_LT_right && !_LT_left){",
-"  try{ this.gotoAndStop(1); }catch(e3){}",
-"}else{",
-"  try{ this.gotoAndStop(1); }catch(e4){}",
-"}",
-"",
-
+"// LukeTools Type: Game Sprite Lite", // FIX
+"try{ this.stop(); }catch(e){}", // FIX
 "var LT_CFG = " + JSON.stringify(cfg, null, 0) + ";",
 "",
-"var p = this.project || null;",
-"if(p){",
-"  if(!p._LT_KEYS){ p._LT_KEYS = {left:false,right:false,space:false}; }",
-"  if(!p._LT_KEYS_INIT){",
-"    p._LT_KEYS_INIT = true;",
-"    try{",
-"      window.addEventListener('keydown', function(e){",
-"        if(!p || !p._LT_KEYS) return;",
-"        if(e.key === 'ArrowLeft') p._LT_KEYS.left = true;",
-"        if(e.key === 'ArrowRight') p._LT_KEYS.right = true;",
-"        if(e.code === 'Space') p._LT_KEYS.space = true;",
-"      }, true);",
-"      window.addEventListener('keyup', function(e){",
-"        if(!p || !p._LT_KEYS) return;",
-"        if(e.key === 'ArrowLeft') p._LT_KEYS.left = false;",
-"        if(e.key === 'ArrowRight') p._LT_KEYS.right = false;",
-"        if(e.code === 'Space') p._LT_KEYS.space = false;",
-"      }, true);",
-"    }catch(e){}",
-"  }",
-"  if(!p._LT_SOLIDS){ p._LT_SOLIDS = {}; }",
-"  // FIX: track solid motion delta each tick so sprites can ride moving solids",
-"  try{",
-"    var __k, __s;",
-"    for(__k in p._LT_SOLIDS){",
-"      __s = p._LT_SOLIDS[__k];",
-"      if(!__s) continue;",
-"      if(__s._LT_prevX === undefined) __s._LT_prevX = __s.x;",
-"      if(__s._LT_prevY === undefined) __s._LT_prevY = __s.y;",
-"      __s._LT_dx = (__s.x - __s._LT_prevX);",
-"      __s._LT_dy = (__s.y - __s._LT_prevY);",
-"      __s._LT_prevX = __s.x;",
-"      __s._LT_prevY = __s.y;",
-"    }",
-"  }catch(e){}",
+"var _lt_left = false, _lt_right = false, _lt_space = false;", // FIX
+"try{ _lt_left = !!isKeyDown('left'); }catch(e0){}", // FIX
+"try{ _lt_right = !!isKeyDown('right'); }catch(e1){}", // FIX
+"try{ _lt_space = !!isKeyDown('space'); }catch(e2){ try{ _lt_space = !!isKeyDown('Space'); }catch(e3){} }", // FIX
+"if(_lt_left && !_lt_right){", // FIX
+"  try{ this.gotoAndStop(2); }catch(e4){}", // FIX
+"}else{", // FIX
+"  try{ this.gotoAndStop(1); }catch(e5){}", // FIX
+"}", // FIX
 "",
-"}",
+"var p = this.project || null;", // FIX
+"if(!this._LT_PHYS){ this._LT_PHYS = {vx:0, vy:0, onGround:false, prevSpace:false}; }", // FIX
+"var ph = this._LT_PHYS;", // FIX
 "",
-"if(!this._LT_PHYS){",
-"  this._LT_PHYS = {vx:0, vy:0, onGround:false};",
-"}",
+"function __lt_num(v,d){ v = Number(v); return isFinite(v) ? v : d; }", // FIX
+"function __lt_bounds(o){", // FIX
+"  try{", // FIX
+"    if(o && typeof o.getBounds === 'function'){", // FIX
+"      var b = o.getBounds();", // FIX
+"      if(b){", // FIX
+"        if(b.left !== undefined && b.top !== undefined && b.right !== undefined && b.bottom !== undefined){", // FIX
+"          return {l:__lt_num(b.left,0), t:__lt_num(b.top,0), r:__lt_num(b.right,0), b:__lt_num(b.bottom,0)};", // FIX
+"        }", // FIX
+"        if(b.x !== undefined && b.y !== undefined && b.width !== undefined && b.height !== undefined){", // FIX
+"          return {l:__lt_num(b.x,0), t:__lt_num(b.y,0), r:__lt_num(b.x,0)+__lt_num(b.width,0), b:__lt_num(b.y,0)+__lt_num(b.height,0)};", // FIX
+"        }", // FIX
+"      }", // FIX
+"    }", // FIX
+"  }catch(e){}", // FIX
+"  var w = __lt_num(o && o.width, 50);", // FIX
+"  var h = __lt_num(o && o.height, 50);", // FIX
+"  var x = __lt_num(o && o.x, 0);", // FIX
+"  var y = __lt_num(o && o.y, 0);", // FIX
+"  return {l:x-w*0.5, t:y-h*0.5, r:x+w*0.5, b:y+h*0.5};", // FIX
+"}", // FIX
+"function __lt_hit(a,b){ return !(a.r <= b.l || a.l >= b.r || a.b <= b.t || a.t >= b.b); }", // FIX
 "",
-"function __lt_num(v, d){ v = Number(v); return (isFinite(v) ? v : d); }",
-"function __lt_bounds(o){",
-"  try{",
-"    if(o && typeof o.getBounds === 'function'){",
-"      var b = o.getBounds();",
-"      if(b){",
-"        if(b.left !== undefined && b.top !== undefined && b.right !== undefined && b.bottom !== undefined){",
-"          return {l:__lt_num(b.left,0), t:__lt_num(b.top,0), r:__lt_num(b.right,0), b:__lt_num(b.bottom,0)};",
-"        }",
-"        if(b.x !== undefined && b.y !== undefined && b.width !== undefined && b.height !== undefined){",
-"          return {l:__lt_num(b.x,0), t:__lt_num(b.y,0), r:__lt_num(b.x,0)+__lt_num(b.width,0), b:__lt_num(b.y,0)+__lt_num(b.height,0)};",
-"        }",
-"        if(b.topLeft && b.bottomRight){",
-"          return {l:__lt_num(b.topLeft.x,0), t:__lt_num(b.topLeft.y,0), r:__lt_num(b.bottomRight.x,0), b:__lt_num(b.bottomRight.y,0)};",
-"        }",
-"      }",
-"    }",
-"  }catch(e){}",
-"  var w = __lt_num(o && o.width, 50);",
-"  var h = __lt_num(o && o.height, 50);",
-"  var x = __lt_num(o && o.x, 0);",
-"  var y = __lt_num(o && o.y, 0);",
-"  return {l:x-w*0.5, t:y-h*0.5, r:x+w*0.5, b:y+h*0.5};",
-"}",
-"function __lt_inter(a,b){",
-"  return !(a.r <= b.l || a.l >= b.r || a.b <= b.t || a.t >= b.b);",
-"}",
+"function __lt_resolveX(dx){", // FIX
+"  if(!dx){ return; }", // FIX
+"  this.x = this.x + dx;", // FIX
+"  if(!p || !p._LT_SOLIDS){ return; }", // FIX
+"  var a = __lt_bounds(this);", // FIX
+"  var hw = (a.r - a.l) * 0.5;", // FIX
+"  var k, s, sb;", // FIX
+"  for(k in p._LT_SOLIDS){", // FIX
+"    s = p._LT_SOLIDS[k];", // FIX
+"    if(!s || s === this) continue;", // FIX
+"    sb = __lt_bounds(s);", // FIX
+"    if(__lt_hit(a, sb)){", // FIX
+"      this.x = dx > 0 ? (sb.l - hw) - 0.01 : (sb.r + hw) + 0.01;", // FIX
+"      ph.vx = 0;", // FIX
+"      break;", // FIX
+"    }", // FIX
+"  }", // FIX
+"}", // FIX
 "",
-"function __lt_resolveX(self, dx){",
-"  if(!dx) return;",
-"  if(!p || !p._LT_SOLIDS){ self.x = self.x + dx; return; }",
-"  self.x = self.x + dx;",
-"  var k, s, a, sb, hw;",
-"  a = __lt_bounds(self);",
-"  hw = (a.r - a.l) * 0.5;",
-"  for(k in p._LT_SOLIDS){",
-"    s = p._LT_SOLIDS[k];",
-"    if(!s || s === self) continue;",
-"    sb = __lt_bounds(s);",
-"    if(__lt_inter(a, sb)){",
-"      if(dx > 0){ self.x = (sb.l - hw) - 0.01; }",
-"      else{ self.x = (sb.r + hw) + 0.01; }",
-"      self._LT_PHYS.vx = 0;",
-"      a = __lt_bounds(self);",
-"      break;",
-"    }",
-"  }",
-"}",
+"function __lt_resolveY(dy){", // FIX
+"  ph.onGround = false;", // FIX
+"  if(!dy){ return; }", // FIX
+"  this.y = this.y + dy;", // FIX
+"  if(!p || !p._LT_SOLIDS){ return; }", // FIX
+"  var a = __lt_bounds(this);", // FIX
+"  var hh = (a.b - a.t) * 0.5;", // FIX
+"  var k, s, sb;", // FIX
+"  for(k in p._LT_SOLIDS){", // FIX
+"    s = p._LT_SOLIDS[k];", // FIX
+"    if(!s || s === this) continue;", // FIX
+"    sb = __lt_bounds(s);", // FIX
+"    if(__lt_hit(a, sb)){", // FIX
+"      if(dy > 0){", // FIX
+"        this.y = (sb.t - hh) - 0.01;", // FIX
+"        ph.onGround = true;", // FIX
+"      }else{", // FIX
+"        this.y = (sb.b + hh) + 0.01;", // FIX
+"      }", // FIX
+"      ph.vy = 0;", // FIX
+"      break;", // FIX
+"    }", // FIX
+"  }", // FIX
+"}", // FIX
 "",
-"function __lt_resolveY(self, dy){",
-"  if(!dy){ self._LT_PHYS.onGround = false; self._LT_PHYS.ground = null; return; }", // FIX
-"  self._LT_PHYS.onGround = false; self._LT_PHYS.ground = null; // FIX",
-"  if(!p || !p._LT_SOLIDS){ self.y = self.y + dy; return; }",
-"  self.y = self.y + dy;",
-"  var k, s, a, sb, hh;",
-"  a = __lt_bounds(self);",
-"  hh = (a.b - a.t) * 0.5;",
-"  for(k in p._LT_SOLIDS){",
-"    s = p._LT_SOLIDS[k];",
-"    if(!s || s === self) continue;",
-"    sb = __lt_bounds(s);",
-"    if(__lt_inter(a, sb)){",
-"      if(dy > 0){",
-"        self.y = (sb.t - hh) - 0.01;",
-"        self._LT_PHYS.vy = 0;",
-"        self._LT_PHYS.onGround = true;",
-"        // FIX: remember the ground solid so we can move with it",
-"        self._LT_PHYS.ground = s;",
-"      }else{",
-"        self.y = (sb.b + hh) + 0.01;",
-"        self._LT_PHYS.vy = 0;",
-"      }",
-"      a = __lt_bounds(self);",
-"      break;",
-"    }",
-"  }",
-"}",
-"","var keys = (p && p._LT_KEYS) ? p._LT_KEYS : {left:false,right:false,space:false};",
-"var ph = this._LT_PHYS;",
+"if(LT_CFG.enableLR){", // FIX
+"  var tvx = 0;", // FIX
+"  var ax = ph.onGround ? LT_CFG.accel : (LT_CFG.accel * LT_CFG.airControl);", // FIX
+"  var hasInput = false;", // FIX
+"  if(_lt_left){ tvx -= LT_CFG.speed; hasInput = true; }", // FIX
+"  if(_lt_right){ tvx += LT_CFG.speed; hasInput = true; }", // FIX
+"  if(ph.onGround){", // FIX
+"    if(tvx > ph.vx){ ph.vx += ax; if(ph.vx > tvx) ph.vx = tvx; }", // FIX
+"    else if(tvx < ph.vx){ ph.vx -= ax; if(ph.vx < tvx) ph.vx = tvx; }", // FIX
+"    if(!hasInput){", // FIX
+"      if(ph.vx > 0){ ph.vx -= LT_CFG.friction; if(ph.vx < 0) ph.vx = 0; }", // FIX
+"      else if(ph.vx < 0){ ph.vx += LT_CFG.friction; if(ph.vx > 0) ph.vx = 0; }", // FIX
+"    }", // FIX
+"  }else if(hasInput){", // FIX
+"    if(tvx > ph.vx){ ph.vx += ax; if(ph.vx > tvx) ph.vx = tvx; }", // FIX
+"    else if(tvx < ph.vx){ ph.vx -= ax; if(ph.vx < tvx) ph.vx = tvx; }", // FIX
+"  }", // FIX
+"}else if(ph.onGround){", // FIX
+"  if(ph.vx > 0){ ph.vx -= LT_CFG.friction; if(ph.vx < 0) ph.vx = 0; }", // FIX
+"  else if(ph.vx < 0){ ph.vx += LT_CFG.friction; if(ph.vx > 0) ph.vx = 0; }", // FIX
+"}", // FIX
 "",
-"if(LT_CFG.enableLR){",
-"  var vx = 0;",
-"  if(keys.left) vx -= LT_CFG.speed;",
-"  if(keys.right) vx += LT_CFG.speed;",
-"  ph.vx = vx;",
-"}else{",
-"  ph.vx = 0;",
-"}",
+"if(LT_CFG.enableGrav){", // FIX
+"  var g = LT_CFG.gravity;", // FIX
+"  if(ph.vy < 0) g = LT_CFG.gravity * LT_CFG.riseGravity;", // FIX
+"  else if(ph.vy > 0) g = LT_CFG.gravity * LT_CFG.fallGravity;", // FIX
+"  ph.vy += g;", // FIX
+"  if(ph.vy > LT_CFG.maxFall) ph.vy = LT_CFG.maxFall;", // FIX
+"}", // FIX
 "",
-"if(LT_CFG.enableGrav){",
-"  ph.vy += LT_CFG.gravity;",
-"  if(ph.vy > LT_CFG.maxFall) ph.vy = LT_CFG.maxFall;",
-"}",
+"var _lt_pressed = (_lt_space && !ph.prevSpace);", // FIX
+"ph.prevSpace = _lt_space;", // FIX
+"if(LT_CFG.enableJump && _lt_pressed && ph.onGround){", // FIX
+"  ph.vy = -LT_CFG.jump;", // FIX
+"  ph.onGround = false;", // FIX
+"}", // FIX
 "",
-"if(LT_CFG.enableJump){",
-"  if(keys.space && ph.onGround){",
-"    ph.vy = -LT_CFG.jump;",
-"    ph.onGround = false;",
-"  }",
-"}",
-"",
-"__lt_resolveX(this, ph.vx);",
-"__lt_resolveY(this, ph.vy);",
-"",
-"// FIX: ride moving solid when onGround",
-"if(ph.onGround && ph.ground){",
-"  var __gs = ph.ground;",
-"  var __gdx = 0;",
-"  var __gdy = 0;",
-"  try{ __gdx = Number(__gs._LT_dx) || 0; }catch(e0){}",
-"  try{ __gdy = Number(__gs._LT_dy) || 0; }catch(e1){}",
-"  if(__gdx || __gdy){",
-"    this.x = this.x + __gdx;",
-"    this.y = this.y + __gdy;",
-"  }",
-"}",
-"",
-"// End"
+"__lt_resolveX.call(this, ph.vx);", // FIX
+"__lt_resolveY.call(this, ph.vy);", // FIX
+"// End" // FIX
     ].join("\n");
   }
 
@@ -772,52 +772,8 @@ function buildUpdateScript(opts){
       return false;
     }
     try{
-      // Read existing script first
-      var existing = "";
-      try{
-        if(typeof bridge.getUpdateScriptOnSelection === "function"){
-          existing = bridge.getUpdateScriptOnSelection() || "";
-        }
-      }catch(e0){}
-
-      var finalScript = scriptText;
-
-      if(existing && existing.trim()){
-        // Extract the CFG variable name from new script
-        var cfgMatch = scriptText.match(/var\s+([A-Z_][A-Z0-9_]*(?:_?CFG))\s*=\s*(\{[^}]+\})/);
-        if(cfgMatch){
-          var cfgVarName = cfgMatch[1];
-          var newCfgJson = cfgMatch[2];
-          // Check if this CFG block already exists in the script
-          var existingCfgRx = new RegExp("var\\s+" + cfgVarName + "\\s*=\\s*\\{[^}]+\\}");
-          if(existingCfgRx.test(existing)){
-            // Replace just the CFG line - targeted update
-            finalScript = existing.replace(existingCfgRx, "var " + cfgVarName + " = " + newCfgJson);
-          } else {
-            // Append new behaviour block to existing script
-            // Find the // End marker and insert before it, or just append
-            var endMarker = "// End";
-            if(existing.indexOf(endMarker) !== -1){
-              // Extract just the behaviour code (skip the // LukeTools comment header)
-              var behaviourLines = scriptText.split("\n");
-              var startIdx = 0;
-              for(var i=0; i<behaviourLines.length; i++){
-                if(behaviourLines[i].indexOf("var LT") !== -1 || behaviourLines[i].indexOf("var _LT") !== -1){
-                  startIdx = i;
-                  break;
-                }
-              }
-              var behaviourCode = behaviourLines.slice(startIdx).join("\n");
-              finalScript = existing.replace(endMarker, "\n// --- Appended Behaviour ---\n" + behaviourCode);
-            } else {
-              // No end marker, just append
-              finalScript = existing.trim() + "\n\n// --- Appended Behaviour ---\n" + scriptText;
-            }
-          }
-        }
-      }
-
-      var r = bridge.setUpdateScriptOnSelection(finalScript);
+      // FIX: keep it simple and replace the update script directly
+      var r = bridge.setUpdateScriptOnSelection(scriptText);
       if(r && r.ok === false) throw new Error(r.reason || "update script failed");
       return true;
     }catch(e){
@@ -863,8 +819,13 @@ function buildUpdateScript(opts){
       enableJump: $("optJump").checked,
       enableGrav: $("optGrav").checked,
       speed: $("speed").value,
+      accel: $("accel").value, // FIX
+      friction: $("friction").value, // FIX
+      airControl: $("airControl").value, // FIX
       jump: $("jump").value,
       gravity: $("grav").value,
+      riseGravity: $("riseGrav").value, // FIX
+      fallGravity: $("fallGrav").value, // FIX
       maxFall: $("maxfall").value
     };
 
