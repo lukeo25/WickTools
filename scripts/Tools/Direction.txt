@@ -1,0 +1,168 @@
+<!doctype html>
+<html data-f-screen="0">
+<head>
+<meta charset="utf-8">
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: transparent; font-family: Arial, sans-serif; color: #eaeaea; }
+body { padding: 12px; }
+.title { font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.title-icon { width: 24px; height: 24px; }
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; }
+.field input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #fff; font-size: 13px; }
+.field input:focus { outline: none; border-color: rgba(255,255,255,0.3); }
+.checkbox-field { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; }
+.checkbox-field input[type="checkbox"] { width: 16px; height: 16px; }
+.btn { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #e65c00; color: white; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+.btn:hover { background: #ff6a00; }
+.status { margin-top: 10px; padding: 8px; border-radius: 6px; font-size: 12px; display: none; }
+.status.success { display: block; background: rgba(33,178,107,0.2); border: 1px solid rgba(33,178,107,0.4); color: #4ade80; }
+.status.error { display: block; background: rgba(220,38,38,0.2); border: 1px solid rgba(220,38,38,0.4); color: #f87171; }
+.info { font-size: 11px; color: #888; margin-top: 8px; line-height: 1.4; }
+</style>
+</head>
+<body>
+<script>var F_Screen = 0;</script>
+
+<div class="title">
+    <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="#e65c00" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v4M12 18v4M2 12h4M18 12h4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+    </svg>
+    8 Direction Movement
+</div>
+
+<div class="field">
+    <label>Speed (pixels per frame)</label>
+    <input type="number" id="speed" value="5" min="1" max="50" step="0.5">
+</div>
+
+<div class="checkbox-field">
+    <input type="checkbox" id="useWASD" checked>
+    <label for="useWASD">Use WASD keys</label>
+</div>
+
+<div class="checkbox-field">
+    <input type="checkbox" id="useArrows" checked>
+    <label for="useArrows">Use Arrow keys</label>
+</div>
+
+<div class="checkbox-field">
+    <input type="checkbox" id="diagonal" checked>
+    <label for="diagonal">Allow diagonal movement</label>
+</div>
+
+<div class="checkbox-field">
+    <input type="checkbox" id="normalize" checked>
+    <label for="normalize">Normalize diagonal speed</label>
+</div>
+
+<button class="btn" id="applyBtn">Apply to Selected Clip</button>
+
+<div class="status" id="status"></div>
+
+<div class="info">Select a clip on the stage, configure options, then click Apply.</div>
+
+<script>
+(function() {
+    var Bridge = null;
+    try { Bridge = parent.LukeToolsBridge || window.LukeToolsBridge; } catch(e) {}
+
+    var applyBtn = document.getElementById('applyBtn');
+    var statusEl = document.getElementById('status');
+
+    function showStatus(msg, isError) {
+        statusEl.textContent = msg;
+        statusEl.className = 'status ' + (isError ? 'error' : 'success');
+    }
+
+    function generateCode() {
+        var speed = parseFloat(document.getElementById('speed').value) || 5;
+        var useWASD = document.getElementById('useWASD').checked;
+        var useArrows = document.getElementById('useArrows').checked;
+        var diagonal = document.getElementById('diagonal').checked;
+        var normalize = document.getElementById('normalize').checked;
+
+        var code = [];
+        code.push('// 8 Direction Movement - LukeTools');
+        code.push('var _8DIR_SPEED = ' + speed + ';');
+        code.push('var _8DIR_dx = 0;');
+        code.push('var _8DIR_dy = 0;');
+
+        var leftKeys = [], rightKeys = [], upKeys = [], downKeys = [];
+
+        if (useArrows) {
+            leftKeys.push('isKeyDown("left")');
+            rightKeys.push('isKeyDown("right")');
+            upKeys.push('isKeyDown("up")');
+            downKeys.push('isKeyDown("down")');
+        }
+        if (useWASD) {
+            leftKeys.push('isKeyDown("a")');
+            rightKeys.push('isKeyDown("d")');
+            upKeys.push('isKeyDown("w")');
+            downKeys.push('isKeyDown("s")');
+        }
+        if (leftKeys.length === 0) {
+            leftKeys.push('false'); rightKeys.push('false'); upKeys.push('false'); downKeys.push('false');
+        }
+
+        code.push('if (' + leftKeys.join(' || ') + ') { _8DIR_dx = -1; }');
+        code.push('else if (' + rightKeys.join(' || ') + ') { _8DIR_dx = 1; }');
+        code.push('else { _8DIR_dx = 0; }');
+        code.push('if (' + upKeys.join(' || ') + ') { _8DIR_dy = -1; }');
+        code.push('else if (' + downKeys.join(' || ') + ') { _8DIR_dy = 1; }');
+        code.push('else { _8DIR_dy = 0; }');
+
+        if (!diagonal) {
+            code.push('if (_8DIR_dx !== 0 && _8DIR_dy !== 0) { _8DIR_dy = 0; }');
+        }
+        if (normalize && diagonal) {
+            code.push('if (_8DIR_dx !== 0 && _8DIR_dy !== 0) {');
+            code.push('  var _8DIR_len = Math.sqrt(_8DIR_dx*_8DIR_dx + _8DIR_dy*_8DIR_dy);');
+            code.push('  _8DIR_dx /= _8DIR_len; _8DIR_dy /= _8DIR_len;');
+            code.push('}');
+        }
+
+        code.push('this.x += _8DIR_dx * _8DIR_SPEED;');
+        code.push('this.y += _8DIR_dy * _8DIR_SPEED;');
+
+        return code.join('\n');
+    }
+
+    applyBtn.addEventListener('click', function() {
+        if (!Bridge) { showStatus('Error: Bridge not available', true); return; }
+
+        var info = Bridge.getSelectionInfo();
+        if (!info || !info.ok) { showStatus('Error: No clip selected', true); return; }
+
+        var existing = '';
+        try { existing = Bridge.getUpdateScriptOnSelection() || ''; } catch(e) {}
+
+        var newCode = generateCode();
+
+        if (existing.indexOf('// 8 Direction Movement') !== -1) {
+            var start = existing.indexOf('// 8 Direction Movement');
+            var end = existing.indexOf('this.y += _8DIR_dy * _8DIR_SPEED;');
+            if (start !== -1 && end !== -1) {
+                end = existing.indexOf('\n', end);
+                if (end === -1) end = existing.length;
+                existing = existing.substring(0, start) + existing.substring(end);
+                existing = existing.trim();
+            }
+        }
+
+        var finalScript = existing ? (existing + '\n\n' + newCode) : newCode;
+        var result = Bridge.setUpdateScriptOnSelection(finalScript);
+
+        if (result && result.ok) {
+            showStatus('Applied to "' + (info.name || info.identifier || 'clip') + '"', false);
+        } else {
+            showStatus('Error: ' + (result ? result.reason : 'Failed'), true);
+        }
+    });
+})();
+</script>
+</body>
+</html>
