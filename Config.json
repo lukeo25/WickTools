@@ -15,6 +15,14 @@
           "action": "script",
           "F_Screen": 0
         },
+                {
+          "id": "Directions",
+          "label": "Directions",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Directions.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Directions.txt",
+          "action": "script",
+          "F_Screen": 0
+        },
          {
           "id": "Rando",
           "label": "Rando",
