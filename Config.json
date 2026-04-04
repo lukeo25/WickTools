@@ -54,6 +54,14 @@
           "action": "script",
           "F_Screen": 0
         },
+                        {
+          "id": "Old Timer",
+          "label": "Old Timer",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Timer.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Old_Timer.txt",
+          "action": "script",
+          "F_Screen": 0
+        },
         {
           "id": "Directions",
           "label": "Directions",
