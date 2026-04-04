@@ -1,0 +1,285 @@
+<!doctype html>
+<html data-f-screen="0">
+<head>
+<meta charset="utf-8">
+<title>Life</title>
+<style>
+:root{--bg:#0f0f10;--panel:#141416;--text:#e7e7ea;--muted:#a8a8b3;--line:#2a2a30;--good:#2ecc71;--warn:#f1c40f;--bad:#e74c3c;--r:10px}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent;color:var(--text);font-family:system-ui,-apple-system,sans-serif}
+.wrap{padding:12px}
+.card{background:rgba(20,20,22,0.95);border:1px solid rgba(255,255,255,0.08);border-radius:var(--r);padding:12px}
+.title{font-size:15px;font-weight:700;margin-bottom:10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.field{display:flex;flex-direction:column;gap:4px;min-width:140px;flex:1}
+.field label{font-size:11px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:99px;padding:5px 10px;font-size:11px;color:var(--muted)}
+.pill strong{color:var(--text)}
+input[type=text],input[type=number]{background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);color:var(--text);border-radius:var(--r);padding:8px;font-size:12px;width:100%}
+select{background:#ffffff;border:1px solid rgba(255,255,255,0.1);color:#000000;border-radius:var(--r);padding:8px;font-size:12px;width:100%}
+select option,optgroup{color:#000000;background:#ffffff}
+.checks{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.check{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:var(--r);padding:8px}
+.check input{width:16px;height:16px}
+.check .h{font-size:12px;font-weight:700}
+.check .s{font-size:10px;color:var(--muted)}
+.btn{border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:var(--text);border-radius:var(--r);padding:8px 12px;cursor:pointer;font-weight:700;font-size:12px}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:rgba(46,204,113,0.18);border-color:rgba(46,204,113,0.35)}
+.btn.link{background:rgba(66,133,244,0.18);border-color:rgba(66,133,244,0.35);font-size:11px;padding:8px 10px;white-space:nowrap}
+.status{margin-top:10px;padding:8px;border-radius:var(--r);border:1px solid rgba(255,255,255,0.08);background:rgba(0,0,0,0.2);font-size:11px;color:var(--muted)}
+.status.good{border-color:rgba(46,204,113,0.35);background:rgba(46,204,113,0.12);color:#d9ffe9}
+.status.bad{border-color:rgba(231,76,60,0.35);background:rgba(231,76,60,0.12);color:#ffd9d6}
+.status.warn{border-color:rgba(241,196,15,0.35);background:rgba(241,196,15,0.1);color:#fff2c2}
+.small{font-size:10px;color:var(--muted);margin-top:8px;line-height:1.4}
+.font-row{display:flex;gap:6px;align-items:flex-end}
+.font-row .field{flex:1}
+.font-row .btn{margin-bottom:0;height:36px;display:flex;align-items:center}
+</style>
+</head>
+<body>
+<script>var F_Screen = 0;</script>
+<div class="wrap"><div class="card">
+<div class="title">Life <span style="opacity:0.5;font-weight:400">v2</span></div>
+<div class="small">
+  1. Put a dynamic text inside your clip, name it "LifeText"<br>
+  2. Select the clip and click Apply<br>
+  3. Read LT_Life from other scripts or game blocks<br>
+  4. This script displays the global value in the named text object
+</div>
+
+<div class="row">
+  <div class="pill"><strong>Clip</strong> <span id="selLabel">None</span></div>
+  <button class="btn" id="btnRefresh">Refresh</button>
+</div>
+
+<div class="row">
+  <div class="field">
+    <label>Variable name</label>
+    <input id="varName" type="text" value="LT_Life">
+  </div>
+  <div class="field">
+    <label>Text object name</label>
+    <input id="textName" type="text" value="LifeText">
+  </div>
+  <div class="field">
+    <label>Default value if missing</label>
+    <input id="defaultValue" type="text" value="0">
+  </div>
+</div>
+
+<div class="row">
+  <div class="field">
+    <label>Prefix</label>
+    <input id="prefix" type="text" value="">
+  </div>
+  <div class="field">
+    <label>Suffix</label>
+    <input id="suffix" type="text" value="">
+  </div>
+</div>
+
+<div class="row">
+  <div class="field" style="flex:2">
+    <label>Font (dropdown)</label>
+    <select id="fontFamily">
+      <option value="Roboto">Roboto</option>
+      <option value="Open Sans">Open Sans</option>
+      <option value="Lato">Lato</option>
+      <option value="Montserrat">Montserrat</option>
+      <option value="Poppins" selected>Poppins</option>
+      <option value="Inter">Inter</option>
+      <option value="Nunito">Nunito</option>
+      <option value="Raleway">Raleway</option>
+      <option value="Orbitron">Orbitron</option>
+      <option value="Bangers">Bangers</option>
+      <option value="Press Start 2P">Press Start 2P</option>
+    </select>
+  </div>
+</div>
+
+<div class="font-row">
+  <div class="field">
+    <label>Or type custom font name</label>
+    <input id="customFont" type="text" placeholder="e.g. Pixelify Sans">
+  </div>
+  <button class="btn link" id="btnGoogleFonts">🔗 Google Fonts</button>
+</div>
+
+<div class="checks">
+  <div class="check"><input id="showConsole" type="checkbox"><div><div class="h">Console logs</div><div class="s">Log life updates to console</div></div></div>
+</div>
+
+<div class="row" style="margin-top:12px">
+  <button class="btn primary" id="btnCreate">Apply</button>
+</div>
+
+<div id="status" class="status">Ready</div>
+</div></div>
+
+<script>
+(function(){
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var Bridge = window.LukeToolsBridge || null;
+
+function status(msg, kind){ var el=$("status"); el.textContent=msg; el.className="status"+(kind?" "+kind:""); }
+function sel(){ if(!Bridge) return null; try{ return Bridge.getSelectionInfo(); }catch(e){ return null; } }
+
+$("btnGoogleFonts").onclick = function(){
+  window.open("https://fonts.google.com/", "_blank");
+};
+
+$("customFont").oninput = function(){
+  if($("customFont").value.trim()){ $("fontFamily").style.opacity = "0.5"; }
+  else { $("fontFamily").style.opacity = "1"; }
+};
+
+$("fontFamily").onchange = function(){
+  $("customFont").value = "";
+  $("fontFamily").style.opacity = "1";
+};
+
+function getSelectedFont(){
+  var custom = $("customFont").value.trim();
+  if(custom) return custom;
+  return $("fontFamily").value || "Poppins";
+}
+
+function refresh(){
+  var info = sel();
+  $("selLabel").textContent = (info && info.ok) ? (info.name || info.identifier || "Selected") : "None";
+
+  if(info && info.ok && Bridge){
+    try{
+      var script = Bridge.getUpdateScriptOnSelection() || "";
+      var m = script.match(/var\s+LT_LIFE_CFG\s*=\s*(\{[\s\S]*?\});/);
+      if(m){
+        var cfg = JSON.parse(m[1]);
+        if(cfg.varName) $("varName").value = cfg.varName;
+        if(cfg.textName) $("textName").value = cfg.textName;
+        if(cfg.defaultValue !== undefined) $("defaultValue").value = cfg.defaultValue;
+        if(cfg.prefix !== undefined) $("prefix").value = cfg.prefix;
+        if(cfg.suffix !== undefined) $("suffix").value = cfg.suffix;
+        if(cfg.fontFamily){
+          var found = false;
+          for(var i=0; i<$("fontFamily").options.length; i++){
+            if($("fontFamily").options[i].value === cfg.fontFamily){
+              $("fontFamily").value = cfg.fontFamily;
+              $("customFont").value = "";
+              $("fontFamily").style.opacity = "1";
+              found = true;
+              break;
+            }
+          }
+          if(!found){
+            $("customFont").value = cfg.fontFamily;
+            $("fontFamily").style.opacity = "0.5";
+          }
+        }
+        if(cfg.showConsole !== undefined) $("showConsole").checked = cfg.showConsole;
+        status("Found config", "good");
+      }
+    }catch(e){}
+  }
+  return info;
+}
+
+function buildScript(){
+  var textName = $("textName").value || "LifeText";
+  var fontFamily = getSelectedFont();
+
+  var cfg = {
+    type: "LT_LIFE_DISPLAY",
+    varName: $("varName").value || "LT_Life",
+    textName: textName,
+    defaultValue: $("defaultValue").value || "0",
+    prefix: $("prefix").value || "",
+    suffix: $("suffix").value || "",
+    fontFamily: fontFamily,
+    fontWeights: "400;700",
+    showConsole: $("showConsole").checked
+  };
+
+  var L = [];
+  L.push('// LukeTools Type: Life');
+  L.push('var LT_LIFE_CFG = ' + JSON.stringify(cfg) + ';');
+  L.push('');
+  L.push('if(!this._lifeDisp) this._lifeDisp = {fontOk:false,lastText:null};');
+  L.push('var _ld = this._lifeDisp;');
+  L.push('');
+  L.push('if(!_ld.fontOk && LT_LIFE_CFG.fontFamily){');
+  L.push('  _ld.fontOk = true;');
+  L.push('  try{');
+  L.push('    var _fkey = "__LT_F_"+LT_LIFE_CFG.fontFamily;');
+  L.push('    if(!window[_fkey]){');
+  L.push('      window[_fkey] = true;');
+  L.push('      var _link = document.createElement("link");');
+  L.push('      _link.rel = "stylesheet";');
+  L.push('      _link.href = "https://fonts.googleapis.com/css2?family="+LT_LIFE_CFG.fontFamily.replace(/ /g,"+")+":wght@"+LT_LIFE_CFG.fontWeights+"&display=swap";');
+  L.push('      document.head.appendChild(_link);');
+  L.push('    }');
+  L.push('  }catch(e){}');
+  L.push('}');
+  L.push('');
+  L.push('var _lifeVal = LT_LIFE_CFG.defaultValue;');
+  L.push('try{ if(window[LT_LIFE_CFG.varName] !== undefined && window[LT_LIFE_CFG.varName] !== null) _lifeVal = window[LT_LIFE_CFG.varName]; }catch(e){}');
+  L.push('try{ if(this[LT_LIFE_CFG.varName] !== undefined && this[LT_LIFE_CFG.varName] !== null) _lifeVal = this[LT_LIFE_CFG.varName]; }catch(e){}');
+  L.push('');
+  L.push('this.lifeValue = _lifeVal;');
+  L.push('this[LT_LIFE_CFG.varName] = _lifeVal;');
+  L.push('');
+  L.push('var _lifeText = String(LT_LIFE_CFG.prefix) + String(_lifeVal) + String(LT_LIFE_CFG.suffix);');
+  L.push('');
+  L.push('var _txt = this.' + textName + ';');
+  L.push('if(_txt){');
+  L.push('  try{ _txt.setText(_lifeText); }catch(e){}');
+  L.push('  try{ _txt.text = _lifeText; }catch(e){}');
+  L.push('  try{ _txt.fontFamily = LT_LIFE_CFG.fontFamily; }catch(e){}');
+  L.push('  try{ _txt.font = LT_LIFE_CFG.fontFamily; }catch(e){}');
+  L.push('}');
+  L.push('');
+  L.push('if(LT_LIFE_CFG.showConsole && _ld.lastText !== _lifeText){');
+  L.push('  _ld.lastText = _lifeText;');
+  L.push('  console.log("Life:", LT_LIFE_CFG.varName + ":", _lifeVal, "Text:", _lifeText);');
+  L.push('}');
+  L.push('// End');
+  return L.join("\n");
+}
+
+function apply(){
+  if(!Bridge){ status("Bridge not available", "bad"); return; }
+  var info = sel();
+  if(!info || !info.ok){ status("No clip selected", "warn"); return; }
+
+  var existing = "";
+  try{ existing = Bridge.getUpdateScriptOnSelection() || ""; }catch(e){}
+
+  var script = buildScript();
+
+  if(existing.indexOf('// LukeTools Type: Life') !== -1){
+    var start = existing.indexOf('// LukeTools Type: Life');
+    var end = existing.indexOf('// End', start);
+    if(end !== -1){
+      end = existing.indexOf('\n', end);
+      if(end === -1) end = existing.length; else end++;
+      existing = existing.substring(0, start) + existing.substring(end);
+      existing = existing.trim();
+    }
+  }
+
+  var final = existing ? existing + '\n\n' + script : script;
+  var r = Bridge.setUpdateScriptOnSelection(final);
+
+  if(r && r.ok) status("Applied to " + (info.name || info.identifier), "good");
+  else status("Error: " + (r ? r.reason : "Failed"), "bad");
+}
+
+$("btnRefresh").onclick = refresh;
+$("btnCreate").onclick = apply;
+document.onclick = function(){ setTimeout(refresh, 50); };
+refresh();
+})();
+</script>
+</body>
+</html>
