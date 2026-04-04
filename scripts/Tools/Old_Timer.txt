@@ -1,0 +1,547 @@
+<!doctype html>
+<html data-f-screen="0">
+<head>
+<meta charset="utf-8">
+<title>Timer</title>
+<style>
+:root{--bg:#0f0f10;--panel:#141416;--text:#e7e7ea;--muted:#a8a8b3;--line:#2a2a30;--good:#2ecc71;--warn:#f1c40f;--bad:#e74c3c;--r:10px}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent;color:var(--text);font-family:system-ui,-apple-system,sans-serif}
+.wrap{padding:12px}
+.card{background:rgba(20,20,22,0.95);border:1px solid rgba(255,255,255,0.08);border-radius:var(--r);padding:12px}
+.title{font-size:15px;font-weight:700;margin-bottom:10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.field{display:flex;flex-direction:column;gap:4px;min-width:140px;flex:1}
+.field label{font-size:11px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:99px;padding:5px 10px;font-size:11px;color:var(--muted)}
+.pill strong{color:var(--text)}
+input[type=text],input[type=number]{background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);color:var(--text);border-radius:var(--r);padding:8px;font-size:12px;width:100%}
+select{background:#ffffff;border:1px solid rgba(255,255,255,0.1);color:#000000;border-radius:var(--r);padding:8px;font-size:12px;width:100%}
+select option,optgroup{color:#000000;background:#ffffff}
+.checks{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.check{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:var(--r);padding:8px}
+.check input{width:16px;height:16px}
+.check .h{font-size:12px;font-weight:700}
+.check .s{font-size:10px;color:var(--muted)}
+.btn{border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:var(--text);border-radius:var(--r);padding:8px 12px;cursor:pointer;font-weight:700;font-size:12px}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:rgba(46,204,113,0.18);border-color:rgba(46,204,113,0.35)}
+.btn.link{background:rgba(66,133,244,0.18);border-color:rgba(66,133,244,0.35);font-size:11px;padding:8px 10px;white-space:nowrap}
+.status{margin-top:10px;padding:8px;border-radius:var(--r);border:1px solid rgba(255,255,255,0.08);background:rgba(0,0,0,0.2);font-size:11px;color:var(--muted)}
+.status.good{border-color:rgba(46,204,113,0.35);background:rgba(46,204,113,0.12);color:#d9ffe9}
+.status.bad{border-color:rgba(231,76,60,0.35);background:rgba(231,76,60,0.12);color:#ffd9d6}
+.status.warn{border-color:rgba(241,196,15,0.35);background:rgba(241,196,15,0.1);color:#fff2c2}
+.divider{height:1px;background:rgba(255,255,255,0.08);margin:10px 0}
+.small{font-size:10px;color:var(--muted);margin-top:8px;line-height:1.4}
+.font-row{display:flex;gap:6px;align-items:flex-end}
+.font-row .field{flex:1}
+.font-row .btn{margin-bottom:0;height:36px;display:flex;align-items:center}
+.radios{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
+.radio{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text)}
+.radio input{width:16px;height:16px}
+</style>
+</head>
+<body>
+<script>var F_Screen = 0;</script>
+<div class="wrap"><div class="card">
+<div class="title">Old Timer <span style="opacity:0.5;font-weight:400">v13</span></div>
+<div class="small">
+  1. Put a dynamic text inside your clip, name it "TimerText"<br>
+  2. Select the clip and click Apply<br>
+  3. Read LT_Time from other scripts
+</div>
+
+<div class="row">
+  <div class="pill"><strong>Clip</strong> <span id="selLabel">None</span></div>
+  <button class="btn" id="btnRefresh">Refresh</button>
+</div>
+
+<div class="row">
+  <div class="field">
+    <label>Mode</label>
+    <select id="timerMode">
+      <option value="countdown">Countdown</option>
+      <option value="countup">Countup</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Start seconds</label>
+    <input id="startSeconds" type="number" value="30" min="0">
+  </div>
+  <div class="field">
+    <label>End seconds</label>
+    <input id="endSeconds" type="number" value="0" min="0">
+  </div>
+</div>
+
+<div class="row">
+  <div class="field">
+    <label>FPS</label>
+    <input id="fps" type="number" value="30" min="1">
+  </div>
+  <div class="field">
+    <label>Variable name</label>
+    <input id="varName" type="text" value="LT_Time">
+  </div>
+  <div class="field">
+    <label>Text object name</label>
+    <input id="textName" type="text" value="TimerText">
+  </div>
+</div>
+<div class="row">
+  <div class="field">
+    <label>Display precision</label>
+    <div class="radios">
+      <label class="radio"><input type="radio" name="displayMode" id="dispSecs" value="seconds" checked>Secs</label>
+      <label class="radio"><input type="radio" name="displayMode" id="dispTenths" value="tenths">Tenths of a sec</label>
+      <label class="radio"><input type="radio" name="displayMode" id="dispHundredths" value="hundredths">Hundredths</label>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="field" style="flex:2">
+    <label>Font (dropdown)</label>
+    <select id="fontFamily">
+      <optgroup label="Sans-Serif">
+        <option value="Roboto">Roboto</option>
+        <option value="Open Sans">Open Sans</option>
+        <option value="Lato">Lato</option>
+        <option value="Montserrat">Montserrat</option>
+        <option value="Poppins" selected>Poppins</option>
+        <option value="Inter">Inter</option>
+        <option value="Nunito">Nunito</option>
+        <option value="Nunito Sans">Nunito Sans</option>
+        <option value="Raleway">Raleway</option>
+        <option value="Ubuntu">Ubuntu</option>
+        <option value="Work Sans">Work Sans</option>
+        <option value="Rubik">Rubik</option>
+        <option value="Quicksand">Quicksand</option>
+        <option value="Mukta">Mukta</option>
+        <option value="Josefin Sans">Josefin Sans</option>
+        <option value="Source Sans Pro">Source Sans Pro</option>
+        <option value="Fira Sans">Fira Sans</option>
+        <option value="DM Sans">DM Sans</option>
+        <option value="Manrope">Manrope</option>
+        <option value="Lexend">Lexend</option>
+        <option value="Outfit">Outfit</option>
+        <option value="Sora">Sora</option>
+        <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
+        <option value="Space Grotesk">Space Grotesk</option>
+        <option value="Figtree">Figtree</option>
+        <option value="Karla">Karla</option>
+        <option value="Cabin">Cabin</option>
+        <option value="Barlow">Barlow</option>
+        <option value="Barlow Condensed">Barlow Condensed</option>
+        <option value="Oswald">Oswald</option>
+        <option value="Exo 2">Exo 2</option>
+        <option value="Archivo">Archivo</option>
+        <option value="Kanit">Kanit</option>
+        <option value="Mulish">Mulish</option>
+        <option value="Heebo">Heebo</option>
+        <option value="Asap">Asap</option>
+        <option value="Overpass">Overpass</option>
+        <option value="Cairo">Cairo</option>
+        <option value="Prompt">Prompt</option>
+        <option value="Signika">Signika</option>
+        <option value="Varela Round">Varela Round</option>
+        <option value="Comfortaa">Comfortaa</option>
+        <option value="ABeeZee">ABeeZee</option>
+        <option value="Abel">Abel</option>
+        <option value="Acme">Acme</option>
+        <option value="Titillium Web">Titillium Web</option>
+        <option value="PT Sans">PT Sans</option>
+        <option value="Noto Sans">Noto Sans</option>
+        <option value="Dosis">Dosis</option>
+        <option value="Catamaran">Catamaran</option>
+        <option value="Hind">Hind</option>
+        <option value="Assistant">Assistant</option>
+        <option value="Oxygen">Oxygen</option>
+        <option value="Arimo">Arimo</option>
+        <option value="Teko">Teko</option>
+      </optgroup>
+      <optgroup label="Serif">
+        <option value="Roboto Slab">Roboto Slab</option>
+        <option value="Playfair Display">Playfair Display</option>
+        <option value="Merriweather">Merriweather</option>
+        <option value="Lora">Lora</option>
+        <option value="PT Serif">PT Serif</option>
+        <option value="Source Serif Pro">Source Serif Pro</option>
+        <option value="Noto Serif">Noto Serif</option>
+        <option value="Libre Baskerville">Libre Baskerville</option>
+        <option value="Bitter">Bitter</option>
+        <option value="EB Garamond">EB Garamond</option>
+        <option value="Crimson Text">Crimson Text</option>
+        <option value="Cormorant Garamond">Cormorant Garamond</option>
+        <option value="Spectral">Spectral</option>
+        <option value="Domine">Domine</option>
+        <option value="Cardo">Cardo</option>
+        <option value="Vollkorn">Vollkorn</option>
+        <option value="Arvo">Arvo</option>
+        <option value="Zilla Slab">Zilla Slab</option>
+        <option value="IBM Plex Serif">IBM Plex Serif</option>
+        <option value="DM Serif Display">DM Serif Display</option>
+        <option value="DM Serif Text">DM Serif Text</option>
+        <option value="Fraunces">Fraunces</option>
+        <option value="Newsreader">Newsreader</option>
+      </optgroup>
+      <optgroup label="Monospace">
+        <option value="Roboto Mono">Roboto Mono</option>
+        <option value="Source Code Pro">Source Code Pro</option>
+        <option value="Fira Code">Fira Code</option>
+        <option value="JetBrains Mono">JetBrains Mono</option>
+        <option value="IBM Plex Mono">IBM Plex Mono</option>
+        <option value="Space Mono">Space Mono</option>
+        <option value="Inconsolata">Inconsolata</option>
+        <option value="Ubuntu Mono">Ubuntu Mono</option>
+        <option value="PT Mono">PT Mono</option>
+        <option value="Cousine">Cousine</option>
+        <option value="Anonymous Pro">Anonymous Pro</option>
+        <option value="Noto Sans Mono">Noto Sans Mono</option>
+        <option value="Red Hat Mono">Red Hat Mono</option>
+        <option value="Azeret Mono">Azeret Mono</option>
+      </optgroup>
+      <optgroup label="Display / Gaming">
+        <option value="Bebas Neue">Bebas Neue</option>
+        <option value="Anton">Anton</option>
+        <option value="Righteous">Righteous</option>
+        <option value="Russo One">Russo One</option>
+        <option value="Bungee">Bungee</option>
+        <option value="Rubik Mono One">Rubik Mono One</option>
+        <option value="Fugaz One">Fugaz One</option>
+        <option value="Black Ops One">Black Ops One</option>
+        <option value="Passion One">Passion One</option>
+        <option value="Lilita One">Lilita One</option>
+        <option value="Audiowide">Audiowide</option>
+        <option value="Orbitron">Orbitron</option>
+        <option value="Press Start 2P">Press Start 2P</option>
+        <option value="VT323">VT323</option>
+        <option value="Silkscreen">Silkscreen</option>
+        <option value="Share Tech Mono">Share Tech Mono</option>
+        <option value="Electrolize">Electrolize</option>
+        <option value="Michroma">Michroma</option>
+        <option value="Nova Square">Nova Square</option>
+        <option value="Aldrich">Aldrich</option>
+        <option value="Quantico">Quantico</option>
+        <option value="Play">Play</option>
+        <option value="Saira">Saira</option>
+        <option value="Chakra Petch">Chakra Petch</option>
+        <option value="Rajdhani">Rajdhani</option>
+        <option value="Staatliches">Staatliches</option>
+        <option value="Bangers">Bangers</option>
+        <option value="Boogaloo">Boogaloo</option>
+        <option value="Chewy">Chewy</option>
+        <option value="Luckiest Guy">Luckiest Guy</option>
+        <option value="Londrina Solid">Londrina Solid</option>
+        <option value="Fredoka One">Fredoka One</option>
+        <option value="Alfa Slab One">Alfa Slab One</option>
+        <option value="Lobster">Lobster</option>
+        <option value="Pacifico">Pacifico</option>
+        <option value="Permanent Marker">Permanent Marker</option>
+        <option value="Satisfy">Satisfy</option>
+        <option value="Dancing Script">Dancing Script</option>
+        <option value="Caveat">Caveat</option>
+        <option value="Indie Flower">Indie Flower</option>
+        <option value="Patrick Hand">Patrick Hand</option>
+        <option value="Creepster">Creepster</option>
+        <option value="Nosifer">Nosifer</option>
+        <option value="Special Elite">Special Elite</option>
+      </optgroup>
+      <optgroup label="Condensed">
+        <option value="Oswald">Oswald</option>
+        <option value="Barlow Condensed">Barlow Condensed</option>
+        <option value="Roboto Condensed">Roboto Condensed</option>
+        <option value="Saira Condensed">Saira Condensed</option>
+        <option value="Fjalla One">Fjalla One</option>
+        <option value="Yanone Kaffeesatz">Yanone Kaffeesatz</option>
+        <option value="Teko">Teko</option>
+      </optgroup>
+    </select>
+  </div>
+  <div class="field">
+    <label>Goto frame on complete</label>
+    <input id="gotoFrame" type="number" value="" placeholder="blank = none">
+  </div>
+</div>
+
+<div class="font-row">
+  <div class="field">
+    <label>Or type custom font name</label>
+    <input id="customFont" type="text" placeholder="e.g. Pixelify Sans">
+  </div>
+  <button class="btn link" id="btnGoogleFonts">🔗 Google Fonts</button>
+</div>
+
+<div class="checks">
+  <div class="check"><input id="loop" type="checkbox"><div><div class="h">Loop</div><div class="s">Restart when finished</div></div></div>
+  <div class="check"><input id="stopOnComplete" type="checkbox" checked><div><div class="h">Stop on complete</div><div class="s">Stop clip when timer ends</div></div></div>
+  <div class="check"><input id="showConsole" type="checkbox"><div><div class="h">Console logs</div><div class="s">Log timer to console</div></div></div>
+</div>
+
+<div class="row" style="margin-top:12px">
+  <button class="btn primary" id="btnCreate">Apply</button>
+</div>
+
+<div id="status" class="status">Ready</div>
+</div></div>
+
+<script>
+(function(){
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var Bridge = window.LukeToolsBridge || null;
+
+function status(msg, kind){ var el=$("status"); el.textContent=msg; el.className="status"+(kind?" "+kind:""); }
+function sel(){ if(!Bridge) return null; try{ return Bridge.getSelectionInfo(); }catch(e){ return null; } }
+
+// Open Google Fonts in new tab
+$("btnGoogleFonts").onclick = function(){
+  window.open("https://fonts.google.com/", "_blank");
+};
+
+// When custom font is typed, clear dropdown selection visual indicator
+$("customFont").oninput = function(){
+  if($("customFont").value.trim()){
+    $("fontFamily").style.opacity = "0.5";
+  } else {
+    $("fontFamily").style.opacity = "1";
+  }
+};
+
+// When dropdown changes, clear custom font
+$("fontFamily").onchange = function(){
+  $("customFont").value = "";
+  $("fontFamily").style.opacity = "1";
+};
+
+function getSelectedFont(){
+  var custom = $("customFont").value.trim();
+  if(custom) return custom;
+  return $("fontFamily").value || "Poppins";
+}
+
+function refresh(){
+  var info = sel();
+  $("selLabel").textContent = (info && info.ok) ? (info.name || info.identifier || "Selected") : "None";
+  
+  if(info && info.ok && Bridge){
+    try{
+      var script = Bridge.getUpdateScriptOnSelection() || "";
+      var m = script.match(/var\s+LT_TIMER_CFG\s*=\s*(\{[\s\S]*?\});/);
+      if(m){
+        var cfg = JSON.parse(m[1]);
+        if(cfg.mode) $("timerMode").value = cfg.mode;
+        if(cfg.startSeconds !== undefined) $("startSeconds").value = cfg.startSeconds;
+        if(cfg.endSeconds !== undefined) $("endSeconds").value = cfg.endSeconds;
+        if(cfg.fps) $("fps").value = cfg.fps;
+        if(cfg.varName) $("varName").value = cfg.varName;
+        if(cfg.textName) $("textName").value = cfg.textName;
+        if(cfg.displayMode){
+          if(cfg.displayMode === "seconds") $("dispSecs").checked = true;
+          if(cfg.displayMode === "tenths") $("dispTenths").checked = true;
+          if(cfg.displayMode === "hundredths") $("dispHundredths").checked = true;
+        }
+        if(cfg.fontFamily){
+          // Check if font is in dropdown
+          var found = false;
+          for(var i=0; i<$("fontFamily").options.length; i++){
+            if($("fontFamily").options[i].value === cfg.fontFamily){
+              $("fontFamily").value = cfg.fontFamily;
+              $("customFont").value = "";
+              $("fontFamily").style.opacity = "1";
+              found = true;
+              break;
+            }
+          }
+          if(!found){
+            $("customFont").value = cfg.fontFamily;
+            $("fontFamily").style.opacity = "0.5";
+          }
+        }
+        if(cfg.gotoFrameOnComplete) $("gotoFrame").value = cfg.gotoFrameOnComplete;
+        if(cfg.loop !== undefined) $("loop").checked = cfg.loop;
+        if(cfg.stopOnComplete !== undefined) $("stopOnComplete").checked = cfg.stopOnComplete;
+        if(cfg.showConsole !== undefined) $("showConsole").checked = cfg.showConsole;
+        status("Found config", "good");
+      }
+    }catch(e){}
+  }
+  return info;
+}
+
+function getDisplayMode(){
+  if($("dispHundredths").checked) return "hundredths";
+  if($("dispTenths").checked) return "tenths";
+  return "seconds";
+}
+
+function buildScript(){
+  var gotoVal = String($("gotoFrame").value || "").trim();
+  var textName = $("textName").value || "TimerText";
+  var fontFamily = getSelectedFont();
+  
+  var cfg = {
+    type: "LT_GAME_SPRITE_TIMER",
+    mode: $("timerMode").value,
+    startSeconds: parseInt($("startSeconds").value) || 30,
+    endSeconds: parseInt($("endSeconds").value) || 0,
+    fps: parseInt($("fps").value) || 30,
+    loop: $("loop").checked,
+    stopOnComplete: $("stopOnComplete").checked,
+    gotoFrameOnComplete: gotoVal === "" ? null : parseInt(gotoVal),
+    showConsole: $("showConsole").checked,
+    varName: $("varName").value || "LT_Time",
+    textName: textName,
+    displayMode: getDisplayMode(),
+    fontFamily: fontFamily,
+    fontWeights: "400;700"
+  };
+  
+  var L = [];
+  L.push('// LukeTools Type: Timer');
+  L.push('var LT_TIMER_CFG = ' + JSON.stringify(cfg) + ';');
+  L.push('');
+  
+  // State init
+  L.push('if(!this._tmr) this._tmr = {frames:0, value:LT_TIMER_CFG.startSeconds, done:false, fontOk:false};');
+  L.push('var _t = this._tmr;');
+  L.push('var _fps = LT_TIMER_CFG.fps || 30;');
+  L.push('');
+  
+  // Format function
+  L.push('function _pad2(n){ return (n<10?"0":"")+n; }');
+  L.push('function _fmt(v){');
+  L.push('  v = Math.max(0, Number(v) || 0);');
+  L.push('  if(LT_TIMER_CFG.displayMode === "hundredths"){ v = Math.round(v * 100) / 100; }');
+  L.push('  else if(LT_TIMER_CFG.displayMode === "tenths"){ v = Math.round(v * 10) / 10; }');
+  L.push('  else { v = Math.floor(v); }');
+  L.push('  var m = Math.floor(v / 60);');
+  L.push('  var rem = v - (m * 60);');
+  L.push('  var s = Math.floor(rem);');
+  L.push('  var frac = rem - s;');
+  L.push('  if(LT_TIMER_CFG.displayMode === "hundredths"){');
+  L.push('    var h = Math.round(frac * 100);');
+  L.push('    if(h >= 100){ h = 0; s += 1; }');
+  L.push('    if(s >= 60){ s = 0; m += 1; }');
+  L.push('    return _pad2(m) + ":" + _pad2(s) + "." + (h<10?"0":"") + h;');
+  L.push('  }');
+  L.push('  if(LT_TIMER_CFG.displayMode === "tenths"){');
+  L.push('    var t = Math.round(frac * 10);');
+  L.push('    if(t >= 10){ t = 0; s += 1; }');
+  L.push('    if(s >= 60){ s = 0; m += 1; }');
+  L.push('    return _pad2(m) + ":" + _pad2(s) + "." + t;');
+  L.push('  }');
+  L.push('  if(s >= 60){ s = 0; m += 1; }');
+  L.push('  return _pad2(m) + ":" + _pad2(s);');
+  L.push('}');
+  L.push('');
+  
+  // Font loading
+  L.push('if(!_t.fontOk && LT_TIMER_CFG.fontFamily){');
+  L.push('  _t.fontOk = true;');
+  L.push('  try{');
+  L.push('    var _fkey = "__LT_F_"+LT_TIMER_CFG.fontFamily;');
+  L.push('    if(!window[_fkey]){');
+  L.push('      window[_fkey] = true;');
+  L.push('      var _link = document.createElement("link");');
+  L.push('      _link.rel = "stylesheet";');
+  L.push('      _link.href = "https://fonts.googleapis.com/css2?family="+LT_TIMER_CFG.fontFamily.replace(/ /g,"+")+":wght@"+LT_TIMER_CFG.fontWeights+"&display=swap";');
+  L.push('      document.head.appendChild(_link);');
+  L.push('    }');
+  L.push('  }catch(e){}');
+  L.push('}');
+  L.push('');
+  
+  // Timer logic
+  L.push('if(!_t.done){');
+  L.push('  _t.frames++;');
+  L.push('  var elapsed = _t.frames / _fps;');  // Don't floor - keep fractional seconds
+  L.push('  if(LT_TIMER_CFG.mode === "countup"){');
+  L.push('    _t.value = LT_TIMER_CFG.startSeconds + elapsed;');
+  L.push('    if(LT_TIMER_CFG.endSeconds > 0 && _t.value >= LT_TIMER_CFG.endSeconds){ _t.value = LT_TIMER_CFG.endSeconds; _t.done = true; }');
+  L.push('  } else {');
+  L.push('    _t.value = LT_TIMER_CFG.startSeconds - elapsed;');
+  L.push('    if(_t.value <= LT_TIMER_CFG.endSeconds){ _t.value = LT_TIMER_CFG.endSeconds; _t.done = true; }');
+  L.push('  }');
+  L.push('}');
+  L.push('');
+  
+  // Export variables
+  L.push('var _timeStr = _fmt(_t.value);');
+  L.push('this.timerSeconds = _t.value;');
+  L.push('this.timerText = _timeStr;');
+  L.push('this[LT_TIMER_CFG.varName] = _t.value;');
+  L.push('window[LT_TIMER_CFG.varName] = _t.value;');
+  L.push('');
+  
+  // Update text - use this.TextName.setText() and fontFamily property
+  L.push('// Update text');
+  L.push('var _txt = this.' + textName + ';');
+  L.push('if(_txt){');
+  L.push('  try{ _txt.setText(_timeStr); }catch(e){}');
+  L.push('  try{ _txt.fontFamily = LT_TIMER_CFG.fontFamily; }catch(e){}');
+  L.push('}');
+  L.push('');
+  
+  // Console log
+  L.push('if(LT_TIMER_CFG.showConsole && _t.frames % _fps === 0){');
+  L.push('  console.log("Timer:", _timeStr, LT_TIMER_CFG.varName+":", _t.value);');
+  L.push('}');
+  L.push('');
+  
+  // Completion
+  L.push('if(_t.done){');
+  L.push('  if(LT_TIMER_CFG.loop){');
+  L.push('    this._tmr = {frames:0, value:LT_TIMER_CFG.startSeconds, done:false, fontOk:true};');
+  L.push('  } else {');
+  L.push('    if(LT_TIMER_CFG.gotoFrameOnComplete) try{ this.gotoAndStop(LT_TIMER_CFG.gotoFrameOnComplete); }catch(e){}');
+  L.push('    if(LT_TIMER_CFG.stopOnComplete) try{ this.stop(); }catch(e){}');
+  L.push('  }');
+  L.push('}');
+  L.push('// End');
+  
+  return L.join('\n');
+}
+
+function apply(){
+  if(!Bridge){ status("Bridge not available", "bad"); return; }
+  var info = sel();
+  if(!info || !info.ok){ status("No clip selected", "warn"); return; }
+  
+  var existing = "";
+  try{ existing = Bridge.getUpdateScriptOnSelection() || ""; }catch(e){}
+  
+  var script = buildScript();
+  
+  // Remove old timer code
+  if(existing.indexOf('// LukeTools Type: Timer') !== -1){
+    var start = existing.indexOf('// LukeTools Type: Timer');
+    var end = existing.indexOf('// End', start);
+    if(end !== -1){
+      end = existing.indexOf('\n', end);
+      if(end === -1) end = existing.length; else end++;
+      existing = existing.substring(0, start) + existing.substring(end);
+      existing = existing.trim();
+    }
+  }
+  if(existing.indexOf('// LukeTools Timer Type') !== -1){
+    var start = existing.indexOf('// LukeTools Timer Type');
+    var end = existing.lastIndexOf('}');
+    if(end !== -1){ existing = existing.substring(0, start).trim(); }
+  }
+  
+  var final = existing ? existing + '\n\n' + script : script;
+  var r = Bridge.setUpdateScriptOnSelection(final);
+  
+  if(r && r.ok) status("Applied to " + (info.name || info.identifier), "good");
+  else status("Error: " + (r ? r.reason : "Failed"), "bad");
+}
+
+$("btnRefresh").onclick = refresh;
+$("btnCreate").onclick = apply;
+document.onclick = function(){ setTimeout(refresh, 50); };
+refresh();
+})();
+</script>
+</body>
+</html>
