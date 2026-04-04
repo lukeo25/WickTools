@@ -50,7 +50,7 @@
           "id": "Fontosaur",
           "label": "Fontosaur",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Fonto.svg",
-          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Fontosaur.txt",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Fontasaur.txt",
           "action": "script",
           "F_Screen": 0
         },
