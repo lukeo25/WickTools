@@ -1,0 +1,372 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fontasaur</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#111214;
+  --panel:#1a1b1f;
+  --text:#e9e9ee;
+  --muted:#a7a9b3;
+  --good:#2ecc71;
+  --warn:#f1c40f;
+  --bad:#e74c3c;
+  --line:rgba(255,255,255,0.10);
+  --field:rgba(0,0,0,0.25);
+  --radius:12px;
+  --font:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:transparent;color:var(--text);font-family:var(--font)}
+.wrap{padding:14px}
+.card{
+  background:rgba(20,20,22,0.96);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:14px;
+  max-width:760px;
+}
+h1{margin:0 0 10px 0;font-size:18px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0;align-items:flex-start}
+.field{display:flex;flex-direction:column;gap:6px;min-width:180px;flex:1}
+label{font-size:12px;color:var(--muted)}
+input[type="text"], textarea{
+  width:100%;
+  background:var(--field);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px;
+  font:inherit;
+}
+select{
+  width:100%;
+  background:#ffffff;
+  color:#000000;
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px;
+  font:inherit;
+}
+textarea{min-height:92px;resize:vertical}
+.btn{
+  appearance:none;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,0.06);
+  color:var(--text);
+  border-radius:10px;
+  padding:10px 14px;
+  cursor:pointer;
+  font-weight:700;
+}
+.btn.primary{background:rgba(46,204,113,0.18);border-color:rgba(46,204,113,0.35)}
+.btn:active{transform:translateY(1px)}
+.status{
+  margin-top:10px;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:rgba(0,0,0,0.2);
+  color:var(--muted);
+  white-space:pre-wrap;
+}
+.status.good{border-color:rgba(46,204,113,0.35);background:rgba(46,204,113,0.10);color:#dfffea}
+.status.warn{border-color:rgba(241,196,15,0.35);background:rgba(241,196,15,0.10);color:#fff3c9}
+.status.bad{border-color:rgba(231,76,60,0.35);background:rgba(231,76,60,0.10);color:#ffd8d5}
+.small{color:var(--muted);font-size:12px;line-height:1.45}
+.preview{
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:14px;
+  background:rgba(255,255,255,0.04);
+  min-height:72px;
+}
+a{color:#8fc7ff}
+</style>
+</head>
+<body>
+<script>var F_Screen = 1;</script>
+<div class="wrap">
+  <div class="card">
+    <h1>Fontasaur</h1>
+
+    <div class="small">
+      Instructions:
+      Select the clip in Wick.
+      Enter the name of the text item inside that clip.
+      Choose a font from the dropdown or paste a Google font family name in the custom field.
+      Use the Google Fonts link to find additional font families if needed.
+      Check the preview, then click Apply to Selected Clip.
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Selected clip</label>
+        <div id="selInfo" class="preview">Checking selection...</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Text item name inside the selected clip</label>
+        <input id="textName" type="text" value="TextName">
+      </div>
+      <div class="field">
+        <label>Google font dropdown</label>
+        <select id="fontSelect">
+          <option value="Roboto">Roboto</option>
+          <option value="Open Sans">Open Sans</option>
+          <option value="Lato">Lato</option>
+          <option value="Montserrat">Montserrat</option>
+          <option value="Oswald">Oswald</option>
+          <option value="Poppins">Poppins</option>
+          <option value="Merriweather">Merriweather</option>
+          <option value="Nunito">Nunito</option>
+          <option value="Raleway">Raleway</option>
+          <option value="Inter">Inter</option>
+          <option value="Bebas Neue">Bebas Neue</option>
+          <option value="Playfair Display">Playfair Display</option>
+          <option value="Anton">Anton</option>
+          <option value="Fira Sans">Fira Sans</option>
+          <option value="PT Sans">PT Sans</option>
+          <option value="Source Sans 3">Source Sans 3</option>
+          <option value="M PLUS Rounded 1c">M PLUS Rounded 1c</option>
+          <option value="Rubik">Rubik</option>
+          <option value="Work Sans">Work Sans</option>
+          <option value="Quicksand">Quicksand</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Custom Google font family name</label>
+        <input id="customFont" type="text" placeholder="Example: Fredoka or Bangers">
+        <div class="small">
+          Leave blank to use the dropdown choice. If you want another font, find it on
+          <a href="https://fonts.google.com/" target="_blank" rel="noopener noreferrer">Google Fonts</a>
+          and paste the family name here.
+        </div>
+      </div>
+      <div class="field">
+        <label>Optional sample text for preview only</label>
+        <input id="previewText" type="text" value="The quick brown fox jumps over the lazy dog">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Preview</label>
+        <div id="preview" class="preview">The quick brown fox jumps over the lazy dog</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <button id="btnRefresh" class="btn">Refresh</button>
+      <button id="btnApply" class="btn primary">Apply to Selected Clip</button>
+    </div>
+
+    <div id="status" class="status">Ready.</div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var Bridge = window.LukeToolsBridge || null;
+
+function $(id){ return document.getElementById(id); }
+function status(msg, kind){
+  var el = $("status");
+  el.textContent = msg;
+  el.className = "status" + (kind ? (" " + kind) : "");
+}
+function currentFontFamily(){
+  var custom = String($("customFont").value || "").trim();
+  if(custom) return custom;
+  return String($("fontSelect").value || "Roboto").trim();
+}
+function googleFontCssUrl(family){
+  var familyTrim = String(family || "").trim();
+  var familyQuery = familyTrim.replace(/\s+/g, "+");
+  return "https://fonts.googleapis.com/css2?family=" + familyQuery + ":wght@400;700&display=swap";
+}
+function updatePreview(){
+  var family = currentFontFamily();
+  var txt = String($("previewText").value || "").trim() || "The quick brown fox jumps over the lazy dog";
+  var preview = $("preview");
+  preview.textContent = txt;
+
+  var old = document.getElementById("lt_google_font_preview_link");
+  if(old) old.remove();
+
+  var link = document.createElement("link");
+  link.id = "lt_google_font_preview_link";
+  link.rel = "stylesheet";
+  link.href = googleFontCssUrl(family);
+  document.head.appendChild(link);
+
+  preview.style.fontFamily = "'" + family.replace(/'/g, "\\'") + "', sans-serif";
+}
+function refreshSelection(){
+  if(!Bridge){
+    $("selInfo").textContent = "LukeToolsBridge not available";
+    status("Bridge not available.", "bad");
+    return null;
+  }
+  var info = null;
+  try{
+    info = Bridge.getSelectionInfo ? Bridge.getSelectionInfo() : null;
+  }catch(e){}
+  if(!info || !info.ok){
+    $("selInfo").textContent = "No clip selected";
+    status("No clip selected.", "warn");
+    return null;
+  }
+  var label = (info.name || info.identifier || info.uuid || "Selected clip");
+  $("selInfo").textContent = label;
+  status("Selection found.", "good");
+  return info;
+}
+function buildScript(){
+  var textName = String($("textName").value || "").trim();
+  var fontFamily = currentFontFamily();
+
+  if(!textName) throw new Error("Text item name is required");
+  if(!fontFamily) throw new Error("Font family is required");
+
+  var cfg = {
+    textName: textName,
+    fontFamily: fontFamily,
+    fontCssUrl: googleFontCssUrl(fontFamily)
+  };
+
+  var L = [];
+  L.push("// LukeTools Type: Google Font Text");
+  L.push("// Loads a Google font and applies it to a named text item inside this clip.");
+  L.push("var LT_GF_CFG = " + JSON.stringify(cfg) + ";");
+  L.push("");
+  L.push("if(!this._LT_GF_STATE){");
+  L.push("  this._LT_GF_STATE = { loaded:false, tried:false };");
+  L.push("}");
+  L.push("");
+  L.push("function LT_GF_ensureLink(href){");
+  L.push("  try{");
+  L.push("    if(!href) return;");
+  L.push("    if(typeof document === 'undefined' || !document.head) return;");
+  L.push("    var id = 'lt_google_font_' + href.replace(/[^a-z0-9]+/gi, '_');");
+  L.push("    var ex = document.getElementById(id);");
+  L.push("    if(ex) return;");
+  L.push("    var link = document.createElement('link');");
+  L.push("    link.id = id;");
+  L.push("    link.rel = 'stylesheet';");
+  L.push("    link.href = href;");
+  L.push("    document.head.appendChild(link);");
+  L.push("  }catch(e0){}");
+  L.push("}");
+  L.push("");
+  L.push("function LT_GF_findText(root, wanted){");
+  L.push("  if(!root || !wanted) return null;");
+  L.push("  try{ if(root[wanted]) return root[wanted]; }catch(e1){}");
+  L.push("  var seen = [];");
+  L.push("  function walk(obj){");
+  L.push("    if(!obj) return null;");
+  L.push("    if(seen.indexOf(obj) !== -1) return null;");
+  L.push("    seen.push(obj);");
+  L.push("    try{ if(obj._identifier === wanted || obj.identifier === wanted || obj.name === wanted) return obj; }catch(e2){}");
+  L.push("    var tl = null;");
+  L.push("    try{ tl = obj.timeline || obj._timeline || (obj.clipAsset ? obj.clipAsset.timeline : null); }catch(e3){ tl = null; }");
+  L.push("    if(!tl) return null;");
+  L.push("    var layers = null;");
+  L.push("    try{ layers = tl.layers || tl._layers; }catch(e4){ layers = null; }");
+  L.push("    if(!layers || !layers.length) return null;");
+  L.push("    for(var i=0;i<layers.length;i++){");
+  L.push("      var layer = layers[i];");
+  L.push("      if(!layer || !layer.frames) continue;");
+  L.push("      for(var j=0;j<layer.frames.length;j++){");
+  L.push("        var fr = layer.frames[j];");
+  L.push("        if(!fr) continue;");
+  L.push("        var kids = [];");
+  L.push("        try{");
+  L.push("          if(fr.clips) kids = kids.concat(fr.clips);");
+  L.push("          if(fr.children) kids = kids.concat(fr.children);");
+  L.push("          if(fr.paths) kids = kids.concat(fr.paths);");
+  L.push("          if(fr.texts) kids = kids.concat(fr.texts);");
+  L.push("        }catch(e5){}");
+  L.push("        for(var k=0;k<kids.length;k++){");
+  L.push("          var got = walk(kids[k]);");
+  L.push("          if(got) return got;");
+  L.push("        }");
+  L.push("      }");
+  L.push("    }");
+  L.push("    return null;");
+  L.push("  }");
+  L.push("  return walk(root);");
+  L.push("}");
+  L.push("");
+  L.push("LT_GF_ensureLink(LT_GF_CFG.fontCssUrl);");
+  L.push("var _txt = LT_GF_findText(this, LT_GF_CFG.textName);");
+  L.push("if(_txt){");
+  L.push("  try{ _txt.fontFamily = LT_GF_CFG.fontFamily; }catch(e6){}");
+  L.push("  try{ if(_txt.style) _txt.style.fontFamily = LT_GF_CFG.fontFamily; }catch(e7){}");
+  L.push("  try{ if(_txt.textData) _txt.textData.fontFamily = LT_GF_CFG.fontFamily; }catch(e8){}");
+  L.push("  try{ if(_txt._textData) _txt._textData.fontFamily = LT_GF_CFG.fontFamily; }catch(e9){}");
+  L.push("}");
+  L.push("// End");
+  return L.join("\n");
+}
+function removeOldBlock(existing){
+  existing = String(existing || "");
+  var start = existing.indexOf("// LukeTools Type: Google Font Text");
+  if(start !== -1){
+    var end = existing.indexOf("// End", start);
+    if(end !== -1){
+      end = existing.indexOf("\n", end);
+      if(end === -1) end = existing.length;
+      else end += 1;
+      existing = (existing.substring(0, start) + existing.substring(end)).trim();
+    }
+  }
+  return existing;
+}
+function apply(){
+  if(!Bridge){
+    status("Bridge not available.", "bad");
+    return;
+  }
+  var info = refreshSelection();
+  if(!info || !info.ok){
+    status("No clip selected.", "warn");
+    return;
+  }
+
+  var existing = "";
+  try{ existing = Bridge.getUpdateScriptOnSelection() || ""; }catch(e0){}
+  var script = buildScript();
+  existing = removeOldBlock(existing);
+  var finalText = existing ? (existing + "\n\n" + script) : script;
+
+  var r = Bridge.setUpdateScriptOnSelection(finalText);
+  if(r && r.ok === false){
+    status("Error: " + (r.reason || "Failed"), "bad");
+    return;
+  }
+  status("Applied Google font text type to " + (info.name || info.identifier || "selected clip") + ".", "good");
+}
+
+$("btnRefresh").onclick = refreshSelection;
+$("btnApply").onclick = apply;
+$("fontSelect").onchange = updatePreview;
+$("customFont").oninput = updatePreview;
+$("previewText").oninput = updatePreview;
+
+updatePreview();
+refreshSelection();
+
+})();
+</script>
+</body>
+</html>
