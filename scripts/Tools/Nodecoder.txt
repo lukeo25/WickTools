@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>LukeTools Clip Node Panel</title>
+<title>LukeTools Clip Node Panel v12d</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <style>
  html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden; }
@@ -3766,6 +3766,13 @@ var SLOTS = [
  (function(){
  var c = activeControls[ci];
  if (!c || typeof c !== "object") return;
+ 
+ // v2 FORCE FIX: Timeline/GlobalPlay frame must be text input, not slider
+ if ((n.defId === "timeline" || n.defId === "globalPlay") && c.key === "frame") {
+   c.type = "text";
+   if (typeof c.default === "number") c.default = String(c.default);
+ }
+ 
  if (c.showWhen && typeof c.showWhen === "object"){
  var swk = String(c.showWhen.key || "");
  var allowed = c.showWhen["in"];
@@ -3815,7 +3822,10 @@ var SLOTS = [
 
  if (c.type === "number"){
  var keyN = String(c.key || "");
- var curN = (n.data && typeof n.data[keyN] !== "undefined") ? Number(n.data[keyN]) : (typeof c.default !== "undefined" ? Number(c.default) : 0);
+ var rawCur = (n.data && typeof n.data[keyN] !== "undefined") ? n.data[keyN] : (typeof c.default !== "undefined" ? c.default : 0);
+ var curTxt = String(rawCur);
+ var curN = parseFloat(curTxt);
+ if (!isFinite(curN)) curN = 0;
  var isFloat = (typeof c.step !== "undefined" && String(c.step).indexOf(".") !== -1);
  var stepN = isFloat ? 0.01 : 1;
  if (typeof c.step !== "undefined") stepN = Number(c.step);
@@ -3825,67 +3835,60 @@ var SLOTS = [
  // Value badge
  var badge = el("div");
  badge.className = "lt_scriptValueBadge";
- badge.textContent = isFloat ? curN.toFixed(2) : String(curN);
+ badge.textContent = curTxt;
  rowTop.appendChild(badge);
  row.appendChild(rowTop);
 
- // Slider
- var slider = el("input");
- slider.className = "lt_scriptSlider";
- slider.type = "range";
- slider.min = String(minN);
- slider.max = String(maxN);
- slider.step = String(stepN);
- slider.value = String(curN);
- slider.onmousedown = function(ev){ ev.stopPropagation(); };
- (function(k, s, b, fl){
- s.oninput = function(){
- var v = parseFloat(s.value);
- if (!isFinite(v)) v = 0;
- // Use live slider min/max so clamp inputs take effect
- var liveMin = parseFloat(s.min); if (!isFinite(liveMin)) liveMin = -999;
- var liveMax = parseFloat(s.max); if (!isFinite(liveMax)) liveMax = 999;
- v = Math.min(liveMax, Math.max(liveMin, v));
- n.data[k] = v;
- b.textContent = fl ? v.toFixed(2) : String(Math.round(v));
+ // FIX: text input so the user can type numbers or text/expressions by hand
+ var valInput = el("input");
+ valInput.className = "lt_scriptInput";
+ valInput.type = "text";
+ valInput.value = curTxt;
+ valInput.onmousedown = function(ev){ ev.stopPropagation(); };
+ valInput.onclick = function(ev){ ev.stopPropagation(); };
+ valInput.onfocus = function(ev){ ev.stopPropagation(); };
+ (function(k, inp, b){
+ inp.oninput = function(){
+ var txt = String(inp.value);
+ n.data[k] = txt;
+ b.textContent = txt;
  scheduleInject();
  };
- })(keyN, slider, badge, isFloat);
- row.appendChild(slider);
+ inp.onchange = inp.oninput;
+ })(keyN, valInput, badge);
+ row.appendChild(valInput);
 
- // Min / Max clamp editors — shown for transform nodes (by ID, immune to remote config)
+ // Min / Max clamp editors kept for transform nodes when numeric values are used
  var CLAMP_NODE_IDS = { "move":1, "setPosition":1, "rotate":1, "scale":1 };
  if (CLAMP_NODE_IDS[n.defId]) {
  var clampRow = el("div"); clampRow.className = "lt_clampRow";
  var minLbl = el("span"); minLbl.className = "lt_clampLabel"; minLbl.textContent = "min";
  var minInp = el("input"); minInp.className = "lt_clampInput"; minInp.type = "number";
- // Restore saved clamp values from n.data, fall back to control defaults
  var savedMin = (n.data && typeof n.data["_cmin_"+keyN] !== "undefined") ? n.data["_cmin_"+keyN] : minN;
  var savedMax = (n.data && typeof n.data["_cmax_"+keyN] !== "undefined") ? n.data["_cmax_"+keyN] : maxN;
  minInp.value = String(savedMin); minInp.step = String(stepN);
- slider.min = String(savedMin);
  var maxLbl = el("span"); maxLbl.className = "lt_clampLabel"; maxLbl.textContent = "max";
  var maxInp = el("input"); maxInp.className = "lt_clampInput"; maxInp.type = "number";
  maxInp.value = String(savedMax); maxInp.step = String(stepN);
- slider.max = String(savedMax);
  clampRow.appendChild(minLbl); clampRow.appendChild(minInp);
  clampRow.appendChild(maxLbl); clampRow.appendChild(maxInp);
  row.appendChild(clampRow);
- // Wire min/max inputs to update slider range live
- (function(sl, mi, ma, bd, k2, fl2, stp2){
+ (function(inp, mi, ma, bd, k2, fl2){
  function updateRange(){
  var newMin = parseFloat(mi.value); if (!isFinite(newMin)) newMin = -999;
  var newMax = parseFloat(ma.value); if (!isFinite(newMax)) newMax = 999;
  if (newMin >= newMax) return;
- sl.min = String(newMin); sl.max = String(newMax);
  n.data["_cmin_"+k2] = newMin;
  n.data["_cmax_"+k2] = newMax;
- // Re-clamp current value
- var v2 = parseFloat(sl.value);
- if (!isFinite(v2)) v2 = 0;
+ var v2 = parseFloat(inp.value);
+ if (!isFinite(v2)) {
+   bd.textContent = String(inp.value);
+   scheduleInject();
+   return;
+ }
  v2 = Math.min(newMax, Math.max(newMin, v2));
- sl.value = String(v2);
- n.data[k2] = v2;
+ inp.value = String(v2);
+ n.data[k2] = String(v2);
  bd.textContent = fl2 ? v2.toFixed(2) : String(Math.round(v2));
  scheduleInject();
  }
@@ -3897,7 +3900,7 @@ var SLOTS = [
  ma.onfocus = function(ev){ ev.stopPropagation(); };
  mi.oninput = updateRange; mi.onchange = updateRange;
  ma.oninput = updateRange; ma.onchange = updateRange;
- })(slider, minInp, maxInp, badge, keyN, isFloat, stepN);
+ })(valInput, minInp, maxInp, badge, keyN, isFloat);
  }
  }
 
