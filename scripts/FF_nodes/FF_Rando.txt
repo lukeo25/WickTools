@@ -1,84 +1,121 @@
-const LT_CFG = {
-  "name": "Rando",
-  "category": "Utilities",
-  "description": "Generate random numbers with various modes",
-  "inputs": [],
-  "outputs": [
-    {"name": "value", "type": "number", "description": "Random output value"}
-  ],
-  "params": [
-    {"name": "Mode", "type": "dropdown", "options": ["Random", "Gaussian", "Wiggle", "Noise"], "default": "Random"},
-    {"name": "Min", "type": "number", "default": 0},
-    {"name": "Max", "type": "number", "default": 100},
-    {"name": "Seed", "type": "number", "default": 0},
-    {"name": "Use Time Seed", "type": "checkbox", "default": true},
-    {"name": "Freq", "type": "number", "default": 1},
-    {"name": "Octaves", "type": "number", "default": 1},
-    {"name": "Integer Only", "type": "checkbox", "default": false}
-  ]
+// FF_Rando - Random Number Generator
+// Modelled on FF_RandoPlus so LukeTools Node Editor can detect LT_CFG correctly
+
+var LT_CFG = {
+  "slot": "update",
+  "mode": "Random",
+  "min": 0,
+  "max": 100,
+  "seed": 0,
+  "useTimeSeed": 1,
+  "freq": 1,
+  "octaves": 1,
+  "integerOnly": 0,
+  "storeVar": 1,
+  "varName": "rando"
 };
 
-function generateRando(params) {
-    const mode = params["Mode"] || "Random";
-    const min = params["Min"] !== undefined ? params["Min"] : 0;
-    const max = params["Max"] !== undefined ? params["Max"] : 100;
-    const seed = params["Seed"] || 0;
-    const useTimeSeed = params["Use Time Seed"] !== false;
-    const freq = params["Freq"] || 1;
-    const octaves = params["Octaves"] || 1;
-    const integerOnly = params["Integer Only"] || false;
+// ── FF_Rando BEGIN ─────────────────────────────────────────────
+(function() {
+  var cfg = LT_CFG || {};
+  var mode = String(cfg.mode || "Random");
+  var mn = parseFloat(cfg.min);
+  var mx = parseFloat(cfg.max);
+  var seed = parseFloat(cfg.seed);
+  var useTimeSeed = cfg.useTimeSeed === 1 || cfg.useTimeSeed === true || cfg.useTimeSeed === "1" || cfg.useTimeSeed === "true";
+  var freq = parseFloat(cfg.freq);
+  var octaves = parseInt(cfg.octaves, 10);
+  var integerOnly = cfg.integerOnly === 1 || cfg.integerOnly === true || cfg.integerOnly === "1" || cfg.integerOnly === "true";
+  var storeVar = cfg.storeVar === 1 || cfg.storeVar === true || cfg.storeVar === "1" || cfg.storeVar === "true";
+  var vn = String(cfg.varName || "rando").replace(/[^a-zA-Z0-9_]/g, "_") || "rando";
 
-    let code = "";
+  if (!isFinite(mn)) mn = 0;
+  if (!isFinite(mx)) mx = 100;
+  if (!isFinite(seed)) seed = 0;
+  if (!isFinite(freq) || freq === 0) freq = 1;
+  if (!isFinite(octaves) || octaves < 1) octaves = 1;
 
-    let seedExpr = "";
-    if (useTimeSeed) {
-        seedExpr = seed > 0 ? `seedRandom(time + ${seed}, true);\n` : `seedRandom(time, true);\n`;
-    } else {
-        seedExpr = `seedRandom(${seed}, true);\n`;
+  function seedRandomLocal(s) {
+    var x = Math.sin(s) * 10000;
+    return x - Math.floor(x);
+  }
+
+  function seededRange(min, max, s) {
+    return seedRandomLocal(s) * (max - min) + min;
+  }
+
+  function gaussianLocal(min, max, s) {
+    var u = 0, v = 0;
+    u = seedRandomLocal(s + 0.12345);
+    v = seedRandomLocal(s + 0.67891);
+    if (u <= 0) u = 0.0001;
+    var num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    var mid = (min + max) / 2;
+    var spread = (max - min) / 6;
+    var out = mid + num * spread;
+    if (out < min) out = min;
+    if (out > max) out = max;
+    return out;
+  }
+
+  function noise1D(x, s) {
+    return seedRandomLocal((x * 12.9898) + (s * 78.233));
+  }
+
+  function fractalNoise(x, octs, s) {
+    var total = 0;
+    var amp = 1;
+    var maxAmp = 0;
+    var f = 1;
+    for (var i = 0; i < octs; i++) {
+      total += noise1D(x * f, s + i * 17.17) * amp;
+      maxAmp += amp;
+      amp *= 0.5;
+      f *= 2;
     }
+    return maxAmp > 0 ? (total / maxAmp) : 0;
+  }
 
-    switch (mode) {
-        case "Random":
-            code = seedExpr;
-            if (integerOnly) {
-                code += `Math.floor(random() * (${max} - ${min} + 1)) + ${min}`;
-            } else {
-                code += `random(${min}, ${max})`;
-            }
-            break;
-
-        case "Gaussian":
-            code = seedExpr;
-            if (integerOnly) {
-                code += `Math.round(gaussRandom(${min}, ${max}))`;
-            } else {
-                code += `gaussRandom(${min}, ${max})`;
-            }
-            break;
-
-        case "Wiggle":
-            code = `wiggle(${freq}, ${(max - min) / 2}, ${octaves})`;
-            if (integerOnly) {
-                code = `Math.round(${code})`;
-            }
-            break;
-
-        case "Noise":
-            if (integerOnly) {
-                code = `Math.round(linear(noise(time * ${freq}), -1, 1, ${min}, ${max}))`;
-            } else {
-                code = `linear(noise(time * ${freq}), -1, 1, ${min}, ${max})`;
-            }
-            break;
-
-        default:
-            code = `random(${min}, ${max})`;
+  var t = 0;
+  try {
+    if (typeof time !== "undefined") t = Number(time) || 0;
+  } catch(e0) {}
+  try {
+    if (!t && this && this.project && typeof this.project.currentFrameNumber !== "undefined") {
+      t = Number(this.project.currentFrameNumber) || 0;
     }
+  } catch(e1) {}
 
-    return {
-        code: code,
-        outputs: {
-            value: code
-        }
-    };
-}
+  var seedBase = useTimeSeed ? (t + seed) : seed;
+  var result = 0;
+
+  switch(mode) {
+    case "Gaussian":
+      result = gaussianLocal(mn, mx, seedBase);
+      break;
+
+    case "Wiggle":
+      var wiggleMid = (mn + mx) / 2;
+      var wiggleAmp = (mx - mn) / 2;
+      result = wiggleMid + (Math.sin((t + seed) * freq) * wiggleAmp);
+      break;
+
+    case "Noise":
+      result = mn + fractalNoise((t + seed) * freq, octaves, seedBase) * (mx - mn);
+      break;
+
+    case "Random":
+    default:
+      result = seededRange(mn, mx, seedBase);
+      break;
+  }
+
+  if (integerOnly) result = Math.round(result);
+
+  if (storeVar) {
+    try { this[vn] = result; } catch(e2) {}
+  }
+
+  try { window["_ff_rando_last_" + vn] = result; } catch(e3) {}
+})();
+// ── FF_Rando END ───────────────────────────────────────────────
