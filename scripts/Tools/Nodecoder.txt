@@ -4130,15 +4130,17 @@ var SLOTS = [
  })();
  }
 
- // Body hint — shows how many nodes are wired in
+ // FIX: Wrapper ports are trigger in, code out, and optional else out.
+ // FIX: Count the real wrapper ports instead of the old non existent body input.
  var wBodyLbl = el("div"); wBodyLbl.className = "lt_wrapperBodyLabel";
  var wBodyCount = 0, wElseCount = 0;
  for (var wbci=0; wbci<state.links.length; wbci++) {
- if (state.links[wbci].toNodeId === n.id && state.links[wbci].toPort === "body") wBodyCount++;
- if (state.links[wbci].toNodeId === n.id && state.links[wbci].toPort === "else") wElseCount++;
+ if (state.links[wbci].fromNodeId === n.id && state.links[wbci].fromPort === "code") wBodyCount++;
+ if (state.links[wbci].fromNodeId === n.id && state.links[wbci].fromPort === "else") wElseCount++;
  }
- var wHintText = wBodyCount > 0 ? "✓ " + wBodyCount + " if node" + (wBodyCount > 1 ? "s" : "") : "code in ← connect nodes";
- if (wElseCount > 0) wHintText += " | ✓ " + wElseCount + " else";
+ var wHintText = "code in ← chain into wrapper";
+ if (wBodyCount > 0) wHintText += " | ✓ " + wBodyCount + " body chain" + (wBodyCount > 1 ? "s" : "");
+ if (wElseCount > 0) wHintText += " | ✓ " + wElseCount + " else chain" + (wElseCount > 1 ? "s" : "");
  wBodyLbl.textContent = wHintText;
  wControls.appendChild(wBodyLbl);
 
@@ -4150,28 +4152,28 @@ var SLOTS = [
 
  var wStrip = el("div"); wStrip.className = "lt_portStrip lt_wrapperStrip";
 
- // Left: if body
+ // FIX: Left port is the real trigger input for wrappers, not a fake body input.
  var wSL = el("div"); wSL.className = "lt_portStripSide";
  var wInPip2 = el("div"); wInPip2.className = "lt_port lt_port_in";
  wInPip2.style.cssText = "cursor:pointer;pointer-events:all;background:rgba(255,180,120,0.9);width:14px;height:14px;border-radius:50%;flex-shrink:0;";
  wInPip2.setAttribute("data-port-node", n.id);
- wInPip2.setAttribute("data-port-name", "body");
- wInPip2._pipNodeId = n.id; wInPip2._pipPort = "body";
+ wInPip2.setAttribute("data-port-name", "trigger");
+ wInPip2._pipNodeId = n.id; wInPip2._pipPort = "trigger";
  var wInLbl2 = el("div"); wInLbl2.className = "lt_portStripLabel"; wInLbl2.textContent = "code in";
  wSL.appendChild(wInPip2); wSL.appendChild(wInLbl2);
  wStrip.appendChild(wSL);
 
- // Centre: else body (if applicable)
+ // FIX: Else is an output branch port, not an input body port.
  var wElsePip = null;
  if (wHasElse) {
  var wSM = el("div"); wSM.className = "lt_portStripSide";
- wElsePip = el("div"); wElsePip.className = "lt_port lt_port_in";
- wElsePip.style.cssText = "cursor:pointer;pointer-events:all;background:rgba(255,140,60,0.9);width:14px;height:14px;border-radius:50%;flex-shrink:0;";
+ wElsePip = el("div"); wElsePip.className = "lt_port lt_port_out";
+ wElsePip.style.cssText = "cursor:crosshair;pointer-events:all;background:rgba(255,140,60,0.9);width:14px;height:14px;border-radius:50%;flex-shrink:0;";
  wElsePip.setAttribute("data-port-node", n.id);
  wElsePip.setAttribute("data-port-name", "else");
  wElsePip._pipNodeId = n.id; wElsePip._pipPort = "else";
- var wElseLbl = el("div"); wElseLbl.className = "lt_portStripLabel"; wElseLbl.textContent = "else body";
- wSM.appendChild(wElsePip); wSM.appendChild(wElseLbl);
+ var wElseLbl = el("div"); wElseLbl.className = "lt_portStripLabel"; wElseLbl.textContent = "else out";
+ wSM.appendChild(wElseLbl); wSM.appendChild(wElsePip);
  wStrip.appendChild(wSM);
  }
 
@@ -4190,71 +4192,26 @@ var SLOTS = [
  wOutPip2.addEventListener("mousedown", function(ev){ ev.stopPropagation(); ev.preventDefault(); beginLink(wnId, "code", ev); }, true);
  wInPip2.addEventListener("mousedown", function(ev){
  ev.stopPropagation(); ev.preventDefault();
- if (state.linking && state.linking.active) return;
+ if (state.linking && state.linking.active) { tryCompleteLink(wnId, "trigger"); return; }
  var exL2 = null;
  for (var eli2=0; eli2<state.links.length; eli2++){
- if (state.links[eli2].toNodeId === wnId && state.links[eli2].toPort === "body"){ exL2 = state.links[eli2]; break; }
+ if (state.links[eli2].toNodeId === wnId && state.links[eli2].toPort === "trigger"){ exL2 = state.links[eli2]; break; }
  }
  if (exL2){ state.links = state.links.filter(function(l){ return l.id !== exL2.id; }); scheduleInject(); beginLink(exL2.fromNodeId, exL2.fromPort, ev); }
  }, true);
- wInPip2.addEventListener("mouseenter", function(){ state.hoverIn = { nodeId: wnId, port: "body" }; });
- wInPip2.addEventListener("mouseleave", function(){ if (state.hoverIn && state.hoverIn.nodeId === wnId) state.hoverIn = null; });
+ // FIX: Hover and drag logic must use the real trigger port.
+ wInPip2.addEventListener("mouseenter", function(){ state.hoverIn = { nodeId: wnId, port: "trigger" }; });
+ wInPip2.addEventListener("mouseleave", function(){ if (state.hoverIn && state.hoverIn.nodeId === wnId && state.hoverIn.port === "trigger") state.hoverIn = null; });
  wOutPip2.addEventListener("mouseenter", function(){ state.hoverIn = { nodeId: wnId, port: "code" }; });
- wOutPip2.addEventListener("mouseleave", function(){ if (state.hoverIn && state.hoverIn.nodeId === wnId) state.hoverIn = null; });
- // Large invisible hit zone for else port — positioned over middle third of strip
- if (wHasElse) {
- var elseHitZone = el("div");
- elseHitZone.setAttribute("data-port-name", "else");
- elseHitZone.setAttribute("data-port-node", wnId);
- elseHitZone._pipNodeId = wnId;
- elseHitZone._pipPort = "else";
- // Position hit zone over the else row
- setStyle(elseHitZone, {
- position:"absolute",
- left:"80px", right:"80px",
- bottom:"0px", height:"48px",
- zIndex:"10",
- cursor:"pointer",
- background:"transparent",
- pointerEvents:"all"
- });
- elseHitZone.addEventListener("mousedown", function(ev){
- ev.stopPropagation(); ev.preventDefault();
- if (state.linking && state.linking.active) { tryCompleteLink(wnId, "else"); return; }
- var exLE2 = null;
- for (var elie2=0; elie2<state.links.length; elie2++){
- if (state.links[elie2].toNodeId === wnId && state.links[elie2].toPort === "else"){ exLE2 = state.links[elie2]; break; }
- }
- if (exLE2){ state.links = state.links.filter(function(l){ return l.id !== exLE2.id; }); scheduleInject(); beginLink(exLE2.fromNodeId, exLE2.fromPort, ev); }
- }, true);
- elseHitZone.addEventListener("mouseup", function(ev){
- ev.stopPropagation();
- if (state.linking && state.linking.active) { tryCompleteLink(wnId, "else"); }
- }, true);
- card.appendChild(elseHitZone);
- }
-
+ wOutPip2.addEventListener("mouseleave", function(){ if (state.hoverIn && state.hoverIn.nodeId === wnId && state.hoverIn.port === "code") state.hoverIn = null; });
  if (wElsePipRef) {
  wElsePipRef.addEventListener("mousedown", function(ev){
  ev.stopPropagation(); ev.preventDefault();
- if (state.linking && state.linking.active) {
- // Complete an in-progress link onto the else port
- tryCompleteLink(wnId, "else");
- return;
- }
- // Drag existing else link off
- var exLE = null;
- for (var elie=0; elie<state.links.length; elie++){
- if (state.links[elie].toNodeId === wnId && state.links[elie].toPort === "else"){ exLE = state.links[elie]; break; }
- }
- if (exLE){ state.links = state.links.filter(function(l){ return l.id !== exLE.id; }); scheduleInject(); beginLink(exLE.fromNodeId, exLE.fromPort, ev); }
+ // FIX: Else is an output branch, so start a link from else.
+ beginLink(wnId, "else", ev);
  }, true);
  wElsePipRef.addEventListener("mouseenter", function(){ state.hoverIn = { nodeId: wnId, port: "else" }; });
  wElsePipRef.addEventListener("mouseleave", function(){ if (state.hoverIn && state.hoverIn.nodeId === wnId && state.hoverIn.port === "else") state.hoverIn = null; });
- wElsePipRef.addEventListener("mouseup", function(ev){
- ev.stopPropagation();
- if (state.linking && state.linking.active) tryCompleteLink(wnId, "else");
- }, true);
  }
  })(n.id, wElsePip);
  }
