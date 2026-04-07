@@ -1,24 +1,24 @@
-// LT_CFG
-// RANDO_CONFIG = {
-//   "name": "Rando",
-//   "category": "Utilities",
-//   "description": "Generate random numbers with various modes",
-//   "inputs": [],
-//   "outputs": [
-//     {"name": "value", "type": "number", "description": "Random output value"}
-//   ],
-//   "params": [
-//     {"name": "Mode", "type": "dropdown", "options": ["Random", "Gaussian", "Wiggle", "Noise"], "default": "Random"},
-//     {"name": "Min", "type": "number", "default": 0},
-//     {"name": "Max", "type": "number", "default": 100},
-//     {"name": "Seed", "type": "number", "default": 0},
-//     {"name": "Use Time Seed", "type": "checkbox", "default": true},
-//     {"name": "Freq", "type": "number", "default": 1, "description": "Frequency for Wiggle/Noise"},
-//     {"name": "Octaves", "type": "number", "default": 1, "description": "Octaves for Wiggle"},
-//     {"name": "Integer Only", "type": "checkbox", "default": false}
-//   ]
-// }
-// END_LT_CFG
+/*
+LT_CFG = {
+  "name": "Rando",
+  "category": "Utilities", 
+  "description": "Generate random numbers with various modes",
+  "inputs": [],
+  "outputs": [
+    {"name": "value", "type": "number", "description": "Random output value"}
+  ],
+  "params": [
+    {"name": "Mode", "type": "dropdown", "options": ["Random", "Gaussian", "Wiggle", "Noise"], "default": "Random"},
+    {"name": "Min", "type": "number", "default": 0},
+    {"name": "Max", "type": "number", "default": 100},
+    {"name": "Seed", "type": "number", "default": 0},
+    {"name": "Use Time Seed", "type": "checkbox", "default": true},
+    {"name": "Freq", "type": "number", "default": 1},
+    {"name": "Octaves", "type": "number", "default": 1},
+    {"name": "Integer Only", "type": "checkbox", "default": false}
+  ]
+}
+*/
 
 function generateRando(params) {
     const mode = params["Mode"] || "Random";
@@ -31,7 +31,6 @@ function generateRando(params) {
     const integerOnly = params["Integer Only"] || false;
     
     let code = "";
-    const range = `${max} - ${min}`;
     
     // Seed setup
     let seedExpr = "";
@@ -45,7 +44,7 @@ function generateRando(params) {
         case "Random":
             code = seedExpr;
             if (integerOnly) {
-                code += `Math.floor(random() * (${range} + 1)) + ${min}`;
+                code += `Math.floor(random() * (${max} - ${min} + 1)) + ${min}`;
             } else {
                 code += `random(${min}, ${max})`;
             }
@@ -55,12 +54,11 @@ function generateRando(params) {
             code = seedExpr;
             code += `gaussRandom(${min}, ${max})`;
             if (integerOnly) {
-                code = `Math.round(${code})`;
+                code = seedExpr + `Math.round(gaussRandom(${min}, ${max}))`;
             }
             break;
             
         case "Wiggle":
-            // Wiggle doesn't use seedRandom the same way
             code = `wiggle(${freq}, ${(max - min) / 2}, ${octaves})`;
             if (integerOnly) {
                 code = `Math.round(${code})`;
@@ -70,7 +68,7 @@ function generateRando(params) {
         case "Noise":
             code = `linear(noise(time * ${freq}), -1, 1, ${min}, ${max})`;
             if (integerOnly) {
-                code = `Math.round(${code})`;
+                code = `Math.round(linear(noise(time * ${freq}), -1, 1, ${min}, ${max}))`;
             }
             break;
             
@@ -84,9 +82,4 @@ function generateRando(params) {
             value: code
         }
     };
-}
-
-// Export for Nodecoder
-if (typeof module !== 'undefined') {
-    module.exports = { generateRando };
 }
