@@ -1510,47 +1510,8 @@
  }
 
  // v2: Patch node configs to fix Timeline frame field (text instead of slider)
- // v3: Add Call Function node, remove redundant nodes
  function patchNodeConfig(configArray) {
  if (!Array.isArray(configArray)) return;
- 
- // v3: Remove redundant nodes (covered by Wrappers or FF_codes)
- var removeIds = ["codeStatement", "onEvent", "isKeyDown", "isKeyJustPressed", "isMouseDown", "hitTest", "mouse", "keyboard", "if", "ifElse", "while", "for", "random", "gotoNamedChildFrame"];
- for (var r = configArray.length - 1; r >= 0; r--) {
-   if (configArray[r] && removeIds.indexOf(configArray[r].id) !== -1) {
-     configArray.splice(r, 1);
-   }
- }
- 
- // v3: Add Call Function node if not present
- var hasCallFunction = false;
- for (var i = 0; i < configArray.length; i++) {
-   if (configArray[i] && configArray[i].id === "callFunction") {
-     hasCallFunction = true;
-     break;
-   }
- }
- if (!hasCallFunction) {
-   configArray.push({
-     "id": "callFunction",
-     "label": "Call Function",
-     "kind": "ScriptNode",
-     "category": "Logic",
-     "ports": { "inputs": ["trigger"], "outputs": ["code"] },
-     "ui": {
-       "controls": [
-         { "type": "text", "key": "fname", "label": "function", "default": "myFunc" },
-         { "type": "text", "key": "args", "label": "args", "default": "" }
-       ]
-     },
-     "script": {
-       "slotDefault": "update",
-       "slotMode": "byTargetPort",
-       "template": "{{fname}}({{args}});"
-     }
-   });
- }
- 
  for (var i = 0; i < configArray.length; i++) {
    var node = configArray[i];
    if (!node || !node.id) continue;
@@ -2069,7 +2030,6 @@ function addContextNode(x, y, slot){
   return n;
 }
 
-// v3: Wrapper nodes CAN receive code in (trigger) from other nodes
 function addWrapperNode(x, y, wrapType) {
   var sp3 = staggerPos(x, y); 
   x = sp3.x; 
@@ -2086,15 +2046,13 @@ function addWrapperNode(x, y, wrapType) {
   for (var dk in wt.defaultData) data[dk] = wt.defaultData[dk];
   data._wrapType = wrapType;
 
-  // v3: Wrappers have trigger input (code in) AND code output
   var ports = [
-    { name: "trigger", dir: "in",  x: 10,  y: portY },
-    { name: "code",    dir: "out", x: 310, y: portY }
+    { name: "body",  dir: "in",  x: 80,  y: portY },
+    { name: "code",  dir: "out", x: 240, y: portY }
   ];
 
-  // If...Else gets an additional else output
   if (wt.hasElsePort) {
-    ports.push({ name: "else", dir: "out", x: 160, y: portY });
+    ports.splice(1, 0, { name: "else", dir: "in", x: 160, y: portY });
   }
 
   var n = {
@@ -2345,7 +2303,35 @@ function addScriptNodeFromDef(x, y, def){
  }
  };
 
- // v3: Duplicate addWrapperNode removed - using the one above
+ function addWrapperNode(x, y, wrapType) {
+ var sp3=staggerPos(x,y); x=sp3.x; y=sp3.y;
+ var wt = WRAPPER_TYPES[wrapType];
+ if (!wt) return null;
+ var ctrlCount = wt.controls.length;
+ // height: header(64) + controls(ctrlCount*52) + hint(32) + strip(48)
+ var cardH = 64 + ctrlCount * 52 + 32 + 48;
+ var portY = cardH - 24;
+ var data = {};
+ for (var dk in wt.defaultData) data[dk] = wt.defaultData[dk];
+ data._wrapType = wrapType;
+ // v2: Wrappers are initiators - only code out, no body input
+ var ports = [
+ { name:"code", dir:"out", x:240, y:portY }
+ ];
+ // If...Else still needs else port for the else branch output
+ if (wt.hasElsePort) {
+ ports.push({ name:"else", dir:"out", x:80, y:portY });
+ }
+ var n = {
+ id: uuid(), kind: "Wrapper",
+ title: wt.label,
+ x: x, y: y, w: 320, h: cardH,
+ ports: ports,
+ data: data
+ };
+ state.nodes.push(n);
+ return n;
+ }
 
  function tryCompleteLink(toNodeId, toPort){
   if (!state.linking || !state.linking.active) return;
@@ -2368,18 +2354,19 @@ function addScriptNodeFromDef(x, y, def){
     if (b.kind === "Clip" && ["default","load","update","unload","mouse","keyboard"].includes(toPort)) ok = true;
     if (b.kind === "ProxyClip" && ["default","load","update","unload","mouse","keyboard"].includes(toPort)) ok = true;
     if (b.kind === "ScriptNode" && toPort === "trigger") ok = true;
-    // v3: code out → wrapper trigger (wrappers can chain from other nodes)
-    if (b.kind === "Wrapper" && toPort === "trigger") ok = true;
   }
 
-  // v2: Wrapper else port → ScriptNode/Wrapper trigger (for If...Else)
+  // v2: Wrapper else port → ScriptNode trigger (for If...Else)
   if (a.kind === "Wrapper" && fromPort === "else") {
     if (b.kind === "ScriptNode" && toPort === "trigger") ok = true;
-    if (b.kind === "Wrapper" && toPort === "trigger") ok = true;
+    if (b.kind === "Wrapper") ok = true;
   }
 
-  // New: code → body port on Mouse/Keyboard nodes (they act like mini-wrappers)
+  // New: code → body port on wrappers and Mouse/Keyboard nodes
   if ((a.kind === "ScriptNode" || a.kind === "Wrapper") && fromPort === "code") {
+    if (b.kind === "Wrapper" && toPort === "body") {
+      ok = true;
+    }
     if (b.kind === "ScriptNode" && (b.defId === "mouse" || b.defId === "keyboard") && toPort === "body") {
       ok = true;
     }
