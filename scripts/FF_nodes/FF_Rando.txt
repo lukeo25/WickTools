@@ -1,12 +1,505 @@
-// FF_Rando - Random Number Generator for WickEditor
-// Compatible with LukeTools Node Editor
-// Place in scripts/FF_nodes/ folder
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LukeTools: Rando</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{
+      --text:#e7e7ea;
+      --muted:#a8a8b3;
+      --radius:12px;
+      --radius2:10px;
+      --font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    html,body{height:100%;margin:0;background:transparent;color:var(--text);font-family:var(--font);}
+    .wrap{padding:14px;box-sizing:border-box;}
+    .card{background:rgba(20,20,22,0.92);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);padding:14px;box-sizing:border-box;}
+    .title{font-size:15px;font-weight:700;margin:0 0 10px 0;}
+    .section{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin:12px 0 6px 0;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0;}
+    .pill{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted);}
+    .pill strong{color:var(--text);}
+    .btn{appearance:none;border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.06);color:var(--text);border-radius:var(--radius2);padding:8px 12px;cursor:pointer;font-weight:700;font-size:13px;font-family:var(--font);}
+    .btn.green{background:rgba(46,204,113,0.18);border-color:rgba(46,204,113,0.35);}
+    .btn:active{transform:translateY(1px);}
+    .field{display:flex;flex-direction:column;gap:5px;flex:1;}
+    label{font-size:12px;color:var(--muted);}
+    input[type="text"],input[type="number"],select{background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.10);color:var(--text);border-radius:var(--radius2);padding:8px 10px;font-size:13px;outline:none;width:100%;box-sizing:border-box;font-family:var(--font);}
+    select{cursor:pointer;}
+    input:focus,select:focus{border-color:rgba(52,152,219,0.5);}
+    .divider{height:1px;background:rgba(255,255,255,0.08);margin:10px 0;}
+    .rng-block{border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius2);padding:12px;margin-bottom:10px;background:rgba(255,255,255,0.02);}
+    .rng-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+    .rng-title-text{font-size:13px;font-weight:700;}
+    .remove-btn{background:none;border:none;color:#e74c3c;cursor:pointer;font-size:14px;padding:0 4px;line-height:1;}
+    .rule-block{background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px;margin-bottom:8px;}
+    .rule-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+    .rule-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;}
+    .if-row{display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+    .if-tag{font-size:12px;font-weight:700;color:rgba(52,152,219,0.9);white-space:nowrap;min-width:18px;}
+    .if-vname{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;}
+    .if-row select{flex:0 0 64px;padding:6px 4px;font-size:13px;text-align:center;}
+    .if-row .val-inp{flex:1;min-width:60px;padding:6px 8px;font-size:13px;}
+    .two-col{display:flex;gap:8px;}
+    .two-col>*{flex:1;}
+    .checks{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;}
+    .chk{display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--muted);}
+    .chk input{accent-color:#21b26b;cursor:pointer;width:auto;}
+    .add-rule-btn{background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.15);border-radius:8px;color:var(--muted);cursor:pointer;width:100%;padding:7px;font-size:12px;margin-top:4px;font-family:var(--font);}
+    .add-rule-btn:hover{background:rgba(255,255,255,0.08);}
+    .add-rng-btn{background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.15);border-radius:var(--radius2);color:var(--muted);cursor:pointer;width:100%;padding:10px;font-size:13px;font-weight:700;margin-top:4px;font-family:var(--font);}
+    .add-rng-btn:hover{background:rgba(255,255,255,0.08);}
+    .status{margin-top:12px;padding:10px;border-radius:var(--radius2);border:1px solid rgba(255,255,255,0.08);background:rgba(0,0,0,0.22);font-size:12px;color:var(--muted);white-space:pre-wrap;}
+    .status.good{border-color:rgba(46,204,113,0.35);background:rgba(46,204,113,0.12);color:#d9ffe9;}
+    .status.bad{border-color:rgba(231,76,60,0.35);background:rgba(231,76,60,0.12);color:#ffd9d6;}
+    .status.warn{border-color:rgba(241,196,15,0.35);background:rgba(241,196,15,0.10);color:#fff2c2;}
+    .children-pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;min-height:16px;}
+    .cpill{font-size:11px;background:rgba(52,152,219,0.10);border:1px solid rgba(52,152,219,0.22);border-radius:999px;padding:2px 9px;color:rgba(130,190,255,0.85);}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="title">⚄ RANDO</div>
 
-// ── Rando BEGIN ──────────────────────────────────────────
-// RANDO_CONFIG: [{"varName":"rng","min":"0","max":"10","isInt":true,"onlyOnce":false,"storeVar":true,"rules":[]}]
+    <div class="row">
+      <div class="pill"><strong>Clip</strong> <span id="selLabel">No Clip Chosen</span></div>
+      <button class="btn" id="btnRefresh">Refresh</button>
+    </div>
+    <div class="children-pills" id="childPills"></div>
 
-// RNG: rng
-var rng = Math.floor(Math.random()*(11)+0);
-this.rng = rng;
+    <div class="divider"></div>
 
-// ── Rando END ────────────────────────────────────────────
+    <div id="rngList"></div>
+    <button class="add-rng-btn" id="btnAddRng">+ Add RNG</button>
+
+    <div class="divider"></div>
+    <button class="btn green" id="btnCreate" style="width:100%;">Create</button>
+    <div id="status" class="status">Select a clip then click Create.</div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ── Bridge ────────────────────────────────────────────────────────────────────
+function getBridge(){
+  try{ if(window.LukeToolsBridge) return window.LukeToolsBridge; }catch(e){}
+  try{ if(window.parent&&window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; }catch(e){}
+  try{ if(window.top&&window.top.LukeToolsBridge) return window.top.LukeToolsBridge; }catch(e){}
+  return null;
+}
+function getEditor(){
+  try{ if(window.parent.wickEditor) return window.parent.wickEditor; }catch(e){}
+  try{ var br=getBridge(); if(br&&br.getEditor) return br.getEditor(); }catch(e){}
+  return null;
+}
+function getProject(){
+  var ed=getEditor();
+  try{ if(ed&&ed.project) return ed.project; }catch(e){}
+  return null;
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+function setStatus(msg,kind){
+  var el=document.getElementById("status");
+  el.className="status"+(kind?" "+kind:"");
+  el.textContent=msg;
+}
+
+// ── Selection ─────────────────────────────────────────────────────────────────
+var currentInfo=null;
+var childNames=[];
+
+function tryLoadExisting(){
+  var bridge=getBridge(); if(!bridge) return;
+  if(!currentInfo||!currentInfo.uuid){ setStatus("Select a clip then click Create."); return; }
+  var script="";
+  // Use getUpdateScriptByInfo — reads by UUID, no selection required
+  try{
+    if(typeof bridge.getUpdateScriptByInfo==="function"){
+      script=bridge.getUpdateScriptByInfo(currentInfo)||"";
+    }
+  }catch(e){}
+  // Fallback: getUpdateScriptOnSelection (only works if clip happens to be selected)
+  if(!script){
+    try{ if(typeof bridge.getUpdateScriptOnSelection==="function") script=bridge.getUpdateScriptOnSelection()||""; }catch(e){}
+  }
+  if(!script){ setStatus("Clip loaded — no existing script found. Configure and click Create."); return; }
+  var parsed=parseConfig(script);
+  if(parsed&&parsed.length){
+    rngs=parsed;
+    renderAll();
+    setStatus("✎ Loaded existing Rando config ("+parsed.length+" RNG"+(parsed.length>1?"s":"")+") — edit and click Create to update.", "warn");
+  } else {
+    setStatus("Clip loaded — no existing Rando config. Configure and click Create.");
+  }
+}
+
+function refreshSelection(){
+  var bridge=getBridge();
+  if(!bridge){ document.getElementById("selLabel").textContent="No bridge"; return; }
+  try{
+    if(typeof bridge.getSelectionInfo==="function"){
+      var info=bridge.getSelectionInfo();
+      if(info&&info.uuid){
+        currentInfo=info;
+        document.getElementById("selLabel").textContent=info.identifier||info.name||info.uuid;
+        scanChildren();
+        rebuildAllClipDropdowns();
+        // Try to load existing Rando config from clip's update script
+        tryLoadExisting();
+        return;
+      }
+    }
+  }catch(e){}
+  currentInfo=null;
+  document.getElementById("selLabel").textContent="No Clip Chosen";
+  childNames=[];
+  renderChildPills();
+}
+
+function scanChildren(){
+  childNames=[];
+  var ed=getEditor(), proj=getProject();
+  if(!currentInfo||!currentInfo.uuid){ renderChildPills(); return; }
+
+  var clip=null;
+  try{ var sel=proj&&proj.selection||ed&&ed.selection||null;
+    if(sel&&typeof sel.getSelectedObject==="function") clip=sel.getSelectedObject();
+    if(!clip&&sel&&typeof sel.getSelectedObjects==="function"){ var a=sel.getSelectedObjects(); clip=a&&a[0]||null; }
+    if(!clip&&ed&&ed.selectedObjects) clip=ed.selectedObjects[0]||null;
+  }catch(e){}
+  if(!clip){ renderChildPills(); return; }
+
+  var found=[], seen={};
+  function addClip(c){
+    if(!c) return;
+    var u=c.uuid||c._uuid||null;
+    if(u&&seen[u]) return; if(u) seen[u]=true;
+    var nm=String(c._identifier||c.identifier||c.name||"").trim();
+    if(nm) found.push(nm);
+  }
+  try{
+    var tl=clip.timeline||(clip.clipAsset&&clip.clipAsset.timeline)||null;
+    if(tl){
+      var layers=tl.layers||[];
+      for(var li=0;li<layers.length;li++){
+        var layer=layers[li]; if(!layer) continue;
+        var frames=layer.frames||[];
+        if(!frames.length){ var af=layer.activeFrame||layer.currentFrame; if(af) frames=[af]; }
+        for(var fi=0;fi<frames.length;fi++){
+          var frame=frames[fi]; if(!frame) continue;
+          var clips=frame.clips||frame.children||frame._children||frame.objects||[];
+          for(var ci=0;ci<clips.length;ci++) addClip(clips[ci]);
+        }
+      }
+    }
+  }catch(e){}
+  if(!found.length){ try{ var ch=clip._children||clip.children||[]; for(var i=0;i<ch.length;i++) addClip(ch[i]); }catch(e){} }
+  childNames=found;
+  renderChildPills();
+}
+
+function renderChildPills(){
+  var c=document.getElementById("childPills"); c.innerHTML="";
+  childNames.forEach(function(nm){ var p=document.createElement("span"); p.className="cpill"; p.textContent=nm; c.appendChild(p); });
+}
+
+function rebuildAllClipDropdowns(){
+  document.querySelectorAll(".clip-sel").forEach(function(sel){
+    var prev=sel.value; rebuildClipDropdown(sel);
+    try{ sel.value=prev; }catch(e){}
+  });
+}
+
+function rebuildClipDropdown(sel){
+  sel.innerHTML="";
+  var o=document.createElement("option"); o.value="self"; o.textContent="(self)"; sel.appendChild(o);
+  childNames.forEach(function(nm){ var o=document.createElement("option"); o.value=nm; o.textContent=nm; sel.appendChild(o); });
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+var rngs=[];
+var _rc=0;
+function mkId(){ return "x"+(++_rc)+Math.random().toString(36).slice(2,5); }
+
+var OPS=["==","!=","<",">","<=",">="];
+var ACTIONS=[
+  {v:"none",         l:"— do nothing —",        frame:false},
+  {v:"gotoAndStop",  l:"gotoAndStop( frame )",   frame:true},
+  {v:"gotoAndPlay",  l:"gotoAndPlay( frame )",   frame:true},
+  {v:"stop",         l:"stop()",                 frame:false},
+  {v:"play",         l:"play()",                 frame:false},
+  {v:"gotoNextFrame",l:"gotoNextFrame()",        frame:false},
+  {v:"gotoPrevFrame",l:"gotoPrevFrame()",        frame:false},
+  {v:"setOpacity",   l:"opacity = value",        frame:false},
+  {v:"setX",         l:"x = value",              frame:false},
+  {v:"setY",         l:"y = value",              frame:false},
+];
+
+function newRng(){
+  return {id:mkId(), varName:"rng"+_rc, min:"0", max:"10", isInt:true, onlyOnce:false, storeVar:false, rules:[newRule()]};
+}
+function newRule(){
+  return {id:mkId(), op:"==", val:"", clipName:"self", action:"none", frame:"1"};
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderAll(){
+  var list=document.getElementById("rngList"); list.innerHTML="";
+  rngs.forEach(function(r){ list.appendChild(makeRngBlock(r)); });
+}
+
+function makeRngBlock(r){
+  var div=document.createElement("div"); div.className="rng-block"; div.id="rng-"+r.id;
+
+  // Header
+  var hdr=document.createElement("div"); hdr.className="rng-header";
+  var ttl=document.createElement("div"); ttl.className="rng-title-text"; ttl.id="rngtitle-"+r.id; ttl.textContent="⚄ "+r.varName;
+  var rm=document.createElement("button"); rm.className="remove-btn"; rm.innerHTML="✕"; rm.title="Remove";
+  rm.onclick=function(){ rngs=rngs.filter(function(x){return x.id!==r.id;}); div.remove(); };
+  hdr.appendChild(ttl); hdr.appendChild(rm); div.appendChild(hdr);
+
+  // Variable name
+  appendField(div, "Variable name", function(lbl){
+    var inp=document.createElement("input"); inp.type="text"; inp.value=r.varName;
+    inp.oninput=function(){
+      r.varName=inp.value.replace(/[^a-zA-Z0-9_]/g,"_")||"rng";
+      document.getElementById("rngtitle-"+r.id).textContent="⚄ "+r.varName;
+      div.querySelectorAll(".if-vname").forEach(function(el){ el.textContent=r.varName; });
+    };
+    return inp;
+  });
+
+  // Min / Max
+  var twoCol=document.createElement("div"); twoCol.className="two-col"; twoCol.style.marginTop="8px";
+  var minF=document.createElement("div"); appendField(minF,"Min",function(){ var i=document.createElement("input"); i.type="number"; i.value=r.min; i.step="any"; i.oninput=function(){r.min=i.value;}; return i; });
+  var maxF=document.createElement("div"); appendField(maxF,"Max",function(){ var i=document.createElement("input"); i.type="number"; i.value=r.max; i.step="any"; i.oninput=function(){r.max=i.value;}; return i; });
+  twoCol.appendChild(minF); twoCol.appendChild(maxF); div.appendChild(twoCol);
+
+  // Checkboxes
+  var checks=document.createElement("div"); checks.className="checks";
+  checks.appendChild(makeChk("Integer",r.isInt,function(v){r.isInt=v;}));
+  checks.appendChild(makeChk("Run once",r.onlyOnce,function(v){r.onlyOnce=v;}));
+  checks.appendChild(makeChk("Store on clip",r.storeVar,function(v){r.storeVar=v;}));
+  div.appendChild(checks);
+
+  // Rules
+  var sec=document.createElement("div"); sec.className="section"; sec.style.marginTop="12px"; sec.textContent="IF / THEN RULES";
+  div.appendChild(sec);
+
+  var rulesWrap=document.createElement("div"); rulesWrap.id="rules-"+r.id;
+  r.rules.forEach(function(rule){ rulesWrap.appendChild(makeRuleBlock(r,rule)); });
+  div.appendChild(rulesWrap);
+
+  var addBtn=document.createElement("button"); addBtn.className="add-rule-btn"; addBtn.textContent="+ Add Rule";
+  addBtn.onclick=function(){ var rule=newRule(); r.rules.push(rule); rulesWrap.appendChild(makeRuleBlock(r,rule)); };
+  div.appendChild(addBtn);
+
+  return div;
+}
+
+function makeRuleBlock(r, rule){
+  var div=document.createElement("div"); div.className="rule-block"; div.id="rule-"+rule.id;
+
+  // Header
+  var hdr=document.createElement("div"); hdr.className="rule-header";
+  var lbl=document.createElement("span"); lbl.className="rule-lbl"; lbl.textContent="Rule";
+  var rm=document.createElement("button"); rm.className="remove-btn"; rm.innerHTML="✕";
+  rm.onclick=function(){ r.rules=r.rules.filter(function(x){return x.id!==rule.id;}); div.remove(); };
+  hdr.appendChild(lbl); hdr.appendChild(rm); div.appendChild(hdr);
+
+  // IF row: IF  varName  ==  value
+  var ifRow=document.createElement("div"); ifRow.className="if-row";
+
+  var ifTag=document.createElement("span"); ifTag.className="if-tag"; ifTag.textContent="IF";
+  var vnSpan=document.createElement("span"); vnSpan.className="if-vname"; vnSpan.textContent=r.varName;
+
+  var opSel=document.createElement("select");
+  OPS.forEach(function(op){ var o=document.createElement("option"); o.value=op; o.textContent=op; if(op===rule.op) o.selected=true; opSel.appendChild(o); });
+  opSel.onchange=function(){ rule.op=opSel.value; };
+
+  var valInp=document.createElement("input"); valInp.type="text"; valInp.className="val-inp";
+  valInp.placeholder="value e.g. 3"; valInp.value=rule.val;
+  valInp.oninput=function(){ rule.val=valInp.value; };
+
+  ifRow.appendChild(ifTag); ifRow.appendChild(vnSpan); ifRow.appendChild(opSel); ifRow.appendChild(valInp);
+  div.appendChild(ifRow);
+
+  // THEN row
+  var thenSec=document.createElement("div"); thenSec.className="section"; thenSec.style.margin="0 0 6px 0"; thenSec.textContent="THEN";
+  div.appendChild(thenSec);
+
+  var twoCol=document.createElement("div"); twoCol.className="two-col"; twoCol.style.marginBottom="6px";
+
+  var clipSel=document.createElement("select"); clipSel.className="clip-sel";
+  rebuildClipDropdown(clipSel);
+  try{ clipSel.value=rule.clipName||"self"; }catch(e){}
+  clipSel.onchange=function(){ rule.clipName=clipSel.value; };
+
+  var actSel=document.createElement("select");
+  ACTIONS.forEach(function(a){ var o=document.createElement("option"); o.value=a.v; o.textContent=a.l; if(a.v===rule.action) o.selected=true; actSel.appendChild(o); });
+
+  twoCol.appendChild(clipSel); twoCol.appendChild(actSel); div.appendChild(twoCol);
+
+  // Frame input
+  var frameWrap=document.createElement("div");
+  var fLbl=document.createElement("label"); fLbl.textContent="Frame / value";
+  var fInp=document.createElement("input"); fInp.type="text"; fInp.value=rule.frame||"1";
+  fInp.oninput=function(){ rule.frame=fInp.value; };
+  frameWrap.appendChild(fLbl); frameWrap.appendChild(fInp);
+  div.appendChild(frameWrap);
+
+  function updateFrameVis(){
+    var act=ACTIONS.find(function(a){return a.v===actSel.value;})||{};
+    frameWrap.style.display=act.frame?"block":"none";
+    fLbl.textContent=(actSel.value==="gotoAndStop"||actSel.value==="gotoAndPlay")?"Frame / label":"Value";
+  }
+  actSel.onchange=function(){ rule.action=actSel.value; updateFrameVis(); };
+  updateFrameVis();
+
+  return div;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function appendField(parent, labelText, makeInput){
+  var lbl=document.createElement("label"); lbl.textContent=labelText;
+  var inp=makeInput(lbl);
+  parent.appendChild(lbl); parent.appendChild(inp);
+  return inp;
+}
+function makeChk(labelText, checked, onChange){
+  var l=document.createElement("label"); l.className="chk";
+  var inp=document.createElement("input"); inp.type="checkbox"; inp.checked=checked;
+  inp.onchange=function(){ onChange(inp.checked); };
+  var sp=document.createElement("span"); sp.textContent=labelText;
+  l.appendChild(inp); l.appendChild(sp); return l;
+}
+
+// ── Code generation ───────────────────────────────────────────────────────────
+// Parse a saved RANDO_CONFIG comment back into rngs state
+function parseConfig(scriptText){
+  if(!scriptText) return null;
+  var m = scriptText.match(/\/\/ RANDO_CONFIG: (\{.+\}|\[.+\])/);
+  if(!m) return null;
+  try{
+    var parsed = JSON.parse(m[1]);
+    if(!Array.isArray(parsed)) return null;
+    // Re-stamp with fresh IDs so DOM elements don't clash
+    return parsed.map(function(r){
+      return {
+        id: mkId(),
+        varName: r.varName||"rng",
+        min: String(r.min||"0"),
+        max: String(r.max||"10"),
+        isInt: !!r.isInt,
+        onlyOnce: !!r.onlyOnce,
+        storeVar: !!r.storeVar,
+        rules: (r.rules||[]).map(function(rule){
+          return { id:mkId(), op:rule.op||"==", val:String(rule.val||""), clipName:rule.clipName||"self", action:rule.action||"none", frame:String(rule.frame||"1") };
+        })
+      };
+    });
+  }catch(e){ return null; }
+}
+
+function buildScript(rngList){
+  if(!rngList.length) return "";
+  var L=[];
+  L.push("// ── Rando BEGIN ──────────────────────────────────────────");
+  L.push("// RANDO_CONFIG: "+JSON.stringify(rngList));
+  rngList.forEach(function(r, ri){
+    var vn=(r.varName||"rng").replace(/[^a-zA-Z0-9_]/g,"_")||"rng"+ri;
+    var mn=parseFloat(r.min)||0;
+    var mx=parseFloat(r.max)||10;
+    L.push("");
+    L.push("// RNG: "+vn);
+    if(r.onlyOnce) L.push("if(this._rando_"+vn+"_done===undefined){");
+    var ind=r.onlyOnce?"  ":"";
+
+    // Roll
+    if(r.isInt){
+      L.push(ind+"var "+vn+" = Math.floor(Math.random()*("+(mx-mn+1)+")+"+mn+");");
+    } else {
+      L.push(ind+"var "+vn+" = +(Math.random()*("+mx+"-"+mn+")+"+mn+").toFixed(4);");
+    }
+    if(r.storeVar) L.push(ind+"this."+vn+" = "+vn+";");
+
+    // Rules
+    r.rules.forEach(function(rule){
+      if(rule.action==="none") return;
+      var hasIf=(String(rule.val||"").trim()!=="");
+      var ci=ind+(hasIf?"  ":"");
+
+      // Target: self = "this", child = "this.ChildName" (direct property access in Wick)
+      var tgt=rule.clipName||"self";
+      var tRef=(tgt==="self"||tgt==="")?  "this" : "this."+tgt;
+
+      if(hasIf) L.push(ind+"if("+vn+" "+rule.op+" "+String(rule.val).trim()+"){");
+      var ii=ci;
+      var fn=rule.action, fv=String(rule.frame||"1").trim();
+      if(fn==="gotoAndStop"||fn==="gotoAndPlay"){
+        var fvStr=isNaN(Number(fv))?"\""+fv+"\"":fv;
+        L.push(ii+"try{ "+tRef+"."+fn+"("+fvStr+"); }catch(e){}");
+      } else if(fn==="stop"||fn==="play"||fn==="gotoNextFrame"||fn==="gotoPrevFrame"){
+        L.push(ii+"try{ "+tRef+"."+fn+"(); }catch(e){}");
+      } else if(fn==="setOpacity"){
+        L.push(ii+"try{ "+tRef+".opacity="+vn+"; }catch(e){}");
+      } else if(fn==="setX"){
+        L.push(ii+"try{ "+tRef+".x="+vn+"; }catch(e){}");
+      } else if(fn==="setY"){
+        L.push(ii+"try{ "+tRef+".y="+vn+"; }catch(e){}");
+      }
+      if(hasIf) L.push(ind+"}");
+    });
+
+    if(r.onlyOnce){ L.push("  this._rando_"+vn+"_done=true;"); L.push("}"); }
+  });
+  L.push("");
+  L.push("// ── Rando END ────────────────────────────────────────────");
+  return L.join("\n");
+}
+
+// ── Create / Inject ───────────────────────────────────────────────────────────
+document.getElementById("btnCreate").addEventListener("click", function(){
+  if(!currentInfo||!currentInfo.uuid){ setStatus("No clip selected. Use Refresh.", "warn"); return; }
+  if(!rngs.length){ setStatus("No RNGs added.", "warn"); return; }
+  var bridge=getBridge();
+  if(!bridge){ setStatus("Bridge not found.", "bad"); return; }
+
+  var code=buildScript(rngs);
+  var existing="";
+  // Read by UUID — no selection needed
+  try{ if(typeof bridge.getUpdateScriptByInfo==="function") existing=bridge.getUpdateScriptByInfo(currentInfo)||""; }catch(e){}
+  if(!existing){ try{ if(typeof bridge.getUpdateScriptOnSelection==="function") existing=bridge.getUpdateScriptOnSelection()||""; }catch(e){} }
+  existing=existing.replace(/\/\/ ── Rando BEGIN[\s\S]*?\/\/ ── Rando END\n?/g,"").trim();
+  var combined=(existing?existing+"\n\n":"")+code;
+
+  try{
+    // Write by UUID — no selection needed
+    var res=null;
+    if(typeof bridge.setUpdateScriptByInfo==="function") res=bridge.setUpdateScriptByInfo(currentInfo, combined);
+    if(!res||res.ok===false){
+      // Fallback: select then write
+      res=bridge.setUpdateScriptOnSelection(combined);
+    }
+    if(res&&res.ok===false) throw new Error(res.reason||"script write failed");
+    setStatus("✓ Injected "+rngs.length+" RNG(s) into: "+(currentInfo.identifier||currentInfo.name||currentInfo.uuid), "good");
+  }catch(e){ setStatus("Failed: "+e.message, "bad"); }
+});
+
+document.getElementById("btnRefresh").addEventListener("click", refreshSelection);
+document.getElementById("btnAddRng").addEventListener("click", function(){ rngs.push(newRng()); renderAll(); });
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+rngs.push(newRng());
+renderAll();
+refreshSelection();
+
+})();
+</script>
+</body>
+</html>
