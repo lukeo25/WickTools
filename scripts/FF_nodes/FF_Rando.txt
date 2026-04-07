@@ -1,39 +1,29 @@
 // FF_Rando - Random Number Generator
-// Modelled on FF_RandoPlus so LukeTools Node Editor can detect LT_CFG correctly
+// Stripped back for LukeTools Node Editor detection
 
 var LT_CFG = {
   "slot": "update",
   "mode": "Random",
   "min": 0,
   "max": 100,
-  "seed": 0,
-  "useTimeSeed": 1,
-  "freq": 1,
-  "octaves": 1,
-  "integerOnly": 0,
-  "storeVar": 1,
+  "fps": 1,
+  "time": 0,
   "varName": "rando"
 };
 
 // ── FF_Rando BEGIN ─────────────────────────────────────────────
 (function() {
   var cfg = LT_CFG || {};
-  var mode = String(cfg.mode || "Random");
   var mn = parseFloat(cfg.min);
   var mx = parseFloat(cfg.max);
-  var seed = parseFloat(cfg.seed);
-  var useTimeSeed = cfg.useTimeSeed === 1 || cfg.useTimeSeed === true || cfg.useTimeSeed === "1" || cfg.useTimeSeed === "true";
-  var freq = parseFloat(cfg.freq);
-  var octaves = parseInt(cfg.octaves, 10);
-  var integerOnly = cfg.integerOnly === 1 || cfg.integerOnly === true || cfg.integerOnly === "1" || cfg.integerOnly === "true";
-  var storeVar = cfg.storeVar === 1 || cfg.storeVar === true || cfg.storeVar === "1" || cfg.storeVar === "true";
+  var fps = parseFloat(cfg.fps);
+  var cfgTime = parseFloat(cfg.time);
   var vn = String(cfg.varName || "rando").replace(/[^a-zA-Z0-9_]/g, "_") || "rando";
 
   if (!isFinite(mn)) mn = 0;
   if (!isFinite(mx)) mx = 100;
-  if (!isFinite(seed)) seed = 0;
-  if (!isFinite(freq) || freq === 0) freq = 1;
-  if (!isFinite(octaves) || octaves < 1) octaves = 1;
+  if (!isFinite(fps) || fps <= 0) fps = 1;
+  if (!isFinite(cfgTime)) cfgTime = 0;
 
   function seedRandomLocal(s) {
     var x = Math.sin(s) * 10000;
@@ -42,38 +32,6 @@ var LT_CFG = {
 
   function seededRange(min, max, s) {
     return seedRandomLocal(s) * (max - min) + min;
-  }
-
-  function gaussianLocal(min, max, s) {
-    var u = 0, v = 0;
-    u = seedRandomLocal(s + 0.12345);
-    v = seedRandomLocal(s + 0.67891);
-    if (u <= 0) u = 0.0001;
-    var num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-    var mid = (min + max) / 2;
-    var spread = (max - min) / 6;
-    var out = mid + num * spread;
-    if (out < min) out = min;
-    if (out > max) out = max;
-    return out;
-  }
-
-  function noise1D(x, s) {
-    return seedRandomLocal((x * 12.9898) + (s * 78.233));
-  }
-
-  function fractalNoise(x, octs, s) {
-    var total = 0;
-    var amp = 1;
-    var maxAmp = 0;
-    var f = 1;
-    for (var i = 0; i < octs; i++) {
-      total += noise1D(x * f, s + i * 17.17) * amp;
-      maxAmp += amp;
-      amp *= 0.5;
-      f *= 2;
-    }
-    return maxAmp > 0 ? (total / maxAmp) : 0;
   }
 
   var t = 0;
@@ -86,36 +44,12 @@ var LT_CFG = {
     }
   } catch(e1) {}
 
-  var seedBase = useTimeSeed ? (t + seed) : seed;
-  var result = 0;
+  t += cfgTime;
 
-  switch(mode) {
-    case "Gaussian":
-      result = gaussianLocal(mn, mx, seedBase);
-      break;
+  var steppedTime = Math.floor(t / fps);
+  var result = seededRange(mn, mx, steppedTime);
 
-    case "Wiggle":
-      var wiggleMid = (mn + mx) / 2;
-      var wiggleAmp = (mx - mn) / 2;
-      result = wiggleMid + (Math.sin((t + seed) * freq) * wiggleAmp);
-      break;
-
-    case "Noise":
-      result = mn + fractalNoise((t + seed) * freq, octaves, seedBase) * (mx - mn);
-      break;
-
-    case "Random":
-    default:
-      result = seededRange(mn, mx, seedBase);
-      break;
-  }
-
-  if (integerOnly) result = Math.round(result);
-
-  if (storeVar) {
-    try { this[vn] = result; } catch(e2) {}
-  }
-
+  try { this[vn] = result; } catch(e2) {}
   try { window["_ff_rando_last_" + vn] = result; } catch(e3) {}
 })();
 // ── FF_Rando END ───────────────────────────────────────────────
