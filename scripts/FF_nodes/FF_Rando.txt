@@ -1,7 +1,6 @@
-/*
-LT_CFG = {
+const LT_CFG = {
   "name": "Rando",
-  "category": "Utilities", 
+  "category": "Utilities",
   "description": "Generate random numbers with various modes",
   "inputs": [],
   "outputs": [
@@ -17,8 +16,7 @@ LT_CFG = {
     {"name": "Octaves", "type": "number", "default": 1},
     {"name": "Integer Only", "type": "checkbox", "default": false}
   ]
-}
-*/
+};
 
 function generateRando(params) {
     const mode = params["Mode"] || "Random";
@@ -29,17 +27,16 @@ function generateRando(params) {
     const freq = params["Freq"] || 1;
     const octaves = params["Octaves"] || 1;
     const integerOnly = params["Integer Only"] || false;
-    
+
     let code = "";
-    
-    // Seed setup
+
     let seedExpr = "";
     if (useTimeSeed) {
         seedExpr = seed > 0 ? `seedRandom(time + ${seed}, true);\n` : `seedRandom(time, true);\n`;
     } else {
         seedExpr = `seedRandom(${seed}, true);\n`;
     }
-    
+
     switch (mode) {
         case "Random":
             code = seedExpr;
@@ -49,33 +46,35 @@ function generateRando(params) {
                 code += `random(${min}, ${max})`;
             }
             break;
-            
+
         case "Gaussian":
             code = seedExpr;
-            code += `gaussRandom(${min}, ${max})`;
             if (integerOnly) {
-                code = seedExpr + `Math.round(gaussRandom(${min}, ${max}))`;
+                code += `Math.round(gaussRandom(${min}, ${max}))`;
+            } else {
+                code += `gaussRandom(${min}, ${max})`;
             }
             break;
-            
+
         case "Wiggle":
             code = `wiggle(${freq}, ${(max - min) / 2}, ${octaves})`;
             if (integerOnly) {
                 code = `Math.round(${code})`;
             }
             break;
-            
+
         case "Noise":
-            code = `linear(noise(time * ${freq}), -1, 1, ${min}, ${max})`;
             if (integerOnly) {
                 code = `Math.round(linear(noise(time * ${freq}), -1, 1, ${min}, ${max}))`;
+            } else {
+                code = `linear(noise(time * ${freq}), -1, 1, ${min}, ${max})`;
             }
             break;
-            
+
         default:
             code = `random(${min}, ${max})`;
     }
-    
+
     return {
         code: code,
         outputs: {
