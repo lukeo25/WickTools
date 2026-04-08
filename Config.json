@@ -181,8 +181,8 @@
           "F_Screen": 1
         },
         {
-          "id": "Luke Ink",
-          "label": "Luke Ink",
+          "id": "Texture Pen",
+          "label": "Texture Pen",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Pen.svg",
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/LukeInk.txt",
           "action": "tool",
