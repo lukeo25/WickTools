@@ -1,0 +1,1972 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Texture Pen</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin:0; padding:0; height:100%; background:#1a1a1a; color:#eee; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+  .wrap { height:100%; display:flex; flex-direction:column; overflow-y:auto; }
+  
+  .top { 
+    padding:10px 14px; 
+    border-bottom:1px solid rgba(255,255,255,0.06); 
+    display:flex; 
+    align-items:center; 
+    justify-content:space-between; 
+    gap:10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+    flex-shrink:0;
+  }
+  .title { font-size:15px; font-weight:600; letter-spacing:0.2px; color:#fff; }
+  .topRight { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  
+  .instructions {
+    padding:10px 14px;
+    background: rgba(59,130,246,0.08);
+    border-bottom:1px solid rgba(59,130,246,0.15);
+    font-size:11px;
+    line-height:1.5;
+    color:rgba(255,255,255,0.8);
+    flex-shrink:0;
+  }
+  .instructions b { color:#60a5fa; }
+  
+  .toolbar {
+    padding:8px 14px;
+    border-bottom:1px solid rgba(255,255,255,0.06);
+    display:flex;
+    align-items:center;
+    gap:4px;
+    background: rgba(0,0,0,0.2);
+    flex-shrink:0;
+    flex-wrap:wrap;
+  }
+  .toolbar-group {
+    display:flex;
+    align-items:center;
+    gap:2px;
+    padding-right:10px;
+    margin-right:6px;
+    border-right:1px solid rgba(255,255,255,0.08);
+  }
+  .toolbar-group:last-child { border-right:none; margin-right:0; padding-right:0; }
+  .toolbar-group-label {
+    font-size:9px;
+    text-transform:uppercase;
+    color:rgba(255,255,255,0.4);
+    margin-right:6px;
+    letter-spacing:0.5px;
+  }
+  
+  .tool-btn {
+    width:32px; height:32px;
+    display:flex; align-items:center; justify-content:center;
+    background:transparent;
+    border:1px solid transparent;
+    border-radius:6px;
+    cursor:pointer;
+    color:rgba(255,255,255,0.7);
+    transition: all 0.15s ease;
+  }
+  .tool-btn:hover { background:rgba(255,255,255,0.08); color:#fff; }
+  .tool-btn.active { 
+    background:rgba(59,130,246,0.2); 
+    border-color:rgba(59,130,246,0.4); 
+    color:#60a5fa; 
+  }
+  .tool-btn svg { width:18px; height:18px; }
+  
+  .btn {
+    appearance:none; 
+    border:1px solid rgba(255,255,255,0.1);
+    background:rgba(255,255,255,0.04); 
+    color:#ddd; 
+    border-radius:8px;
+    padding:7px 12px; 
+    font-size:12px; 
+    font-weight:500;
+    cursor:pointer;
+    transition: all 0.15s ease;
+  }
+  .btn:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); color:#fff; }
+  .btn:active { background:rgba(255,255,255,0.06); transform: scale(0.98); }
+  .btn:disabled { opacity:0.4; cursor:default; pointer-events:none; }
+  .btn.primary {
+    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+    border-color: rgba(59,130,246,0.5);
+    color:#fff;
+  }
+  .btn.primary:hover { background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%); }
+  .btn.danger {
+    background: rgba(239,68,68,0.1);
+    border-color: rgba(239,68,68,0.3);
+    color: #f87171;
+  }
+  .btn.danger:hover { background: rgba(239,68,68,0.2); }
+  
+  .controls {
+    padding:12px 14px;
+    border-bottom:1px solid rgba(255,255,255,0.06);
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:14px 20px;
+    background: rgba(0,0,0,0.15);
+    flex-shrink:0;
+  }
+  
+  .ctrl { min-width:0; }
+  .ctrl label {
+    display:flex; 
+    align-items:center; 
+    justify-content:space-between;
+    gap:6px; 
+    font-size:11px; 
+    font-weight:500;
+    margin-bottom:6px; 
+    color:rgba(255,255,255,0.7);
+    text-transform: uppercase;
+    letter-spacing:0.3px;
+  }
+  .ctrl label .v { 
+    font-weight:600; 
+    color:rgba(255,255,255,0.9);
+    font-variant-numeric: tabular-nums;
+  }
+  
+  .ctrl input[type="range"] {
+    width:100%; 
+    height:6px;
+    -webkit-appearance:none;
+    appearance:none;
+    background: rgba(255,255,255,0.1);
+    border-radius:3px;
+    outline:none;
+  }
+  .ctrl input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance:none;
+    width:14px; height:14px;
+    background:#fff;
+    border-radius:50%;
+    cursor:pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+  .ctrl input[type="range"]::-moz-range-thumb {
+    width:14px; height:14px;
+    background:#fff;
+    border:none;
+    border-radius:50%;
+    cursor:pointer;
+  }
+  
+  .ctrl select {
+    width:100%; 
+    box-sizing:border-box;
+    appearance:none; 
+    border:1px solid rgba(0,0,0,0.3);
+    background:#fff; 
+    color:#111; 
+    border-radius:6px;
+    padding:8px 10px; 
+    font-size:12px;
+    font-weight:500;
+    cursor:pointer;
+  }
+  .ctrl select:focus {
+    outline:none;
+    border-color:#3b82f6;
+  }
+  .ctrl select option {
+    background:#fff;
+    color:#111;
+  }
+  
+  .ctrl input[type="color"] {
+    width:100%;
+    height:32px;
+    padding:2px;
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:6px;
+    background:rgba(255,255,255,0.04);
+    cursor:pointer;
+  }
+  .ctrl input[type="color"]::-webkit-color-swatch-wrapper { padding:2px; }
+  .ctrl input[type="color"]::-webkit-color-swatch { border-radius:4px; border:none; }
+  
+  .bottom {
+    padding:8px 14px; 
+    border-top:1px solid rgba(255,255,255,0.06);
+    display:flex; 
+    align-items:center; 
+    justify-content:space-between; 
+    gap:12px;
+    background: rgba(0,0,0,0.1);
+    flex-shrink:0;
+    margin-top:auto;
+  }
+  .status { 
+    font-size:11px; 
+    color:rgba(255,255,255,0.6);
+    overflow:hidden; 
+    white-space:nowrap; 
+    text-overflow:ellipsis;
+  }
+  .status.success { color:#4ade80; }
+  .status.error { color:#f87171; }
+  
+  .stroke-count {
+    font-size:10px;
+    color:rgba(255,255,255,0.5);
+    padding:3px 8px;
+    background:rgba(255,255,255,0.05);
+    border-radius:4px;
+  }
+  .stroke-count.has-strokes {
+    color:#60a5fa;
+    background:rgba(59,130,246,0.1);
+  }
+  
+  details { margin-left:8px; user-select:none; }
+  summary { 
+    cursor:pointer; 
+    font-size:10px; 
+    color:rgba(255,255,255,0.4);
+    padding:3px 6px;
+    border-radius:4px;
+  }
+  summary:hover { background:rgba(255,255,255,0.05); }
+  
+  textarea#debugLog {
+    margin-top:6px; 
+    width:340px; 
+    height:140px; 
+    box-sizing:border-box;
+    background:#0a0a0a; 
+    color:#888; 
+    border:1px solid rgba(255,255,255,0.06); 
+    border-radius:6px;
+    padding:8px; 
+    font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+    font-size:9px; 
+    line-height:1.4;
+    resize:none;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="title">Texture Pen</div>
+    <div class="topRight">
+      <button id="btnSetArea" class="btn" type="button">Set Area</button>
+      <button id="btnClearAll" class="btn danger" type="button">Clear All</button>
+      <button id="btnCommit" class="btn primary" type="button">Commit to Wick</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <span class="toolbar-group-label">Tools</span>
+      <button id="toolDraw" class="tool-btn active" title="Draw (D)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+          <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+          <path d="M2 2l7.586 7.586"/>
+          <circle cx="11" cy="11" r="2"/>
+        </svg>
+      </button>
+      <button id="toolSelect" class="tool-btn" title="Select (S)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+          <path d="M13 13l6 6"/>
+        </svg>
+      </button>
+      <button id="toolMove" class="tool-btn" title="Move (M)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="5 9 2 12 5 15"/>
+          <polyline points="9 5 12 2 15 5"/>
+          <polyline points="15 19 12 22 9 19"/>
+          <polyline points="19 9 22 12 19 15"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <line x1="12" y1="2" x2="12" y2="22"/>
+        </svg>
+      </button>
+      <button id="toolEdit" class="tool-btn" title="Edit Handles (E)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+      </button>
+      <button id="toolErase" class="tool-btn" title="Eraser (X)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L13.4 2.8c.8-.8 2-.8 2.8 0L21 7.6c.8.8.8 2 0 2.8L12 19"/>
+        </svg>
+      </button>
+    </div>
+    
+    <div class="toolbar-group">
+      <span class="toolbar-group-label">Actions</span>
+      <button id="btnUndo" class="tool-btn" title="Undo (Ctrl+Z)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+        </svg>
+      </button>
+      <button id="btnDelete" class="tool-btn" title="Delete Selected (Del)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <line x1="10" y1="11" x2="10" y2="17"/>
+          <line x1="14" y1="11" x2="14" y2="17"/>
+        </svg>
+      </button>
+    </div>
+    
+    <div class="toolbar-group">
+      <span class="toolbar-group-label">Style</span>
+      <select id="lineStyle" style="padding:5px 8px; font-size:11px; background:#fff; color:#111; border:1px solid rgba(0,0,0,0.2); border-radius:4px;">
+        <option value="smooth">Smooth</option>
+        <option value="textured">Textured</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="controls">
+    <!-- Row 1 -->
+    <div class="ctrl">
+      <label><span>Preset</span><span class="v" id="presetVal">Ink</span></label>
+      <select id="preset">
+        <option value="ink">Ink</option>
+        <option value="marker">Marker</option>
+        <option value="pencil">Pencil</option>
+        <option value="calligraphy">Calligraphy</option>
+        <option value="cleanink">Clean Ink</option>
+        <option value="ellipse">Ellipse (Uniform)</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label><span>Colour</span><span class="v" id="fillColorVal">#000</span></label>
+      <input id="fillColor" type="color" value="#000000"/>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="ctrl">
+      <label><span>Size</span><span class="v" id="sizeVal">22</span></label>
+      <input id="size" type="range" min="2" max="100" step="1" value="22"/>
+    </div>
+    <div class="ctrl">
+      <label><span>Smoothing</span><span class="v" id="smoothingVal">0.60</span></label>
+      <input id="smoothing" type="range" min="0" max="1" step="0.01" value="0.60"/>
+    </div>
+
+    <!-- Row 3 -->
+    <div class="ctrl">
+      <label><span>Taper Amount</span><span class="v" id="taperVal">0.35</span></label>
+      <input id="taper" type="range" min="0" max="1" step="0.01" value="0.35"/>
+    </div>
+    <div class="ctrl">
+      <label><span>Taper Style</span><span class="v" id="taperStyleVal">Both</span></label>
+      <select id="taperStyle">
+        <option value="both">Both Ends</option>
+        <option value="start">Start Only</option>
+        <option value="end">End Only</option>
+        <option value="none">None (Uniform)</option>
+      </select>
+    </div>
+
+    <!-- Row 4 -->
+    <div class="ctrl">
+      <label><span>Roughness</span><span class="v" id="roughnessVal">0.10</span></label>
+      <input id="roughness" type="range" min="0" max="1" step="0.01" value="0.10"/>
+    </div>
+    <div class="ctrl">
+      <label><span>Jitter</span><span class="v" id="jitterVal">0.06</span></label>
+      <input id="jitter" type="range" min="0" max="1" step="0.01" value="0.06"/>
+    </div>
+
+    <!-- Row 5 -->
+    <div class="ctrl">
+      <label><span>Spacing</span><span class="v" id="spacingVal">6</span></label>
+      <input id="spacing" type="range" min="2" max="20" step="1" value="6"/>
+    </div>
+    <div class="ctrl">
+      <label><span>Min Width</span><span class="v" id="minWidthVal">0.05</span></label>
+      <input id="minWidth" type="range" min="0.01" max="0.5" step="0.01" value="0.05"/>
+    </div>
+
+    <!-- Row 6 -->
+    <div class="ctrl">
+      <label><span>Overlay Opacity</span><span class="v" id="areaVal">Not set</span></label>
+      <input id="overlayOpacity" type="range" min="0.05" max="0.7" step="0.01" value="0.18"/>
+    </div>
+    <div class="ctrl">
+      <label><span>Eraser Size</span><span class="v" id="eraserSizeVal">20</span></label>
+      <input id="eraserSize" type="range" min="5" max="60" step="1" value="20"/>
+    </div>
+
+    <div class="ctrl">
+      <label><span>Optimise Commit</span><span class="v" id="optimiseVal">Medium</span></label>
+      <select id="optimiseLevel">
+        <option value="off">Off</option>
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label><span>Simplify</span><span class="v" id="simplifyVal">1.20</span></label>
+      <input id="simplifyTolerance" type="range" min="0.2" max="8" step="0.1" value="1.2"/>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div id="status" class="status">Ready — click Set Area to begin</div>
+    <span id="strokeCount" class="stroke-count">0 strokes</span>
+    <details>
+      <summary>Log</summary>
+      <textarea id="debugLog" readonly></textarea>
+    </details>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const PRESETS = {
+    ink:         { size: 22, smoothing: 0.60, taper: 0.35, taperStyle: "end", roughness: 0.10, spacing: 6, jitter: 0.06, minWidth: 0.05, style: "textured" },
+    marker:      { size: 32, smoothing: 0.48, taper: 0.10, taperStyle: "none", roughness: 0.04, spacing: 8, jitter: 0.02, minWidth: 0.20, style: "textured" },
+    pencil:      { size: 12, smoothing: 0.42, taper: 0.24, taperStyle: "end", roughness: 0.22, spacing: 5, jitter: 0.14, minWidth: 0.08, style: "textured" },
+    calligraphy: { size: 28, smoothing: 0.85, taper: 0.50, taperStyle: "both", roughness: 0.00, spacing: 3, jitter: 0.00, minWidth: 0.02, style: "smooth" },
+    cleanink:    { size: 24, smoothing: 1.00, taper: 0.78, taperStyle: "both", roughness: 0.00, spacing: 2, jitter: 0.00, minWidth: 0.005, style: "smooth" },
+    ellipse:     { size: 18, smoothing: 0.95, taper: 0.00, taperStyle: "none", roughness: 0.00, spacing: 3, jitter: 0.00, minWidth: 1.00, style: "smooth" }
+  };
+
+  const TOOLS = { DRAW: "draw", SELECT: "select", MOVE: "move", EDIT: "edit", ERASE: "erase" };
+
+  const el = {
+    status: document.getElementById("status"),
+    debug: document.getElementById("debugLog"),
+    btnSetArea: document.getElementById("btnSetArea"),
+    btnClearAll: document.getElementById("btnClearAll"),
+    btnCommit: document.getElementById("btnCommit"),
+    btnUndo: document.getElementById("btnUndo"),
+    btnDelete: document.getElementById("btnDelete"),
+    toolDraw: document.getElementById("toolDraw"),
+    toolSelect: document.getElementById("toolSelect"),
+    toolMove: document.getElementById("toolMove"),
+    toolEdit: document.getElementById("toolEdit"),
+    toolErase: document.getElementById("toolErase"),
+    lineStyle: document.getElementById("lineStyle"),
+    preset: document.getElementById("preset"),
+    size: document.getElementById("size"),
+    smoothing: document.getElementById("smoothing"),
+    taper: document.getElementById("taper"),
+    taperStyle: document.getElementById("taperStyle"),
+    roughness: document.getElementById("roughness"),
+    spacing: document.getElementById("spacing"),
+    jitter: document.getElementById("jitter"),
+    minWidth: document.getElementById("minWidth"),
+    fillColor: document.getElementById("fillColor"),
+    overlayOpacity: document.getElementById("overlayOpacity"),
+    eraserSize: document.getElementById("eraserSize"),
+    optimiseLevel: document.getElementById("optimiseLevel"),
+    simplifyTolerance: document.getElementById("simplifyTolerance"),
+    sizeVal: document.getElementById("sizeVal"),
+    smoothingVal: document.getElementById("smoothingVal"),
+    taperVal: document.getElementById("taperVal"),
+    taperStyleVal: document.getElementById("taperStyleVal"),
+    roughnessVal: document.getElementById("roughnessVal"),
+    spacingVal: document.getElementById("spacingVal"),
+    jitterVal: document.getElementById("jitterVal"),
+    minWidthVal: document.getElementById("minWidthVal"),
+    fillColorVal: document.getElementById("fillColorVal"),
+    presetVal: document.getElementById("presetVal"),
+    areaVal: document.getElementById("areaVal"),
+    eraserSizeVal: document.getElementById("eraserSizeVal"),
+    optimiseVal: document.getElementById("optimiseVal"),
+    simplifyVal: document.getElementById("simplifyVal"),
+    strokeCount: document.getElementById("strokeCount")
+  };
+
+  const state = {
+    overlayRoot: null,
+    overlayCanvas: null,
+    overlayGrid: null,
+    overlayCtx: null,
+    drawingAreaViewport: null,
+    drawingAreaStage: null,
+    currentTool: TOOLS.DRAW,
+    drawing: false,
+    rawPoints: [],
+    strokes: [],
+    selectedStrokeIndex: -1,
+    dpr: 1,
+    dragStart: null,
+    dragStrokeOriginal: null,
+    draggingHandleIndex: -1,
+    draggingHandleType: null,
+    draggingNodeIndex: -1,
+    erasing: false,
+    lastEraserPos: null
+  };
+
+  function log(msg, data) {
+    try {
+      const line = "[" + new Date().toISOString().slice(11,19) + "] " + String(msg);
+      const extra = data !== undefined ? " " + JSON.stringify(data) : "";
+      console.log("TexturePen", line + extra);
+      if (el.debug) {
+        el.debug.value += line + extra + "\n";
+        el.debug.scrollTop = el.debug.scrollHeight;
+      }
+    } catch (e) {}
+  }
+
+  function setStatus(msg, type) {
+    el.status.textContent = msg || "";
+    el.status.className = "status" + (type ? " " + type : "");
+  }
+
+  function updateStrokeCount() {
+    const count = state.strokes.length;
+    el.strokeCount.textContent = count + " stroke" + (count !== 1 ? "s" : "");
+    el.strokeCount.className = "stroke-count" + (count > 0 ? " has-strokes" : "");
+  }
+
+  function num(v, fallback) {
+    const n = Number(v);
+    return isFinite(n) ? n : fallback;
+  }
+
+  function getSettings() {
+    return {
+      preset: el.preset.value,
+      size: num(el.size.value, 22),
+      smoothing: num(el.smoothing.value, 0.6),
+      taper: num(el.taper.value, 0.35),
+      taperStyle: el.taperStyle.value,
+      roughness: num(el.roughness.value, 0.1),
+      spacing: num(el.spacing.value, 6),
+      jitter: num(el.jitter.value, 0.06),
+      minWidth: num(el.minWidth.value, 0.05),
+      fillColor: String(el.fillColor.value || "#000000"),
+      overlayOpacity: num(el.overlayOpacity.value, 0.18),
+      eraserSize: num(el.eraserSize.value, 20),
+      optimiseLevel: String(el.optimiseLevel.value || "medium"),
+      simplifyTolerance: num(el.simplifyTolerance.value, 1.2),
+      lineStyle: el.lineStyle.value
+    };
+  }
+
+  function refreshLabels() {
+    const s = getSettings();
+    el.sizeVal.textContent = String(s.size);
+    el.smoothingVal.textContent = s.smoothing.toFixed(2);
+    el.taperVal.textContent = s.taper.toFixed(2);
+    el.taperStyleVal.textContent = el.taperStyle.options[el.taperStyle.selectedIndex].text;
+    el.roughnessVal.textContent = s.roughness.toFixed(2);
+    el.spacingVal.textContent = String(s.spacing);
+    el.jitterVal.textContent = s.jitter.toFixed(2);
+    el.minWidthVal.textContent = s.minWidth.toFixed(2);
+    el.fillColorVal.textContent = s.fillColor.slice(0,7);
+    el.presetVal.textContent = el.preset.options[el.preset.selectedIndex].text;
+    el.eraserSizeVal.textContent = String(s.eraserSize);
+    el.optimiseVal.textContent = el.optimiseLevel.options[el.optimiseLevel.selectedIndex].text;
+    el.simplifyVal.textContent = s.simplifyTolerance.toFixed(2);
+    if (state.drawingAreaStage) {
+      el.areaVal.textContent = Math.round(state.drawingAreaStage.w) + "×" + Math.round(state.drawingAreaStage.h);
+    } else {
+      el.areaVal.textContent = "Not set";
+    }
+    if (state.overlayGrid) {
+      state.overlayGrid.style.opacity = String(s.overlayOpacity);
+    }
+    updateStrokeCount();
+  }
+
+
+  function getSelectedStroke() {
+    if (state.selectedStrokeIndex >= 0 && state.selectedStrokeIndex < state.strokes.length) {
+      return state.strokes[state.selectedStrokeIndex];
+    }
+    return null;
+  }
+
+  function syncControlsFromSelectedStroke() {
+    const stroke = getSelectedStroke();
+    if (!stroke || !stroke.settings) return false;
+
+    const s = stroke.settings;
+    if (typeof s.size === "number") el.size.value = String(s.size);
+    if (typeof s.smoothing === "number") el.smoothing.value = String(s.smoothing);
+    if (typeof s.taper === "number") el.taper.value = String(s.taper);
+    if (typeof s.taperStyle === "string") el.taperStyle.value = s.taperStyle;
+    if (typeof s.roughness === "number") el.roughness.value = String(s.roughness);
+    if (typeof s.spacing === "number") el.spacing.value = String(s.spacing);
+    if (typeof s.jitter === "number") el.jitter.value = String(s.jitter);
+    if (typeof s.minWidth === "number") el.minWidth.value = String(s.minWidth);
+    if (typeof s.fillColor === "string") el.fillColor.value = s.fillColor;
+    if (typeof s.lineStyle === "string") el.lineStyle.value = s.lineStyle;
+    if (typeof stroke.globalWidthFactor === "number") {
+      // no direct slider for this yet
+    }
+    refreshLabels();
+    return true;
+  }
+
+  function applyControlsToSelectedStroke() {
+    const stroke = getSelectedStroke();
+    if (!stroke) return false;
+
+    const current = getSettings();
+    stroke.settings = {
+      ...stroke.settings,
+      size: current.size,
+      smoothing: current.smoothing,
+      taper: current.taper,
+      taperStyle: current.taperStyle,
+      roughness: current.roughness,
+      spacing: current.spacing,
+      jitter: current.jitter,
+      minWidth: current.minWidth,
+      fillColor: current.fillColor,
+      lineStyle: current.lineStyle
+    };
+    stroke.color = current.fillColor;
+    rebuildStrokeOutline(stroke);
+    renderOverlay();
+    return true;
+  }
+
+  function applyPreset(name) {
+    const p = PRESETS[name];
+    if (!p) return;
+    el.size.value = String(p.size);
+    el.smoothing.value = String(p.smoothing);
+    el.taper.value = String(p.taper);
+    el.taperStyle.value = p.taperStyle;
+    el.roughness.value = String(p.roughness);
+    el.spacing.value = String(p.spacing);
+    el.jitter.value = String(p.jitter);
+    el.minWidth.value = String(p.minWidth);
+    if (p.style) el.lineStyle.value = p.style;
+    refreshLabels();
+    if (applyControlsToSelectedStroke()) {
+      setStatus("Preset applied to selected stroke");
+    }
+    renderOverlay();
+  }
+
+  function setTool(tool) {
+    state.currentTool = tool;
+    el.toolDraw.classList.toggle("active", tool === TOOLS.DRAW);
+    el.toolSelect.classList.toggle("active", tool === TOOLS.SELECT);
+    el.toolMove.classList.toggle("active", tool === TOOLS.MOVE);
+    el.toolEdit.classList.toggle("active", tool === TOOLS.EDIT);
+    el.toolErase.classList.toggle("active", tool === TOOLS.ERASE);
+    
+    if (state.overlayCanvas) {
+      const cursors = {
+        [TOOLS.DRAW]: "crosshair",
+        [TOOLS.SELECT]: "default",
+        [TOOLS.MOVE]: "move",
+        [TOOLS.EDIT]: "pointer",
+        [TOOLS.ERASE]: "crosshair"
+      };
+      state.overlayCanvas.style.cursor = cursors[tool] || "default";
+    }
+    
+    setStatus("Tool: " + tool.charAt(0).toUpperCase() + tool.slice(1));
+    renderOverlay();
+  }
+
+  function distance(a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function normalize(x, y) {
+    const d = Math.sqrt(x * x + y * y) || 1;
+    return { x: x / d, y: y / d };
+  }
+
+  // ========== TAPER CALCULATION ==========
+  
+  function calculateTaper(i, total, settings) {
+    const taperLen = Math.max(1, Math.floor(total * settings.taper * 0.5));
+    const minW = settings.minWidth;
+    let factor = 1;
+    
+    switch (settings.taperStyle) {
+      case "both":
+        // Taper both ends - thick in middle, thin at ends
+        if (i < taperLen) {
+          factor = lerp(minW, 1, i / taperLen);
+        } else if (i > total - 1 - taperLen) {
+          factor = lerp(minW, 1, (total - 1 - i) / taperLen);
+        }
+        break;
+      case "start":
+        // Only taper at start
+        if (i < taperLen * 2) {
+          factor = lerp(minW, 1, i / (taperLen * 2));
+        }
+        break;
+      case "end":
+        // Only taper at end
+        if (i > total - 1 - taperLen * 2) {
+          factor = lerp(minW, 1, (total - 1 - i) / (taperLen * 2));
+        }
+        break;
+      case "none":
+      default:
+        factor = 1;
+        break;
+    }
+    
+    return factor;
+  }
+
+  // ========== SMOOTH BEZIER CURVE ==========
+  
+  function fitCubicBezier(points) {
+    if (!points || points.length < 2) return [];
+    if (points.length === 2) {
+      return [{ type: "L", p: points[1] }];
+    }
+    
+    const segments = [];
+    const n = points.length;
+    
+    const tangents = [];
+    for (let i = 0; i < n; i++) {
+      const prev = points[Math.max(0, i - 1)];
+      const next = points[Math.min(n - 1, i + 1)];
+      const dx = next.x - prev.x;
+      const dy = next.y - prev.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      tangents.push({ x: dx / len, y: dy / len });
+    }
+    
+    for (let i = 0; i < n - 1; i++) {
+      const p0 = points[i];
+      const p1 = points[i + 1];
+      const dist = distance(p0, p1);
+      const tension = 0.35;
+      
+      const cp1 = {
+        x: p0.x + tangents[i].x * dist * tension,
+        y: p0.y + tangents[i].y * dist * tension
+      };
+      const cp2 = {
+        x: p1.x - tangents[i + 1].x * dist * tension,
+        y: p1.y - tangents[i + 1].y * dist * tension
+      };
+      
+      segments.push({ type: "C", cp1: cp1, cp2: cp2, p: p1 });
+    }
+    
+    return segments;
+  }
+  
+  function sampleBezierCurve(points, numSamples) {
+    if (!points || points.length < 2) return points ? points.slice() : [];
+    
+    const segments = fitCubicBezier(points);
+    const result = [{ ...points[0] }];
+    
+    let current = points[0];
+    for (const seg of segments) {
+      if (seg.type === "L") {
+        result.push({ ...seg.p });
+        current = seg.p;
+      } else if (seg.type === "C") {
+        const steps = Math.max(4, Math.ceil(numSamples / segments.length));
+        for (let t = 1; t <= steps; t++) {
+          const u = t / steps;
+          const u2 = u * u;
+          const u3 = u2 * u;
+          const mt = 1 - u;
+          const mt2 = mt * mt;
+          const mt3 = mt2 * mt;
+          
+          result.push({
+            x: mt3 * current.x + 3 * mt2 * u * seg.cp1.x + 3 * mt * u2 * seg.cp2.x + u3 * seg.p.x,
+            y: mt3 * current.y + 3 * mt2 * u * seg.cp1.y + 3 * mt * u2 * seg.cp2.y + u3 * seg.p.y,
+            t: lerp(current.t || 0, seg.p.t || 1, u),
+            pressure: lerp(current.pressure || 0.5, seg.p.pressure || 0.5, u)
+          });
+        }
+        current = seg.p;
+      }
+    }
+    
+    return result;
+  }
+
+  // ========== OUTLINE BUILDING ==========
+
+  function makeRng(seed) {
+    let s = (seed >>> 0) || 1;
+    return function () {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 4294967296;
+    };
+  }
+
+  function buildSmoothOutline(points, settings) {
+    if (!points || points.length < 2) return null;
+    
+    const sampled = sampleBezierCurve(points, 80);
+    const width = settings.size * 0.5;
+    const left = [];
+    const right = [];
+    
+    for (let i = 0; i < sampled.length; i++) {
+      const prev = sampled[Math.max(0, i - 1)];
+      const next = sampled[Math.min(sampled.length - 1, i + 1)];
+      const tangent = normalize(next.x - prev.x, next.y - prev.y);
+      const normal = { x: -tangent.y, y: tangent.x };
+      
+      // Apply taper based on style
+      const taperFactor = calculateTaper(i, sampled.length, settings);
+      // FIX slightly sharpen tips for Clean Ink and other smooth presets
+      const sharpen = (settings.style === "smooth") ? Math.pow(taperFactor, 1.35) : taperFactor;
+      const w = width * sharpen;
+      
+      const p = sampled[i];
+      left.push({ x: p.x + normal.x * w, y: p.y + normal.y * w });
+      right.push({ x: p.x - normal.x * w, y: p.y - normal.y * w });
+    }
+    
+    const poly = left.concat(right.reverse());
+    
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of poly) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    
+    return {
+      left, right, poly,
+      centerLine: sampled,
+      bounds: { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY }
+    };
+  }
+
+  function buildTexturedOutline(points, settings) {
+    if (!points || points.length < 2) return null;
+    
+    const spacing = Math.max(2, settings.spacing);
+    let resampled = [{ ...points[0] }];
+    let prev = points[0];
+    let carry = 0;
+    
+    for (let i = 1; i < points.length; i++) {
+      const cur = points[i];
+      let segLen = distance(prev, cur);
+      if (segLen <= 0.0001) continue;
+      let dirX = (cur.x - prev.x) / segLen;
+      let dirY = (cur.y - prev.y) / segLen;
+      
+      while (carry + segLen >= spacing) {
+        const t = (spacing - carry) / segLen;
+        const p = {
+          x: prev.x + dirX * (spacing - carry),
+          y: prev.y + dirY * (spacing - carry),
+          t: lerp(prev.t, cur.t, t),
+          pressure: lerp(prev.pressure, cur.pressure, t)
+        };
+        resampled.push(p);
+        prev = p;
+        segLen = distance(prev, cur);
+        if (segLen <= 0.0001) break;
+        dirX = (cur.x - prev.x) / segLen;
+        dirY = (cur.y - prev.y) / segLen;
+        carry = 0;
+      }
+      carry += segLen;
+      prev = cur;
+    }
+    if (distance(resampled[resampled.length - 1], points[points.length - 1]) > spacing * 0.35) {
+      resampled.push({ ...points[points.length - 1] });
+    }
+    
+    const smoothed = [{ ...resampled[0] }];
+    for (let i = 1; i < resampled.length - 1; i++) {
+      const a = resampled[i - 1], b = resampled[i], c = resampled[i + 1];
+      smoothed.push({
+        x: lerp(b.x, (a.x + b.x + c.x) / 3, settings.smoothing),
+        y: lerp(b.y, (a.y + b.y + c.y) / 3, settings.smoothing),
+        t: b.t,
+        pressure: b.pressure
+      });
+    }
+    smoothed.push({ ...resampled[resampled.length - 1] });
+    
+    const widths = [];
+    for (let i = 0; i < smoothed.length; i++) {
+      const p = smoothed[i];
+      const prv = smoothed[Math.max(0, i - 1)];
+      const nxt = smoothed[Math.min(smoothed.length - 1, i + 1)];
+      const dt = Math.max(1, nxt.t - prv.t);
+      const spd = distance(prv, nxt) / dt;
+      const speedThin = clamp(1 - spd * 3, 0.45, 1.15);
+      let w = settings.size * speedThin * lerp(0.85, 1.15, clamp(p.pressure, 0, 1));
+      
+      // Apply taper
+      w *= calculateTaper(i, smoothed.length, settings);
+      
+      widths.push(Math.max(1.4, w));
+    }
+    
+    const rng = makeRng(smoothed.length * 911 + Math.round(settings.roughness * 1000) * 17);
+    const left = [], right = [];
+    
+    for (let i = 0; i < smoothed.length; i++) {
+      const prv = smoothed[Math.max(0, i - 1)];
+      const nxt = smoothed[Math.min(smoothed.length - 1, i + 1)];
+      const tangent = normalize(nxt.x - prv.x, nxt.y - prv.y);
+      const normal = { x: -tangent.y, y: tangent.x };
+      const width = widths[i] * 0.5;
+      
+      const edgeNoise = settings.roughness * settings.size * (rng() - 0.5) * 0.9;
+      const centerJitter = settings.jitter * settings.size * (rng() - 0.5) * 0.55;
+      
+      const cx = smoothed[i].x + normal.x * centerJitter;
+      const cy = smoothed[i].y + normal.y * centerJitter;
+      const offset = Math.max(0.8, width + edgeNoise);
+      
+      left.push({ x: cx + normal.x * offset, y: cy + normal.y * offset });
+      right.push({ x: cx - normal.x * offset, y: cy - normal.y * offset });
+    }
+    
+    const poly = left.concat(right.reverse());
+    
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of poly) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    
+    return {
+      left, right, poly,
+      centerLine: smoothed,
+      bounds: { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY }
+    };
+  }
+
+  function buildOutline(points, settings) {
+    if (settings.lineStyle === "smooth") {
+      return buildSmoothOutline(points, settings);
+    } else {
+      return buildTexturedOutline(points, settings);
+    }
+  }
+
+  // ========== STROKE MANAGEMENT ==========
+
+  function buildBezierNodesFromLine(points) {
+    if (!points || points.length < 2) return [];
+    const src = points.slice();
+    const wanted = Math.max(3, Math.min(8, Math.floor(src.length / 12) + 2));
+    const anchors = [];
+    for (let i = 0; i < wanted; i++) {
+      const idx = Math.round((src.length - 1) * (i / Math.max(1, wanted - 1)));
+      const p = src[idx];
+      anchors.push({ x: p.x, y: p.y, t: p.t || idx, pressure: p.pressure || 0.5 });
+    }
+    const nodes = [];
+    for (let i = 0; i < anchors.length; i++) {
+      const prev = anchors[Math.max(0, i - 1)];
+      const cur = anchors[i];
+      const nxt = anchors[Math.min(anchors.length - 1, i + 1)];
+      const dx = nxt.x - prev.x;
+      const dy = nxt.y - prev.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const ux = dx / len, uy = dy / len;
+      const segPrev = Math.sqrt((cur.x - prev.x) * (cur.x - prev.x) + (cur.y - prev.y) * (cur.y - prev.y));
+      const segNext = Math.sqrt((nxt.x - cur.x) * (nxt.x - cur.x) + (nxt.y - cur.y) * (nxt.y - cur.y));
+      const inLen = Math.max(8, segPrev * 0.28);
+      const outLen = Math.max(8, segNext * 0.28);
+      nodes.push({
+        x: cur.x,
+        y: cur.y,
+        pressure: cur.pressure || 0.5,
+        widthFactor: 1,
+        inX: cur.x - ux * inLen,
+        inY: cur.y - uy * inLen,
+        outX: cur.x + ux * outLen,
+        outY: cur.y + uy * outLen
+      });
+    }
+    if (nodes.length) {
+      nodes[0].inX = nodes[0].x; nodes[0].inY = nodes[0].y;
+      nodes[nodes.length - 1].outX = nodes[nodes.length - 1].x; nodes[nodes.length - 1].outY = nodes[nodes.length - 1].y;
+    }
+    return nodes;
+  }
+
+  function sampleBezierNodes(nodes, samplesPerSeg, globalWidthFactor) {
+    if (!nodes || nodes.length < 2) return [];
+    const pts = [];
+    const g = Math.max(0.02, Number(globalWidthFactor || 1));
+    for (let i = 0; i < nodes.length - 1; i++) {
+      const a = nodes[i];
+      const b = nodes[i + 1];
+      const steps = Math.max(8, samplesPerSeg || 18);
+      if (i === 0) pts.push({ x: a.x, y: a.y, t: i, pressure: g });
+      for (let s = 1; s <= steps; s++) {
+        const u = s / steps;
+        const u2 = u * u, u3 = u2 * u;
+        const mt = 1 - u, mt2 = mt * mt, mt3 = mt2 * mt;
+        pts.push({
+          x: mt3 * a.x + 3 * mt2 * u * a.outX + 3 * mt * u2 * b.inX + u3 * b.x,
+          y: mt3 * a.y + 3 * mt2 * u * a.outY + 3 * mt * u2 * b.inY + u3 * b.y,
+          t: i + u,
+          pressure: g
+        });
+      }
+    }
+    return pts;
+  }
+
+  function getStrokeBasePoints(stroke) {
+    if (stroke && stroke.bezierNodes && stroke.bezierNodes.length >= 2) {
+      return sampleBezierNodes(stroke.bezierNodes, 18);
+    }
+    return (stroke && stroke.rawPoints) ? stroke.rawPoints.slice() : [];
+  }
+
+  function createStrokeFromPoints(rawPoints) {
+    if (!rawPoints || rawPoints.length < 2) return null;
+    const settings = getSettings();
+    const bezierNodes = buildBezierNodesFromLine(rawPoints);
+    const globalWidthFactor = 1;
+    const basePoints = bezierNodes.length >= 2 ? sampleBezierNodes(bezierNodes, 18, globalWidthFactor) : rawPoints.slice();
+    const outline = buildOutline(basePoints, settings);
+    if (!outline) return null;
+    
+    return {
+      rawPoints: rawPoints.slice(),
+      bezierNodes: bezierNodes,
+      globalWidthFactor: globalWidthFactor,
+      outline: outline,
+      color: settings.fillColor,
+      settings: { ...settings }
+    };
+  }
+
+  function rebuildStrokeOutline(stroke) {
+    if (!stroke) return;
+    const basePoints = getStrokeBasePoints(stroke);
+    if (!basePoints || basePoints.length < 2) return;
+    stroke.outline = buildOutline(basePoints, stroke.settings);
+  }
+
+  function findStrokeAtPoint(pt) {
+    for (let i = state.strokes.length - 1; i >= 0; i--) {
+      const stroke = state.strokes[i];
+      if (!stroke.outline) continue;
+      
+      const b = stroke.outline.bounds;
+      const margin = 10;
+      if (pt.x >= b.minX - margin && pt.x <= b.maxX + margin &&
+          pt.y >= b.minY - margin && pt.y <= b.maxY + margin) {
+        const centerLine = stroke.outline.centerLine || stroke.rawPoints;
+        for (const cp of centerLine) {
+          if (distance(pt, cp) < stroke.settings.size * 0.5 + 5) {
+            return i;
+          }
+        }
+      }
+    }
+    return -1;
+  }
+
+
+  function getNodeNormal(stroke, nodeIndex) {
+    const nodes = (stroke && stroke.bezierNodes) ? stroke.bezierNodes : [];
+    if (!nodes.length) return { x: 0, y: -1 };
+    const prev = nodes[Math.max(0, nodeIndex - 1)];
+    const cur = nodes[nodeIndex];
+    const next = nodes[Math.min(nodes.length - 1, nodeIndex + 1)];
+    const dx = next.x - prev.x;
+    const dy = next.y - prev.y;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    return { x: -dy / len, y: dx / len };
+  }
+
+  function findHandleAtPoint(pt, stroke) {
+    if (!stroke || !stroke.bezierNodes || stroke.bezierNodes.length < 1) return null;
+    for (let i = 0; i < stroke.bezierNodes.length; i++) {
+      const n = stroke.bezierNodes[i];
+      if (distance(pt, { x: n.x, y: n.y }) <= 8) return { nodeIndex: i, type: "anchor" };
+      if (distance(pt, { x: n.inX, y: n.inY }) <= 6) return { nodeIndex: i, type: "in" };
+      if (distance(pt, { x: n.outX, y: n.outY }) <= 6) return { nodeIndex: i, type: "out" };
+    }
+    return null;
+  }
+
+  function getHandlePositions(stroke) {
+    if (!stroke || !stroke.bezierNodes) return [];
+    return stroke.bezierNodes.map(function (n, idx) {
+      return {
+        idx: idx,
+        anchor: { x: n.x, y: n.y },
+        inHandle: { x: n.inX, y: n.inY },
+        outHandle: { x: n.outX, y: n.outY }
+      };
+    });
+  }
+
+  function deleteSelectedStroke() {
+    if (state.selectedStrokeIndex >= 0 && state.selectedStrokeIndex < state.strokes.length) {
+      state.strokes.splice(state.selectedStrokeIndex, 1);
+      state.selectedStrokeIndex = -1;
+      updateStrokeCount();
+      renderOverlay();
+      setStatus("Stroke deleted");
+    }
+  }
+
+  function undoLastStroke() {
+    if (state.strokes.length > 0) {
+      state.strokes.pop();
+      state.selectedStrokeIndex = -1;
+      updateStrokeCount();
+      renderOverlay();
+      setStatus("Undo: removed last stroke");
+    }
+  }
+
+  // ========== ERASER ==========
+
+  function eraseAtPoint(pt, radius) {
+    const toRemove = [];
+    for (let i = 0; i < state.strokes.length; i++) {
+      const stroke = state.strokes[i];
+      const centerLine = stroke.outline?.centerLine || stroke.rawPoints;
+      for (const cp of centerLine) {
+        if (distance(pt, cp) < radius + stroke.settings.size * 0.3) {
+          toRemove.push(i);
+          break;
+        }
+      }
+    }
+    
+    if (toRemove.length > 0) {
+      for (let i = toRemove.length - 1; i >= 0; i--) {
+        state.strokes.splice(toRemove[i], 1);
+      }
+      state.selectedStrokeIndex = -1;
+      updateStrokeCount();
+      return true;
+    }
+    return false;
+  }
+
+  // ========== RENDERING ==========
+
+  function renderGrid(ctx, w, h) {
+    const step = 24;
+    ctx.save();
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "rgba(30, 80, 120, 0.03)";
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "rgba(160,210,255,0.12)";
+    ctx.lineWidth = 1;
+    for (let x = 0.5; x < w; x += step) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    for (let y = 0.5; y < h; y += step) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(96,165,250,0.5)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, Math.max(0, w - 2), Math.max(0, h - 2));
+    ctx.restore();
+  }
+
+  function renderStroke(ctx, stroke, isSelected) {
+    if (!stroke || !stroke.outline || !stroke.outline.poly || stroke.outline.poly.length < 3) return;
+    
+    ctx.save();
+    ctx.fillStyle = stroke.color;
+    ctx.globalAlpha = 0.95;
+    ctx.beginPath();
+    ctx.moveTo(stroke.outline.poly[0].x, stroke.outline.poly[0].y);
+    for (let i = 1; i < stroke.outline.poly.length; i++) {
+      ctx.lineTo(stroke.outline.poly[i].x, stroke.outline.poly[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    
+    if (isSelected) {
+      ctx.strokeStyle = "#60a5fa";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function renderHandles(ctx, stroke) {
+    if (!stroke) return;
+    const handles = getHandlePositions(stroke);
+    ctx.save();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(96,165,250,0.6)";
+    for (let i = 0; i < handles.length; i++) {
+      const h = handles[i];
+      ctx.beginPath();
+      ctx.moveTo(h.anchor.x, h.anchor.y);
+      ctx.lineTo(h.inHandle.x, h.inHandle.y);
+      ctx.moveTo(h.anchor.x, h.anchor.y);
+      ctx.lineTo(h.outHandle.x, h.outHandle.y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.rect(h.inHandle.x - 4, h.inHandle.y - 4, 8, 8);
+      ctx.fillStyle = (state.draggingNodeIndex === h.idx && state.draggingHandleType === "in") ? "#fbbf24" : "#93c5fd";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.55)";
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.rect(h.outHandle.x - 4, h.outHandle.y - 4, 8, 8);
+      ctx.fillStyle = (state.draggingNodeIndex === h.idx && state.draggingHandleType === "out") ? "#fbbf24" : "#93c5fd";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.55)";
+      ctx.stroke();
+
+      const r = (i === 0 || i === handles.length - 1) ? 6 : 5;
+      ctx.beginPath();
+      ctx.arc(h.anchor.x, h.anchor.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = (state.draggingNodeIndex === h.idx && state.draggingHandleType === "anchor") ? "#fbbf24" : "#60a5fa";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.55)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function renderEraserCursor(ctx, x, y) {
+    const r = getSettings().eraserSize;
+    ctx.save();
+    ctx.strokeStyle = "rgba(239,68,68,0.7)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function renderOverlay() {
+    if (!state.overlayCanvas || !state.overlayCtx || !state.drawingAreaViewport) return;
+    const ctx = state.overlayCtx;
+    const w = state.overlayCanvas.width / state.dpr;
+    const h = state.overlayCanvas.height / state.dpr;
+    
+    renderGrid(ctx, w, h);
+    
+    for (let i = 0; i < state.strokes.length; i++) {
+      renderStroke(ctx, state.strokes[i], i === state.selectedStrokeIndex);
+    }
+    
+    if (state.drawing && state.rawPoints.length >= 2) {
+      const tempStroke = createStrokeFromPoints(state.rawPoints);
+      if (tempStroke) renderStroke(ctx, tempStroke, false);
+    }
+    
+    if (state.currentTool === TOOLS.EDIT && state.selectedStrokeIndex >= 0) {
+      renderHandles(ctx, state.strokes[state.selectedStrokeIndex]);
+    }
+    
+    if (state.currentTool === TOOLS.ERASE && state.lastEraserPos) {
+      renderEraserCursor(ctx, state.lastEraserPos.x, state.lastEraserPos.y);
+    }
+  }
+
+  // ========== INPUT HANDLING ==========
+
+  function overlayPointFromEvent(evt) {
+    const rect = state.overlayCanvas.getBoundingClientRect();
+    return {
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top,
+      t: performance.now(),
+      pressure: (evt.pressure && isFinite(evt.pressure)) ? evt.pressure : 0.5
+    };
+  }
+
+  function onOverlayPointerDown(evt) {
+    evt.preventDefault();
+    state.overlayCanvas.setPointerCapture(evt.pointerId);
+    const pt = overlayPointFromEvent(evt);
+    
+    switch (state.currentTool) {
+      case TOOLS.DRAW:
+        state.drawing = true;
+        state.rawPoints = [pt];
+        state.selectedStrokeIndex = -1;
+        setStatus("Drawing...");
+        break;
+        
+      case TOOLS.SELECT:
+        const hitIdx = findStrokeAtPoint(pt);
+        state.selectedStrokeIndex = hitIdx;
+        if (hitIdx >= 0) {
+          syncControlsFromSelectedStroke();
+        }
+        setStatus(hitIdx >= 0 ? "Selected stroke " + (hitIdx + 1) : "No stroke at point");
+        renderOverlay();
+        break;
+        
+      case TOOLS.MOVE:
+        if (state.selectedStrokeIndex >= 0) {
+          state.dragStart = pt;
+          state.dragStrokeOriginal = JSON.parse(JSON.stringify({ rawPoints: state.strokes[state.selectedStrokeIndex].rawPoints, bezierNodes: state.strokes[state.selectedStrokeIndex].bezierNodes || [] }));
+          setStatus("Moving stroke...");
+        } else {
+          const idx = findStrokeAtPoint(pt);
+          if (idx >= 0) {
+            state.selectedStrokeIndex = idx;
+            state.dragStart = pt;
+            state.dragStrokeOriginal = JSON.parse(JSON.stringify({ rawPoints: state.strokes[idx].rawPoints, bezierNodes: state.strokes[idx].bezierNodes || [] }));
+            setStatus("Moving stroke...");
+            renderOverlay();
+          }
+        }
+        break;
+        
+      case TOOLS.EDIT:
+        if (state.selectedStrokeIndex >= 0) {
+          const stroke = state.strokes[state.selectedStrokeIndex];
+          const hit = findHandleAtPoint(pt, stroke);
+          if (hit) {
+            state.draggingNodeIndex = hit.nodeIndex;
+            state.draggingHandleType = hit.type;
+            setStatus("Dragging bezier " + hit.type + "...");
+          } else {
+            const idx = findStrokeAtPoint(pt);
+            if (idx >= 0) {
+              state.selectedStrokeIndex = idx;
+              renderOverlay();
+            }
+          }
+        } else {
+          const idx = findStrokeAtPoint(pt);
+          if (idx >= 0) {
+            state.selectedStrokeIndex = idx;
+            syncControlsFromSelectedStroke();
+            renderOverlay();
+          }
+        }
+        break;
+        
+      case TOOLS.ERASE:
+        state.erasing = true;
+        state.lastEraserPos = pt;
+        if (eraseAtPoint(pt, getSettings().eraserSize)) {
+          renderOverlay();
+        }
+        break;
+    }
+  }
+
+  function onOverlayPointerMove(evt) {
+    evt.preventDefault();
+    const pt = overlayPointFromEvent(evt);
+    
+    switch (state.currentTool) {
+      case TOOLS.DRAW:
+        if (state.drawing) {
+          const last = state.rawPoints[state.rawPoints.length - 1];
+          if (!last || distance(last, pt) >= 1.5) {
+            state.rawPoints.push(pt);
+            renderOverlay();
+          }
+        }
+        break;
+        
+      case TOOLS.MOVE:
+        if (state.dragStart && state.dragStrokeOriginal && state.selectedStrokeIndex >= 0) {
+          const dx = pt.x - state.dragStart.x;
+          const dy = pt.y - state.dragStart.y;
+          const stroke = state.strokes[state.selectedStrokeIndex];
+          stroke.rawPoints = state.dragStrokeOriginal.rawPoints.map(p => ({
+            ...p,
+            x: p.x + dx,
+            y: p.y + dy
+          }));
+          if (state.dragStrokeOriginal.bezierNodes) {
+            stroke.bezierNodes = state.dragStrokeOriginal.bezierNodes.map(function (n) {
+              return {
+                ...n,
+                x: n.x + dx, y: n.y + dy,
+                inX: n.inX + dx, inY: n.inY + dy,
+                outX: n.outX + dx, outY: n.outY + dy
+              };
+            });
+          }
+          rebuildStrokeOutline(stroke);
+          renderOverlay();
+        }
+        break;
+        
+      case TOOLS.EDIT:
+        if (state.draggingNodeIndex >= 0 && state.selectedStrokeIndex >= 0) {
+          const stroke = state.strokes[state.selectedStrokeIndex];
+          const node = stroke.bezierNodes && stroke.bezierNodes[state.draggingNodeIndex];
+          if (node) {
+            if (state.draggingHandleType === "anchor") {
+              const dx = pt.x - node.x;
+              const dy = pt.y - node.y;
+              node.x = pt.x; node.y = pt.y;
+              node.inX += dx; node.inY += dy;
+              node.outX += dx; node.outY += dy;
+            } else if (state.draggingHandleType === "in") {
+              node.inX = pt.x; node.inY = pt.y;
+              const vx = node.x - pt.x;
+              const vy = node.y - pt.y;
+              node.outX = node.x + vx;
+              node.outY = node.y + vy;
+            } else if (state.draggingHandleType === "out") {
+              node.outX = pt.x; node.outY = pt.y;
+              const vx = node.x - pt.x;
+              const vy = node.y - pt.y;
+              node.inX = node.x + vx;
+              node.inY = node.y + vy;
+            }
+            rebuildStrokeOutline(stroke);
+            renderOverlay();
+          }
+        }
+        break;
+        
+      case TOOLS.ERASE:
+        state.lastEraserPos = pt;
+        if (state.erasing) {
+          if (eraseAtPoint(pt, getSettings().eraserSize)) {
+            renderOverlay();
+          }
+        }
+        renderOverlay();
+        break;
+    }
+  }
+
+  function onOverlayPointerUp(evt) {
+    evt.preventDefault();
+    
+    switch (state.currentTool) {
+      case TOOLS.DRAW:
+        if (state.drawing && state.rawPoints.length >= 2) {
+          const stroke = createStrokeFromPoints(state.rawPoints);
+          if (stroke) {
+            state.strokes.push(stroke);
+            updateStrokeCount();
+            setStatus(state.strokes.length + " stroke(s)");
+          }
+        }
+        state.drawing = false;
+        state.rawPoints = [];
+        renderOverlay();
+        break;
+        
+      case TOOLS.MOVE:
+        state.dragStart = null;
+        state.dragStrokeOriginal = null;
+        if (state.selectedStrokeIndex >= 0) {
+          setStatus("Move complete");
+        }
+        break;
+        
+      case TOOLS.EDIT:
+        state.draggingHandleIndex = -1;
+        state.draggingNodeIndex = -1;
+        state.draggingHandleType = null;
+        if (state.selectedStrokeIndex >= 0) {
+          setStatus("Bezier edit complete");
+        }
+        break;
+        
+      case TOOLS.ERASE:
+        state.erasing = false;
+        state.lastEraserPos = null;
+        renderOverlay();
+        break;
+    }
+  }
+
+  // ========== OVERLAY SETUP ==========
+
+  function resizeOverlayCanvas() {
+    if (!state.overlayCanvas || !state.overlayCtx || !state.drawingAreaViewport) return;
+    const w = Math.max(2, Math.round(state.drawingAreaViewport.w));
+    const h = Math.max(2, Math.round(state.drawingAreaViewport.h));
+    state.dpr = Math.max(1, window.parent?.devicePixelRatio || window.devicePixelRatio || 1);
+    state.overlayCanvas.width = Math.max(2, Math.round(w * state.dpr));
+    state.overlayCanvas.height = Math.max(2, Math.round(h * state.dpr));
+    state.overlayCanvas.style.width = w + "px";
+    state.overlayCanvas.style.height = h + "px";
+    state.overlayCtx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    renderOverlay();
+  }
+
+  function destroyOverlay() {
+    try { if (state.overlayRoot) state.overlayRoot.remove(); } catch (e) {}
+    state.overlayRoot = null;
+    state.overlayCanvas = null;
+    state.overlayGrid = null;
+    state.overlayCtx = null;
+  }
+
+  function cleanupOnClose() {
+    try {
+      destroyOverlay();
+      state.drawingAreaViewport = null;
+      state.drawingAreaStage = null;
+      state.drawing = false;
+      state.rawPoints = [];
+      state.dragStart = null;
+      state.dragStrokeOriginal = null;
+      state.draggingHandleIndex = -1;
+      state.lastEraserPos = null;
+    } catch (e) {}
+  }
+
+  function clearAll() {
+    state.strokes = [];
+    state.selectedStrokeIndex = -1;
+    state.rawPoints = [];
+    state.drawing = false;
+    destroyOverlay();
+    state.drawingAreaViewport = null;
+    state.drawingAreaStage = null;
+    updateStrokeCount();
+    refreshLabels();
+    setStatus("Cleared");
+  }
+
+  function createDrawingOverlay(viewRect, stageRect) {
+    clearAll();
+    
+    const pdoc = window.parent?.document;
+    if (!pdoc) throw new Error("Parent document not available");
+
+    const root = pdoc.createElement("div");
+    root.style.cssText = `position:fixed;left:${viewRect.x}px;top:${viewRect.y}px;width:${viewRect.w}px;height:${viewRect.h}px;z-index:2147483646;pointer-events:none;user-select:none;`;
+
+    const grid = pdoc.createElement("div");
+    grid.style.cssText = `position:absolute;inset:0;background:rgba(80,160,220,0.05);opacity:${getSettings().overlayOpacity};pointer-events:none;`;
+    root.appendChild(grid);
+
+    const canvas = pdoc.createElement("canvas");
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:auto;touch-action:none;cursor:crosshair;";
+    root.appendChild(canvas);
+
+    const label = pdoc.createElement("div");
+    label.textContent = "Draw here";
+    label.style.cssText = "position:absolute;left:8px;top:8px;padding:4px 8px;border-radius:5px;background:rgba(0,0,0,0.7);color:#fff;font:11px system-ui;pointer-events:none;";
+    root.appendChild(label);
+
+    pdoc.body.appendChild(root);
+
+    state.overlayRoot = root;
+    state.overlayCanvas = canvas;
+    state.overlayGrid = grid;
+    state.overlayCtx = canvas.getContext("2d", { alpha: true, willReadFrequently: true });
+    state.drawingAreaViewport = viewRect;
+    state.drawingAreaStage = stageRect;
+
+    canvas.addEventListener("pointerdown", onOverlayPointerDown);
+    canvas.addEventListener("pointermove", onOverlayPointerMove);
+    canvas.addEventListener("pointerup", onOverlayPointerUp);
+    canvas.addEventListener("pointercancel", onOverlayPointerUp);
+    canvas.addEventListener("pointerleave", function(e) { if (state.drawing || state.erasing) onOverlayPointerUp(e); });
+
+    resizeOverlayCanvas();
+    setTool(state.currentTool);
+    refreshLabels();
+  }
+
+  function getEditor() {
+    const p = window.parent || null;
+    if (!p) return null;
+    try {
+      if (p.wickEditor?.project) return p.wickEditor;
+      if (p.wickEditor?.editor?.project) return p.wickEditor.editor;
+      if (p.WickEditor?.editor?.project) return p.WickEditor.editor;
+      if (p.editor?.project) return p.editor;
+      if (p.app?.project) return p.app;
+      if (p.app?.editor?.project) return p.app.editor;
+    } catch (e) {}
+    return null;
+  }
+
+  function getStageCanvasElement() {
+    try {
+      const pdoc = window.parent?.document;
+      if (!pdoc) return null;
+      const canvases = Array.from(pdoc.querySelectorAll("canvas"));
+      let best = null, bestArea = 0;
+      for (const c of canvases) {
+        const r = c.getBoundingClientRect();
+        const area = r.width * r.height;
+        if (area > bestArea && r.width > 200 && r.height > 100) {
+          best = c;
+          bestArea = area;
+        }
+      }
+      return best;
+    } catch (e) { return null; }
+  }
+
+  function getFittedStageViewportRect() {
+    const editor = getEditor();
+    const stageEl = getStageCanvasElement();
+    if (!editor || !stageEl) throw new Error("Stage not found");
+
+    const canvasRect = stageEl.getBoundingClientRect();
+    const project = editor.project || {};
+    const stageW = Number(project.width || project.stage?.width || 1920);
+    const stageH = Number(project.height || project.stage?.height || 1080);
+    const stageAspect = stageW / Math.max(1, stageH);
+    const canvasAspect = canvasRect.width / Math.max(1, canvasRect.height);
+
+    let fittedW = canvasRect.width, fittedH = canvasRect.height;
+    if (canvasAspect > stageAspect) {
+      fittedW = fittedH * stageAspect;
+    } else {
+      fittedH = fittedW / stageAspect;
+    }
+
+    return {
+      canvasRect,
+      fittedRect: {
+        left: canvasRect.left + (canvasRect.width - fittedW) * 0.5,
+        top: canvasRect.top + (canvasRect.height - fittedH) * 0.5,
+        width: fittedW,
+        height: fittedH
+      },
+      stageW,
+      stageH
+    };
+  }
+
+  function viewportRectToStageRect(viewRect) {
+    const info = getFittedStageViewportRect();
+    const f = info.fittedRect;
+    const left = clamp(viewRect.left, f.left, f.left + f.width);
+    const top = clamp(viewRect.top, f.top, f.top + f.height);
+    const right = clamp(viewRect.right, f.left, f.left + f.width);
+    const bottom = clamp(viewRect.bottom, f.top, f.top + f.height);
+    const relX = (left - f.left) / f.width;
+    const relY = (top - f.top) / f.height;
+    const relW = (right - left) / f.width;
+    const relH = (bottom - top) / f.height;
+    return {
+      x: relX * info.stageW,
+      y: relY * info.stageH,
+      w: relW * info.stageW,
+      h: relH * info.stageH
+    };
+  }
+
+  function startAreaSelection() {
+    try {
+      const pdoc = window.parent?.document;
+      if (!pdoc) throw new Error("No parent document");
+
+      const overlay = pdoc.createElement("div");
+      overlay.style.cssText = "position:fixed;inset:0;z-index:2147483647;cursor:crosshair;background:rgba(0,0,0,0.05);user-select:none;";
+
+      const box = pdoc.createElement("div");
+      box.style.cssText = "position:fixed;border:2px dashed #60a5fa;background:rgba(96,165,250,0.1);pointer-events:none;";
+      overlay.appendChild(box);
+
+      const label = pdoc.createElement("div");
+      label.textContent = "Drag to select area";
+      label.style.cssText = "position:fixed;left:12px;top:12px;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,0.8);color:#fff;font:13px system-ui;";
+      overlay.appendChild(label);
+
+      let startX = 0, startY = 0, dragging = false;
+
+      overlay.onmousedown = e => {
+        dragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+      };
+      overlay.onmousemove = e => {
+        if (!dragging) return;
+        const x = Math.min(startX, e.clientX);
+        const y = Math.min(startY, e.clientY);
+        box.style.left = x + "px";
+        box.style.top = y + "px";
+        box.style.width = Math.abs(e.clientX - startX) + "px";
+        box.style.height = Math.abs(e.clientY - startY) + "px";
+      };
+      overlay.onmouseup = e => {
+        if (!dragging) { overlay.remove(); return; }
+        dragging = false;
+        overlay.remove();
+        const x = Math.min(startX, e.clientX);
+        const y = Math.min(startY, e.clientY);
+        const w = Math.max(20, Math.abs(e.clientX - startX));
+        const h = Math.max(20, Math.abs(e.clientY - startY));
+        try {
+          const viewRect = { x, y, w, h };
+          const stageRect = viewportRectToStageRect({ left: x, top: y, right: x + w, bottom: y + h });
+          createDrawingOverlay(viewRect, stageRect);
+          setStatus("Area set — draw inside", "success");
+        } catch (err) {
+          setStatus("Area failed: " + err.message, "error");
+        }
+      };
+      overlay.oncontextmenu = e => { e.preventDefault(); overlay.remove(); setStatus("Cancelled"); };
+
+      pdoc.body.appendChild(overlay);
+      setStatus("Drag a rectangle");
+    } catch (e) {
+      setStatus("Area selection failed: " + e.message, "error");
+    }
+  }
+
+  // ========== COMMIT TO WICK ==========
+
+  function buildStagePolygon(stroke) {
+    if (!stroke?.outline?.poly || !state.drawingAreaStage || !state.drawingAreaViewport) return null;
+    const as = state.drawingAreaStage, av = state.drawingAreaViewport;
+    const sx = as.w / av.w, sy = as.h / av.h;
+    const stagePoly = stroke.outline.poly.map(p => ({
+      x: as.x + p.x * sx,
+      y: as.y + p.y * sy
+    }));
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of stagePoly) {
+      if (p.x < minX) minX = p.x; if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x; if (p.y > maxY) maxY = p.y;
+    }
+    return { stagePoly, bounds: { minX, minY, maxX, maxY }, fillColor: stroke.color };
+  }
+
+  function getPaperScope() {
+    const p = window.parent || window;
+    return p.paper || p.paperScope || p.Wick?.paper || window.paper || null;
+  }
+
+  function getOrCreateActiveFrame(editor, frameNum) {
+    const project = editor?.project;
+    if (!project) return null;
+    frameNum = Math.max(1, frameNum || 1);
+    
+    try {
+      const focus = project.focus || project.activeObject;
+      if (focus?.classname === "Frame" || focus?._classname === "Frame") return focus;
+    } catch (e) {}
+    
+    try {
+      const tl = project.activeTimeline || project.timeline || project.root?.timeline;
+      if (tl) {
+        if (tl.activeFrame) return tl.activeFrame;
+        if (typeof tl.getActiveFrame === "function") { const f = tl.getActiveFrame(); if (f) return f; }
+        
+        let layer = tl.activeLayer;
+        if (typeof layer === "number" && tl.layers) layer = tl.layers[layer] || tl.layers[0];
+        if (layer) {
+          if (typeof layer.getFrame === "function") { const f = layer.getFrame(frameNum); if (f) return f; }
+          if (typeof layer.getFrameAtPlayheadPosition === "function") { const f = layer.getFrameAtPlayheadPosition(frameNum); if (f) return f; }
+          if (layer.activeFrame) return layer.activeFrame;
+          if (layer.frames?.length) {
+            for (const f of layer.frames) {
+              if (f && f.start <= frameNum && (f.end >= frameNum || f.start === frameNum)) return f;
+            }
+            return layer.frames[0];
+          }
+        }
+      }
+    } catch (e) {}
+    
+    return null;
+  }
+
+  function addPathToFrame(frame, obj) {
+    if (typeof frame.addPath === "function") { frame.addPath(obj); return; }
+    if (typeof frame.addObject === "function") { frame.addObject(obj); return; }
+    if (frame.clip?.addPath) { frame.clip.addPath(obj); return; }
+    if (Array.isArray(frame.paths)) { frame.paths.push(obj); return; }
+    if (Array.isArray(frame.content)) { frame.content.push(obj); return; }
+    throw new Error("No frame insertion API");
+  }
+
+  function createWickPath(built) {
+    const paper = getPaperScope();
+    const Wick = window.Wick || window.parent?.Wick;
+    if (!paper || !Wick?.Path) throw new Error("Paper/Wick not available");
+    
+    const pp = new paper.Path();
+    for (const p of built.stagePoly) pp.add(new paper.Point(p.x, p.y));
+    pp.closed = true;
+    pp.fillColor = built.fillColor;
+    pp.strokeColor = null;
+    
+    const json = pp.exportJSON({ asString: false });
+    let wp;
+    try { wp = new Wick.Path({ json }); }
+    catch { try { wp = new Wick.Path(json, pp); } catch { wp = new Wick.Path(json); } }
+    try { if (wp.updateJSON) wp.updateJSON(); } catch {}
+    try { pp.remove(); } catch {}
+    return wp;
+  }
+
+  async function commitToWick() {
+    const editor = getEditor();
+    if (!editor?.project) throw new Error("Editor not found");
+    if (!state.strokes.length) throw new Error("No strokes");
+    if (!state.drawingAreaStage) throw new Error("No area set");
+    
+    const frameNum = (() => {
+      try {
+        const p = editor.project;
+        if (typeof p.currentFrameNumber === "number") return Math.max(1, p.currentFrameNumber);
+        const tl = p.activeTimeline || p.timeline;
+        if (tl?.playheadPosition != null) return Math.max(1, tl.playheadPosition);
+      } catch {}
+      return 1;
+    })();
+    
+    const frame = getOrCreateActiveFrame(editor, frameNum);
+    if (!frame) throw new Error("No active frame");
+    
+    let count = 0;
+    for (const stroke of state.strokes) {
+      const built = buildStagePolygon(stroke);
+      if (!built) continue;
+      try {
+        const wp = createWickPath(built);
+        addPathToFrame(frame, wp);
+        count++;
+      } catch (e) { log("Stroke failed", { error: e.message }); }
+    }
+    
+    try {
+      const p = editor.project;
+      if (p.markAsModified) p.markAsModified();
+      if (editor.canvas?.render) editor.canvas.render();
+      if (editor.projectDidChange) editor.projectDidChange();
+      window.parent?.dispatchEvent(new Event("resize"));
+    } catch {}
+    
+    return count;
+  }
+
+  async function handleCommit() {
+    if (!state.strokes.length) { setStatus("Draw some strokes first", "error"); return; }
+    el.btnCommit.disabled = true;
+    setStatus("Committing...");
+    try {
+      const n = await commitToWick();
+      clearAll();
+      setStatus("Added " + n + " curve(s)", "success");
+    } catch (e) {
+      log("Commit failed", { error: e.message });
+      setStatus("Failed: " + e.message, "error");
+    } finally {
+      el.btnCommit.disabled = false;
+    }
+  }
+
+  // ========== KEYBOARD SHORTCUTS ==========
+
+  function handleKeyDown(e) {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+    
+    switch (e.key.toLowerCase()) {
+      case "d": setTool(TOOLS.DRAW); break;
+      case "s": setTool(TOOLS.SELECT); break;
+      case "m": setTool(TOOLS.MOVE); break;
+      case "e": setTool(TOOLS.EDIT); break;
+      case "x": setTool(TOOLS.ERASE); break;
+      case "delete":
+      case "backspace":
+        if (state.selectedStrokeIndex >= 0) { deleteSelectedStroke(); e.preventDefault(); }
+        break;
+      case "z":
+        if (e.ctrlKey || e.metaKey) { undoLastStroke(); e.preventDefault(); }
+        break;
+    }
+  }
+
+  // ========== INIT ==========
+
+  function bind() {
+    el.btnSetArea.addEventListener("click", startAreaSelection);
+
+    // FIX if the LukeTools close button is clicked, clean overlay immediately
+    try {
+      const closeBtns = Array.from(document.querySelectorAll("button, [role='button'], .btn, .close, [aria-label='Close']"));
+      closeBtns.forEach(function (node) {
+        const txt = (node.textContent || "").trim().toLowerCase();
+        const aria = String(node.getAttribute("aria-label") || "").toLowerCase();
+        if (txt === "x" || txt === "close" || aria === "close") {
+          node.addEventListener("click", cleanupOnClose, true);
+        }
+      });
+    } catch (e) {}
+
+    el.btnClearAll.addEventListener("click", clearAll);
+    el.btnCommit.addEventListener("click", handleCommit);
+    el.btnUndo.addEventListener("click", undoLastStroke);
+    el.btnDelete.addEventListener("click", deleteSelectedStroke);
+    
+    el.toolDraw.addEventListener("click", () => setTool(TOOLS.DRAW));
+    el.toolSelect.addEventListener("click", () => setTool(TOOLS.SELECT));
+    el.toolMove.addEventListener("click", () => setTool(TOOLS.MOVE));
+    el.toolEdit.addEventListener("click", () => setTool(TOOLS.EDIT));
+    el.toolErase.addEventListener("click", () => setTool(TOOLS.ERASE));
+    
+    el.preset.addEventListener("change", () => applyPreset(el.preset.value));
+    
+    const allInputs = [el.size, el.smoothing, el.taper, el.taperStyle, el.roughness, el.spacing, el.jitter, el.minWidth, el.fillColor, el.overlayOpacity, el.eraserSize, el.lineStyle];
+    allInputs.forEach(node => {
+      node.addEventListener("input", () => { refreshLabels(); renderOverlay(); });
+      node.addEventListener("change", () => { refreshLabels(); renderOverlay(); });
+    });
+    
+    document.addEventListener("keydown", handleKeyDown);
+    
+    window.addEventListener("resize", () => {
+      if (state.overlayRoot && state.drawingAreaViewport) {
+        state.overlayRoot.style.left = state.drawingAreaViewport.x + "px";
+        state.overlayRoot.style.top = state.drawingAreaViewport.y + "px";
+        state.overlayRoot.style.width = state.drawingAreaViewport.w + "px";
+        state.overlayRoot.style.height = state.drawingAreaViewport.h + "px";
+        resizeOverlayCanvas();
+      }
+    });
+  }
+
+  function init() {
+    bind();
+    refreshLabels();
+    setStatus("Ready — click Set Area to begin");
+    log("TexturePen v20 ready");
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
