@@ -26,7 +26,8 @@
     .field{display:flex;flex-direction:column;gap:5px;flex:1;}
     label{font-size:12px;color:var(--muted);}
     input[type="text"],input[type="number"],select{background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.10);color:var(--text);border-radius:var(--radius2);padding:8px 10px;font-size:13px;outline:none;width:100%;box-sizing:border-box;font-family:var(--font);}
-    select{cursor:pointer;}
+    select{cursor:pointer;background:#ffffff;color:#000000;} /* FIX */
+    select option{background:#ffffff;color:#000000;} /* FIX */
     input:focus,select:focus{border-color:rgba(52,152,219,0.5);}
     .divider{height:1px;background:rgba(255,255,255,0.08);margin:10px 0;}
     .rng-block{border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius2);padding:12px;margin-bottom:10px;background:rgba(255,255,255,0.02);}
@@ -84,7 +85,6 @@
 (function(){
 "use strict";
 
-// ── Bridge ────────────────────────────────────────────────────────────────────
 function getBridge(){
   try{ if(window.LukeToolsBridge) return window.LukeToolsBridge; }catch(e){}
   try{ if(window.parent&&window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge; }catch(e){}
@@ -101,40 +101,36 @@ function getProject(){
   try{ if(ed&&ed.project) return ed.project; }catch(e){}
   return null;
 }
-
-// ── Status ────────────────────────────────────────────────────────────────────
 function setStatus(msg,kind){
   var el=document.getElementById("status");
   el.className="status"+(kind?" "+kind:"");
   el.textContent=msg;
 }
 
-// ── Selection ─────────────────────────────────────────────────────────────────
 var currentInfo=null;
 var childNames=[];
+var allTargetPaths=[];
 
 function tryLoadExisting(){
   var bridge=getBridge(); if(!bridge) return;
   if(!currentInfo||!currentInfo.uuid){ setStatus("Select a clip then click Create."); return; }
   var script="";
-  // Use getUpdateScriptByInfo — reads by UUID, no selection required
   try{
     if(typeof bridge.getUpdateScriptByInfo==="function"){
       script=bridge.getUpdateScriptByInfo(currentInfo)||"";
     }
   }catch(e){}
-  // Fallback: getUpdateScriptOnSelection (only works if clip happens to be selected)
   if(!script){
     try{ if(typeof bridge.getUpdateScriptOnSelection==="function") script=bridge.getUpdateScriptOnSelection()||""; }catch(e){}
   }
-  if(!script){ setStatus("Clip loaded — no existing script found. Configure and click Create."); return; }
+  if(!script){ setStatus("Clip loaded. No existing script found. Configure and click Create."); return; }
   var parsed=parseConfig(script);
   if(parsed&&parsed.length){
     rngs=parsed;
     renderAll();
-    setStatus("✎ Loaded existing Rando config ("+parsed.length+" RNG"+(parsed.length>1?"s":"")+") — edit and click Create to update.", "warn");
+    setStatus("Loaded existing Rando config ("+parsed.length+" RNG"+(parsed.length>1?"s":"")+") . Edit and click Create to update.", "warn");
   } else {
-    setStatus("Clip loaded — no existing Rando config. Configure and click Create.");
+    setStatus("Clip loaded. No existing Rando config. Configure and click Create.");
   }
 }
 
@@ -147,9 +143,8 @@ function refreshSelection(){
       if(info&&info.uuid){
         currentInfo=info;
         document.getElementById("selLabel").textContent=info.identifier||info.name||info.uuid;
-        scanChildren();
+        scanProjectTargets();
         rebuildAllClipDropdowns();
-        // Try to load existing Rando config from clip's update script
         tryLoadExisting();
         return;
       }
@@ -158,49 +153,140 @@ function refreshSelection(){
   currentInfo=null;
   document.getElementById("selLabel").textContent="No Clip Chosen";
   childNames=[];
+  allTargetPaths=[];
   renderChildPills();
 }
 
-function scanChildren(){
-  childNames=[];
-  var ed=getEditor(), proj=getProject();
-  if(!currentInfo||!currentInfo.uuid){ renderChildPills(); return; }
-
-  var clip=null;
-  try{ var sel=proj&&proj.selection||ed&&ed.selection||null;
-    if(sel&&typeof sel.getSelectedObject==="function") clip=sel.getSelectedObject();
-    if(!clip&&sel&&typeof sel.getSelectedObjects==="function"){ var a=sel.getSelectedObjects(); clip=a&&a[0]||null; }
-    if(!clip&&ed&&ed.selectedObjects) clip=ed.selectedObjects[0]||null;
-  }catch(e){}
-  if(!clip){ renderChildPills(); return; }
-
-  var found=[], seen={};
-  function addClip(c){
-    if(!c) return;
-    var u=c.uuid||c._uuid||null;
-    if(u&&seen[u]) return; if(u) seen[u]=true;
-    var nm=String(c._identifier||c.identifier||c.name||"").trim();
-    if(nm) found.push(nm);
-  }
+function getObjectName(obj){
   try{
-    var tl=clip.timeline||(clip.clipAsset&&clip.clipAsset.timeline)||null;
-    if(tl){
-      var layers=tl.layers||[];
+    var nm=String(obj&& (obj._identifier||obj.identifier||obj.name||obj._name) || "").trim();
+    return nm;
+  }catch(e){ return ""; }
+}
+
+function getObjectUUID(obj){
+  try{ return obj&&(obj.uuid||obj._uuid||obj.id||null); }catch(e){ return null; }
+}
+
+function getFrameChildren(frame){
+  if(!frame) return [];
+  return frame.clips||frame.children||frame._children||frame.objects||[];
+}
+
+function getTimelineChildrenFromClip(clip){
+  var out=[];
+  try{
+    var tl=clip&&(clip.timeline||(clip.clipAsset&&clip.clipAsset.timeline))||null;
+    if(!tl) return out;
+    var layers=tl.layers||[];
+    for(var li=0;li<layers.length;li++){
+      var layer=layers[li]; if(!layer) continue;
+      var frames=layer.frames||[];
+      if(!frames.length){
+        var af=layer.activeFrame||layer.currentFrame;
+        if(af) frames=[af];
+      }
+      for(var fi=0;fi<frames.length;fi++){
+        var frame=frames[fi]; if(!frame) continue;
+        var kids=getFrameChildren(frame);
+        for(var ci=0;ci<kids.length;ci++) out.push(kids[ci]);
+      }
+    }
+  }catch(e){}
+  if(!out.length){
+    try{
+      var ch=clip&& (clip._children||clip.children) || [];
+      for(var i=0;i<ch.length;i++) out.push(ch[i]);
+    }catch(e){}
+  }
+  return out;
+}
+
+function getRootProjectChildren(){
+  var proj=getProject();
+  var out=[];
+  if(!proj) return out;
+  try{
+    var activeFrame = null;
+    if(typeof proj.getCurrentFrame === "function") activeFrame = proj.getCurrentFrame();
+    if(!activeFrame && proj.activeFrame) activeFrame = proj.activeFrame;
+    if(!activeFrame && proj.focus && proj.focus.timeline && proj.focus.timeline.activeFrame) activeFrame = proj.focus.timeline.activeFrame;
+    if(activeFrame){
+      var kids=getFrameChildren(activeFrame);
+      for(var i=0;i<kids.length;i++) out.push(kids[i]);
+    }
+  }catch(e){}
+  try{
+    if(!out.length && proj.root && proj.root.timeline){
+      var layers=proj.root.timeline.layers||[];
       for(var li=0;li<layers.length;li++){
         var layer=layers[li]; if(!layer) continue;
         var frames=layer.frames||[];
-        if(!frames.length){ var af=layer.activeFrame||layer.currentFrame; if(af) frames=[af]; }
         for(var fi=0;fi<frames.length;fi++){
-          var frame=frames[fi]; if(!frame) continue;
-          var clips=frame.clips||frame.children||frame._children||frame.objects||[];
-          for(var ci=0;ci<clips.length;ci++) addClip(clips[ci]);
+          var kids=getFrameChildren(frames[fi]);
+          for(var ci=0;ci<kids.length;ci++) out.push(kids[ci]);
         }
       }
     }
   }catch(e){}
-  if(!found.length){ try{ var ch=clip._children||clip.children||[]; for(var i=0;i<ch.length;i++) addClip(ch[i]); }catch(e){} }
-  childNames=found;
+  try{
+    if(!out.length && proj.focus && proj.focus.timeline){
+      var layers2=proj.focus.timeline.layers||[];
+      for(var li2=0;li2<layers2.length;li2++){
+        var layer2=layers2[li2]; if(!layer2) continue;
+        var frames2=layer2.frames||[];
+        if(!frames2.length && layer2.activeFrame) frames2=[layer2.activeFrame];
+        for(var fi2=0;fi2<frames2.length;fi2++){
+          var kids2=getFrameChildren(frames2[fi2]);
+          for(var ci2=0;ci2<kids2.length;ci2++) out.push(kids2[ci2]);
+        }
+      }
+    }
+  }catch(e){}
+  return out;
+}
+
+function scanProjectTargets(){
+  childNames=[];
+  allTargetPaths=[];
+
+  var rootChildren=getRootProjectChildren();
+  var seenByPath={};
+  var seenByUUID={};
+
+  function addPath(path){
+    if(!path || seenByPath[path]) return;
+    seenByPath[path]=true;
+    allTargetPaths.push(path);
+    childNames.push(path);
+  }
+
+  function walkClip(clip, parentPath){
+    if(!clip) return;
+    var uuid=getObjectUUID(clip);
+    var nm=getObjectName(clip);
+    var thisPath=parentPath;
+    if(nm){
+      thisPath=parentPath ? (parentPath+"."+nm) : nm;
+      addPath(thisPath);
+    }
+    if(uuid && seenByUUID[uuid]) return;
+    if(uuid) seenByUUID[uuid]=true;
+    var kids=getTimelineChildrenFromClip(clip);
+    for(var i=0;i<kids.length;i++){
+      walkClip(kids[i], thisPath || parentPath || "");
+    }
+  }
+
+  for(var i=0;i<rootChildren.length;i++) walkClip(rootChildren[i], "");
+
+  allTargetPaths.sort(function(a,b){ return a.localeCompare(b); });
+  childNames = allTargetPaths.slice();
   renderChildPills();
+
+  if(!allTargetPaths.length){
+    setStatus("Only Project was found. The project scan did not see any named clips on the active timeline. Refresh with the right clip or frame active.", "warn");
+  }
 }
 
 function renderChildPills(){
@@ -217,18 +303,18 @@ function rebuildAllClipDropdowns(){
 
 function rebuildClipDropdown(sel){
   sel.innerHTML="";
-  var o=document.createElement("option"); o.value="self"; o.textContent="(self)"; sel.appendChild(o);
+  var o1=document.createElement("option"); o1.value="self"; o1.textContent="(self)"; sel.appendChild(o1);
+  var o2=document.createElement("option"); o2.value="project"; o2.textContent="Project"; sel.appendChild(o2);
   childNames.forEach(function(nm){ var o=document.createElement("option"); o.value=nm; o.textContent=nm; sel.appendChild(o); });
 }
 
-// ── State ─────────────────────────────────────────────────────────────────────
 var rngs=[];
 var _rc=0;
 function mkId(){ return "x"+(++_rc)+Math.random().toString(36).slice(2,5); }
 
 var OPS=["==","!=","<",">","<=",">="];
 var ACTIONS=[
-  {v:"none",         l:"— do nothing —",        frame:false},
+  {v:"none",         l:"do nothing",        frame:false},
   {v:"gotoAndStop",  l:"gotoAndStop( frame )",   frame:true},
   {v:"gotoAndPlay",  l:"gotoAndPlay( frame )",   frame:true},
   {v:"stop",         l:"stop()",                 frame:false},
@@ -237,7 +323,7 @@ var ACTIONS=[
   {v:"gotoPrevFrame",l:"gotoPrevFrame()",        frame:false},
   {v:"setOpacity",   l:"opacity = value",        frame:false},
   {v:"setX",         l:"x = value",              frame:false},
-  {v:"setY",         l:"y = value",              frame:false},
+  {v:"setY",         l:"y = value",              frame:false}
 ];
 
 function newRng(){
@@ -247,7 +333,6 @@ function newRule(){
   return {id:mkId(), op:"==", val:"", clipName:"self", action:"none", frame:"1"};
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
 function renderAll(){
   var list=document.getElementById("rngList"); list.innerHTML="";
   rngs.forEach(function(r){ list.appendChild(makeRngBlock(r)); });
@@ -255,16 +340,13 @@ function renderAll(){
 
 function makeRngBlock(r){
   var div=document.createElement("div"); div.className="rng-block"; div.id="rng-"+r.id;
-
-  // Header
   var hdr=document.createElement("div"); hdr.className="rng-header";
   var ttl=document.createElement("div"); ttl.className="rng-title-text"; ttl.id="rngtitle-"+r.id; ttl.textContent="⚄ "+r.varName;
   var rm=document.createElement("button"); rm.className="remove-btn"; rm.innerHTML="✕"; rm.title="Remove";
   rm.onclick=function(){ rngs=rngs.filter(function(x){return x.id!==r.id;}); div.remove(); };
   hdr.appendChild(ttl); hdr.appendChild(rm); div.appendChild(hdr);
 
-  // Variable name
-  appendField(div, "Variable name", function(lbl){
+  appendField(div, "Variable name", function(){
     var inp=document.createElement("input"); inp.type="text"; inp.value=r.varName;
     inp.oninput=function(){
       r.varName=inp.value.replace(/[^a-zA-Z0-9_]/g,"_")||"rng";
@@ -274,20 +356,17 @@ function makeRngBlock(r){
     return inp;
   });
 
-  // Min / Max
   var twoCol=document.createElement("div"); twoCol.className="two-col"; twoCol.style.marginTop="8px";
   var minF=document.createElement("div"); appendField(minF,"Min",function(){ var i=document.createElement("input"); i.type="number"; i.value=r.min; i.step="any"; i.oninput=function(){r.min=i.value;}; return i; });
   var maxF=document.createElement("div"); appendField(maxF,"Max",function(){ var i=document.createElement("input"); i.type="number"; i.value=r.max; i.step="any"; i.oninput=function(){r.max=i.value;}; return i; });
   twoCol.appendChild(minF); twoCol.appendChild(maxF); div.appendChild(twoCol);
 
-  // Checkboxes
   var checks=document.createElement("div"); checks.className="checks";
   checks.appendChild(makeChk("Integer",r.isInt,function(v){r.isInt=v;}));
   checks.appendChild(makeChk("Run once",r.onlyOnce,function(v){r.onlyOnce=v;}));
   checks.appendChild(makeChk("Store on clip",r.storeVar,function(v){r.storeVar=v;}));
   div.appendChild(checks);
 
-  // Rules
   var sec=document.createElement("div"); sec.className="section"; sec.style.marginTop="12px"; sec.textContent="IF / THEN RULES";
   div.appendChild(sec);
 
@@ -304,48 +383,36 @@ function makeRngBlock(r){
 
 function makeRuleBlock(r, rule){
   var div=document.createElement("div"); div.className="rule-block"; div.id="rule-"+rule.id;
-
-  // Header
   var hdr=document.createElement("div"); hdr.className="rule-header";
   var lbl=document.createElement("span"); lbl.className="rule-lbl"; lbl.textContent="Rule";
   var rm=document.createElement("button"); rm.className="remove-btn"; rm.innerHTML="✕";
   rm.onclick=function(){ r.rules=r.rules.filter(function(x){return x.id!==rule.id;}); div.remove(); };
   hdr.appendChild(lbl); hdr.appendChild(rm); div.appendChild(hdr);
 
-  // IF row: IF  varName  ==  value
   var ifRow=document.createElement("div"); ifRow.className="if-row";
-
   var ifTag=document.createElement("span"); ifTag.className="if-tag"; ifTag.textContent="IF";
   var vnSpan=document.createElement("span"); vnSpan.className="if-vname"; vnSpan.textContent=r.varName;
-
   var opSel=document.createElement("select");
   OPS.forEach(function(op){ var o=document.createElement("option"); o.value=op; o.textContent=op; if(op===rule.op) o.selected=true; opSel.appendChild(o); });
   opSel.onchange=function(){ rule.op=opSel.value; };
-
   var valInp=document.createElement("input"); valInp.type="text"; valInp.className="val-inp";
   valInp.placeholder="value e.g. 3"; valInp.value=rule.val;
   valInp.oninput=function(){ rule.val=valInp.value; };
-
   ifRow.appendChild(ifTag); ifRow.appendChild(vnSpan); ifRow.appendChild(opSel); ifRow.appendChild(valInp);
   div.appendChild(ifRow);
 
-  // THEN row
   var thenSec=document.createElement("div"); thenSec.className="section"; thenSec.style.margin="0 0 6px 0"; thenSec.textContent="THEN";
   div.appendChild(thenSec);
 
   var twoCol=document.createElement("div"); twoCol.className="two-col"; twoCol.style.marginBottom="6px";
-
   var clipSel=document.createElement("select"); clipSel.className="clip-sel";
   rebuildClipDropdown(clipSel);
   try{ clipSel.value=rule.clipName||"self"; }catch(e){}
   clipSel.onchange=function(){ rule.clipName=clipSel.value; };
-
   var actSel=document.createElement("select");
   ACTIONS.forEach(function(a){ var o=document.createElement("option"); o.value=a.v; o.textContent=a.l; if(a.v===rule.action) o.selected=true; actSel.appendChild(o); });
-
   twoCol.appendChild(clipSel); twoCol.appendChild(actSel); div.appendChild(twoCol);
 
-  // Frame input
   var frameWrap=document.createElement("div");
   var fLbl=document.createElement("label"); fLbl.textContent="Frame / value";
   var fInp=document.createElement("input"); fInp.type="text"; fInp.value=rule.frame||"1";
@@ -360,11 +427,9 @@ function makeRuleBlock(r, rule){
   }
   actSel.onchange=function(){ rule.action=actSel.value; updateFrameVis(); };
   updateFrameVis();
-
   return div;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function appendField(parent, labelText, makeInput){
   var lbl=document.createElement("label"); lbl.textContent=labelText;
   var inp=makeInput(lbl);
@@ -379,8 +444,6 @@ function makeChk(labelText, checked, onChange){
   l.appendChild(inp); l.appendChild(sp); return l;
 }
 
-// ── Code generation ───────────────────────────────────────────────────────────
-// Parse a saved RANDO_CONFIG comment back into rngs state
 function parseConfig(scriptText){
   if(!scriptText) return null;
   var m = scriptText.match(/\/\/ RANDO_CONFIG: (\{.+\}|\[.+\])/);
@@ -388,7 +451,6 @@ function parseConfig(scriptText){
   try{
     var parsed = JSON.parse(m[1]);
     if(!Array.isArray(parsed)) return null;
-    // Re-stamp with fresh IDs so DOM elements don't clash
     return parsed.map(function(r){
       return {
         id: mkId(),
@@ -409,8 +471,56 @@ function parseConfig(scriptText){
 function buildScript(rngList){
   if(!rngList.length) return "";
   var L=[];
-  L.push("// ── Rando BEGIN ──────────────────────────────────────────");
+  L.push("// Rando BEGIN");
   L.push("// RANDO_CONFIG: "+JSON.stringify(rngList));
+  L.push("function __randoGetProjectRoot(){");
+  L.push("  try{ if(this.project) return this.project; }catch(e){}");
+  L.push("  try{ if(window && window.wickEditor && window.wickEditor.project) return window.wickEditor.project; }catch(e){}");
+  L.push("  try{ if(window && window.parent && window.parent.wickEditor && window.parent.wickEditor.project) return window.parent.wickEditor.project; }catch(e){}");
+  L.push("  return null;");
+  L.push("}");
+  L.push("function __randoGetChildren(obj){");
+  L.push("  var out=[];");
+  L.push("  try{");
+  L.push("    var tl=obj && (obj.timeline || (obj.clipAsset && obj.clipAsset.timeline));");
+  L.push("    if(tl){");
+  L.push("      var layers=tl.layers||[];");
+  L.push("      for(var li=0;li<layers.length;li++){");
+  L.push("        var layer=layers[li]; if(!layer) continue;");
+  L.push("        var frames=layer.frames||[];");
+  L.push("        if(!frames.length && layer.activeFrame) frames=[layer.activeFrame];");
+  L.push("        for(var fi=0;fi<frames.length;fi++){");
+  L.push("          var frame=frames[fi]; if(!frame) continue;");
+  L.push("          var kids=frame.clips||frame.children||frame._children||frame.objects||[];");
+  L.push("          for(var ci=0;ci<kids.length;ci++) out.push(kids[ci]);");
+  L.push("        }");
+  L.push("      }");
+  L.push("    }");
+  L.push("  }catch(e){}");
+  L.push("  if(!out.length){ try{ var ch=obj && (obj._children||obj.children)||[]; for(var i=0;i<ch.length;i++) out.push(ch[i]); }catch(e){} }");
+  L.push("  return out;");
+  L.push("}");
+  L.push("function __randoResolveTarget(path){");
+  L.push("  if(!path || path===\"self\") return this;");
+  L.push("  var project=__randoGetProjectRoot.call(this);");
+  L.push("  if(path===\"project\") return project || this;");
+  L.push("  var parts=String(path).split('.');");
+  L.push("  var roots=[];");
+  L.push("  if(project) roots=__randoGetChildren(project);");
+  L.push("  function getName(obj){ try{ return String(obj && (obj._identifier||obj.identifier||obj.name||obj._name) || \"\").trim(); }catch(e){ return \"\"; } }");
+  L.push("  function descend(list, idx){");
+  L.push("    var want=parts[idx];");
+  L.push("    for(var i=0;i<list.length;i++){");
+  L.push("      var obj=list[i];");
+  L.push("      if(getName(obj)!==want) continue;");
+  L.push("      if(idx===parts.length-1) return obj;");
+  L.push("      var found=descend(__randoGetChildren(obj), idx+1);");
+  L.push("      if(found) return found;");
+  L.push("    }");
+  L.push("    return null;");
+  L.push("  }");
+  L.push("  return descend(roots,0) || this;");
+  L.push("}");
   rngList.forEach(function(r, ri){
     var vn=(r.varName||"rng").replace(/[^a-zA-Z0-9_]/g,"_")||"rng"+ri;
     var mn=parseFloat(r.min)||0;
@@ -419,51 +529,41 @@ function buildScript(rngList){
     L.push("// RNG: "+vn);
     if(r.onlyOnce) L.push("if(this._rando_"+vn+"_done===undefined){");
     var ind=r.onlyOnce?"  ":"";
-
-    // Roll
     if(r.isInt){
       L.push(ind+"var "+vn+" = Math.floor(Math.random()*("+(mx-mn+1)+")+"+mn+");");
     } else {
       L.push(ind+"var "+vn+" = +(Math.random()*("+mx+"-"+mn+")+"+mn+").toFixed(4);");
     }
     if(r.storeVar) L.push(ind+"this."+vn+" = "+vn+";");
-
-    // Rules
     r.rules.forEach(function(rule){
       if(rule.action==="none") return;
       var hasIf=(String(rule.val||"").trim()!=="");
-      var ci=ind+(hasIf?"  ":"");
-
-      // Target: self = "this", child = "this.ChildName" (direct property access in Wick)
-      var tgt=rule.clipName||"self";
-      var tRef=(tgt==="self"||tgt==="")?  "this" : "this."+tgt;
-
       if(hasIf) L.push(ind+"if("+vn+" "+rule.op+" "+String(rule.val).trim()+"){");
-      var ii=ci;
+      var ii=ind+(hasIf?"  ":"");
       var fn=rule.action, fv=String(rule.frame||"1").trim();
+      var fvStr=isNaN(Number(fv))?JSON.stringify(fv):fv;
+      var tgt=String(rule.clipName||"self");
+      L.push(ii+"var __randoTarget = __randoResolveTarget.call(this, "+JSON.stringify(tgt)+");");
       if(fn==="gotoAndStop"||fn==="gotoAndPlay"){
-        var fvStr=isNaN(Number(fv))?"\""+fv+"\"":fv;
-        L.push(ii+"try{ "+tRef+"."+fn+"("+fvStr+"); }catch(e){}");
+        L.push(ii+"try{ __randoTarget."+fn+"("+fvStr+"); }catch(e){}");
       } else if(fn==="stop"||fn==="play"||fn==="gotoNextFrame"||fn==="gotoPrevFrame"){
-        L.push(ii+"try{ "+tRef+"."+fn+"(); }catch(e){}");
+        L.push(ii+"try{ __randoTarget."+fn+"(); }catch(e){}");
       } else if(fn==="setOpacity"){
-        L.push(ii+"try{ "+tRef+".opacity="+vn+"; }catch(e){}");
+        L.push(ii+"try{ __randoTarget.opacity="+vn+"; }catch(e){}");
       } else if(fn==="setX"){
-        L.push(ii+"try{ "+tRef+".x="+vn+"; }catch(e){}");
+        L.push(ii+"try{ __randoTarget.x="+vn+"; }catch(e){}");
       } else if(fn==="setY"){
-        L.push(ii+"try{ "+tRef+".y="+vn+"; }catch(e){}");
+        L.push(ii+"try{ __randoTarget.y="+vn+"; }catch(e){}");
       }
       if(hasIf) L.push(ind+"}");
     });
-
     if(r.onlyOnce){ L.push("  this._rando_"+vn+"_done=true;"); L.push("}"); }
   });
   L.push("");
-  L.push("// ── Rando END ────────────────────────────────────────────");
+  L.push("// Rando END");
   return L.join("\n");
 }
 
-// ── Create / Inject ───────────────────────────────────────────────────────────
 document.getElementById("btnCreate").addEventListener("click", function(){
   if(!currentInfo||!currentInfo.uuid){ setStatus("No clip selected. Use Refresh.", "warn"); return; }
   if(!rngs.length){ setStatus("No RNGs added.", "warn"); return; }
@@ -472,29 +572,25 @@ document.getElementById("btnCreate").addEventListener("click", function(){
 
   var code=buildScript(rngs);
   var existing="";
-  // Read by UUID — no selection needed
   try{ if(typeof bridge.getUpdateScriptByInfo==="function") existing=bridge.getUpdateScriptByInfo(currentInfo)||""; }catch(e){}
   if(!existing){ try{ if(typeof bridge.getUpdateScriptOnSelection==="function") existing=bridge.getUpdateScriptOnSelection()||""; }catch(e){} }
-  existing=existing.replace(/\/\/ ── Rando BEGIN[\s\S]*?\/\/ ── Rando END\n?/g,"").trim();
+  existing=existing.replace(/\/\/ Rando BEGIN[\s\S]*?\/\/ Rando END\n?/g,"").trim();
   var combined=(existing?existing+"\n\n":"")+code;
 
   try{
-    // Write by UUID — no selection needed
     var res=null;
     if(typeof bridge.setUpdateScriptByInfo==="function") res=bridge.setUpdateScriptByInfo(currentInfo, combined);
     if(!res||res.ok===false){
-      // Fallback: select then write
       res=bridge.setUpdateScriptOnSelection(combined);
     }
     if(res&&res.ok===false) throw new Error(res.reason||"script write failed");
-    setStatus("✓ Injected "+rngs.length+" RNG(s) into: "+(currentInfo.identifier||currentInfo.name||currentInfo.uuid), "good");
+    setStatus("Injected "+rngs.length+" RNG(s) into: "+(currentInfo.identifier||currentInfo.name||currentInfo.uuid), "good");
   }catch(e){ setStatus("Failed: "+e.message, "bad"); }
 });
 
 document.getElementById("btnRefresh").addEventListener("click", refreshSelection);
 document.getElementById("btnAddRng").addEventListener("click", function(){ rngs.push(newRng()); renderAll(); });
 
-// ── Init ──────────────────────────────────────────────────────────────────────
 rngs.push(newRng());
 renderAll();
 refreshSelection();
