@@ -267,7 +267,7 @@ function scanProjectTargets(){
     var nm=getObjectName(clip);
     var thisPath=parentPath;
     if(nm){
-      thisPath=parentPath ? (parentPath+"."+nm) : nm;
+      thisPath=parentPath ? (parentPath+"."+nm) : ("project."+nm); // FIX
       addPath(thisPath);
     }
     if(uuid && seenByUUID[uuid]) return;
@@ -285,7 +285,7 @@ function scanProjectTargets(){
   renderChildPills();
 
   if(!allTargetPaths.length){
-    setStatus("Only Project was found. The project scan did not see any named clips on the active timeline. Refresh with the right clip or frame active.", "warn");
+    setStatus("Only project was found. The project scan did not see any named clips on the active timeline. Refresh with the right clip or frame active.", "warn");
   }
 }
 
@@ -304,7 +304,7 @@ function rebuildAllClipDropdowns(){
 function rebuildClipDropdown(sel){
   sel.innerHTML="";
   var o1=document.createElement("option"); o1.value="self"; o1.textContent="(self)"; sel.appendChild(o1);
-  var o2=document.createElement("option"); o2.value="project"; o2.textContent="Project"; sel.appendChild(o2);
+  var o2=document.createElement("option"); o2.value="project"; o2.textContent="project"; sel.appendChild(o2);
   childNames.forEach(function(nm){ var o=document.createElement("option"); o.value=nm; o.textContent=nm; sel.appendChild(o); });
 }
 
@@ -473,54 +473,6 @@ function buildScript(rngList){
   var L=[];
   L.push("// Rando BEGIN");
   L.push("// RANDO_CONFIG: "+JSON.stringify(rngList));
-  L.push("function __randoGetProjectRoot(){");
-  L.push("  try{ if(this.project) return this.project; }catch(e){}");
-  L.push("  try{ if(window && window.wickEditor && window.wickEditor.project) return window.wickEditor.project; }catch(e){}");
-  L.push("  try{ if(window && window.parent && window.parent.wickEditor && window.parent.wickEditor.project) return window.parent.wickEditor.project; }catch(e){}");
-  L.push("  return null;");
-  L.push("}");
-  L.push("function __randoGetChildren(obj){");
-  L.push("  var out=[];");
-  L.push("  try{");
-  L.push("    var tl=obj && (obj.timeline || (obj.clipAsset && obj.clipAsset.timeline));");
-  L.push("    if(tl){");
-  L.push("      var layers=tl.layers||[];");
-  L.push("      for(var li=0;li<layers.length;li++){");
-  L.push("        var layer=layers[li]; if(!layer) continue;");
-  L.push("        var frames=layer.frames||[];");
-  L.push("        if(!frames.length && layer.activeFrame) frames=[layer.activeFrame];");
-  L.push("        for(var fi=0;fi<frames.length;fi++){");
-  L.push("          var frame=frames[fi]; if(!frame) continue;");
-  L.push("          var kids=frame.clips||frame.children||frame._children||frame.objects||[];");
-  L.push("          for(var ci=0;ci<kids.length;ci++) out.push(kids[ci]);");
-  L.push("        }");
-  L.push("      }");
-  L.push("    }");
-  L.push("  }catch(e){}");
-  L.push("  if(!out.length){ try{ var ch=obj && (obj._children||obj.children)||[]; for(var i=0;i<ch.length;i++) out.push(ch[i]); }catch(e){} }");
-  L.push("  return out;");
-  L.push("}");
-  L.push("function __randoResolveTarget(path){");
-  L.push("  if(!path || path===\"self\") return this;");
-  L.push("  var project=__randoGetProjectRoot.call(this);");
-  L.push("  if(path===\"project\") return project || this;");
-  L.push("  var parts=String(path).split('.');");
-  L.push("  var roots=[];");
-  L.push("  if(project) roots=__randoGetChildren(project);");
-  L.push("  function getName(obj){ try{ return String(obj && (obj._identifier||obj.identifier||obj.name||obj._name) || \"\").trim(); }catch(e){ return \"\"; } }");
-  L.push("  function descend(list, idx){");
-  L.push("    var want=parts[idx];");
-  L.push("    for(var i=0;i<list.length;i++){");
-  L.push("      var obj=list[i];");
-  L.push("      if(getName(obj)!==want) continue;");
-  L.push("      if(idx===parts.length-1) return obj;");
-  L.push("      var found=descend(__randoGetChildren(obj), idx+1);");
-  L.push("      if(found) return found;");
-  L.push("    }");
-  L.push("    return null;");
-  L.push("  }");
-  L.push("  return descend(roots,0) || this;");
-  L.push("}");
   rngList.forEach(function(r, ri){
     var vn=(r.varName||"rng").replace(/[^a-zA-Z0-9_]/g,"_")||"rng"+ri;
     var mn=parseFloat(r.min)||0;
@@ -538,24 +490,26 @@ function buildScript(rngList){
     r.rules.forEach(function(rule){
       if(rule.action==="none") return;
       var hasIf=(String(rule.val||"").trim()!=="");
+      var fn=rule.action;
+      var fv=String(rule.frame||"1").trim();
+      var fvStr=isNaN(Number(fv))?JSON.stringify(fv):fv;
+      var tgt=String(rule.clipName||"self").trim();
+      var tgtExpr="this";
+      if(tgt && tgt!=="self") tgtExpr=tgt;
       if(hasIf) L.push(ind+"if("+vn+" "+rule.op+" "+String(rule.val).trim()+"){");
       var ii=ind+(hasIf?"  ":"");
-      var fn=rule.action, fv=String(rule.frame||"1").trim();
-      var fvStr=isNaN(Number(fv))?JSON.stringify(fv):fv;
-      var tgt=String(rule.clipName||"self");
-      L.push(ii+"var __randoTarget = __randoResolveTarget.call(this, "+JSON.stringify(tgt)+");");
       if(fn==="gotoAndStop"||fn==="gotoAndPlay"){
-        L.push(ii+"try{ __randoTarget."+fn+"("+fvStr+"); }catch(e){}");
+        L.push(ii+tgtExpr+"."+fn+"("+fvStr+")");
       } else if(fn==="stop"||fn==="play"||fn==="gotoNextFrame"||fn==="gotoPrevFrame"){
-        L.push(ii+"try{ __randoTarget."+fn+"(); }catch(e){}");
+        L.push(ii+tgtExpr+"."+fn+"()");
       } else if(fn==="setOpacity"){
-        L.push(ii+"try{ __randoTarget.opacity="+vn+"; }catch(e){}");
+        L.push(ii+tgtExpr+".opacity="+vn);
       } else if(fn==="setX"){
-        L.push(ii+"try{ __randoTarget.x="+vn+"; }catch(e){}");
+        L.push(ii+tgtExpr+".x="+vn);
       } else if(fn==="setY"){
-        L.push(ii+"try{ __randoTarget.y="+vn+"; }catch(e){}");
+        L.push(ii+tgtExpr+".y="+vn);
       }
-      if(hasIf) L.push(ind+"}");
+      if(hasIf) L.push(ind+"};");
     });
     if(r.onlyOnce){ L.push("  this._rando_"+vn+"_done=true;"); L.push("}"); }
   });
