@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Luke Tools - clipboard2clip</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body { margin:0; padding:14px; background:#1f1f1f; color:#eaeaea; font-family: Arial, sans-serif; }
+    .panel { border:1px solid #444; background: rgba(0,0,0,0.35); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+    .title { font-size:12px; color:#9aa; text-transform:uppercase; border-bottom:1px solid #444; padding-bottom:6px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    label { font-size:11px; color:#cfcfcf; }
+    input[type="number"], input[type="text"], select {
+      background:#111; color:#fff; border:1px solid #444; border-radius:6px;
+      padding:8px 10px; font-size:12px;
+    }
+    input[type="number"] { width:90px; }
+    input[type="text"] { width:220px; }
+    select { min-width:240px; }
+    button {
+      width:100%; padding:12px; border:none; border-radius:8px;
+      background:#21b26b; color:#fff; font-weight:bold; cursor:pointer;
+    }
+    button:disabled { opacity:0.55; cursor:default; }
+    .hint { font-size:11px; color:#aaa; line-height:1.35; }
+    #consoleLog {
+      background:#0f0f0f; border:1px solid #333; border-radius:8px;
+      padding:10px; font-family: monospace; font-size:11px; color:#88ff88;
+      height:300px; overflow-y:auto; white-space:pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="title">clipboard2clip</div>
+
+    <div class="hint">
+      Instructions:<br>
+      1. Copy an image to the clipboard.<br>
+      2. Choose the workflow you want.<br>
+      3. Set numbering if you want to continue from an earlier sequence.<br>
+      4. Click Paste Clipboard Image.<br>
+      5. Use One Clip And Add A New Frame Each Paste creates or reuses one stage clip and appends each clipboard image to the next frame inside that clip.<br>
+      6. Add To Main Timeline Frame By Frame appends each paste to the next frame on the active main timeline layer.<br>
+      7. Add To Selected Frame pastes on the currently selected frame without creating a new one.
+    </div>
+
+
+
+    <div class="row">
+      <label>Asset Name<br><input type="text" id="assetName" value="Clipboard_Image"></label>
+      <label>Stage X<br><input type="number" id="stageX" value="360"></label>
+      <label>Stage Y<br><input type="number" id="stageY" value="240"></label>
+    </div>
+
+    <div class="row">
+      <label>Workflow<br>
+        <select id="workflow">
+          <option value="single_clip" selected>Use One Clip And Add A New Frame Each Paste</option>
+          <option value="main_timeline">Add To Main Timeline Frame By Frame</option>
+          <option value="selected_frame">Add To Selected Frame</option>
+        </select>
+      </label>
+
+      <label>Clip Name<br><input type="text" id="clipName" value="ClipboardClip"></label>
+    </div>
+
+    <div class="row">
+      <label>Numbering<br>
+        <select id="numberMode">
+          <option value="auto" selected>Continue From Existing Assets</option>
+          <option value="manual">Use Last Number Below</option>
+        </select>
+      </label>
+      <label>Last Number<br><input type="number" id="lastNumber" value="0" min="0"></label>
+    </div>
+
+    <button id="pasteBtn">Paste Clipboard Image</button>
+
+    <div id="consoleLog">Ready.</div>
+  </div>
+
+  <script>
+var F_Screen = 1;
+(function () {
+  "use strict";
+
+  var logEl = document.getElementById("consoleLog");
+  var btn = document.getElementById("pasteBtn");
+
+  function log(msg, cls) {
+    var line = String(msg || "");
+    if (cls === "warn") line = "⚠ " + line;
+    if (cls === "err") line = "❌ " + line;
+    logEl.textContent += (logEl.textContent ? "\n" : "") + line;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function isFn(f) { return typeof f === "function"; }
+
+  function getBridge() {
+    try {
+      return window.LukeToolsBridge ||
+             (window.parent && window.parent.LukeToolsBridge) ||
+             window.LukeToolsLocalPanelBridge ||
+             (window.parent && window.parent.LukeToolsLocalPanelBridge) ||
+             null;
+    } catch (e) { return null; }
+  }
+
+  function getEditor(bridge) {
+    try { if (bridge && isFn(bridge.getEditor)) return bridge.getEditor(); } catch (e1) {}
+    try { if (window.parent && window.parent.editor) return window.parent.editor; } catch (e2) {}
+    try { if (window.editor) return window.editor; } catch (e3) {}
+    return null;
+  }
+
+  function getProject(bridge, ed) {
+    try { if (bridge && isFn(bridge.getProject)) return bridge.getProject(); } catch (e1) {}
+    try { if (ed && ed.project) return ed.project; } catch (e2) {}
+    return null;
+  }
+
+  function getWickNS() {
+    try { return (window.Wick || (window.parent && window.parent.Wick)) || null; } catch (e) { return null; }
+  }
+
+  function forceRefresh(ed, project) {
+    try { if (ed && isFn(ed.projectDidChange)) ed.projectDidChange(); } catch (e1) {}
+    try { if (ed && isFn(ed.syncInterfaces)) ed.syncInterfaces(); } catch (e2) {}
+    try { if (ed && isFn(ed.updateUI)) ed.updateUI(); } catch (e3) {}
+    try { if (ed && isFn(ed.refresh)) ed.refresh(); } catch (e4) {}
+    try { if (ed && ed.canvas && isFn(ed.canvas.redraw)) ed.canvas.redraw(); } catch (e5) {}
+    try { if (ed && isFn(ed.refreshCanvas)) ed.refreshCanvas(); } catch (e6) {}
+    try { if (project && isFn(project.resetCache)) project.resetCache(); } catch (e7) {}
+    try { if (project && project.view && isFn(project.view.render)) project.view.render(); } catch (e8) {}
+    try { window.dispatchEvent(new Event("resize")); } catch (e9) {}
+  }
+
+  function stripExtension(name) {
+    var s = String(name || "");
+    var dot = s.lastIndexOf(".");
+    return dot > 0 ? s.slice(0, dot) : s;
+  }
+
+  function toFileNameBase(s) {
+    s = String(s || "Clipboard_Image").trim();
+    if (!s) s = "Clipboard_Image";
+    return s.replace(/[^A-Za-z0-9_\- ]+/g, "_").replace(/\s+/g, "_");
+  }
+
+  function pad3(n) {
+    n = Math.max(0, Number(n) || 0);
+    var s = String(Math.floor(n));
+    while (s.length < 3) s = "0" + s;
+    return s;
+  }
+
+  function listAssets(project) {
+    try {
+      return (project && isFn(project.getAssets)) ? (project.getAssets() || []) : ((project && project.assets) ? (project.assets || []) : []);
+    } catch (e) { return []; }
+  }
+
+  function chosenSequence(project, base) {
+    var mode = document.getElementById("numberMode").value;
+    if (mode === "manual") {
+      var last = Number(document.getElementById("lastNumber").value) || 0;
+      return Math.max(1, last + 1);
+    }
+    var safe = String(base || "Clipboard_Image").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    var rx = new RegExp("^" + safe + "_(\\d{3})", "i");
+    var max = 0;
+    listAssets(project).forEach(function(a){
+      var nm = String((a && (a.name || a.filename)) || "");
+      var bare = stripExtension(nm);
+      var m = bare.match(rx);
+      if (m) {
+        var n = Number(m[1]) || 0;
+        if (n > max) max = n;
+      }
+    });
+    return max + 1;
+  }
+
+  function listAssetUUIDs(project) {
+    return listAssets(project).map(function (a) { return a && a.uuid; }).filter(Boolean);
+  }
+
+  function waitForNewAsset(project, beforeUUIDs, expectedName, timeoutMs) {
+    var start = Date.now();
+    var beforeSet = {};
+    beforeUUIDs.forEach(function(id){ beforeSet[id] = true; });
+
+    return new Promise(function(resolve, reject){
+      (function tick(){
+        try {
+          var assets = listAssets(project);
+          for (var i = 0; i < assets.length; i++) {
+            var a = assets[i];
+            if (!a || !a.uuid || beforeSet[a.uuid]) continue;
+            var nm = String(a.name || a.filename || "");
+            if (nm === String(expectedName)) return resolve(a);
+          }
+        } catch (e) {}
+        if (Date.now() - start > timeoutMs) return reject(new Error("Timeout waiting for imported clipboard asset."));
+        setTimeout(tick, 120);
+      })();
+    });
+  }
+
+  function selectionClear(project, ed) {
+    try { if (project && project.selection && typeof project.selection.clear === "function") project.selection.clear(); } catch (e1) {}
+    try { if (ed && typeof ed.clearSelection === "function") ed.clearSelection(); } catch (e2) {}
+  }
+
+  function selectionSelectSingle(project, ed, obj) {
+    selectionClear(project, ed);
+    try {
+      if (project && project.selection && typeof project.selection.select === "function") {
+        project.selection.select(obj);
+        return true;
+      }
+    } catch (e1) {}
+    return false;
+  }
+
+  function getSelectedObject(project, ed) {
+    try { if (project && project.selection && typeof project.selection.getSelectedObject === "function") return project.selection.getSelectedObject(); } catch (e1) {}
+    try { if (ed && ed.selectedObjects && ed.selectedObjects.length) return ed.selectedObjects[0]; } catch (e2) {}
+    return null;
+  }
+
+  function getSelectedClip(project, ed) {
+    var clip = getSelectedObject(project, ed);
+    if (!clip) return null;
+    try { if (clip.timeline || clip._timeline || clip.clipAsset) return clip; } catch (e3) {}
+    return null;
+  }
+
+  function getMainTimeline(project) {
+    try { if (project && project.root && project.root.timeline) return project.root.timeline; } catch (e1) {}
+    try { if (project && project.timeline) return project.timeline; } catch (e2) {}
+    try { if (project && project.activeTimeline) return project.activeTimeline; } catch (e3) {}
+    return null;
+  }
+
+  function getMainLayer(project) {
+    var tl = getMainTimeline(project);
+    if (!tl) return null;
+    try { if (tl.activeLayer) return tl.activeLayer; } catch (e1) {}
+    try { if (tl.layers && tl.layers.length) return tl.layers[0]; } catch (e2) {}
+    return null;
+  }
+
+  function setTimelinePlayhead(tl, frameNumber) {
+    try { tl.playheadPosition = frameNumber; return true; } catch (e1) {}
+    return false;
+  }
+
+  function getFrameAt(layer, frameNumber) {
+    try { if (layer && typeof layer.getFrameAtPlayheadPosition === "function") return layer.getFrameAtPlayheadPosition(frameNumber); } catch (e1) {}
+    try { if (layer && typeof layer.getFrameAt === "function") return layer.getFrameAt(frameNumber); } catch (e2) {}
+    return null;
+  }
+
+  function ensureBlankFrameAt(layer, frameNumber) {
+    if (!layer) return null;
+    var existing = getFrameAt(layer, frameNumber);
+    if (existing && Number(existing.start || frameNumber) === frameNumber && Number(existing.end || frameNumber) === frameNumber) {
+      return existing;
+    }
+    try {
+      if (typeof layer.insertBlankFrame === "function") {
+        try { return layer.insertBlankFrame(frameNumber); } catch (e1) {}
+        try { return layer.insertBlankFrame(); } catch (e2) {}
+      }
+    } catch (e3) {}
+    return getFrameAt(layer, frameNumber);
+  }
+
+  function clearFrameContents(frame) {
+    if (!frame) return;
+    try {
+      if (frame.paths && frame.paths.length) {
+        frame.paths.slice().forEach(function(p){
+          try { if (p && typeof p.remove === "function") p.remove(); } catch (e1) {}
+          try { if (frame.removePath) frame.removePath(p); } catch (e2) {}
+        });
+      }
+    } catch (e3) {}
+    try {
+      if (frame.clips && frame.clips.length) {
+        frame.clips.slice().forEach(function(c){
+          try { if (c && typeof c.remove === "function") c.remove(); } catch (e4) {}
+          try { if (frame.removeClip) frame.removeClip(c); } catch (e5) {}
+        });
+      }
+    } catch (e6) {}
+  }
+
+  function countFramesInLayer(layer) {
+    var maxEnd = 1;
+    (layer && layer.frames ? layer.frames : []).forEach(function(fr){
+      var start = Number(fr && fr.start) || 1;
+      var end = Number(fr && (fr.end !== undefined ? fr.end : fr.start)) || start;
+      if (end < start) end = start;
+      if (end > maxEnd) maxEnd = end;
+    });
+    return maxEnd;
+  }
+
+  function trimPreviousFrameForAppend(layer, frameNum) {
+    if (!layer || frameNum <= 1) return;
+    var prev = getFrameAt(layer, frameNum - 1);
+    if (!prev) return;
+    try { prev.end = frameNum - 1; } catch (e1) {}
+  }
+
+  function placeImagePathFromAsset(project, assetUuid, x, y) {
+    return new Promise(function(resolve, reject){
+      try {
+        var Wick = getWickNS();
+        if (!Wick || !Wick.ObjectCache || typeof Wick.ObjectCache.getObjectByUUID !== "function") {
+          return reject(new Error("Wick.ObjectCache not available"));
+        }
+        var assetObj = Wick.ObjectCache.getObjectByUUID(assetUuid);
+        if (!assetObj) return reject(new Error("Asset not found in ObjectCache: " + assetUuid));
+        if (typeof project.createImagePathFromAsset !== "function") {
+          return reject(new Error("project.createImagePathFromAsset is not available"));
+        }
+        project.createImagePathFromAsset(assetObj, x, y, function(path){ resolve(path); });
+      } catch (err) { reject(err); }
+    });
+  }
+
+  async function readClipboardImageFile(baseName) {
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+      throw new Error("navigator.clipboard.read() is not available in this browser context.");
+    }
+    var items = await navigator.clipboard.read();
+    if (!items || !items.length) throw new Error("Clipboard is empty or unreadable.");
+
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var types = item.types || [];
+      for (var t = 0; t < types.length; t++) {
+        var type = String(types[t] || "");
+        if (type.indexOf("image/") === 0) {
+          var blob = await item.getType(type);
+          var ext = "png";
+          if (type === "image/jpeg") ext = "jpg";
+          else if (type === "image/webp") ext = "webp";
+          else if (type === "image/gif") ext = "gif";
+          var fileName = baseName + "." + ext;
+          return new File([blob], fileName, { type: type });
+        }
+      }
+    }
+    throw new Error("Clipboard does not contain an image blob.");
+  }
+
+  async function getImageDimensionsFromFile(file){
+    return await new Promise(function(resolve, reject){
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function(){
+        try{ URL.revokeObjectURL(url); }catch(e0){}
+        resolve({w:Number(img.naturalWidth || img.width || 0) || 0, h:Number(img.naturalHeight || img.height || 0) || 0});
+      };
+      img.onerror = function(){
+        try{ URL.revokeObjectURL(url); }catch(e1){}
+        reject(new Error("Could not read clipboard image dimensions."));
+      };
+      img.src = url;
+    });
+  }
+
+  function scalePlacedImage(path, projectW, projectH, imageW, imageH) {
+    var maxW = Math.max(1, Number(projectW) || imageW || 1);
+    var maxH = Math.max(1, Number(projectH) || imageH || 1);
+    var iw = Math.max(1, Number(imageW) || maxW);
+    var ih = Math.max(1, Number(imageH) || maxH);
+    var scale = Math.min(1, maxW / iw, maxH / ih);
+    try { if (path && path.view && path.view.item) path.view.item.scaling = {x:scale, y:scale}; } catch (e1) {}
+    try { if (path && path.transformation) { if (path.transformation.scaleX !== undefined) path.transformation.scaleX = scale; if (path.transformation.scaleY !== undefined) path.transformation.scaleY = scale; } } catch (e2) {}
+    try { if (path) { if (path.scaleX !== undefined) path.scaleX = scale; if (path.scaleY !== undefined) path.scaleY = scale; } } catch (e3) {}
+    return scale;
+  }
+
+  function findStageClipByName(project, name) {
+    try {
+      var tl = project && project.root && project.root.timeline;
+      if (!tl) return null;
+      var layers = tl.layers || [];
+      for (var i = 0; i < layers.length; i++) {
+        var layer = layers[i];
+        var frames = layer && layer.frames ? layer.frames : [];
+        for (var j = 0; j < frames.length; j++) {
+          var fr = frames[j];
+          var clips = [];
+          try { if (fr && fr.clips) clips = clips.concat(fr.clips); } catch (e1) {}
+          try { if (fr && fr.children) clips = clips.concat(fr.children); } catch (e2) {}
+          for (var c = 0; c < clips.length; c++) {
+            var clip = clips[c];
+            var nm = String((clip && (clip.identifier || clip._identifier || clip.name)) || "");
+            if (nm === name) return clip;
+          }
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function focusClipTimeline(project, clipObj) {
+    var focused = false;
+    try { if (project.selection) { project.selection.clear(); project.selection.select(clipObj); } } catch (e1) {}
+    try { if (isFn(project.focusTimelineOfSelectedClip)) focused = project.focusTimelineOfSelectedClip(); } catch (e2) { focused = false; }
+    if (!focused) {
+      try { project.focus = clipObj; focused = true; } catch (e3) { focused = false; }
+    }
+    if (!focused || !project.focus || !project.focus.timeline) throw new Error("Could not focus into target clip timeline.");
+    return project.focus.timeline;
+  }
+
+  function createClipFromSelection(project, ed, identifier) {
+    try {
+      if (project && typeof project.createClipFromSelection === "function") {
+        project.createClipFromSelection({ identifier: String(identifier || "Clip"), type: "Clip" });
+        return { ok: true };
+      }
+    } catch (e1) {}
+    try {
+      if (ed && typeof ed.createClipFromSelection === "function") {
+        ed.createClipFromSelection(String(identifier || "Clip"), true);
+        return { ok: true };
+      }
+    } catch (e2) {}
+    return { ok: false };
+  }
+
+  async function createOrReuseSingleClip(project, ed, x, y, clipName, asset, dims) {
+    var clipObj = findStageClipByName(project, clipName);
+    if (clipObj) return clipObj;
+
+    var stagePath = await placeImagePathFromAsset(project, asset.uuid, x, y);
+    if (!stagePath) throw new Error("Could not create stage instance for single clip.");
+    scalePlacedImage(stagePath, project.width || 720, project.height || 480, dims.w, dims.h);
+    selectionSelectSingle(project, ed, stagePath);
+
+    var made = createClipFromSelection(project, ed, clipName);
+    if (!made || !made.ok) throw new Error("Could not create single clip from pasted image.");
+    clipObj = getSelectedClip(project, ed);
+    if (!clipObj) throw new Error("Single clip was created but could not be retrieved.");
+    try { clipObj.identifier = clipName; } catch (e1) {}
+    try { clipObj.name = clipName; } catch (e2) {}
+    return clipObj;
+  }
+
+  async function makeFrameOnTimeline(tl, layer, frameMode) {
+    var frameNum;
+    var frame;
+    if (frameMode === "replace") {
+      frameNum = Number((tl && tl.playheadPosition) || 1) || 1;
+      setTimelinePlayhead(tl, frameNum);
+      frame = getFrameAt(layer, frameNum) || ensureBlankFrameAt(layer, frameNum);
+      if (!frame) throw new Error("Could not access current frame.");
+      clearFrameContents(frame);
+    } else {
+      frameNum = countFramesInLayer(layer) + 1;
+      trimPreviousFrameForAppend(layer, frameNum);
+      setTimelinePlayhead(tl, frameNum);
+      frame = ensureBlankFrameAt(layer, frameNum);
+      if (!frame) throw new Error("Could not create new frame " + frameNum + ".");
+      clearFrameContents(frame);
+      try { frame.start = frameNum; frame.end = frameNum; } catch (e1) {}
+    }
+    return { frameNum: frameNum, frame: frame };
+  }
+
+  async function run() {
+    var bridge = getBridge();
+    if (!bridge) throw new Error("Bridge not found. Make sure Luke Tools bridge is loaded.");
+    var ed = getEditor(bridge);
+    var project = getProject(bridge, ed);
+    if (!ed) throw new Error("Editor not found.");
+    if (!project) throw new Error("Project not found.");
+    if (typeof ed.createAssets !== "function") throw new Error("editor.createAssets is not available in this build.");
+
+    var base = toFileNameBase(document.getElementById("assetName").value);
+    var seq = chosenSequence(project, base);
+    var numberedBase = base + "_" + pad3(seq);
+
+    var x = Number(document.getElementById("stageX").value);
+    var y = Number(document.getElementById("stageY").value);
+    if (!isFinite(x)) x = (project.width || 720) / 2;
+    if (!isFinite(y)) y = (project.height || 480) / 2;
+
+    var workflow = document.getElementById("workflow").value;
+    var clipName = String(document.getElementById("clipName").value || "ClipboardClip").trim() || "ClipboardClip";
+
+    logEl.textContent = "";
+    log("Reading image from clipboard...");
+    var clipFile = await readClipboardImageFile(numberedBase);
+    var dims = await getImageDimensionsFromFile(clipFile);
+    log("Clipboard image found: " + clipFile.name + " (" + dims.w + "x" + dims.h + ")");
+    log("Asset sequence: " + pad3(seq));
+
+    log("Importing clipboard image into Asset Library...");
+    var beforeUUIDs = listAssetUUIDs(project);
+    ed.createAssets([clipFile], []);
+    var asset = await waitForNewAsset(project, beforeUUIDs, clipFile.name, 30000);
+    if (!asset) throw new Error("Imported clipboard asset was not found.");
+
+    if (workflow === "selected_frame") {
+      var mainTl = getMainTimeline(project);
+      var mainLayer = getMainLayer(project);
+      if (!mainTl || !mainLayer) throw new Error("Could not access main timeline.");
+      var frameNumCurrent = Number(mainTl.playheadPosition || 1) || 1;
+      setTimelinePlayhead(mainTl, frameNumCurrent);
+      var currentFrame = getFrameAt(mainLayer, frameNumCurrent) || ensureBlankFrameAt(mainLayer, frameNumCurrent);
+      if (!currentFrame) throw new Error("Could not access selected frame.");
+      clearFrameContents(currentFrame);
+      var currentPath = await placeImagePathFromAsset(project, asset.uuid, x, y);
+      var currentScale = scalePlacedImage(currentPath, project.width || 720, project.height || 480, dims.w, dims.h);
+      selectionSelectSingle(project, ed, currentPath);
+      forceRefresh(ed, project);
+      log("Done. Image placed on selected frame " + frameNumCurrent + ". Scale: " + Math.round((currentScale || 1) * 100) + "%");
+      return;
+    }
+
+    if (workflow === "main_timeline") {
+      var tlMain = getMainTimeline(project);
+      var layerMain = getMainLayer(project);
+      if (!tlMain || !layerMain) throw new Error("Could not access main timeline.");
+      log("Adding new frame on main timeline...");
+      var builtMain = await makeFrameOnTimeline(tlMain, layerMain, "append");
+      var mainPath = await placeImagePathFromAsset(project, asset.uuid, x, y);
+      var mainScale = scalePlacedImage(mainPath, project.width || 720, project.height || 480, dims.w, dims.h);
+      selectionSelectSingle(project, ed, mainPath);
+      forceRefresh(ed, project);
+      log("Done. Image placed on main timeline frame " + builtMain.frameNum + ". Scale: " + Math.round((mainScale || 1) * 100) + "%");
+      return;
+    }
+
+    if (workflow === "single_clip") {
+      log("Creating or reusing single clip...");
+      var clipObj = await createOrReuseSingleClip(project, ed, x, y, clipName, asset, dims);
+      var tlClip = focusClipTimeline(project, clipObj);
+      var layerClip = tlClip.activeLayer || (tlClip.layers && tlClip.layers[0]) || null;
+      if (!layerClip) throw new Error("Could not access single clip timeline.");
+
+      // FIX: single clip mode should append to the next frame inside the clip, not always replace frame 1
+      var nextClipFrame = countFramesInLayer(layerClip) + 1;
+      log("Adding new frame " + nextClipFrame + " in single clip...");
+      var builtClip = await makeFrameOnTimeline(tlClip, layerClip, "append");
+      var clipPath = await placeImagePathFromAsset(project, asset.uuid, 0, 0);
+      var clipScale = scalePlacedImage(clipPath, project.width || 720, project.height || 480, dims.w, dims.h);
+
+      try {
+        if (isFn(project.focusTimelineOfParentClip)) {
+          while (project.focus && !project.focus.isRoot) {
+            if (!project.focusTimelineOfParentClip()) break;
+          }
+        }
+      } catch (e1) {}
+
+      selectionSelectSingle(project, ed, clipObj);
+      forceRefresh(ed, project);
+      log("Done. Single clip now has image on frame " + builtClip.frameNum + ". Scale: " + Math.round((clipScale || 1) * 100) + "%");
+      return;
+    }
+
+    throw new Error("Unknown workflow.");
+  }
+
+  btn.addEventListener("click", function () {
+    btn.disabled = true;
+    run()
+      .catch(function (err) {
+        log(String(err && err.message ? err.message : err), "err");
+        try { console.error(err); } catch (e1) {}
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  });
+
+})();
+  </script>
+</body>
+</html>
