@@ -134,8 +134,8 @@
           "F_Screen": 0
         },
         {
-          "id": "Clip2Clip",
-          "label": "Clip2Clip",
+          "id": "Clipboard2Clip",
+          "label": "Clipboard2Clip",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Clip.svg",
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/clipboard2clip.txt",
           "action": "script",
