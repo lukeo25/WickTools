@@ -134,6 +134,14 @@
           "F_Screen": 0
         },
         {
+          "id": "Clip2Clip",
+          "label": "Clip2Clip",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Clip.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/clipboard2clip.txt",
+          "action": "script",
+          "F_Screen": 0
+        },        
+        {
           "id": "Spriter",
           "label": "Spriter",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Spriter.svg",
