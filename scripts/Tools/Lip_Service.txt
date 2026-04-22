@@ -562,17 +562,6 @@
     #btn-auto{ display:none; }
     .mouth-svg-img{ width:100%; height:100%; object-fit:contain; display:block; }
 
-    .floating-fullscreen-btn{ /* FIX */
-      position:fixed; /* FIX */
-      right:12px; /* FIX */
-      bottom:78px; /* FIX */
-      z-index:10001; /* FIX */
-      box-shadow: var(--shadow); /* FIX */
-    } /* FIX */
-
-    @media (max-width: 1100px){ /* FIX */
-      #btn-force-fullscreen{ display:none; } /* FIX */
-    } /* FIX */
 
 
   </style>
@@ -580,11 +569,9 @@
 
 <body>
   <div class="app" id="app">
-    <button class="btn small floating-fullscreen-btn" id="btn-force-fullscreen-floating">Force Full Screen</button> <!-- FIX -->
     <div class="menu" id="menuMain">
       <button class="btn small" id="btn-load">Load Audio</button>
       <button class="btn small" id="btn-load-project">Load Project</button>
-      <button class="btn small" id="btn-force-fullscreen">Force Full Screen</button> <!-- FIX -->
 
       <div class="group">
         <span class="label">FPS</span>
@@ -704,33 +691,6 @@ var F_Screen = 1;
   function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
   function el(q){ return document.querySelector(q); }
   function setStatus(t){ el("#status").textContent = t; }
-
-  async function forceToolFullscreen(){ // FIX
-    try{
-      var target = document.documentElement || document.body;
-      if (!target) return false;
-      if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement){
-        setStatus("Already fullscreen");
-        return true;
-      }
-      if (target.requestFullscreen){
-        await target.requestFullscreen();
-      } else if (target.webkitRequestFullscreen){
-        target.webkitRequestFullscreen();
-      } else if (target.msRequestFullscreen){
-        target.msRequestFullscreen();
-      } else {
-        setStatus("Fullscreen API not available");
-        return false;
-      }
-      setStatus("Fullscreen requested");
-      return true;
-    }catch(err){
-      console.error("Force fullscreen failed", err);
-      setStatus("Fullscreen blocked");
-      return false;
-    }
-  }
 
 
   function closeCtxMenu(){
@@ -2709,8 +2669,6 @@ let drag = {
     App.ui.btnLoadMouthImages = el("#btn-load-mouth-images"); // FIX
     App.ui.btnLoadMouthConfig = el("#btn-load-mouth-config"); // FIX
     App.ui.btnSaveMouthConfig = el("#btn-save-mouth-config"); // FIX
-    App.ui.btnForceFullscreen = el("#btn-force-fullscreen"); // FIX
-    App.ui.btnForceFullscreenFloating = el("#btn-force-fullscreen-floating"); // FIX
     App.ui.btnPlay = el("#btn-play");
     App.ui.btnStop = el("#btn-stop");
     App.ui.inpFps = el("#inp-fps");
@@ -2791,8 +2749,6 @@ let drag = {
     App.ui.btnLoadMouthImages.addEventListener("click", function(){ App.ui.fileMouthImages.click(); }); // FIX
     App.ui.btnLoadMouthConfig.addEventListener("click", function(){ App.ui.fileMouthConfig.click(); }); // FIX
     App.ui.btnSaveMouthConfig.addEventListener("click", async function(){ await saveMouthConfigToFile(); }); // FIX
-    App.ui.btnForceFullscreen.addEventListener("click", async function(){ await forceToolFullscreen(); }); // FIX
-    if (App.ui.btnForceFullscreenFloating) App.ui.btnForceFullscreenFloating.addEventListener("click", async function(){ await forceToolFullscreen(); }); // FIX
     App.ui.fileProject.addEventListener("change", async function(){
       if (!App.ui.fileProject.files || !App.ui.fileProject.files[0]) return;
       try{
