@@ -133,6 +133,7 @@
       margin:0;
     }
 
+
     .panel{
       border:1px solid var(--line);
       background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.12));
@@ -570,8 +571,9 @@
     } /* FIX */
 
     @media (max-width: 1100px){ /* FIX */
- /* FIX */
+      #btn-force-fullscreen{ display:none; } /* FIX */
     } /* FIX */
+
 
   </style>
 </head>
@@ -582,7 +584,7 @@
     <div class="menu" id="menuMain">
       <button class="btn small" id="btn-load">Load Audio</button>
       <button class="btn small" id="btn-load-project">Load Project</button>
-       <!-- FIX -->
+      <button class="btn small" id="btn-force-fullscreen">Force Full Screen</button> <!-- FIX -->
 
       <div class="group">
         <span class="label">FPS</span>
@@ -603,6 +605,7 @@
         <input id="inp-startframe" type="number" min="1" max="9999" step="1" value="1">
       </div>
       <!-- FIX removed end frame UI -->
+
 
       <button class="btn small" id="btn-download">Save Project</button>
       <button class="btn small" id="btn-send">Update Wick</button>
@@ -701,6 +704,15 @@ var F_Screen = 1;
   function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
   function el(q){ return document.querySelector(q); }
   function setStatus(t){ el("#status").textContent = t; }
+
+  async function forceToolFullscreen(){ // FIX
+    try{
+      var target = document.documentElement || document.body;
+      if (!target) return false;
+      if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement){
+        setStatus("Already fullscreen");
+        return true;
+      }
       if (target.requestFullscreen){
         await target.requestFullscreen();
       } else if (target.webkitRequestFullscreen){
@@ -719,6 +731,7 @@ var F_Screen = 1;
       return false;
     }
   }
+
 
   function closeCtxMenu(){
     if (App.ui && App.ui.ctxMenu) App.ui.ctxMenu.style.display = "none";
@@ -1053,6 +1066,7 @@ var F_Screen = 1;
     redrawAll(false);
     setStatus(assigned + " mouth image" + (assigned === 1 ? "" : "s") + " loaded");
   }
+
 
   function mountSvg(host, mouthKey){
     const uri = getMouthImageUri(mouthKey); // FIX
@@ -1648,6 +1662,7 @@ var F_Screen = 1;
     setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 2500);
   }
 
+
   function sanitizeFilename(name){
     const s = String(name || "").trim();
     if (!s) return "lipservice_project";
@@ -1675,6 +1690,8 @@ var F_Screen = 1;
     for (let i=0;i<len;i++) bytes[i] = bin.charCodeAt(i);
     return bytes.buffer;
   }
+
+
 
   // FIX: robustly read the currently selected clip info (name uuid identifier) using the same approach as GPT_Rotate_Slider_001.html
   function getBridge() {
@@ -1728,6 +1745,7 @@ var F_Screen = 1;
     try { if (!name && raw._clip && raw._clip.name) name = s(raw._clip.name).trim(); } catch (e5) {}
     try { if (!name && raw.asset && raw.asset.name) name = s(raw.asset.name).trim(); } catch (e6) {}
     try { if (!uuid && raw.asset && (raw.asset.uuid || raw.asset.id)) uuid = s(raw.asset.uuid || raw.asset.id).trim(); } catch (e7) {}
+
 
     // FIX: additional Wick selection shapes
     try { if (!name && raw.wickObject && raw.wickObject.name) name = s(raw.wickObject.name).trim(); } catch (e8) {}
@@ -1826,6 +1844,8 @@ var F_Screen = 1;
   function getTimelineEndFrame() { // FIX
     return 0; // FIX
   }
+
+
 
   async function exportProject(){
     const proj = {
@@ -2310,6 +2330,7 @@ let drag = {
       ensureAudioCtx();
       resumeAudioCtx();
       if (App.isPlaying) stopPlayback();
+
 
       const wantsPan = (ev.button === 1) || ev.altKey;
 
@@ -2892,6 +2913,7 @@ let drag = {
       }
     });
 
+
     App.ui.btnDownload.addEventListener("click", function(){ saveProjectToFile(); });
     
 App.ui.btnSend.addEventListener("click", function(){
@@ -3281,6 +3303,7 @@ scriptLines.push("    if (_ltWant && _ltHave === _ltWant) {"); // FIX
       } catch (e3) { raw = null; }
     }
 
+
     // FIX: final fallback to live editor selection (same approach as Rotate tool)
     if (!raw) {
       try {
@@ -3317,6 +3340,7 @@ scriptLines.push("    if (_ltWant && _ltHave === _ltWant) {"); // FIX
     console.log("[LipService] update wick write ok", ok);
 
   })();});
+
 
 App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
     App.ui.modalBackdrop.addEventListener("click", function(ev){
@@ -3394,6 +3418,7 @@ App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
       // FIX removed end frame init
 } catch(eTL) {} // FIX
   })();
+
 
 })();
 </script>
