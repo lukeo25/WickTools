@@ -105,6 +105,34 @@
       font-size:13px;
     }
 
+    .group.inline-frame{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex:0 0 auto;
+      white-space:nowrap;
+    }
+    .group.inline-frame label{
+      margin:0;
+      font-size:13px;
+      color:var(--text);
+      white-space:nowrap;
+    }
+    .group.inline-frame input{
+      width:72px;
+      min-width:72px;
+      max-width:72px;
+      text-align:center;
+      padding:6px 8px;
+      appearance:textfield;
+      -moz-appearance:textfield;
+    }
+    .group.inline-frame input::-webkit-outer-spin-button,
+    .group.inline-frame input::-webkit-inner-spin-button{
+      -webkit-appearance:none;
+      margin:0;
+    }
+
     .panel{
       border:1px solid var(--line);
       background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.12));
@@ -408,6 +436,23 @@
       gap:10px;
     }
 
+    .mouth-config-bar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin:0 0 10px 0;
+      align-items:center;
+    }
+    .mouth-actions-bottom{ /* FIX */
+      margin-top:10px; /* FIX */
+      display:flex; /* FIX */
+      flex-wrap:wrap; /* FIX */
+      gap:10px; /* FIX */
+      align-items:center; /* FIX */
+      justify-content:flex-start; /* FIX */
+      padding:2px 0 0 0; /* FIX */
+    } /* FIX */
+
     /* Script box in the top right corner */
     .script-panel{
       height:100%;
@@ -516,15 +561,28 @@
     #btn-auto{ display:none; }
     .mouth-svg-img{ width:100%; height:100%; object-fit:contain; display:block; }
 
+    .floating-fullscreen-btn{ /* FIX */
+      position:fixed; /* FIX */
+      right:12px; /* FIX */
+      bottom:78px; /* FIX */
+      z-index:10001; /* FIX */
+      box-shadow: var(--shadow); /* FIX */
+    } /* FIX */
+
+    @media (max-width: 1100px){ /* FIX */
+ /* FIX */
+    } /* FIX */
 
   </style>
 </head>
 
 <body>
   <div class="app" id="app">
+    <button class="btn small floating-fullscreen-btn" id="btn-force-fullscreen-floating">Force Full Screen</button> <!-- FIX -->
     <div class="menu" id="menuMain">
       <button class="btn small" id="btn-load">Load Audio</button>
       <button class="btn small" id="btn-load-project">Load Project</button>
+       <!-- FIX -->
 
       <div class="group">
         <span class="label">FPS</span>
@@ -540,12 +598,11 @@
         <label>Timeline Clip Name (optional)</label>
         <input id="inp-parentclip" type="text" value="" placeholder="Parent clip name">
       </div>
-      <div class="group" style="flex:1;">
-        <label>Timeline Start Frame</label>
-        <input id="inp-startframe" type="number" min="1" step="1" value="1">
+      <div class="group inline-frame">
+        <label for="inp-startframe">Timeline Start Frame</label>
+        <input id="inp-startframe" type="number" min="1" max="9999" step="1" value="1">
       </div>
       <!-- FIX removed end frame UI -->
-
 
       <button class="btn small" id="btn-download">Save Project</button>
       <button class="btn small" id="btn-send">Update Wick</button>
@@ -558,6 +615,8 @@
 
       <input id="file-audio" type="file" accept="audio/*" style="display:none">
       <input id="file-project" type="file" accept="application/json,.json,.lipproj" style="display:none">
+      <input id="file-mouth-images" type="file" accept="image/*,.svg" multiple style="display:none"> <!-- FIX -->
+      <input id="file-mouth-config" type="file" accept="application/json,.json,.lipmouths" style="display:none"> <!-- FIX -->
     </div>
 <div class="layout-mid">
       <div class="panel mouth-preview">
@@ -569,6 +628,11 @@
         <div class="grid-scroll">
           <div class="grid" id="mouthGrid"></div>
         </div>
+        <div class="mouth-actions-bottom"> <!-- FIX -->
+          <button class="btn small" id="btn-load-mouth-images">Load Mouth Images</button> <!-- FIX -->
+          <button class="btn small" id="btn-load-mouth-config">Load Mouth Config</button> <!-- FIX -->
+          <button class="btn small" id="btn-save-mouth-config">Save Mouth Config</button> <!-- FIX -->
+        </div> <!-- FIX -->
       </div>
 
       <div class="panel script-panel script-corner">
@@ -637,6 +701,24 @@ var F_Screen = 1;
   function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
   function el(q){ return document.querySelector(q); }
   function setStatus(t){ el("#status").textContent = t; }
+      if (target.requestFullscreen){
+        await target.requestFullscreen();
+      } else if (target.webkitRequestFullscreen){
+        target.webkitRequestFullscreen();
+      } else if (target.msRequestFullscreen){
+        target.msRequestFullscreen();
+      } else {
+        setStatus("Fullscreen API not available");
+        return false;
+      }
+      setStatus("Fullscreen requested");
+      return true;
+    }catch(err){
+      console.error("Force fullscreen failed", err);
+      setStatus("Fullscreen blocked");
+      return false;
+    }
+  }
 
   function closeCtxMenu(){
     if (App.ui && App.ui.ctxMenu) App.ui.ctxMenu.style.display = "none";
@@ -666,19 +748,19 @@ var F_Screen = 1;
 
   // Mouth palette: Disney/Hanna letter order (A-I), with an extra Rest button.
   // Internally we still keep the existing keys (rest, MBP, O, etc...) so older projects load.
-  const MOUTH_ORDER = ["rest","MBP","O","etc","E","AI","FV","L","U","WQ"]; // A..I..Rest
+  const MOUTH_ORDER = ["MBP","O","etc","E","AI","FV","L","U","WQ","rest"]; // A..I..Rest // FIX
 
   const MOUTH_LABELS = {
-    "rest": "A",
-    "MBP": "B",
-    "O": "C",
-    "etc": "D",
-    "E": "E",
-    "AI": "F",
-    "FV": "G",
-    "L": "H",
-    "U": "I",
-    "WQ": "Rest"
+    "MBP": "A", // FIX
+    "O": "B", // FIX
+    "etc": "C", // FIX
+    "E": "D", // FIX
+    "AI": "E", // FIX
+    "FV": "F", // FIX
+    "L": "G", // FIX
+    "U": "H", // FIX
+    "WQ": "I", // FIX
+    "rest": "Rest" // FIX
   };
 
   function mouthLabel(mouthKey){
@@ -712,6 +794,9 @@ var F_Screen = 1;
     blocks: [],
     selectedBlockId: "",
     frameMap: [],
+
+    customMouthImages: {}, // FIX
+    customMouthMeta: {}, // FIX
 
     ui: {}
   };
@@ -760,9 +845,217 @@ var F_Screen = 1;
     "FV": 1 // FIX
   };
 
+  const DEFAULT_MOUTH_IMAGES = Object.assign({}, MOUTH_IMAGES); // FIX
+  const DEFAULT_MOUTH_ORDER = MOUTH_ORDER.slice(0); // FIX
+
+  function getMouthImageUri(mouthKey){ // FIX
+    if (App.customMouthImages && App.customMouthImages[mouthKey]) return App.customMouthImages[mouthKey];
+    return MOUTH_IMAGES[mouthKey] || DEFAULT_MOUTH_IMAGES[mouthKey] || DEFAULT_MOUTH_IMAGES["rest"];
+  }
+
+  function isLikelyImageDataUri(v){ // FIX
+    return /^data:image\//i.test(String(v || "").trim());
+  }
+
+  function normaliseMouthSlotName(name){ // FIX
+    var raw = String(name || "").trim();
+    if (!raw) return "";
+    var lower = raw.toLowerCase();
+    var compact = lower.replace(/[^a-z0-9]/g, "");
+    var upper = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+    var alias = {
+      "a":"MBP", // FIX
+      "b":"O", // FIX
+      "c":"etc", // FIX
+      "d":"E", // FIX
+      "e":"AI", // FIX
+      "f":"FV", // FIX
+      "g":"L", // FIX
+      "h":"U", // FIX
+      "i":"WQ", // FIX
+      "rest":"rest",
+      "neutral":"rest",
+      "closed":"rest",
+      "mbp":"MBP",
+      "m":"MBP",
+      "p":"MBP",
+      "o":"O",
+      "round":"O",
+      "etc":"etc",
+      "ai":"AI",
+      "fv":"FV",
+      "v":"FV",
+      "l":"L",
+      "u":"U",
+      "wq":"WQ",
+      "restpose":"rest", // FIX
+      "idle":"rest" // FIX
+    };
+
+    if (alias[compact]) return alias[compact];
+    if (alias[lower]) return alias[lower];
+    if (alias[upper]) return alias[upper];
+
+    if (/\bmbp\b/i.test(raw)) return "MBP";
+    if (/\bfv\b/i.test(raw)) return "FV";
+    if (/\bwq\b/i.test(raw)) return "WQ";
+    if (/\bai\b/i.test(raw)) return "AI";
+    if (/\betc\b/i.test(raw)) return "etc";
+    if (/\brest\b/i.test(raw)) return "rest";
+
+    var parts = raw.split(/[^A-Za-z0-9]+/);
+    for (var i = 0; i < parts.length; i += 1){
+      var p = String(parts[i] || "").trim();
+      if (!p) continue;
+      var slot = normaliseMouthSlotName(p);
+      if (slot) return slot;
+    }
+    return "";
+  }
+
+  function refreshCurrentMouthPreview(){ // FIX
+    if (App.ui && App.ui.currentMouthHost){
+      mountSvg(App.ui.currentMouthHost, mouthAtFrame(App.playheadFrame));
+    }
+  }
+
+  function rebuildMouthGrid(){ // FIX
+    if (!App.ui || !App.ui.mouthGrid) return;
+    App.ui.mouthGrid.innerHTML = "";
+    for (let i=0;i<MOUTH_ORDER.length;i++){
+      const k = MOUTH_ORDER[i];
+      const b = document.createElement("button");
+      b.className = "mouth-btn" + (k === App.selectedMouth ? " active" : "");
+      b.dataset.mouth = k;
+
+      const mini = document.createElement("div");
+      mini.className = "mini";
+      mountSvg(mini, k);
+
+      const lab = document.createElement("div");
+      lab.className = "label";
+      lab.textContent = mouthLabel(k);
+
+      b.appendChild(mini);
+      b.appendChild(lab);
+
+      b.addEventListener("click", function(){
+        App.selectedMouth = k;
+        const changed = updateSelectedBlockMouth(k);
+        refreshMouthButtons();
+        redrawAll(false);
+        if (changed) setStatus("Block mouth updated");
+      });
+
+      App.ui.mouthGrid.appendChild(b);
+    }
+    refreshCurrentMouthPreview();
+  }
+
+  function getMouthConfigObject(){ // FIX
+    var images = {};
+    var meta = {};
+    for (var i = 0; i < MOUTH_ORDER.length; i += 1){
+      var key = MOUTH_ORDER[i];
+      images[key] = getMouthImageUri(key);
+      if (App.customMouthMeta && App.customMouthMeta[key]) meta[key] = App.customMouthMeta[key];
+    }
+    return {
+      version: 1,
+      app: "Lip Service Mouth Config",
+      savedAt: new Date().toISOString(),
+      order: MOUTH_ORDER.slice(0),
+      labels: Object.assign({}, MOUTH_LABELS),
+      images: images,
+      meta: meta
+    };
+  }
+
+  async function saveMouthConfigToFile(){ // FIX
+    var cfg = getMouthConfigObject();
+    var clipName = "";
+    try{ clipName = getClipName(); }catch(e){}
+    var base = sanitizeFilename((clipName ? clipName + "_" : "") + "mouth_config");
+    downloadText(base + ".json", JSON.stringify(cfg, null, 2), "application/json");
+    setStatus("Mouth config saved");
+  }
+
+  async function applyMouthConfig(cfg){ // FIX
+    if (!cfg || typeof cfg !== "object") throw new Error("Invalid mouth config");
+    var src = cfg.images && typeof cfg.images === "object" ? cfg.images : cfg.mouthImages;
+    if (!src || typeof src !== "object") throw new Error("No mouth images found in config");
+
+    App.customMouthImages = {};
+    App.customMouthMeta = {};
+
+    for (var i = 0; i < MOUTH_ORDER.length; i += 1){
+      var key = MOUTH_ORDER[i];
+      var value = src[key];
+      if (!isLikelyImageDataUri(value)) value = DEFAULT_MOUTH_IMAGES[key];
+      App.customMouthImages[key] = value || DEFAULT_MOUTH_IMAGES[key];
+      if (cfg.meta && cfg.meta[key]) App.customMouthMeta[key] = cfg.meta[key];
+      else App.customMouthMeta[key] = { slot:key, source:"config" };
+    }
+
+    rebuildMouthGrid();
+    refreshCurrentMouthPreview();
+    redrawAll(false);
+    setStatus("Mouth config loaded");
+  }
+
+  async function loadMouthConfigFile(file){ // FIX
+    var txt = await file.text();
+    var cfg = JSON.parse(txt);
+    await applyMouthConfig(cfg);
+  }
+
+  function fileToDataURL(file){ // FIX
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(){ resolve(String(reader.result || "")); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function loadCustomMouthImages(files){ // FIX
+    var list = Array.from(files || []);
+    if (!list.length) return;
+    var assigned = 0;
+
+    for (var i = 0; i < list.length; i += 1){
+      var file = list[i];
+      var slot = normaliseMouthSlotName(file && file.name ? file.name.replace(/\.[^.]+$/, "") : "");
+      if (!slot && list.length === 1) slot = App.selectedMouth || "rest";
+      if (!slot) continue;
+
+      var dataUrl = await fileToDataURL(file);
+      if (!isLikelyImageDataUri(dataUrl)) continue;
+
+      App.customMouthImages[slot] = dataUrl;
+      App.customMouthMeta[slot] = {
+        slot: slot,
+        fileName: file && file.name ? file.name : "",
+        fileType: file && file.type ? file.type : "",
+        source: "user"
+      };
+      assigned += 1;
+    }
+
+    if (!assigned){
+      setStatus("No mouth images matched slots");
+      return;
+    }
+
+    rebuildMouthGrid();
+    refreshCurrentMouthPreview();
+    redrawAll(false);
+    setStatus(assigned + " mouth image" + (assigned === 1 ? "" : "s") + " loaded");
+  }
 
   function mountSvg(host, mouthKey){
-    const uri = MOUTH_IMAGES[mouthKey] || MOUTH_IMAGES["rest"];
+    const uri = getMouthImageUri(mouthKey); // FIX
     const isMini = !!(host && host.classList && host.classList.contains("mini")); // FIX
     const scaleMap = isMini ? MOUTH_TILE_SCALES : MOUTH_PREVIEW_SCALES; // FIX
     const sc = (scaleMap[mouthKey] != null) ? scaleMap[mouthKey] : 1; // FIX // FIX
@@ -1355,7 +1648,6 @@ var F_Screen = 1;
     setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 2500);
   }
 
-
   function sanitizeFilename(name){
     const s = String(name || "").trim();
     if (!s) return "lipservice_project";
@@ -1383,8 +1675,6 @@ var F_Screen = 1;
     for (let i=0;i<len;i++) bytes[i] = bin.charCodeAt(i);
     return bytes.buffer;
   }
-
-
 
   // FIX: robustly read the currently selected clip info (name uuid identifier) using the same approach as GPT_Rotate_Slider_001.html
   function getBridge() {
@@ -1438,7 +1728,6 @@ var F_Screen = 1;
     try { if (!name && raw._clip && raw._clip.name) name = s(raw._clip.name).trim(); } catch (e5) {}
     try { if (!name && raw.asset && raw.asset.name) name = s(raw.asset.name).trim(); } catch (e6) {}
     try { if (!uuid && raw.asset && (raw.asset.uuid || raw.asset.id)) uuid = s(raw.asset.uuid || raw.asset.id).trim(); } catch (e7) {}
-
 
     // FIX: additional Wick selection shapes
     try { if (!name && raw.wickObject && raw.wickObject.name) name = s(raw.wickObject.name).trim(); } catch (e8) {}
@@ -1538,8 +1827,6 @@ var F_Screen = 1;
     return 0; // FIX
   }
 
-
-
   async function exportProject(){
     const proj = {
       version: 1,
@@ -1553,7 +1840,8 @@ var F_Screen = 1;
       clipName: getClipName(),
       scriptText: App.ui && App.ui.scriptText ? (App.ui.scriptText.value || "") : "",
       blocks: exportBlocksJSON().blocks,
-      frameMap: exportFrameMapJSON().frameMap
+      frameMap: exportFrameMapJSON().frameMap,
+      mouthConfig: getMouthConfigObject() // FIX
     };
 
     if (App.audioFileBytes && App.audioFileBytes.byteLength){
@@ -1586,6 +1874,11 @@ var F_Screen = 1;
     if (App.ui && App.ui.scriptText){
       App.ui.scriptText.value = proj.scriptText ? String(proj.scriptText) : "";
     }
+
+    // Mouth config
+    if (proj.mouthConfig && typeof proj.mouthConfig === "object"){ // FIX
+      try{ await applyMouthConfig(proj.mouthConfig); }catch(e){}
+    } // FIX
 
     // FPS
     if (proj.fps && Number.isFinite(Number(proj.fps))){
@@ -1622,6 +1915,10 @@ var F_Screen = 1;
     if (Number.isFinite(Number(proj.playheadFrame))){
       App.playheadFrame = Math.max(0, Math.floor(Number(proj.playheadFrame)));
     }
+
+    if ((!proj.mouthConfig || typeof proj.mouthConfig !== "object") && proj.mouthImages && typeof proj.mouthImages === "object"){ // FIX
+      try{ await applyMouthConfig({ images: proj.mouthImages, meta: proj.mouthMeta || {} }); }catch(e){}
+    } // FIX
 
     clampAllToTimeline();
     ensureBlocksExist();
@@ -1715,7 +2012,10 @@ function sendToWick(){
       const k = nodes[i].dataset.mouth;
       if (k === App.selectedMouth) nodes[i].classList.add("active");
       else nodes[i].classList.remove("active");
+      const mini = nodes[i].querySelector(".mini");
+      if (mini) mountSvg(mini, k); // FIX
     }
+    refreshCurrentMouthPreview(); // FIX
   }
 
   function findBlockAtFrame(frame){
@@ -2010,7 +2310,6 @@ let drag = {
       ensureAudioCtx();
       resumeAudioCtx();
       if (App.isPlaying) stopPlayback();
-
 
       const wantsPan = (ev.button === 1) || ev.altKey;
 
@@ -2382,8 +2681,15 @@ let drag = {
   function initUi(){
     App.ui.fileAudio = el("#file-audio");
     App.ui.fileProject = el("#file-project");
+    App.ui.fileMouthImages = el("#file-mouth-images"); // FIX
+    App.ui.fileMouthConfig = el("#file-mouth-config"); // FIX
     App.ui.btnLoad = el("#btn-load");
     App.ui.btnLoadProject = el("#btn-load-project");
+    App.ui.btnLoadMouthImages = el("#btn-load-mouth-images"); // FIX
+    App.ui.btnLoadMouthConfig = el("#btn-load-mouth-config"); // FIX
+    App.ui.btnSaveMouthConfig = el("#btn-save-mouth-config"); // FIX
+    App.ui.btnForceFullscreen = el("#btn-force-fullscreen"); // FIX
+    App.ui.btnForceFullscreenFloating = el("#btn-force-fullscreen-floating"); // FIX
     App.ui.btnPlay = el("#btn-play");
     App.ui.btnStop = el("#btn-stop");
     App.ui.inpFps = el("#inp-fps");
@@ -2454,40 +2760,18 @@ let drag = {
     App.ui.dlBlocksJson = el("#dl-blocks-json");
     App.ui.dlPapagayoDat = el("#dl-papagayo-dat");
 
-    App.ui.mouthGrid.innerHTML = "";
-    for (let i=0;i<MOUTH_ORDER.length;i++){
-      const k = MOUTH_ORDER[i];
-      const b = document.createElement("button");
-      b.className = "mouth-btn" + (k === App.selectedMouth ? " active" : "");
-      b.dataset.mouth = k;
-
-      const mini = document.createElement("div");
-      mini.className = "mini";
-      mountSvg(mini, k);
-
-      const lab = document.createElement("div");
-      lab.className = "label";
-      lab.textContent = mouthLabel(k);
-
-      b.appendChild(mini);
-      b.appendChild(lab);
-
-      b.addEventListener("click", function(){
-        App.selectedMouth = k;
-        const changed = updateSelectedBlockMouth(k);
-        refreshMouthButtons();
-        redrawAll(false);
-        if (changed) setStatus("Block mouth updated");
-      });
-
-      App.ui.mouthGrid.appendChild(b);
-    }
+    rebuildMouthGrid(); // FIX
 
     mountSvg(App.ui.currentMouthHost, mouthAtFrame(App.playheadFrame));
 
     App.ui.btnLoad.addEventListener("click", function(){ App.ui.fileAudio.click(); });
 
     App.ui.btnLoadProject.addEventListener("click", function(){ App.ui.fileProject.click(); });
+    App.ui.btnLoadMouthImages.addEventListener("click", function(){ App.ui.fileMouthImages.click(); }); // FIX
+    App.ui.btnLoadMouthConfig.addEventListener("click", function(){ App.ui.fileMouthConfig.click(); }); // FIX
+    App.ui.btnSaveMouthConfig.addEventListener("click", async function(){ await saveMouthConfigToFile(); }); // FIX
+    App.ui.btnForceFullscreen.addEventListener("click", async function(){ await forceToolFullscreen(); }); // FIX
+    if (App.ui.btnForceFullscreenFloating) App.ui.btnForceFullscreenFloating.addEventListener("click", async function(){ await forceToolFullscreen(); }); // FIX
     App.ui.fileProject.addEventListener("change", async function(){
       if (!App.ui.fileProject.files || !App.ui.fileProject.files[0]) return;
       try{
@@ -2500,6 +2784,24 @@ let drag = {
     App.ui.fileAudio.addEventListener("change", async function(){
       if (!App.ui.fileAudio.files || !App.ui.fileAudio.files[0]) return;
       await loadAudioFile(App.ui.fileAudio.files[0]);
+    });
+    App.ui.fileMouthImages.addEventListener("change", async function(){ // FIX
+      if (!App.ui.fileMouthImages.files || !App.ui.fileMouthImages.files.length) return;
+      try{
+        await loadCustomMouthImages(App.ui.fileMouthImages.files);
+      }catch(e){
+        setStatus("Mouth image load failed");
+      }
+      App.ui.fileMouthImages.value = "";
+    });
+    App.ui.fileMouthConfig.addEventListener("change", async function(){ // FIX
+      if (!App.ui.fileMouthConfig.files || !App.ui.fileMouthConfig.files[0]) return;
+      try{
+        await loadMouthConfigFile(App.ui.fileMouthConfig.files[0]);
+      }catch(e){
+        setStatus("Mouth config load failed");
+      }
+      App.ui.fileMouthConfig.value = "";
     });
 
     App.ui.btnPlay.addEventListener("click", function(){ togglePlay(); });
@@ -2589,7 +2891,6 @@ let drag = {
         }
       }
     });
-
 
     App.ui.btnDownload.addEventListener("click", function(){ saveProjectToFile(); });
     
@@ -2980,7 +3281,6 @@ scriptLines.push("    if (_ltWant && _ltHave === _ltWant) {"); // FIX
       } catch (e3) { raw = null; }
     }
 
-
     // FIX: final fallback to live editor selection (same approach as Rotate tool)
     if (!raw) {
       try {
@@ -3017,7 +3317,6 @@ scriptLines.push("    if (_ltWant && _ltHave === _ltWant) {"); // FIX
     console.log("[LipService] update wick write ok", ok);
 
   })();});
-
 
 App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
     App.ui.modalBackdrop.addEventListener("click", function(ev){
@@ -3095,7 +3394,6 @@ App.ui.btnCloseModal.addEventListener("click", function(){ closeModal(); });
       // FIX removed end frame init
 } catch(eTL) {} // FIX
   })();
-
 
 })();
 </script>
