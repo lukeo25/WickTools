@@ -202,7 +202,7 @@
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Bone.svg",
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/RotoBones.txt",
           "action": "tool",
-          "F_Screen": 1
+          "F_Screen": 0
         },        
         {
           "id": "Screen Record",
