@@ -1,71 +1,119 @@
 Copyright (c) 2026 Luke O’Donnell
 
-Permission is granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software) to use, copy, modify, and distribute the Software for noncommercial purposes only, subject to the terms below.
+LukeTools Plugin Licence
+
+This licence applies to the original LukeTools software, scripts, tools, interface code, configuration files, documentation, and related files created by Luke O’Donnell.
+
+The LukeTools software is an independently created plugin system and toolset that connects to Wick Editor. It is not a copy of Wick Editor, it does not include Wick Editor source code, and it does not grant any rights in Wick Editor itself. Wick Editor remains subject to its own licence.
 
 Definitions
 
 1.1 Licensor means Luke O’Donnell.
 
-1.2 You means the individual or entity exercising permissions under this license.
+1.2 You means the individual or entity exercising permissions under this licence.
 
-1.3 Software means the source code, build scripts, configuration files, and any other files included in the repository that are covered by copyright.
+1.3 LukeTools means the original software, scripts, tools, interface code, configuration files, documentation, and related files created by the Licensor.
 
-1.4 Noncommercial purpose means a purpose that is not primarily intended for, or directed toward, commercial advantage or monetary compensation.
+1.4 Wick Editor means the separate open source animation editor known as Wick Editor.
 
-1.5 Commercial purpose includes any of the following:
-a) selling, licensing, renting, or otherwise distributing the Software or a work that includes the Software for a fee
-b) using the Software in a product or service that is sold, licensed, monetized, or offered for a fee
-c) using the Software to provide paid services, consulting, or support
-d) using the Software in internal operations of a for profit entity where the Software supports, enables, or is part of revenue generating activity
-e) using the Software in advertising, lead generation, or other activities intended to generate commercial advantage
+1.5 Wicked Fork means the Licensor authorised fork or modified version of Wick Editor that is approved in writing by the Licensor for use with LukeTools.
 
-Grant of rights for noncommercial use
+1.6 Authorised use means use of LukeTools as a plugin for Wick Editor or the Wicked Fork by a person or entity that the Licensor has allowed to access, load, connect to, or use LukeTools.
 
-2.1 Subject to this license, You may use, copy, modify, and distribute the Software for noncommercial purposes.
+1.7 Replication means copying, reproducing, adapting, translating, rebuilding, porting, extracting, reusing, reverse engineering, or creating a substantially similar version of the LukeTools code, structure, interface, workflow, scripts, tools, or functionality.
 
-2.2 You may distribute modified versions of the Software for noncommercial purposes only, provided You comply with Section 3.
+1.8 Commercial purpose means any purpose that is primarily intended for, or directed toward, commercial advantage, business use, revenue generation, paid services, monetary compensation, product development, internal business operations, consulting, training, support, advertising, lead generation, or inclusion in a product or service offered for a fee.
 
-Conditions
+Grant of authorised use
 
-3.1 License notice and attribution
-Any distribution of the Software, modified or unmodified, must include all copyright notices and a copy of this license.
+2.1 Subject to this licence, the Licensor grants You permission to use LukeTools free of charge only as an authorised plugin for Wick Editor or the Wicked Fork.
 
-3.2 No removal of notices
-You may not remove or alter copyright, trademark, or other legal notices contained in the Software.
+2.2 This free permission is limited to the people and entities that the Licensor has allowed to connect to, access, load, or use LukeTools.
 
-3.3 No endorsement
-You may not state or imply that the Licensor endorses You or Your use of the Software without prior written permission.
+2.3 This free permission does not allow You to replicate LukeTools for any purpose other than authorised use as the LukeTools plugin for Wick Editor or the Wicked Fork.
 
-Commercial use prohibited without a separate license
+2.4 This free permission does not allow You to use LukeTools, or any replicated part of LukeTools, in any other fork, editor, application, platform, plugin system, commercial product, hosted service, training service, software package, or distribution without a separate written licence agreement from the Licensor.
 
-4.1 Commercial use is not permitted under this license.
+Restrictions
 
-4.2 If You want to use the Software for any commercial purpose, You must obtain a separate written commercial license from the Licensor before such use.
+3.1 You must not sell, license, rent, sublicense, monetise, package, host, distribute, or otherwise make LukeTools available for a commercial purpose without a separate written commercial licence agreement from the Licensor.
 
-4.3 If You use the Software for a commercial purpose without a separate written commercial license, You are in material breach of this license and the permissions granted to You under this license terminate automatically under Section 7.
+3.2 You must not replicate LukeTools, or any substantial part of LukeTools, for use outside the authorised LukeTools plugin for Wick Editor or the Wicked Fork without a separate written licence agreement from the Licensor.
+
+3.3 You must not use LukeTools, or any replicated part of LukeTools, in any fork of Wick Editor other than the Wicked Fork without a separate written licence agreement from the Licensor.
+
+3.4 You must not remove, obscure, or alter any copyright notice, attribution notice, licence notice, trademark notice, or other legal notice contained in LukeTools.
+
+3.5 You must not state or imply that the Licensor endorses You, Your project, Your fork, Your product, Your service, or Your use of LukeTools without prior written permission from the Licensor.
+
+3.6 You must not use LukeTools in a way that suggests that LukeTools is part of Wick Editor, owned by Wick Editor, endorsed by Wick Editor, or licensed by the Wick Editor maintainers, unless that statement is separately authorised by the relevant rights holder.
+
+Separate licence required
+
+4.1 A separate written licence agreement and licence fee are required before any of the following uses:
+
+a) use of LukeTools for a commercial purpose
+
+b) replication of LukeTools for any purpose other than authorised use as the LukeTools plugin for Wick Editor or the Wicked Fork
+
+c) use of LukeTools in any fork of Wick Editor other than the Wicked Fork
+
+d) use of LukeTools in any other editor, application, plugin system, software platform, learning platform, hosted service, or commercial workflow
+
+e) distribution of LukeTools as part of another software package, fork, product, repository, service, or hosted environment
+
+f) modification of LukeTools for use outside the authorised LukeTools plugin environment
+
+4.2 A separate licence agreement must be in writing and signed or otherwise expressly approved by the Licensor.
+
+Relationship to Wick Editor and third party licences
+
+5.1 LukeTools is original software created by the Licensor.
+
+5.2 This licence applies only to LukeTools and does not apply to Wick Editor or to any third party software.
+
+5.3 Nothing in this licence grants You any rights in Wick Editor beyond the rights You may already have under Wick Editor’s own licence.
+
+5.4 Nothing in this licence removes, limits, or changes any obligation You may have under the licence for Wick Editor or any other third party software.
+
+5.5 If You combine, bundle, integrate, modify, or distribute LukeTools with Wick Editor, a Wick Editor fork, or any other third party software, You are responsible for ensuring that Your use complies with all applicable licences.
+
+5.6 The Licensor does not grant permission for any person to use the Wick Editor licence, or any copyleft obligation connected with Wick Editor, as a basis to copy, reuse, extract, replicate, relicense, or commercially exploit the original LukeTools code outside the permissions expressly granted in this licence.
+
+Distribution
+
+6.1 You may distribute LukeTools only where the distribution is part of authorised use and is not for a commercial purpose.
+
+6.2 Any permitted distribution must include all copyright notices and a complete copy of this licence.
+
+6.3 Any permitted distribution of modified LukeTools files must clearly state that the files have been modified and must not imply that the modifications were made or endorsed by the Licensor unless the Licensor has approved that statement in writing.
 
 Contributions
 
-5.1 Unless You and the Licensor agree otherwise in writing, any contribution intentionally submitted for inclusion in the Software may be used, modified, and distributed by the Licensor under any terms the Licensor chooses.
+7.1 Unless You and the Licensor agree otherwise in writing, any contribution intentionally submitted to the Licensor for inclusion in LukeTools may be used, modified, licensed, relicensed, distributed, and commercially licensed by the Licensor under any terms the Licensor chooses.
 
-Disclaimer of warranty
-
-THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. YOU BEAR ALL RISK OF USING THE SOFTWARE.
+7.2 You confirm that any contribution You submit is either created by You or submitted with the necessary rights and permissions.
 
 Termination
 
-7.1 This license is effective until terminated.
+8.1 This licence is effective until terminated.
 
-7.2 Your rights under this license terminate automatically if You breach any term of this license.
+8.2 Your rights under this licence terminate automatically if You breach any term of this licence.
 
-7.3 Upon termination, You must cease all use and distribution of the Software and any copies in Your control, except that copies distributed to others under this license may remain with them unless they are also in breach.
+8.3 Upon termination, You must immediately cease all use, copying, modification, replication, distribution, hosting, and commercial exploitation of LukeTools and any copies in Your control.
+
+8.4 Termination does not limit any other rights or remedies available to the Licensor.
+
+Disclaimer of warranty
+
+THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT. YOU BEAR ALL RISK ARISING FROM USE OF THE SOFTWARE.
 
 Limitation of liability
 
-TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE LICENSOR WILL NOT BE LIABLE FOR ANY CLAIM, DAMAGE, LOSS, COST, EXPENSE, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH LUKE TOOLS, THIS LICENCE, OR THE USE OR OTHER DEALINGS IN LUKE TOOLS, WHETHER IN CONTRACT, TORT, NEGLIGENCE, STATUTE, OR OTHERWISE.
 
-How to request a commercial license
+Commercial licence requests
 
-To request a commercial license, contact the Licensor using the contact method listed in the repository README or the Licensor’s GitHub profile.
+To request a commercial licence, written permission for another fork, or permission to replicate LukeTools outside authorised use, contact the Licensor using the contact method listed in the repository README or the Licensor’s GitHub profile.
 
 End of terms
