@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LukeTools Bone Warp Stamp v13.5</title>
+<title>LukeTools Bone Warp Stamp v16.7</title> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -243,7 +243,7 @@ button.warn {
       <button class="tabBtn" data-tab="editbone">Edit Bone</button>
       <button class="tabBtn" data-tab="animate">Animate</button>
       <button class="tabBtn" data-tab="stamp">Commit</button>
-      <button class="tabBtn" data-tab="smoothsvg">Smooth SVG</button>
+      <button class="tabBtn" data-tab="smoothsvg">Smooth</button> <!-- FIX v16.2 -->
       <button class="tabBtn" data-tab="help">Help</button>
     </div>
   </div>
@@ -265,10 +265,13 @@ button.warn {
           <div class="row" style="margin-top:8px;">
             <button id="btnSetArea">Set Area</button>
             <button id="btnLoadImage" class="secondary">Load SVG</button>
+            <button id="btnUseSelectedCurve" class="secondary">Use Selected Wick Curve</button> <!-- FIX v14.4 -->
+            <button id="btnUseSelectedCurveRemove" class="secondary">Use Selected Curve And Remove Original</button> <!-- FIX v14.5 -->
             <button id="btnRefreshOverlay" class="secondary">Refresh Overlay</button>
             <button id="btnRemoveOverlay" class="secondary">Remove Overlay</button>
             <input type="file" id="fileImageLoader" accept=".svg,image/svg+xml" style="display:none;">
           </div>
+          <div class="row"><label>Curve point density</label><input type="range" id="rngSelectedCurvePointDensity" min="0" max="100" value="50"><span id="txtSelectedCurvePointDensity" class="small">50%</span></div> <!-- FIX v14.6 -->
           <div class="row"><label>Set area</label><div id="selectedInfo" class="small">No area set</div></div>
           <div class="row"><label>Loaded SVG</label><div id="sourceInfo" class="small">No SVG loaded</div></div>
           <div class="row"><label>Overlay</label><div id="overlayInfo" class="small">Not active</div></div>
@@ -416,10 +419,14 @@ button.warn {
       <div class="panelPage" data-page="editbone">
         <div class="section">
           <h3>Edit selected bone</h3>
-          <div class="notice">Use this tab for precise selected bone editing. Change head and tail positions, length, angle, and the envelope values. Values update the rest bone directly.</div>
+          <div class="notice">Use this tab for precise rest bone editing only. Click <b>Edit Bone</b> to move the bone position. Click <b>Edit Envelope</b> to adjust the influence envelope. This tab does not create animation keys.</div> <!-- FIX v16.6 -->
           <div class="row">
             <label>Selected bone</label>
             <div id="editBoneInfo" class="small">None</div>
+          </div>
+          <div class="row"> <!-- FIX v16.6 -->
+            <button id="btnEditBoneModeBone" class="secondary">Edit Bone</button>
+            <button id="btnEditBoneModeEnvelope" class="secondary">Edit Envelope</button>
           </div>
           <div class="row">
             <label>Head X</label>
@@ -545,6 +552,7 @@ button.warn {
               <option value="png" selected>PNG with transparency</option>
               <option value="svg">SVG mesh warp</option>
               <option value="svgNative">SVG Native point warp</option>
+              <option value="nativeCurve">Native Wick curves</option> <!-- FIX v14.8 -->
             </select>
           </div>
           <div class="row">
@@ -563,7 +571,7 @@ button.warn {
 
       <div class="panelPage" data-page="smoothsvg">
         <div class="section">
-          <h3>Smooth SVG</h3>
+          <h3>Smooth</h3> <!-- FIX v16.2 -->
           <div class="notice">Smooths the native SVG output and preview only. It does not change the bones. Use this when imported SVG points look jagged or segmented after warping.</div>
           <div class="row" style="margin-top:8px;">
             <label>Enable smoothing</label>
@@ -582,6 +590,10 @@ button.warn {
           <div class="row">
             <label>Preserve ends</label>
             <input type="checkbox" id="chkSvgSmoothPreserveEnds" checked>
+          </div>
+          <div class="row">
+            <label>Keep flat ends</label>
+            <input type="checkbox" id="chkSvgSmoothKeepFlatEnds" checked> <!-- FIX v16.2 -->
           </div>
           <div class="row">
             <button id="btnSvgSmoothPreview" class="secondary">Refresh Smooth Preview</button>
@@ -609,7 +621,10 @@ button.warn {
           <ol class="small" style="line-height:1.6; padding-left:18px;">
             <li>Click <b>Set Area</b> and drag the first placement area on the Wick stage.</li>
             <li>Click <b>Load SVG</b> and choose a normal SVG or Inkscape SVG file.</li>
-            <li>The Set Area frame is only used for initial placement. After loading, the visible tool overlay shows the SVG, bones, envelopes, handles, and Frame Bones.</li>
+            <li>Or select a Wick curve on the stage and click <b>Use Selected Wick Curve</b>. The selected curve is converted into an internal SVG source and its current stage bounds are used as the placement area.</li> <!-- FIX v14.4 -->
+            <li>Use <b>Use Selected Curve And Remove Original</b> if you want the tool to ingest the selected Wick curve and then delete the original stage object only after the conversion succeeds.</li> <!-- FIX v14.5 -->
+            <li>Use <b>Curve point density</b> before ingesting a selected Wick curve if the artwork needs more points for smoother bone bending. This inserts extra points between the existing corner points only. Corner points are preserved exactly, so the design is not smoothed, averaged, simplified, or rearranged.</li> <!-- FIX v14.7 -->
+            <li>The Set Area frame is only used for initial placement. After loading or converting a selected curve, the visible tool overlay shows the SVG, bones, envelopes, handles, and Frame Bones.</li>
             <li>The SVG keeps its aspect ratio. Mesh controls are not part of this SVG Native workflow.</li>
             <li>Wick pan and zoom are followed by the overlay, but pan and zoom are not recorded as animation.</li>
           </ol>
@@ -622,7 +637,7 @@ button.warn {
             <li>Click an existing bone to select it.</li>
             <li><b>Delete Selected Bone</b> only deletes the currently selected bone. After deletion, no other bone is deleted unless you select another bone and click delete again.</li>
             <li>Connected child bones keep their head locked to the parent tail and evaluate their angle relative to the parent bone.</li>
-            <li>Use <b>Edit Bone</b> for precise head, tail, length, angle, envelope, and strength values.</li>
+            <li>Use <b>Edit Bone</b> for precise rest bone position values and <b>Edit Envelope</b> for rest influence envelope values. These modes do not create animation keys.</li> <!-- FIX v16.6 -->
           </ol>
         </div>
         <div class="section">
@@ -641,7 +656,8 @@ button.warn {
         <div class="section">
           <h3>5. Animate</h3>
           <ol class="small" style="line-height:1.6; padding-left:18px;">
-            <li>Move the real Wick playhead to the frame you want to edit.</li>
+            <li>Move the real Wick playhead to the frame you want to key.</li> <!-- FIX v16.6 -->
+            <li>Use the <b>Animate</b> tab to set, clear, copy, and reset selected bone keys. Edit Bone is only for changing rest bone values.</li> <!-- FIX v16.5 -->
             <li>Drag a normal bone handle to create or update a key for only that bone.</li>
             <li>Normal bone key layers appear in the Wick timeline as locked proxy rows.</li>
             <li>Drag a normal bone key diamond in the Wick timeline to move that one bone key to another frame.</li>
@@ -650,9 +666,9 @@ button.warn {
           </ol>
         </div>
         <div class="section">
-          <h3>6. Smooth SVG</h3>
+          <h3>6. Smooth</h3> <!-- FIX v16.2 -->
           <ol class="small" style="line-height:1.6; padding-left:18px;">
-            <li>Use Smooth SVG only if the warped SVG looks too jagged or segmented.</li>
+            <li>Use Smooth only if the warped SVG looks too jagged or segmented.</li> <!-- FIX v16.2 -->
             <li>Smoothing affects the SVG Native preview and committed SVG output.</li>
             <li>Smoothing does not change the bones.</li>
           </ol>
@@ -685,6 +701,7 @@ button.warn {
 
   var App = {
     activeTab: 'source',
+    editBoneMode: 'bone', // FIX v16.6: Edit Bone tab has explicit non-keying edit modes.
     B: null,
     ed: null,
     project: null,
@@ -707,6 +724,10 @@ button.warn {
       captureMode: '', // FIX v5.5
       svgRaw: '', // FIX v7.1
       svgNative: null, // FIX v7.1
+      sourceTimeline: null, // FIX v14.8
+      sourceLayer: null, // FIX v14.8
+      sourceFrame: null, // FIX v14.8
+      sourceFrameNumber: 1, // FIX v14.8
       alphaMask: null,
       alphaThreshold: 254,
       opaqueBounds: null
@@ -728,7 +749,11 @@ button.warn {
       enabled: false,
       amount: 0.35,
       curveStrength: 0.70,
-      preserveEnds: true
+      preserveEnds: true,
+      keepFlatEnds: true // FIX v16.2
+    },
+    selectedCurve: { // FIX v14.6
+      pointDensity: 50
     },
     proxy: { // FIX v10.2
       active: false,
@@ -851,11 +876,11 @@ button.warn {
   }
 
   function boneProxyIdentifierForBone(bone){ // FIX v12.7
-    return makeValidIdentifier('BW_Key_' + String((bone && bone.name) || ('Bone_' + (bone && bone.id || ''))), 'BW_Key_Bone_' + (bone && bone.id || ''));
+    return makeValidIdentifier(String((bone && bone.name) || ('Bone_' + (bone && bone.id || ''))), 'Bone_' + (bone && bone.id || '')); // FIX v16.1
   }
 
   function frameBoneProxyIdentifierForFrameBone(frameBone){ // FIX v13.7
-    return makeValidIdentifier('BW_Frame_Key_' + String((frameBone && frameBone.name) || ('Frame_Bone_' + (frameBone && frameBone.id || ''))), 'BW_Frame_Key_' + (frameBone && frameBone.id || ''));
+    return makeValidIdentifier('F_Bone_' + (frameBone && frameBone.id || ''), 'F_Bone_' + (frameBone && frameBone.id || '')); // FIX v16.1
   }
 
 
@@ -927,6 +952,30 @@ button.warn {
     qa('.panelPage').forEach(function(page){ page.classList.toggle('active', page.getAttribute('data-page') === name); });
     updateEditBoneControls(); // FIX v6.7
     updateFrameBoneUI(); // FIX v13.2
+    renderOverlay();
+  }
+
+  function isRestBoneEditContext(){ // FIX v16.6
+    return App.activeTab === 'bones' || App.activeTab === 'editbone';
+  }
+
+  function isAnimateKeyContext(){ // FIX v16.6
+    return App.activeTab === 'animate';
+  }
+
+  function isEnvelopeDragType(type){ // FIX v16.6
+    return type === 'envHeadPos' || type === 'envHeadNeg' || type === 'envTailPos' || type === 'envTailNeg';
+  }
+
+  function editBoneModeAllowsDragType(type){ // FIX v16.6
+    if (App.activeTab !== 'editbone') return true;
+    if (App.editBoneMode === 'envelope') return isEnvelopeDragType(type);
+    return type === 'head' || type === 'tail' || type === 'line';
+  }
+
+  function setEditBoneMode(mode){ // FIX v16.6
+    App.editBoneMode = mode === 'envelope' ? 'envelope' : 'bone';
+    updateUI();
     renderOverlay();
   }
 
@@ -1048,6 +1097,9 @@ button.warn {
     if (el('rngSvgCurveStrength')) el('rngSvgCurveStrength').value = String(Math.round(App.smooth.curveStrength * 100)); // FIX v8.7
     if (el('txtSvgCurveStrength')) el('txtSvgCurveStrength').textContent = Math.round(App.smooth.curveStrength * 100) + '%'; // FIX v8.7
     if (el('chkSvgSmoothPreserveEnds')) el('chkSvgSmoothPreserveEnds').checked = !!App.smooth.preserveEnds; // FIX v8.7
+    if (el('chkSvgSmoothKeepFlatEnds')) el('chkSvgSmoothKeepFlatEnds').checked = App.smooth.keepFlatEnds !== false; // FIX v16.2
+    if (el('rngSelectedCurvePointDensity')) el('rngSelectedCurvePointDensity').value = String(Math.round(Number(App.selectedCurve.pointDensity || 0))); // FIX v14.6
+    if (el('txtSelectedCurvePointDensity')) { var curveDensityValue = Math.round(Number(App.selectedCurve.pointDensity || 0)); var curvePointStep = selectedCurveDensityToMaxStep(curveDensityValue); el('txtSelectedCurvePointDensity').textContent = curveDensityValue + '%  max gap ' + curvePointStep + ' px'; } // FIX v14.6
     if (el('frameCountInfo')) el('frameCountInfo').textContent = 'Using ' + App.frameCount + ' frame' + (App.frameCount === 1 ? '' : 's') + ' from the real Wick timeline.';
     el('keyInfo').textContent = App.keyframes[App.currentFrame] ? ('Keyed bones: ' + Object.keys(App.keyframes[App.currentFrame]).length) : 'No key on this frame'; // FIX v12.4
     if (el('selRigMode')) el('selRigMode').value = App.rig.mode;
@@ -1058,6 +1110,10 @@ button.warn {
     if (el('rngAlphaThreshold')) el('rngAlphaThreshold').value = String(Math.round(App.source.alphaThreshold));
     if (el('txtAlphaThreshold')) el('txtAlphaThreshold').textContent = String(Math.round(App.source.alphaThreshold));
     updateEditBoneControls(); // FIX v6.7
+    if (el('btnEditBoneModeBone')) el('btnEditBoneModeBone').classList.toggle('active', App.editBoneMode !== 'envelope'); // FIX v16.6
+    if (el('btnEditBoneModeEnvelope')) el('btnEditBoneModeEnvelope').classList.toggle('active', App.editBoneMode === 'envelope'); // FIX v16.6
+    if (el('btnEditBoneModeBone')) el('btnEditBoneModeBone').textContent = App.editBoneMode !== 'envelope' ? 'Edit Bone ✓' : 'Edit Bone'; // FIX v16.6
+    if (el('btnEditBoneModeEnvelope')) el('btnEditBoneModeEnvelope').textContent = App.editBoneMode === 'envelope' ? 'Edit Envelope ✓' : 'Edit Envelope'; // FIX v16.6
     renderBoneList();
     updateFrameBoneUI(); // FIX v13.2
   }
@@ -1511,7 +1567,7 @@ button.warn {
     return out;
   }
 
-  function smoothSvgLineRunToCurves(run, closed){ // FIX v8.7
+  function smoothSvgLineRunToCurves(run, closed){ // FIX v16.2
     if (!run || run.length < 2) return [];
     var amount = clamp(App.smooth.amount, 0, 1);
     var curve = clamp(App.smooth.curveStrength, 0, 1) * amount;
@@ -1522,11 +1578,42 @@ button.warn {
       return raw;
     }
     var pts = run.map(clone);
+    var lastIndex = closed ? pts.length : pts.length - 1;
+    var flatSegment = [];
+    if (App.smooth.keepFlatEnds !== false && lastIndex > 0) { // FIX v16.4
+      var lengths = [];
+      var usableLengths = []; // FIX v16.4
+      var minLen = Infinity;
+      for (var si = 0; si < lastIndex; si++) {
+        var sp1 = pts[si];
+        var sp2 = pts[(si + 1) % pts.length];
+        var sl = dist(sp1, sp2);
+        lengths.push(sl);
+        if (sl > 0.0001) { // FIX v16.4
+          usableLengths.push(sl); // FIX v16.4
+          if (sl < minLen) minLen = sl;
+        }
+      }
+      if (isFinite(minLen) && usableLengths.length > 1) { // FIX v16.4
+        usableLengths.sort(function(a,b){ return a - b; }); // FIX v16.4
+        var medianLen = usableLengths[Math.floor(usableLengths.length * 0.5)] || minLen; // FIX v16.4
+        var shortIsRealOutlier = minLen < medianLen * 0.72; // FIX v16.4: if density points make most segments equal, do not protect every segment and block smoothing.
+        if (shortIsRealOutlier) { // FIX v16.4
+          var flatLimit = minLen * 1.25;
+          for (var fi = 0; fi < lengths.length; fi++) flatSegment[fi] = lengths[fi] <= flatLimit;
+        }
+      }
+    }
     if (amount > 0.0001 && pts.length > 2) {
       var relaxed = pts.map(clone);
       for (var i = 0; i < pts.length; i++) {
         var isEnd = !closed && (i === 0 || i === pts.length - 1);
         if (App.smooth.preserveEnds && isEnd) continue;
+        if (App.smooth.keepFlatEnds !== false) { // FIX v16.2: endpoints of the shortest segments do not get relaxed.
+          var prevSeg = closed ? ((i - 1 + pts.length) % pts.length) : i - 1;
+          var nextSeg = i;
+          if ((prevSeg >= 0 && flatSegment[prevSeg]) || (nextSeg >= 0 && flatSegment[nextSeg])) continue;
+        }
         var p0 = pts[(i - 1 + pts.length) % pts.length];
         var p1 = pts[(i + 1) % pts.length];
         if (!closed && i === 0) p0 = pts[i];
@@ -1536,10 +1623,13 @@ button.warn {
       pts = relaxed;
     }
     var out = [{ type:'M', p: clone(pts[0]) }];
-    var lastIndex = closed ? pts.length : pts.length - 1;
     for (var j = 0; j < lastIndex; j++) {
       var p1a = pts[j];
       var p2a = pts[(j + 1) % pts.length];
+      if (App.smooth.keepFlatEnds !== false && flatSegment[j]) { // FIX v16.2: shortest flat end segments stay as straight line segments.
+        out.push({ type:'L', p: clone(p2a) });
+        continue;
+      }
       var p0a = pts[(j - 1 + pts.length) % pts.length];
       var p3a = pts[(j + 2) % pts.length];
       if (!closed && j === 0) p0a = p1a;
@@ -1891,6 +1981,404 @@ button.warn {
         reject(e);
       }
     });
+  }
+
+  function selectedCurveSvgEscape(value){ // FIX v14.4
+    return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function selectedCurveCssColor(value, fallback){ // FIX v14.4
+    if (value == null || value === '') return fallback;
+    try { if (typeof value === 'string') return value; } catch(e){}
+    try { if (value && typeof value.toCSS === 'function') return value.toCSS(true); } catch(e){}
+    try { if (value && typeof value.toCSS === 'function') return value.toCSS(); } catch(e){}
+    try {
+      if (value && typeof value.red === 'number' && typeof value.green === 'number' && typeof value.blue === 'number') {
+        var r = Math.round(clamp(value.red, 0, 1) * 255);
+        var g = Math.round(clamp(value.green, 0, 1) * 255);
+        var b = Math.round(clamp(value.blue, 0, 1) * 255);
+        var a = typeof value.alpha === 'number' ? clamp(value.alpha, 0, 1) : 1;
+        if (a < 1) return 'rgba(' + r + ',' + g + ',' + b + ',' + round(a) + ')';
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+      }
+    } catch(e){}
+    return fallback;
+  }
+
+  function selectedCurveNumber(value, fallback){ // FIX v14.4
+    var n = Number(value);
+    return isFinite(n) ? n : fallback;
+  }
+
+  function selectedCurveGetBounds(value){ // FIX v14.4
+    if (!value) return null;
+    try {
+      if (value.bounds) {
+        var b = value.bounds;
+        var x = selectedCurveNumber(b.x, selectedCurveNumber(b.left, NaN));
+        var y = selectedCurveNumber(b.y, selectedCurveNumber(b.top, NaN));
+        var w = selectedCurveNumber(b.width, selectedCurveNumber(b.w, NaN));
+        var h = selectedCurveNumber(b.height, selectedCurveNumber(b.h, NaN));
+        if (isFinite(x) && isFinite(y) && isFinite(w) && isFinite(h) && w > 0 && h > 0) return { x:x, y:y, w:w, h:h, cx:x + w * 0.5, cy:y + h * 0.5 };
+      }
+    } catch(e){}
+    try {
+      var ox = selectedCurveNumber(value.x, selectedCurveNumber(value.transformation && value.transformation.x, NaN));
+      var oy = selectedCurveNumber(value.y, selectedCurveNumber(value.transformation && value.transformation.y, NaN));
+      var ow = selectedCurveNumber(value.width, NaN);
+      var oh = selectedCurveNumber(value.height, NaN);
+      if (isFinite(ox) && isFinite(oy) && isFinite(ow) && isFinite(oh) && ow > 0 && oh > 0) return { x:ox - ow * 0.5, y:oy - oh * 0.5, w:ow, h:oh, cx:ox, cy:oy };
+    } catch(e){}
+    return null;
+  }
+
+  function selectedCurveFindPaperItem(obj){ // FIX v14.4
+    var seen = [];
+    function scan(value, depth){
+      if (!value || depth > 4) return null;
+      if (seen.indexOf(value) >= 0) return null;
+      seen.push(value);
+      try { if (typeof value.exportSVG === 'function') return value; } catch(e){}
+      var keys = ['view','_view','paper','_paper','path','_path','item','_item','paperItem','_paperItem','wickItem','_wickItem','projectItem','_projectItem','itemInstance','_itemInstance'];
+      for (var i = 0; i < keys.length; i++) {
+        try { var found = scan(value[keys[i]], depth + 1); if (found) return found; } catch(e){}
+      }
+      return null;
+    }
+    return scan(obj, 0);
+  }
+
+  function selectedCurvePaperBounds(item){ // FIX v14.4
+    if (!item) return null;
+    try {
+      var b = item.bounds;
+      if (b && isFinite(b.left) && isFinite(b.top) && isFinite(b.width) && isFinite(b.height) && b.width > 0 && b.height > 0) return { x:b.left, y:b.top, w:b.width, h:b.height, cx:b.left + b.width * 0.5, cy:b.top + b.height * 0.5 };
+    } catch(e){}
+    return null;
+  }
+
+  function selectedCurveExtractSvgInner(svgText){ // FIX v14.4
+    var raw = String(svgText || '').trim();
+    if (!raw) return '';
+    if (/^<svg[\s>]/i.test(raw)) {
+      try {
+        var doc = new DOMParser().parseFromString(raw, 'image/svg+xml');
+        var svg = doc.documentElement;
+        if (svg && /svg/i.test(svg.tagName)) return Array.prototype.slice.call(svg.childNodes || []).map(function(n){ return new XMLSerializer().serializeToString(n); }).join('\n');
+      } catch(e){}
+      return raw.replace(/^<svg\b[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
+    }
+    return raw;
+  }
+
+  function selectedCurveWrapSvgContent(innerSvg, bounds, fileName){ // FIX v14.4
+    bounds = bounds || { x:0, y:0, w:100, h:100 };
+    var w = Math.max(1, Math.ceil(bounds.w || 100));
+    var h = Math.max(1, Math.ceil(bounds.h || 100));
+    var x = selectedCurveNumber(bounds.x, 0);
+    var y = selectedCurveNumber(bounds.y, 0);
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">\n' + '<title>' + selectedCurveSvgEscape(fileName || 'Selected Wick Curve') + '</title>\n' + '<g transform="translate(' + round(-x) + ' ' + round(-y) + ')">\n' + String(innerSvg || '') + '\n</g>\n</svg>';
+  }
+
+  function selectedCurvePointXY(point){ // FIX v14.4
+    if (!point) return { x:0, y:0 };
+    return { x:selectedCurveNumber(point.x, selectedCurveNumber(point[0], 0)), y:selectedCurveNumber(point.y, selectedCurveNumber(point[1], 0)) };
+  }
+
+  function selectedCurveManualPathFromPaperItem(item, bounds){ // FIX v14.4
+    if (!item || !item.segments || !item.segments.length) return '';
+    bounds = bounds || selectedCurvePaperBounds(item) || { x:0, y:0, w:100, h:100 };
+    var segs = Array.prototype.slice.call(item.segments || []);
+    var d = [];
+    function localPoint(p){ return { x:round(p.x - bounds.x), y:round(p.y - bounds.y) }; }
+    var first = localPoint(selectedCurvePointXY(segs[0].point));
+    d.push('M ' + first.x + ' ' + first.y);
+    for (var i = 1; i < segs.length; i++) {
+      var prev = segs[i - 1];
+      var cur = segs[i];
+      var pp = selectedCurvePointXY(prev.point);
+      var cp = selectedCurvePointXY(cur.point);
+      var ho = selectedCurvePointXY(prev.handleOut);
+      var hi = selectedCurvePointXY(cur.handleIn);
+      var hasOut = Math.abs(ho.x) > 0.0001 || Math.abs(ho.y) > 0.0001;
+      var hasIn = Math.abs(hi.x) > 0.0001 || Math.abs(hi.y) > 0.0001;
+      var end = localPoint(cp);
+      if (hasOut || hasIn) {
+        var c1 = localPoint({ x:pp.x + ho.x, y:pp.y + ho.y });
+        var c2 = localPoint({ x:cp.x + hi.x, y:cp.y + hi.y });
+        d.push('C ' + c1.x + ' ' + c1.y + ' ' + c2.x + ' ' + c2.y + ' ' + end.x + ' ' + end.y);
+      } else d.push('L ' + end.x + ' ' + end.y);
+    }
+    try { if (item.closed) d.push('Z'); } catch(e){}
+    var fill = 'none';
+    var stroke = '#000000';
+    var strokeWidth = 1;
+    try { fill = selectedCurveCssColor(item.fillColor, 'none'); } catch(e){}
+    try { stroke = selectedCurveCssColor(item.strokeColor, '#000000'); } catch(e){}
+    try { strokeWidth = selectedCurveNumber(item.strokeWidth, 1); } catch(e){}
+    if (!stroke || stroke === 'none') stroke = '#000000';
+    return '<path d="' + selectedCurveSvgEscape(d.join(' ')) + '" fill="' + selectedCurveSvgEscape(fill || 'none') + '" stroke="' + selectedCurveSvgEscape(stroke || '#000000') + '" stroke-width="' + selectedCurveSvgEscape(strokeWidth) + '" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+
+  function selectedCurveManualRectSvg(obj, bounds){ // FIX v14.4
+    bounds = bounds || { x:0, y:0, w:100, h:100 };
+    var fill = 'none';
+    var stroke = '#000000';
+    var strokeWidth = 1;
+    try { fill = selectedCurveCssColor(obj.fillColor || obj.fill, 'none'); } catch(e){}
+    try { stroke = selectedCurveCssColor(obj.strokeColor || obj.stroke, '#000000'); } catch(e){}
+    try { strokeWidth = selectedCurveNumber(obj.strokeWidth || obj.stroke_width, 1); } catch(e){}
+    return '<rect x="0" y="0" width="' + Math.max(1, round(bounds.w)) + '" height="' + Math.max(1, round(bounds.h)) + '" fill="' + selectedCurveSvgEscape(fill || 'none') + '" stroke="' + selectedCurveSvgEscape(stroke || '#000000') + '" stroke-width="' + selectedCurveSvgEscape(strokeWidth) + '"/>';
+  }
+
+  function selectedCurveDensityToMaxStep(value){ // FIX v14.6
+    var density = clamp(Number(value || 0), 0, 100);
+    return Math.max(2, Math.round(42 - (density * 0.40)));
+  }
+
+  function selectedCurveStyleAttributesFromPaperItem(item){ // FIX v14.6
+    var fill = 'none';
+    var stroke = '#000000';
+    var strokeWidth = 1;
+    var opacity = 1;
+    try { fill = selectedCurveCssColor(item && item.fillColor, 'none'); } catch(e){}
+    try { stroke = selectedCurveCssColor(item && item.strokeColor, '#000000'); } catch(e){}
+    try { strokeWidth = selectedCurveNumber(item && item.strokeWidth, 1); } catch(e){}
+    try { opacity = selectedCurveNumber(item && item.opacity, 1); } catch(e){}
+    if (!stroke || stroke === 'none') stroke = '#000000';
+    var attrs = ' fill="' + selectedCurveSvgEscape(fill || 'none') + '" stroke="' + selectedCurveSvgEscape(stroke || '#000000') + '" stroke-width="' + selectedCurveSvgEscape(strokeWidth) + '" stroke-linecap="round" stroke-linejoin="round"';
+    if (isFinite(opacity) && opacity >= 0 && opacity < 1) attrs += ' opacity="' + selectedCurveSvgEscape(round(opacity)) + '"';
+    return attrs;
+  }
+
+  function selectedCurveHasHandle(handle){ // FIX v14.7
+    var h = selectedCurvePointXY(handle || { x:0, y:0 });
+    return Math.abs(h.x) > 0.0001 || Math.abs(h.y) > 0.0001;
+  }
+
+  function selectedCurveBezierPoint(p0, p1, p2, p3, t){ // FIX v14.7
+    var mt = 1 - t;
+    var mt2 = mt * mt;
+    var t2 = t * t;
+    return {
+      x: (mt2 * mt * p0.x) + (3 * mt2 * t * p1.x) + (3 * mt * t2 * p2.x) + (t2 * t * p3.x),
+      y: (mt2 * mt * p0.y) + (3 * mt2 * t * p1.y) + (3 * mt * t2 * p2.y) + (t2 * t * p3.y)
+    };
+  }
+
+  function selectedCurveSegmentLengthEstimate(p0, p1, p2, p3, isCurve){ // FIX v14.7
+    if (!isCurve) return dist(p0, p3);
+    var total = 0;
+    var prev = p0;
+    for (var i = 1; i <= 16; i++) {
+      var pt = selectedCurveBezierPoint(p0, p1, p2, p3, i / 16);
+      total += dist(prev, pt);
+      prev = pt;
+    }
+    return total;
+  }
+
+  function selectedCurvePushSegmentPoints(out, prevSeg, curSeg, maxStep, includeEnd){ // FIX v14.7
+    var p0 = selectedCurvePointXY(prevSeg.point);
+    var p3 = selectedCurvePointXY(curSeg.point);
+    var hOut = selectedCurvePointXY(prevSeg.handleOut || { x:0, y:0 });
+    var hIn = selectedCurvePointXY(curSeg.handleIn || { x:0, y:0 });
+    var isCurve = selectedCurveHasHandle(prevSeg.handleOut) || selectedCurveHasHandle(curSeg.handleIn);
+    var p1 = isCurve ? { x:p0.x + hOut.x, y:p0.y + hOut.y } : p0;
+    var p2 = isCurve ? { x:p3.x + hIn.x, y:p3.y + hIn.y } : p3;
+    var segLen = selectedCurveSegmentLengthEstimate(p0, p1, p2, p3, isCurve);
+    var steps = Math.max(1, Math.ceil(segLen / Math.max(2, Number(maxStep || 8))));
+    var last = includeEnd ? steps : steps - 1;
+    for (var i = 1; i <= last; i++) {
+      var t = i / steps;
+      out.push(isCurve ? selectedCurveBezierPoint(p0, p1, p2, p3, t) : { x:lerp(p0.x, p3.x, t), y:lerp(p0.y, p3.y, t) });
+    }
+  }
+
+  function selectedCurveCornerSafePointsFromPaperPath(item, maxStep){ // FIX v14.7
+    var segs = [];
+    try { segs = Array.prototype.slice.call(item && item.segments ? item.segments : []); } catch(e) { segs = []; }
+    if (!segs.length) return [];
+    var pts = [];
+    pts.push(selectedCurvePointXY(segs[0].point));
+    for (var i = 1; i < segs.length; i++) selectedCurvePushSegmentPoints(pts, segs[i - 1], segs[i], maxStep, true);
+    try {
+      if (item.closed && segs.length > 1) selectedCurvePushSegmentPoints(pts, segs[segs.length - 1], segs[0], maxStep, false);
+    } catch(e){}
+    return pts;
+  }
+
+  function selectedCurveDensifiedPathFromPaperItem(item, bounds, maxStep){ // FIX v14.7
+    if (!item) return '';
+    var parts = [];
+    function walk(node){
+      if (!node) return;
+      try {
+        if (node.segments && node.segments.length) {
+          var pts = selectedCurveCornerSafePointsFromPaperPath(node, maxStep); // FIX v14.7: preserve original anchors and only insert points between them
+          if (pts && pts.length) {
+            var d = [];
+            d.push('M ' + round(pts[0].x) + ' ' + round(pts[0].y));
+            for (var i = 1; i < pts.length; i++) d.push('L ' + round(pts[i].x) + ' ' + round(pts[i].y));
+            try { if (node.closed) d.push('Z'); } catch(e){}
+            parts.push('<path d="' + selectedCurveSvgEscape(d.join(' ')) + '"' + selectedCurveStyleAttributesFromPaperItem(node) + ' data-luketools-point-density="' + selectedCurveSvgEscape(App.selectedCurve.pointDensity) + '" data-luketools-corner-safe="true"/>');
+          }
+          return;
+        }
+      } catch(pathErr){}
+      try {
+        if (node.children && node.children.length) {
+          Array.prototype.slice.call(node.children || []).forEach(function(child){ walk(child); });
+        }
+      } catch(childErr){}
+    }
+    walk(item);
+    return parts.join('\n');
+  }
+
+  function selectedCurveObjectToSvg(obj){ // FIX v14.4
+    if (!obj) throw new Error('No Wick object is selected. Select a Wick curve or path on the stage first.');
+    var item = selectedCurveFindPaperItem(obj);
+    var bounds = selectedCurvePaperBounds(item) || getObjectStageBounds(obj) || selectedCurveGetBounds(obj);
+    if (!bounds || bounds.w <= 0 || bounds.h <= 0) throw new Error('The selected object does not expose usable bounds.');
+    var name = String(obj.identifier || obj.name || 'Selected_Wick_Curve');
+    var rawExport = '';
+    var density = clamp(Number(App.selectedCurve && App.selectedCurve.pointDensity != null ? App.selectedCurve.pointDensity : 50), 0, 100); // FIX v14.6
+    var inner = '';
+    if (item && density > 0) inner = selectedCurveDensifiedPathFromPaperItem(item, bounds, selectedCurveDensityToMaxStep(density)); // FIX v14.6
+    if (!inner && item && typeof item.exportSVG === 'function') {
+      try { rawExport = String(item.exportSVG({ asString:true }) || ''); } catch(e){}
+      if (!rawExport) { try { rawExport = String(item.exportSVG({ asString:true, precision:3 }) || ''); } catch(e2){} }
+    }
+    if (!inner) inner = rawExport ? selectedCurveExtractSvgInner(rawExport) : '';
+    if (!inner && item && item.segments && item.segments.length) inner = selectedCurveManualPathFromPaperItem(item, bounds);
+    if (!inner) inner = selectedCurveManualRectSvg(obj, bounds);
+    return { svgRaw:selectedCurveWrapSvgContent(inner, bounds, name), bounds:bounds, fileName:makeValidIdentifier(name, 'Selected_Wick_Curve') + '.svg' };
+  }
+
+  function removeOriginalSelectedCurveObject(obj){ // FIX v14.5
+    var removed = false;
+    var lastErr = null;
+    refreshBridgeRefs();
+    try {
+      if (App.B && typeof App.B.deleteSelectedObject === 'function') {
+        App.B.deleteSelectedObject();
+        removed = true;
+      }
+    } catch(e) { lastErr = e; }
+    if (!removed) {
+      try {
+        if (App.ed && typeof App.ed.deleteSelectedObjects === 'function') {
+          App.ed.deleteSelectedObjects();
+          removed = true;
+        }
+      } catch(e) { lastErr = e; }
+    }
+    if (!removed) {
+      try {
+        if (App.project && App.project.selection && typeof App.project.selection.delete === 'function') {
+          App.project.selection.delete();
+          removed = true;
+        }
+      } catch(e) { lastErr = e; }
+    }
+    if (!removed) {
+      try {
+        if (obj && typeof obj.remove === 'function') {
+          obj.remove();
+          removed = true;
+        }
+      } catch(e) { lastErr = e; }
+    }
+    if (!removed) {
+      try {
+        if (obj && obj.parent && typeof obj.parent.removeChild === 'function') {
+          obj.parent.removeChild(obj);
+          removed = true;
+        }
+      } catch(e) { lastErr = e; }
+    }
+    if (!removed) {
+      try {
+        if (obj && obj.parent && Array.isArray(obj.parent.objects)) {
+          var idx = obj.parent.objects.indexOf(obj);
+          if (idx >= 0) {
+            obj.parent.objects.splice(idx, 1);
+            removed = true;
+          }
+        }
+      } catch(e) { lastErr = e; }
+    }
+    if (!removed) {
+      try {
+        if (obj && obj.parent && Array.isArray(obj.parent.children)) {
+          var idx2 = obj.parent.children.indexOf(obj);
+          if (idx2 >= 0) {
+            obj.parent.children.splice(idx2, 1);
+            removed = true;
+          }
+        }
+      } catch(e) { lastErr = e; }
+    }
+    if (!removed) throw new Error('Converted the selected Wick curve, but could not remove the original stage object automatically.' + (lastErr && lastErr.message ? ' ' + lastErr.message : ''));
+    markDirty();
+    return true;
+  }
+
+  async function loadSvgTextAsSource(svgRaw, fileName, mode, bounds){ // FIX v14.4
+    if (!svgRaw || !/^\s*<svg[\s>]/i.test(String(svgRaw))) throw new Error('Could not build a valid SVG from the selected object.');
+    if (bounds) {
+      App.source.stagePlacementBounds = { x:bounds.x, y:bounds.y, w:bounds.w, h:bounds.h, cx:bounds.cx, cy:bounds.cy };
+      App.source.viewportRect = stageBoundsToViewportRect(bounds) || App.source.viewportRect;
+    }
+    if (!App.source.viewportRect) App.source.viewportRect = { x:80, y:80, width:100, height:100 };
+    var dataUrl = svgTextToDataUrl(svgRaw);
+    var img = await loadImageFromUrl(dataUrl);
+    var targetW = Math.max(1, Math.round(App.source.viewportRect && App.source.viewportRect.width ? App.source.viewportRect.width : (bounds && bounds.w ? bounds.w : (img.naturalWidth || img.width || 100))));
+    var targetH = Math.max(1, Math.round(App.source.viewportRect && App.source.viewportRect.height ? App.source.viewportRect.height : (bounds && bounds.h ? bounds.h : (img.naturalHeight || img.height || 100))));
+    var svgNative = null;
+    try { svgNative = parseNativeSvg(svgRaw, targetW, targetH); } catch(svgErr) { log('Selected Wick curve SVG native parse warning: ' + (svgErr && svgErr.message ? svgErr.message : svgErr)); }
+    applyLoadedSourceImage(dataUrl, img, { fileName:fileName || 'Selected_Wick_Curve.svg', mode:mode || 'selected-wick-curve', label:fileName || 'Selected Wick Curve', svgRaw:svgRaw, svgNative:svgNative, width:targetW, height:targetH, uuid:'selected-wick-curve' });
+    if (bounds) {
+      App.source.stageBounds = { x:bounds.x, y:bounds.y, w:bounds.w, h:bounds.h, cx:bounds.cx, cy:bounds.cy };
+      App.source.stageCenter = { x:bounds.cx, y:bounds.cy };
+    }
+    if (svgNative && svgNative.shapes && svgNative.shapes.length) {
+      log('Selected Wick curve converted to SVG Native source: parsed ' + svgNative.shapes.length + ' vector shape' + (svgNative.shapes.length === 1 ? '' : 's') + '.');
+      if (el('selExportMode')) el('selExportMode').value = 'svgNative';
+    } else log('Selected Wick curve converted to SVG source, but no native vector shapes were parsed.');
+  }
+
+  async function useSelectedWickCurveAsSourceInternal(removeOriginal){ // FIX v14.5
+    try {
+      refreshBridgeRefs();
+      try { if (App.B && typeof App.B.captureSelectionNow === 'function') App.B.captureSelectionNow(); } catch(e){}
+      var obj = getSelectedObject();
+      if (!obj) throw new Error('No Wick object is selected. Select a Wick curve or path on the stage first.');
+      var converted = selectedCurveObjectToSvg(obj);
+      rememberSelectedCurveSourceTimeline(); // FIX v14.8
+      await loadSvgTextAsSource(converted.svgRaw, converted.fileName, 'selected-wick-curve', converted.bounds);
+      if (removeOriginal) {
+        removeOriginalSelectedCurveObject(obj); // FIX v14.5
+        log('Selected Wick curve ingested and original removed from the Wick stage.'); // FIX v14.5
+      }
+      removeSetAreaOverlay();
+      ensureOverlay();
+      hideSetAreaVisualFrame();
+      fitOverlayToSource();
+      renderOverlay();
+      updateUI();
+    } catch(err) {
+      log((removeOriginal ? 'Use Selected Curve And Remove Original failed: ' : 'Use Selected Wick Curve failed: ') + (err && err.message ? err.message : err));
+    }
+  }
+
+  async function useSelectedWickCurveAsSource(){ // FIX v14.5
+    return useSelectedWickCurveAsSourceInternal(false); // FIX v14.5
+  }
+
+  async function useSelectedWickCurveAsSourceAndRemoveOriginal(){ // FIX v14.5
+    return useSelectedWickCurveAsSourceInternal(true); // FIX v14.5
   }
 
   async function onImageFileChosen(evt){ // FIX v7.1
@@ -3095,13 +3583,13 @@ button.warn {
 
   function buildRigProjectState(){
     return {
-      app: 'LukeTools_BoneWarp_Stamp', version: '13.5', savedAt: new Date().toISOString(),
+      app: 'LukeTools_BoneWarp_Stamp', version: '14.6', savedAt: new Date().toISOString(),
       source: {
         fileName: App.source.fileName || '', captureMode: App.source.captureMode || 'local-file', selectedIdentifier: App.source.selectedIdentifier || '', selectedUUID: App.source.selectedUUID || '',
         width: Number(App.source.width || 0), height: Number(App.source.height || 0), svgRaw: App.source.svgRaw || '', dataUrl: App.source.dataUrl || App.source.embeddedDataUrl || '',
         stagePlacementBounds: safeJsonClone(App.source.stagePlacementBounds), viewportRect: safeJsonClone(App.source.viewportRect), alphaThreshold: Number(App.source.alphaThreshold || 254)
       },
-      flags: safeJsonClone(App.flags), rig: safeJsonClone(App.rig), smooth: safeJsonClone(App.smooth), grid: safeJsonClone(App.grid),
+      flags: safeJsonClone(App.flags), rig: safeJsonClone(App.rig), smooth: safeJsonClone(App.smooth), selectedCurve: safeJsonClone(App.selectedCurve), grid: safeJsonClone(App.grid), // FIX v14.6
       bones: safeJsonClone(App.bones), nextBoneId: Number(App.nextBoneId || 1), selectedBoneId: App.selectedBoneId == null ? null : Number(App.selectedBoneId),
       frameBones: safeJsonClone(App.frameBones), nextFrameBoneId: Number(App.nextFrameBoneId || 1), selectedFrameBoneId: App.selectedFrameBoneId == null ? null : Number(App.selectedFrameBoneId), frameBoneCreateMode: App.frameBoneCreateMode || 'attach', frameBoneKeys: safeJsonClone(App.frameBoneKeys),
       frameCount: Number(App.frameCount || 1), fps: Number(App.fps || 12), currentFrame: Number(App.currentFrame || 1), keyframes: safeJsonClone(App.keyframes)
@@ -3111,7 +3599,7 @@ button.warn {
   function saveRigProjectState(){
     var data = buildRigProjectState();
     var baseName = (App.source.fileName || 'BoneWarp_Project').replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_\-]+/g, '_');
-    downloadTextFile(baseName + '_BoneWarp_v13_5.json', JSON.stringify(data, null, 2), 'application/json');
+    downloadTextFile(baseName + '_BoneWarp_v15_5.json', JSON.stringify(data, null, 2), 'application/json');
     log('Saved Bone Warp project file.');
     updateFrameBoneUI();
   }
@@ -3132,6 +3620,7 @@ button.warn {
     if (data.flags) App.flags = Object.assign({}, App.flags, safeJsonClone(data.flags));
     if (data.rig) App.rig = Object.assign({}, App.rig, safeJsonClone(data.rig));
     if (data.smooth) App.smooth = Object.assign({}, App.smooth, safeJsonClone(data.smooth));
+    if (data.selectedCurve) App.selectedCurve = Object.assign({}, App.selectedCurve, safeJsonClone(data.selectedCurve)); // FIX v14.6
     var src = data.source || {};
     App.source.stagePlacementBounds = safeJsonClone(src.stagePlacementBounds) || null;
     App.source.viewportRect = safeJsonClone(src.viewportRect) || null;
@@ -4666,15 +5155,17 @@ button.warn {
   function buildNativeSvgPreviewMarkup(pose, ox, oy){ // FIX v7.5
     if (!App.source.svgNative || !App.source.svgNative.shapes || !App.source.svgNative.shapes.length) return '';
     var body = [];
+    var nativeOriginX = 0; // FIX v15.1: preview is drawn in overlay space, so do not use commit origin offsets here.
+    var nativeOriginY = 0; // FIX v15.1: prevents ReferenceError during overlay mouse movement.
     App.source.svgNative.shapes.forEach(function(shape){
       var d = '';
       if (shape.cmdSubpaths && shape.cmdSubpaths.length) {
         shape.cmdSubpaths.forEach(function(sp){
           var warpedCmds = (sp.commands || []).map(function(cmd){
             var out = { type: cmd.type };
-            if (cmd.p) { var pp = skinPointByPose(cmd.p, pose); out.p = { x: pp.x + ox, y: pp.y + oy }; }
-            if (cmd.c1) { var pc1 = skinPointByPose(cmd.c1, pose); out.c1 = { x: pc1.x + ox, y: pc1.y + oy }; }
-            if (cmd.c2) { var pc2 = skinPointByPose(cmd.c2, pose); out.c2 = { x: pc2.x + ox, y: pc2.y + oy }; }
+            if (cmd.p) { var pp = skinPointByPose(cmd.p, pose); out.p = { x: pp.x + ox - nativeOriginX, y: pp.y + oy - nativeOriginY }; } // FIX v15.0
+            if (cmd.c1) { var pc1 = skinPointByPose(cmd.c1, pose); out.c1 = { x: pc1.x + ox - nativeOriginX, y: pc1.y + oy - nativeOriginY }; } // FIX v15.0
+            if (cmd.c2) { var pc2 = skinPointByPose(cmd.c2, pose); out.c2 = { x: pc2.x + ox - nativeOriginX, y: pc2.y + oy - nativeOriginY }; } // FIX v15.0
             return out;
           });
           warpedCmds = smoothNativeCommandsForOutput(warpedCmds); // FIX v8.7
@@ -4682,7 +5173,7 @@ button.warn {
         });
       } else if (shape.subpaths && shape.subpaths.length) {
         shape.subpaths.forEach(function(sp){
-          var warped = sp.points.map(function(p){ var q = skinPointByPose(p, pose); return { x: q.x + ox, y: q.y + oy }; });
+          var warped = sp.points.map(function(p){ var q = skinPointByPose(p, pose); return { x: q.x + ox - nativeOriginX, y: q.y + oy - nativeOriginY }; }); // FIX v15.0
           d += pointsToSubpath(warped, sp.closed) + ' ';
         });
       }
@@ -4708,7 +5199,7 @@ button.warn {
     if (!App.overlay.canvas || !App.source.image) return;
 
     var pose;
-    if (App.activeTab === 'bones') {
+    if (isRestBoneEditContext()) { // FIX v16.6
       pose = getRestPose();
     } else {
       pose = getPoseForFrame(App.currentFrame);
@@ -4742,7 +5233,7 @@ button.warn {
       drawParentLinks(ctx, pose);
       App.bones.forEach(function(b){
         var pb = getBonePoseLike(b, pose);
-        drawBoneOnContext(ctx, b, pb, b.id === App.selectedBoneId, b.id === App.interaction.hoverBoneId, App.activeTab === 'bones');
+        drawBoneOnContext(ctx, b, pb, b.id === App.selectedBoneId, b.id === App.interaction.hoverBoneId, App.activeTab === 'bones' || App.activeTab === 'editbone'); // FIX v16.6
       });
       drawFrameBonesOnContext(ctx, pose); // FIX v13.2
     }
@@ -4778,11 +5269,11 @@ button.warn {
 
   function hitTestBone(localPoint){
     var best = null;
-    var pose = App.activeTab === 'bones' ? getRestPose() : getPoseForFrame(App.currentFrame);
+    var pose = isRestBoneEditContext() ? getRestPose() : getPoseForFrame(App.currentFrame); // FIX v16.6
     App.bones.forEach(function(b){
       var pb = getBonePoseLike(b, pose);
-      var head = App.activeTab === 'bones' ? b.head : pb.head;
-      var tail = App.activeTab === 'bones' ? b.tail : pb.tail;
+      var head = isRestBoneEditContext() ? b.head : pb.head; // FIX v16.6
+      var tail = isRestBoneEditContext() ? b.tail : pb.tail; // FIX v16.6
       var dh = dist(localPoint, head);
       var dt = dist(localPoint, tail);
       if (dh <= 10) { // FIX v8.1: smaller visible handles use smaller hit radius
@@ -4846,6 +5337,7 @@ button.warn {
       return;
     }
     var rawHit = hitTestBone(local); // FIX v5.0
+    if (rawHit && !editBoneModeAllowsDragType(rawHit.type)) rawHit = null; // FIX v16.6: Edit Bone mode does not edit envelope, Edit Envelope mode does not move bone position.
     var hit = rawHit; // FIX v5.0
     if (App.activeTab === 'bones' && App.interaction.addBoneMode) { // FIX v4.7
       if (rawHit) { // FIX v5.0
@@ -4867,6 +5359,7 @@ button.warn {
       return;
     }
     hit = resolveSharedJointHit(rawHit); // FIX v5.0: shared child heads are actually the parent tail joint
+    if (hit && !isRestBoneEditContext() && !isAnimateKeyContext()) return; // FIX v16.6: clicking bones outside Bones, Edit Bone, or Animate must not create keys or edits.
     if (hit) {
       App.selectedBoneId = hit.boneId;
       App.interaction.dragging = true;
@@ -4877,23 +5370,25 @@ button.warn {
       App.interaction.preExistingKeyFrame = !!App.keyframes[App.currentFrame];
       App.interaction.preKeyedBoneIds = App.keyframes[App.currentFrame]
         ? Object.keys(App.keyframes[App.currentFrame]).map(Number) : [];
-      var fullPoseAtFrame = App.activeTab === 'bones' ? null : getPoseForFrame(App.currentFrame); // FIX v12.4
-      App.interaction.startPose = App.activeTab === 'bones' ? null : ensureEditablePoseAtCurrentFrame(); // FIX v12.4: sparse frame key object only
+      var makeKey = isAnimateKeyContext(); // FIX v16.6
+      var restEdit = isRestBoneEditContext(); // FIX v16.6
+      var fullPoseAtFrame = makeKey ? getPoseForFrame(App.currentFrame) : null; // FIX v16.6
+      App.interaction.startPose = makeKey ? ensureEditablePoseAtCurrentFrame() : null; // FIX v16.6
       var bone = getSelectedBone();
-      var curPose = App.activeTab === 'bones' ? null : ensureEditableBoneKeyAtCurrentFrame(hit.boneId, fullPoseAtFrame); // FIX v12.4: only create a key for the bone being moved
-      var startPB = App.activeTab === 'bones' ? bone : curPose;
-      if (startPB && App.activeTab !== 'bones') ensurePoseEnvelopeValues(startPB, bone);
+      var curPose = makeKey ? ensureEditableBoneKeyAtCurrentFrame(hit.boneId, fullPoseAtFrame) : null; // FIX v16.6: only Animate creates a key.
+      var startPB = restEdit ? bone : curPose;
+      if (startPB && makeKey) ensurePoseEnvelopeValues(startPB, bone);
       App.interaction.startBone = {
-        head: clone(App.activeTab === 'bones' ? bone.head : curPose.head),
-        tail: clone(App.activeTab === 'bones' ? bone.tail : curPose.tail),
-        angle: angleOfItem(App.activeTab === 'bones' ? bone : curPose), // FIX v8.6
-        prevPointerAngle: rawAngleOfPoints(App.activeTab === 'bones' ? bone.head : curPose.head, local), // FIX v8.6
-        cumulativeAngle: angleOfItem(App.activeTab === 'bones' ? bone : curPose), // FIX v8.6
+        head: clone(restEdit ? bone.head : curPose.head),
+        tail: clone(restEdit ? bone.tail : curPose.tail),
+        angle: angleOfItem(restEdit ? bone : curPose), // FIX v16.6
+        prevPointerAngle: rawAngleOfPoints(restEdit ? bone.head : curPose.head, local), // FIX v16.6
+        cumulativeAngle: angleOfItem(restEdit ? bone : curPose), // FIX v16.6
         envStart: getBoneEnvStart(startPB || bone), // FIX v6.3
         envEnd: getBoneEnvEnd(startPB || bone), // FIX v6.3
         restLength: getLockedBoneLength(bone) // FIX v4.7
       };
-      App.interaction.startDescendants = App.activeTab === 'bones' ? captureDescendantStateForBone(hit.boneId, null) : []; // FIX v12.4: moving one animated bone must not key descendant bones
+      App.interaction.startDescendants = restEdit ? captureDescendantStateForBone(hit.boneId, null) : []; // FIX v16.6
       updateUI();
       renderOverlay();
     }
@@ -4958,35 +5453,35 @@ button.warn {
     if (App.interaction.dragType === 'envHeadPos' || App.interaction.dragType === 'envHeadNeg' || App.interaction.dragType === 'envTailPos' || App.interaction.dragType === 'envTailNeg') { // FIX v6.3
       var whichEnd = (App.interaction.dragType.indexOf('Head') !== -1) ? 'head' : 'tail';
       var envWidth = envelopeWidthFromLocalPoint(App.interaction.startBone, cur, whichEnd);
-      if (App.activeTab === 'bones') {
+      if (isRestBoneEditContext()) { // FIX v16.6
         if (whichEnd === 'head') bone.envStart = envWidth;
         else bone.envEnd = envWidth;
         bone.radius = Math.max(getBoneEnvStart(bone), getBoneEnvEnd(bone));
-      } else {
+      } else if (isAnimateKeyContext()) { // FIX v16.6
         var envPose = ensureEditablePoseAtCurrentFrame(); // FIX v12.4
         if (!envPose[bone.id]) envPose[bone.id] = ensureEditableBoneKeyAtCurrentFrame(bone.id); // FIX v12.4
         ensurePoseEnvelopeValues(envPose[bone.id], bone);
         if (whichEnd === 'head') envPose[bone.id].envStart = envWidth;
         else envPose[bone.id].envEnd = envWidth;
-      }
+      } else return; // FIX v16.6
       updateUI();
       renderOverlay();
       return;
     }
 
     if ((App.rig.mode === 'chainIk' || App.rig.mode === 'splineIk') && App.interaction.dragType === 'tail' && !boneHasChildren(bone.id)) { // FIX v4.8: only end bones should run IK as end effectors
-      if (App.activeTab === 'bones') {
+      if (isRestBoneEditContext()) { // FIX v16.6
         solveIKOnRest(bone.id, cur);
-      } else {
+      } else if (isAnimateKeyContext()) { // FIX v16.6
         var ikPose = getPoseForFrame(App.currentFrame); // FIX v12.4
         solveIKOnPose(ikPose, bone.id, cur);
         ensureEditablePoseAtCurrentFrame()[bone.id] = clone(ikPose[bone.id]); // FIX v12.4: only commit the moved end bone key
-      }
+      } else return; // FIX v16.6
       renderOverlay();
       return;
     }
 
-    if (App.activeTab === 'bones') {
+    if (isRestBoneEditContext()) { // FIX v16.6
       if (App.interaction.dragType === 'head') {
         bone.head.x = App.interaction.startBone.head.x + dx; // FIX v4.7: head drag translates the whole bone
         bone.head.y = App.interaction.startBone.head.y + dy; // FIX v4.7
@@ -5008,7 +5503,7 @@ button.warn {
       var newParentBone = { head: clone(bone.head), tail: clone(bone.tail) };
       applyDescendantTransformToRest(App.interaction.startDescendants || [], oldParentBone, newParentBone);
       enforceAllRestChains();
-    } else {
+    } else if (isAnimateKeyContext()) { // FIX v16.6
       var pose = ensureEditablePoseAtCurrentFrame(); // FIX v12.4 sparse
       var pb = ensureEditableBoneKeyAtCurrentFrame(bone.id); // FIX v12.4 only the moved bone is keyed
       if (!pb) return;
@@ -5032,7 +5527,7 @@ button.warn {
       setItemTailToLockedLength(pb, bone); // FIX v12.4
       copyEnvAndAngleFallback(pb, bone); // FIX v12.4
       writeLocalAngleForBoneItem(bone, pb, getPoseForFrame(App.currentFrame)); // FIX v13.0: store child key angle relative to parent
-    }
+    } else { return; } // FIX v16.6
     renderOverlay();
   }
 
@@ -5047,7 +5542,7 @@ button.warn {
       // FIX v4.7: selecting an existing bone in add mode does not create a new bone unless the user drags away.
     }
     // FIX v12.4: after animated drag, keep only existing keys plus the one bone the user actually moved.
-    if (App.activeTab !== 'bones' && App.keyframes[App.currentFrame]) {
+    if (isAnimateKeyContext() && App.keyframes[App.currentFrame]) { // FIX v16.6
       var movedBoneId = App.interaction.boneId;
       var preKeyed = App.interaction.preKeyedBoneIds || [];
       var wasPreExisting = App.interaction.preExistingKeyFrame;
@@ -5092,34 +5587,79 @@ button.warn {
   function proxyNumberLineHeight(){ var g = proxyG(); return Number(g.NUMBER_LINE_HEIGHT || 35); } // FIX v10.2
   function proxyScrollbarSize(){ var g = proxyG(); return Number(g.SCROLLBAR_SIZE || 18); } // FIX v10.2
 
-  function proxyFrameAreaX(scrollX){ // FIX v11.3: runtime-calibrated frame-cell origin — no hardcoded nudge
-    /* Wick draws its frame cells starting at LAYERS_CONTAINER_WIDTH from the canvas left edge,
-       but a border/padding in the GUIElement can shift the true pixel start. We try reading
-       known GUIElement constants first, then fall back to measuring the real DOM boundary. */
-    var LCW = proxyLayerColumnWidth();
-    var base = LCW - (scrollX || 0) + 8; // FIX v11.3: +8 observed correction for Wick frame-cell left border
+  function proxyMedianNumber(values){ // FIX v15.2
+    values = (values || []).filter(function(v){ return isFinite(v) && v > 0; }).sort(function(a,b){ return a - b; });
+    if (!values.length) return 0;
+    var mid = Math.floor(values.length / 2);
+    return values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+  }
+
+  function proxyMeasuredCellWidthFromWickCanvas(wickCanvas, LCW, BCH, NLH){ // FIX v15.2
+    /* FIX v15.2: The proxy keys must use the same frame pitch Wick actually drew.
+       Do not rely only on a stored constant, because tiny differences accumulate and the
+       BoneWarp key rows drift away from the Wick frame grid by later frames. This reads
+       the real timeline canvas and measures the spacing between vertical frame grid lines.
+       If reading pixels is blocked or the scan is uncertain, it falls back to Wick's constant. */
+    var fallback = Number(proxyCellWidth() || 38);
     try {
-      var g = proxyG();
-      if (typeof g.TIMELINE_PADDING === 'number') return base - g.TIMELINE_PADDING;
-      if (typeof g.GRID_CELL_OFFSET  === 'number') return base + g.GRID_CELL_OFFSET;
-    } catch(e){}
-    try {
-      var wickCanvas = proxyTimelineCanvas();
-      var pdoc2 = window.parent && window.parent.document ? window.parent.document : null;
-      if (wickCanvas && pdoc2) {
-        var canvasRect = wickCanvas.getBoundingClientRect();
-        var found = null;
-        Array.prototype.slice.call(pdoc2.querySelectorAll('div')).forEach(function(d){
-          try {
-            var r = d.getBoundingClientRect();
-            if (Math.abs(r.left - canvasRect.left) < 10 && Math.abs(r.width - LCW) < 24 && r.height > 40)
-              found = r.right - canvasRect.left;
-          } catch(ex){}
-        });
-        if (found !== null) return found - (scrollX || 0);
+      if (!wickCanvas || !wickCanvas.getContext) return fallback;
+      var ctx = wickCanvas.getContext('2d', { willReadFrequently:true });
+      if (!ctx || !ctx.getImageData) return fallback;
+      var w = Math.max(1, Math.floor(wickCanvas.width || 0));
+      var h = Math.max(1, Math.floor(wickCanvas.height || 0));
+      if (w < 120 || h < 80) return fallback;
+      var xStart = clamp(Math.floor(LCW - fallback * 2), 0, w - 2);
+      var xEnd = clamp(Math.floor(w - proxyScrollbarSize() - 4), xStart + 20, w - 2);
+      var yStart = clamp(Math.floor(BCH + NLH + 6), 0, h - 2);
+      var yEnd = clamp(Math.floor(yStart + Math.min(160, Math.max(24, h - yStart - 8))), yStart + 1, h - 1);
+      var sampleH = Math.max(1, yEnd - yStart);
+      var sampleW = Math.max(1, xEnd - xStart + 1);
+      var data = ctx.getImageData(xStart, yStart, sampleW, sampleH).data;
+      function lumaAt(localX, localY){
+        var p = (localY * sampleW + localX) * 4;
+        return data[p] * 0.299 + data[p + 1] * 0.587 + data[p + 2] * 0.114;
       }
-    } catch(e){}
-    return base; // LCW + 8 - scrollX when nothing better is available
+      var scores = [];
+      for (var x = 1; x < sampleW - 1; x++) {
+        var score = 0;
+        for (var y = 0; y < sampleH; y += 4) {
+          var a = lumaAt(x - 1, y);
+          var b = lumaAt(x, y);
+          var c = lumaAt(x + 1, y);
+          score += Math.abs(b - a) + Math.abs(c - b);
+        }
+        scores.push({ x:xStart + x, score:score });
+      }
+      if (!scores.length) return fallback;
+      var scoreValues = scores.map(function(s){ return s.score; }).sort(function(a,b){ return a - b; });
+      var medianScore = scoreValues[Math.floor(scoreValues.length * 0.70)] || 0;
+      var threshold = Math.max(18, medianScore * 2.2);
+      var peaks = [];
+      scores.forEach(function(s){
+        if (s.score < threshold) return;
+        var last = peaks.length ? peaks[peaks.length - 1] : null;
+        if (!last || s.x - last.x > 8) peaks.push({ x:s.x, score:s.score });
+        else if (s.score > last.score) { last.x = s.x; last.score = s.score; }
+      });
+      if (peaks.length < 3) return fallback;
+      var spacings = [];
+      for (var i = 1; i < peaks.length; i++) {
+        var d = peaks[i].x - peaks[i - 1].x;
+        if (d >= Math.max(18, fallback * 0.55) && d <= Math.min(90, fallback * 1.75)) spacings.push(d);
+      }
+      var measured = proxyMedianNumber(spacings);
+      if (!measured || measured < 18 || measured > 90) return fallback;
+      return measured;
+    } catch(e) {
+      return fallback;
+    }
+  }
+
+  function proxyFrameAreaX(scrollX){ // FIX v15.4
+    /* FIX v15.4: Use Wick's documented timeline reference directly.
+       The frames area starts exactly after the layer label column. The previous +8 correction
+       caused cumulative visible drift against Wick's own frame grid at later frames. */
+    return proxyLayerColumnWidth() - Number(scrollX || 0);
   }
 
   function proxyTimelineCanvas(){ // FIX v10.2
@@ -5228,13 +5768,13 @@ button.warn {
       Array.prototype.slice.call(pdoc.querySelectorAll('div,span')).forEach(function(node){
         var txt = String(node.textContent || '').replace(/\s+/g, ' ').trim();
         if (!txt) return;
-        if (txt.indexOf('BW Key') === -1 && (!wantedName || txt.indexOf(wantedName) === -1)) return;
+        if (txt.indexOf('BW Key') === -1 && txt.indexOf('F_Bone') === -1 && (!wantedName || txt.indexOf(wantedName) === -1)) return; // FIX v16.1
         var r = rowRectForNode(node);
         if (r.height < 12) return;
         if (r.top < containerRect.top - 120 || r.top > containerRect.bottom + 120) return;
         if (r.left > containerRect.left + LCW + 90) return;
         var row = { rect:r, text:txt, y:r.top - containerRect.top + 3 };
-        if (txt.indexOf('BW Key') !== -1) proxyRows.push(row);
+        if (txt.indexOf('BW Key') !== -1 || txt.indexOf('F_Bone') !== -1 || (wantedName && (txt === wantedName || txt.indexOf(wantedName) !== -1))) proxyRows.push(row); // FIX v16.1
         if (wantedName && (txt === wantedName || txt.indexOf(wantedName) !== -1 || wantedName.indexOf(txt) !== -1)) exactMatches.push(row);
       });
     } catch(e){}
@@ -5458,7 +5998,7 @@ button.warn {
   function proxyLiveRowYForLayerInfo(info, tl, container, wickCanvas, CH, BCH, NLH, scrollY){ // FIX v11.3
     /* FIX v11.3: Do not use DOM label positions. The proxy layer is a real Wick layer, so use
        the exact Wick canvas row formula with the real GUI scrollY. This makes the diamond overlay
-       move vertically with its matching BW Key Bone layer. */
+       move vertically with its matching proxy bone layer. */
     var layerIdx = -1;
     try { layerIdx = tl && tl.layers ? tl.layers.indexOf(info.wickLayer) : -1; } catch(e){}
     if (layerIdx < 0) return null;
@@ -5481,28 +6021,34 @@ button.warn {
     if (!wickCanvas || !tl) return;
     if (canvas.width !== wickCanvas.width) canvas.width = wickCanvas.width;
     if (canvas.height !== wickCanvas.height) canvas.height = wickCanvas.height;
-    canvas.style.width = Math.max(1, wickCanvas.offsetWidth - proxyScrollbarSize()) + 'px';
+    canvas.style.width = Math.max(1, wickCanvas.offsetWidth) + 'px'; // FIX v15.2: do not compress the overlay canvas width or frame positions drift horizontally.
     canvas.style.height = wickCanvas.offsetHeight + 'px';
     var ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    var CW = proxyCellWidth();
-    var CH = proxyCellHeight();
-    var LCW = proxyLayerColumnWidth();
-    var BCH = proxyBreadcrumbHeight();
-    var NLH = proxyNumberLineHeight();
-    var scrollX = proxyScrollX();
-    var scrollY = proxyScrollY();
+    var cssW = Math.max(1, wickCanvas.offsetWidth || canvas.width || 1); // FIX v15.4
+    var cssH = Math.max(1, wickCanvas.offsetHeight || canvas.height || 1); // FIX v15.4
+    var scaleX = Math.max(0.01, (canvas.width || cssW) / cssW); // FIX v15.4: Wick draws the timeline in internal canvas pixels, not always CSS pixels.
+    var scaleY = Math.max(0.01, (canvas.height || cssH) / cssH); // FIX v15.4
+    var CH = proxyCellHeight() * scaleY; // FIX v15.4
+    var LCW = proxyLayerColumnWidth() * scaleX; // FIX v15.4
+    var BCH = proxyBreadcrumbHeight() * scaleY; // FIX v15.4
+    var NLH = proxyNumberLineHeight() * scaleY; // FIX v15.4
+    var baseCW = proxyCellWidth() * scaleX; // FIX v15.6: keep Wick cell width before manual correction.
+    var proxyFirstCellShift = baseCW * 0.03; // FIX v16.0: move the proxy timeline to the right by 3 percent of one Wick cell.
+    var CW = baseCW; // FIX v15.8: removed the 4.1 percent shrink. Use the Wick cell width unchanged.
+    var scrollX = proxyScrollX() * scaleX; // FIX v15.8: removed the 4.1 percent shrink from scroll correction.
+    var scrollY = proxyScrollY() * scaleY; // FIX v15.4
     var rowLeft = LCW;
-    var rowRight = canvas.width - proxyScrollbarSize();
-    var frameAreaX = proxyFrameAreaX(scrollX); // FIX v11.3: runtime-calibrated — reads real Wick frame-cell origin
+    var rowRight = canvas.width - proxyScrollbarSize() * scaleX; // FIX v15.4
+    var frameAreaX = LCW + proxyFirstCellShift - Number(scrollX || 0); // FIX v15.6: corrected first cell position moves right, then uses corrected timeline pitch.
     var span = proxyLayerFrameSpan();
     var ph = proxyCurrentPlayhead();
     var allHits = [];
     var clipTop = BCH + NLH; // FIX v11.3: clip all proxy drawing to below breadcrumb + number line
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, clipTop, canvas.width, Math.max(1, canvas.height - clipTop));
+    ctx.rect(rowLeft, clipTop, Math.max(1, canvas.width - rowLeft), Math.max(1, canvas.height - clipTop)); // FIX v16.1: clip proxy drawing at the layer-name edge.
     ctx.clip();
 
     proxyEnsureLayerStore();
@@ -5517,11 +6063,11 @@ button.warn {
       ctx.fillStyle = 'rgba(20,28,36,0.72)';
       ctx.fillRect(rowLeft, rowY, Math.max(1, rowRight - rowLeft), rowH);
       ctx.fillStyle = 'rgba(30,226,154,0.16)';
-      ctx.fillRect(frameAreaX, rowY, span * CW, rowH);
+      ctx.fillRect(frameAreaX, rowY, span * CW - 1, rowH); // FIX v15.4: Wick drawn frame width uses length * cell width minus 1.
       ctx.strokeStyle = 'rgba(0,0,0,0.25)';
       ctx.lineWidth = 1;
       for (var f = 1; f <= span; f++) {
-        var gx = frameAreaX + (f - 1) * CW;
+        var gx = frameAreaX + (f - 1) * CW; // FIX v15.4: frame grid line position from Wick reference.
         if (gx < rowLeft || gx > rowRight) continue;
         ctx.beginPath(); ctx.moveTo(gx, rowY); ctx.lineTo(gx, rowY + rowH); ctx.stroke();
       }
@@ -5540,18 +6086,18 @@ button.warn {
       }
       keys.forEach(function(k){
         var cx = frameAreaX + (k - 1) * CW + CW / 2;
-        if (cx < rowLeft - 20 || cx > rowRight + 20) return;
+        if (cx < rowLeft || cx > rowRight + 20) return; // FIX v16.1
         ctx.beginPath();
         ctx.moveTo(cx, cy - DR); ctx.lineTo(cx + DR, cy); ctx.lineTo(cx, cy + DR); ctx.lineTo(cx - DR, cy); ctx.closePath();
         ctx.fillStyle = '#1EE29A'; ctx.fill();
         ctx.strokeStyle = '#102a32'; ctx.lineWidth = 3; ctx.stroke();
-        allHits.push({ frame:k, boneId:info.boneId, x:cx, y:cy });
+        allHits.push({ frame:k, boneId:info.boneId, x:cx, y:cy, cssX:cx / scaleX, cssY:cy / scaleY }); // FIX v15.4
       });
       var px = frameAreaX + (ph - 1) * CW + CW / 2;
       ctx.beginPath(); ctx.moveTo(px, rowY); ctx.lineTo(px, rowY + rowH); ctx.strokeStyle = '#FF5C5C'; ctx.lineWidth = 3; ctx.stroke();
     });
     ctx.restore(); // FIX v11.3: end clip region
-    updateProxyHits(allHits, rowLeft, rowRight);
+    updateProxyHits(allHits, rowLeft / scaleX, rowRight / scaleX); // FIX v15.4: hit divs use CSS pixel positions.
   }
 
 
@@ -5586,10 +6132,13 @@ button.warn {
     hitItems.forEach(function(item, i){
       var hd = App.proxy.hitDivs[i];
       if (!hd) return;
-      if (item.x < rowLeft - 20 || item.x > rowRight + 20) { hd.style.display = 'none'; return; }
+      var checkX = Number(item.cssX != null ? item.cssX : item.x); // FIX v15.4
+      if (checkX < rowLeft || checkX > rowRight + 20) { hd.style.display = 'none'; return; } // FIX v16.1
       hd.style.display = 'block';
-      hd.style.left = (item.x - 10) + 'px';
-      hd.style.top = (item.y - 10) + 'px';
+      var hx = Number(item.cssX != null ? item.cssX : item.x); // FIX v15.4
+      var hy = Number(item.cssY != null ? item.cssY : item.y); // FIX v15.4
+      hd.style.left = (hx - 10) + 'px'; // FIX v15.4
+      hd.style.top = (hy - 10) + 'px'; // FIX v15.4
       hd.setAttribute('data-frame', String(item.frame));
       hd.setAttribute('data-bone-id', String(item.boneId || 0));
     });
@@ -5604,7 +6153,7 @@ button.warn {
       if (!bone) return;
       proxyEnsureLayerStore();
       proxyCreateWickLayerForBone(bone); // FIX v12.5: create the row for the newly created bone
-      syncProxyLayersToBones(true); // FIX v12.5: also backfill any missing BW Key rows for existing bones
+      syncProxyLayersToBones(true); // FIX v16.1: also backfill any missing proxy rows for existing bones
       ensureProxyOverlayCanvasForTimeline();
       renderProxyFrame();
       updateUI();
@@ -5663,11 +6212,11 @@ button.warn {
 
   // FIX v10.9: Real proxy timeline layers are now created per BoneWarp bone using the same approach as KeyframeOverlay_v32.
   function proxyLayerNameForBone(bone){
-    return 'BW Key ' + String((bone && bone.name) || ('Bone ' + (bone && bone.id || ''))).trim();
+    return String((bone && bone.name) || ('Bone ' + (bone && bone.id || ''))).trim(); // FIX v16.1
   }
 
   function proxyLayerNameForFrameBone(frameBone){ // FIX v13.7
-    return 'BW Frame Key ' + String((frameBone && frameBone.name) || ('Frame Bone ' + (frameBone && frameBone.id || ''))).trim();
+    return 'F_Bone ' + String((frameBone && frameBone.id) || '1').trim(); // FIX v16.1
   }
 
   function proxyKeyFramesForFrameBone(frameBone){ // FIX v13.7
@@ -6003,7 +6552,7 @@ button.warn {
   }
 
 
-  function renderProxyFrame(){ // FIX v10.9: draw one proxy row per bone layer and keep it following Wick scroll
+  function renderProxyFrame(){ // FIX v15.7: draw one proxy row per bone layer and keep it following Wick scroll using the active render path
     proxyEnsureLayerStore();
     App.proxy.framePending = false;
     App.proxy.scrollContainer = proxyScrollContainer() || App.proxy.scrollContainer; // FIX v10.9
@@ -6014,20 +6563,27 @@ button.warn {
     if (!wickCanvas || !tl || !App.proxy.layers.length) return;
     if (canvas.width !== wickCanvas.width) canvas.width = wickCanvas.width;
     if (canvas.height !== wickCanvas.height) canvas.height = wickCanvas.height;
-    canvas.style.width = Math.max(1, wickCanvas.offsetWidth - proxyScrollbarSize()) + 'px';
-    canvas.style.height = wickCanvas.offsetHeight + 'px';
+    canvas.style.width = Math.max(1, wickCanvas.offsetWidth) + 'px'; // FIX v15.7: do not compress the active overlay canvas by subtracting the scrollbar width.
+    canvas.style.height = Math.max(1, wickCanvas.offsetHeight) + 'px'; // FIX v15.7
     var ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    var CW = proxyCellWidth();
-    var CH = proxyCellHeight();
-    var LCW = proxyLayerColumnWidth();
-    var BCH = proxyBreadcrumbHeight();
-    var NLH = proxyNumberLineHeight();
-    var scrollX = proxyScrollX();
-    var scrollY = proxyScrollY();
+
+    var cssW = Math.max(1, wickCanvas.offsetWidth || canvas.width || 1); // FIX v15.7
+    var cssH = Math.max(1, wickCanvas.offsetHeight || canvas.height || 1); // FIX v15.7
+    var scaleX = Math.max(0.01, (canvas.width || cssW) / cssW); // FIX v15.7
+    var scaleY = Math.max(0.01, (canvas.height || cssH) / cssH); // FIX v15.7
+    var baseCW = proxyCellWidth() * scaleX; // FIX v15.7
+    var CW = baseCW; // FIX v15.8: removed the 4.1 percent shrink. Use the Wick cell width unchanged.
+    var CH = proxyCellHeight() * scaleY; // FIX v15.7
+    var LCW = proxyLayerColumnWidth() * scaleX; // FIX v15.7
+    var BCH = proxyBreadcrumbHeight() * scaleY; // FIX v15.7
+    var NLH = proxyNumberLineHeight() * scaleY; // FIX v15.7
+    var scrollX = proxyScrollX() * scaleX; // FIX v15.8: removed the 4.1 percent shrink from scroll correction.
+    var scrollY = proxyScrollY() * scaleY; // FIX v15.7
+    var proxyFirstCellShift = baseCW * 0.03; // FIX v16.0: move the proxy timeline to the right by 3 percent of one Wick cell.
     var rowLeft = LCW;
-    var rowRight = canvas.width - proxyScrollbarSize();
-    var frameAreaX = proxyFrameAreaX(scrollX); // FIX v11.3: runtime-calibrated — reads real Wick frame-cell origin
+    var rowRight = canvas.width - proxyScrollbarSize() * scaleX; // FIX v15.7
+    var frameAreaX = LCW + proxyFirstCellShift - Number(scrollX || 0); // FIX v16.0: apply a 3 percent right shift to the proxy timeline.
     var span = proxyLayerFrameSpan();
     var ph = proxyCurrentPlayhead();
     var DR = 7;
@@ -6035,7 +6591,7 @@ button.warn {
     var clipTop = BCH + NLH; // FIX v11.3: clip all proxy drawing to below breadcrumb + number line
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, clipTop, canvas.width, Math.max(1, canvas.height - clipTop));
+    ctx.rect(rowLeft, clipTop, Math.max(1, canvas.width - rowLeft), Math.max(1, canvas.height - clipTop)); // FIX v16.1: clip proxy drawing at the layer-name edge.
     ctx.clip();
 
     App.proxy.layers.forEach(function(info, layerOrderIndex){
@@ -6046,7 +6602,7 @@ button.warn {
       if (isFrameBoneLayer && !frameBone) return;
       var layerIdx = tl.layers ? tl.layers.indexOf(info.wickLayer) : -1;
       if (layerIdx < 0) return;
-      var rowY = proxyRowYForLayerInfo(info, tl, CH, BCH, NLH, scrollY); // FIX v10.9: keyframe row follows the matching Wick bone name row
+      var rowY = proxyRowYForLayerInfo(info, tl, CH, BCH, NLH, scrollY); // FIX v15.7
       if (rowY == null) return;
       var rowH = CH - 3;
       if (rowY + rowH < BCH + NLH || rowY > canvas.height) return;
@@ -6054,11 +6610,11 @@ button.warn {
       ctx.fillStyle = 'rgba(20,28,36,0.72)';
       ctx.fillRect(rowLeft, rowY, Math.max(1, rowRight - rowLeft), rowH);
       ctx.fillStyle = isFrameBoneLayer ? 'rgba(226,181,61,0.18)' : (layerOrderIndex === 0 ? 'rgba(30,226,154,0.18)' : 'rgba(95,97,99,0.18)'); // FIX v13.7
-      ctx.fillRect(frameAreaX, rowY, span * CW, rowH);
+      ctx.fillRect(frameAreaX, rowY, Math.max(1, span * CW - 1), rowH); // FIX v15.7: use corrected frame width.
       ctx.strokeStyle = 'rgba(0,0,0,0.24)';
       ctx.lineWidth = 1;
       for (var f = 1; f <= span; f++) {
-        var gx = frameAreaX + (f - 1) * CW;
+        var gx = frameAreaX + (f - 1) * CW; // FIX v15.7
         if (gx < rowLeft || gx > rowRight) continue;
         ctx.beginPath(); ctx.moveTo(gx, rowY); ctx.lineTo(gx, rowY + rowH); ctx.stroke();
       }
@@ -6074,7 +6630,7 @@ button.warn {
       }
       keys.forEach(function(k){
         var cx = frameAreaX + (k - 1) * CW + CW / 2;
-        if (cx >= rowLeft - 20 && cx <= rowRight + 20) {
+        if (cx >= rowLeft && cx <= rowRight + 20) { // FIX v16.1
           ctx.beginPath();
           ctx.moveTo(cx + 2, cy - DR + 2); ctx.lineTo(cx + DR + 2, cy + 2); ctx.lineTo(cx + 2, cy + DR + 2); ctx.lineTo(cx - DR + 2, cy + 2); ctx.closePath();
           ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fill();
@@ -6083,24 +6639,24 @@ button.warn {
           ctx.fillStyle = isFrameBoneLayer ? '#E2B53D' : '#1EE29A'; ctx.fill(); // FIX v13.7
           ctx.strokeStyle = '#222244'; ctx.lineWidth = 3; ctx.stroke();
           if (isFrameBoneLayer) {
-            ctx.font = 'bold 9px Arial';
+            ctx.font = 'bold ' + Math.max(8, 9 * scaleY) + 'px Arial';
             ctx.fillStyle = '#ffffff';
             ctx.fillText(frameBoneSlotTitle(frameBoneSlotForTimelineFrame(frameBone, k)), cx + 9, cy + 3);
-            hitMeta.push({ frame:k, frameBoneId:frameBone.id, type:'frameBone', x:cx, y:cy });
+            hitMeta.push({ frame:k, frameBoneId:frameBone.id, type:'frameBone', x:cx, y:cy, cssX:cx / scaleX, cssY:cy / scaleY }); // FIX v15.7
           } else {
-            hitMeta.push({ frame:k, boneId:bone.id, type:'bone', x:cx, y:cy });
+            hitMeta.push({ frame:k, boneId:bone.id, type:'bone', x:cx, y:cy, cssX:cx / scaleX, cssY:cy / scaleY }); // FIX v15.7
           }
         }
       });
       var hx = frameAreaX + (ph - 1) * CW;
       ctx.strokeStyle = '#1EE29A'; ctx.lineWidth = 2;
-      ctx.strokeRect(hx + 0.5, rowY + 0.5, CW - 1, CH - 1);
+      ctx.strokeRect(hx + 0.5, rowY + 0.5, Math.max(1, CW - 1), Math.max(1, CH - 1)); // FIX v15.7
       var px = frameAreaX + (ph - 1) * CW + CW / 2;
       ctx.beginPath(); ctx.moveTo(px, rowY); ctx.lineTo(px, rowY + rowH); ctx.strokeStyle = '#FF5C5C'; ctx.lineWidth = 3; ctx.stroke();
     });
     ctx.restore(); // FIX v11.3: end clip region
     App.proxy.hitMeta = hitMeta;
-    updateProxyHits(tl, rowLeft, rowRight);
+    updateProxyHits(tl, rowLeft / scaleX, rowRight / scaleX); // FIX v15.7: convert hit clipping back to CSS pixels.
     if (el('proxyInfo')) {
       var boneLayerCount = 0, frameBoneLayerCount = 0;
       (App.proxy.layers || []).forEach(function(info){ if (info && info.type === 'frameBone') frameBoneLayerCount++; else boneLayerCount++; });
@@ -6108,7 +6664,7 @@ button.warn {
     }
   }
 
-  function updateProxyHits(tl, rowLeft, rowRight){ // FIX v10.9
+  function updateProxyHits(tl, rowLeft, rowRight){ // FIX v15.7
     if (!App.proxy.container) return;
     var meta = App.proxy.hitMeta || [];
     var HIT = 18;
@@ -6140,14 +6696,16 @@ button.warn {
         var startX = evt.clientX;
         var dragFrame = frame;
         var dragging = false;
-        var CW = proxyCellWidth();
         var dragWin = (window.parent && window.parent !== window) ? window.parent : window;
 
-        function frameFromClientX(clientX){ // FIX v13.9
+        function frameFromClientX(clientX){ // FIX v15.7
           var rect = App.proxy.container ? App.proxy.container.getBoundingClientRect() : null;
           var scaleX = rect && rect.width ? (App.proxy.overlayCanvas.width / rect.width) : 1;
-          var localX = rect ? (clientX - rect.left) * scaleX : (proxyFrameAreaX(proxyScrollX()) + (frame - 1) * CW + CW / 2);
-          return clamp(Math.floor((localX - proxyFrameAreaX(proxyScrollX())) / CW) + 1, 1, App.frameCount);
+          var baseCW = proxyCellWidth() * scaleX;
+          var correctedCW = baseCW; // FIX v15.8
+          var correctedStartX = (proxyLayerColumnWidth() * scaleX) + (baseCW * 0.03) - (proxyScrollX() * scaleX); // FIX v16.0: apply the same 3 percent right shift to key dragging.
+          var localX = rect ? (clientX - rect.left) * scaleX : (correctedStartX + (frame - 1) * correctedCW + correctedCW / 2);
+          return clamp(Math.floor((localX - correctedStartX) / correctedCW) + 1, 1, App.frameCount);
         }
 
         function onDragMove(e){
@@ -6187,10 +6745,12 @@ button.warn {
     meta.forEach(function(item, i){
       var hd = App.proxy.hitDivs[i];
       if (!hd) return;
-      if (item.x < rowLeft - 20 || item.x > rowRight + 20) { hd.style.display = 'none'; return; }
+      var hx = Number(item.cssX != null ? item.cssX : item.x); // FIX v15.7
+      var hy = Number(item.cssY != null ? item.cssY : item.y); // FIX v15.7
+      if (hx < rowLeft || hx > rowRight + 20) { hd.style.display = 'none'; return; } // FIX v16.1
       hd.style.display = 'block';
-      hd.style.left = (item.x - HIT / 2) + 'px';
-      hd.style.top = (item.y - HIT / 2) + 'px';
+      hd.style.left = (hx - HIT / 2) + 'px';
+      hd.style.top = (hy - HIT / 2) + 'px';
       hd.setAttribute('data-frame', String(item.frame));
       hd.setAttribute('data-hit-type', item.type || 'bone'); // FIX v13.7
       hd.setAttribute('data-bone-id', String(item.boneId || 0));
@@ -6201,7 +6761,7 @@ button.warn {
   function syncProxyLayersToBones(force){ // FIX v12.5
     if (!force && !App.proxy.active) return;
     proxyEnsureLayerStore();
-    App.bones.forEach(function(bone){ proxyCreateWickLayerForBone(bone); }); // FIX v12.5: every bone must have its own BW Key row
+    App.bones.forEach(function(bone){ proxyCreateWickLayerForBone(bone); }); // FIX v16.1: every bone must have its own proxy row
     (App.frameBones || []).forEach(function(frameBone){ proxyCreateWickLayerForFrameBone(frameBone); }); // FIX v13.7: every Frame Bone gets its own visible key row
     scheduleProxyFrame();
   }
@@ -6527,7 +7087,7 @@ button.warn {
     return ensureCommitFrame(layer, getTimelinePlayheadForCommit(project, tl));
   }
 
-  function addToFrame(frame, obj){ // FIX v13.8: use every Wick insertion route needed for Clip objects and Path objects
+  function addToFrame(frame, obj){ // FIX v14.9: use every Wick insertion route needed for Clip objects and Path objects
     if (!frame) throw new Error('Active frame missing');
     var isClip = !!(obj && (
       (App.Wick && App.Wick.Clip && obj instanceof App.Wick.Clip) ||
@@ -6535,35 +7095,62 @@ button.warn {
       (obj.timeline && obj.transformation && !obj.json)
     ));
     var errors = [];
-    function attempt(fn){ try { fn(); return true; } catch(e){ errors.push(e && e.message ? e.message : String(e)); return false; } }
+    function ensureChildArrayContains(){ // FIX v14.9
+      try {
+        if (Array.isArray(frame._children) && frame._children.indexOf(obj) < 0) frame._children.push(obj);
+      } catch(e){}
+    }
+    function attempt(fn){ try { fn(); ensureChildArrayContains(); return true; } catch(e){ errors.push(e && e.message ? e.message : String(e)); return false; } }
     if (isClip) {
       if (typeof frame.addClip === 'function' && attempt(function(){ frame.addClip(obj); })) return;
       if (typeof frame.addObject === 'function' && attempt(function(){ frame.addObject(obj); })) return;
       if (Array.isArray(frame.clips) && attempt(function(){ frame.clips.push(obj); })) return;
       if (Array.isArray(frame.objects) && attempt(function(){ frame.objects.push(obj); })) return;
       if (Array.isArray(frame.children) && attempt(function(){ frame.children.push(obj); })) return;
+      if (Array.isArray(frame._children) && attempt(function(){ frame._children.push(obj); })) return; // FIX v14.9
     } else {
       if (typeof frame.addPath === 'function' && attempt(function(){ frame.addPath(obj); })) return;
       if (typeof frame.addObject === 'function' && attempt(function(){ frame.addObject(obj); })) return;
       if (Array.isArray(frame.paths) && attempt(function(){ frame.paths.push(obj); })) return;
       if (Array.isArray(frame.objects) && attempt(function(){ frame.objects.push(obj); })) return;
       if (Array.isArray(frame.children) && attempt(function(){ frame.children.push(obj); })) return;
+      if (Array.isArray(frame._children) && attempt(function(){ frame._children.push(obj); })) return; // FIX v14.9
     }
     throw new Error('No frame insertion API found' + (errors.length ? ': ' + errors.join(' | ') : ''));
   }
 
-  function addClipToWickProject(clip){ // FIX v13.8
+  function rememberSelectedCurveSourceTimeline(){ // FIX v14.8
     refreshBridgeRefs();
     var tl = getCommitTimeline(App.project);
-    if (!tl) throw new Error('Could not find the active Wick project timeline');
-    var layer = ensureCommitLayer(tl);
+    var layer = null;
+    var frame = null;
     var frameNumber = getTimelinePlayheadForCommit(App.project, tl);
+    try { layer = tl && tl.activeLayer; } catch(e){}
+    if (typeof layer === 'number') { try { layer = tl.layers[layer] || null; } catch(e2){ layer = null; } }
+    try { if (!layer && tl && tl.layers && tl.layers.length) layer = tl.layers[0]; } catch(e3){}
+    try { if (layer) frame = ensureCommitFrame(layer, frameNumber); } catch(e4){}
+    App.source.sourceTimeline = tl || null;
+    App.source.sourceLayer = layer || null;
+    App.source.sourceFrame = frame || null;
+    App.source.sourceFrameNumber = frameNumber || 1;
+  }
+
+  function addClipToSpecificWickTimeline(clip, tl, layer, frameNumber){ // FIX v14.8
+    refreshBridgeRefs();
+    tl = tl || getCommitTimeline(App.project);
+    if (!tl) throw new Error('Could not find the target Wick timeline');
+    if (!layer) layer = ensureCommitLayer(tl);
+    frameNumber = Math.max(1, Math.round(frameNumber || getTimelinePlayheadForCommit(App.project, tl) || 1));
     var frame = ensureCommitFrame(layer, frameNumber);
     addToFrame(frame, clip);
     try { App.project.activeTimeline = tl; } catch(e){}
     try { tl.activeLayer = layer; } catch(e){}
     try { App.project.activeFrame = frame; } catch(e){}
     return frame;
+  }
+
+  function addClipToWickProject(clip){ // FIX v13.8
+    return addClipToSpecificWickTimeline(clip, App.source.sourceTimeline || null, App.source.sourceLayer || null, App.source.sourceFrameNumber || null); // FIX v14.8
   }
 
   function escapeXmlAttr(value){ // FIX v5.2
@@ -6671,6 +7258,270 @@ button.warn {
     ].join('');
 
     return new File([svg], fileName, { type: 'image/svg+xml' });
+  }
+
+  function nativeCurveBoundsFromRecords(records){ // FIX v15.0
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    function includePoint(x, y){
+      x = Number(x); y = Number(y);
+      if (!isFinite(x) || !isFinite(y)) return;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+    (records || []).forEach(function(record){
+      try {
+        var json = record && record.paperJson;
+        var data = Array.isArray(json) ? json[1] : null;
+        var segs = data && Array.isArray(data.segments) ? data.segments : [];
+        segs.forEach(function(seg){
+          var p = seg && seg[0] ? seg[0] : null;
+          if (p && p.length >= 2) includePoint(p[0], p[1]);
+        });
+      } catch(e){}
+    });
+    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) return null;
+    return { minX:minX, minY:minY, maxX:maxX, maxY:maxY, width:Math.max(1, maxX - minX), height:Math.max(1, maxY - minY), cx:(minX + maxX) * 0.5, cy:(minY + maxY) * 0.5 };
+  }
+
+  function getUppermostBoneOriginLocalForFrame(frameNumber){ // FIX v16.7
+    var best = null;
+    var pose = null;
+    try { pose = getPoseForFrame(Math.max(1, Math.round(Number(frameNumber || 1)))); } catch(e) { pose = null; }
+    (App.bones || []).forEach(function(bone){
+      if (!bone) return;
+      var item = pose ? getBonePoseLike(bone, pose) : bone;
+      if (!item) item = bone;
+      [{ kind:'head', point:item.head }, { kind:'tail', point:item.tail }].forEach(function(entry){
+        var p = entry.point || null;
+        if (!p) return;
+        var x = Number(p.x);
+        var y = Number(p.y);
+        if (!isFinite(x) || !isFinite(y)) return;
+        if (!best || y < best.y || (y === best.y && x < best.x)) best = { x:x, y:y, boneId:bone.id, boneName:bone.name || '', kind:entry.kind, frame:Math.max(1, Math.round(Number(frameNumber || 1))) };
+      });
+    });
+    return best;
+  }
+
+  function getUppermostBoneOriginLocal(){ // FIX v16.7
+    return getUppermostBoneOriginLocalForFrame(1);
+  }
+
+  function computeNativeCurveUppermostBoneOriginForExportBounds(exportBounds){ // FIX v16.7
+    exportBounds = exportBounds || { width: Math.max(1, Math.round(App.source.width)), height: Math.max(1, Math.round(App.source.height)), offsetX: 0, offsetY: 0 };
+    var origin = getUppermostBoneOriginLocalForFrame(1); // FIX v16.7: commit origin must match the animated pose used by frame 1, not a stale rest pose.
+    if (origin) {
+      exportBounds.nativeOriginX = Number(exportBounds.offsetX || 0) + origin.x;
+      exportBounds.nativeOriginY = Number(exportBounds.offsetY || 0) + origin.y;
+      exportBounds.nativeOriginBoneId = origin.boneId;
+      exportBounds.nativeOriginBoneName = origin.boneName;
+      exportBounds.nativeOriginBonePoint = origin.kind;
+      exportBounds.nativeOriginFrame = origin.frame;
+      exportBounds.nativeOriginMode = 'uppermost-bone-frame-1';
+      return exportBounds;
+    }
+    exportBounds.nativeOriginX = Number(exportBounds.offsetX || 0) + Math.max(0, Number(exportBounds.width || 0) * 0.5);
+    exportBounds.nativeOriginY = Number(exportBounds.offsetY || 0);
+    exportBounds.nativeOriginMode = 'fallback-top-centre';
+    return exportBounds;
+  }
+
+  function nativeShapePathRecordsFromFrame(frameNum, exportBounds){ // FIX v14.9
+    if (!App.source.svgNative || !App.source.svgNative.shapes || !App.source.svgNative.shapes.length) return [];
+    var pose = getPoseForFrame(frameNum);
+    exportBounds = exportBounds || { width: Math.max(1, Math.round(App.source.width)), height: Math.max(1, Math.round(App.source.height)), offsetX: 0, offsetY: 0 };
+    var ox = Number(exportBounds.offsetX || 0);
+    var oy = Number(exportBounds.offsetY || 0);
+    var nativeOriginX = Number(exportBounds.nativeOriginX || 0); // FIX v15.0
+    var nativeOriginY = Number(exportBounds.nativeOriginY || 0); // FIX v15.0
+    var records = [];
+    App.source.svgNative.shapes.forEach(function(shape){
+      var style = clone(shape.style || {});
+      if (shape.cmdSubpaths && shape.cmdSubpaths.length) {
+        shape.cmdSubpaths.forEach(function(sp){
+          var warpedCmds = (sp.commands || []).map(function(cmd){
+            var out = { type: cmd.type };
+            if (cmd.p) { var pp = skinPointByPose(cmd.p, pose); out.p = { x: pp.x + ox - nativeOriginX, y: pp.y + oy - nativeOriginY }; } // FIX v15.1
+            if (cmd.c1) { var pc1 = skinPointByPose(cmd.c1, pose); out.c1 = { x: pc1.x + ox - nativeOriginX, y: pc1.y + oy - nativeOriginY }; } // FIX v15.1
+            if (cmd.c2) { var pc2 = skinPointByPose(cmd.c2, pose); out.c2 = { x: pc2.x + ox - nativeOriginX, y: pc2.y + oy - nativeOriginY }; } // FIX v15.1
+            return out;
+          });
+          warpedCmds = smoothNativeCommandsForOutput(warpedCmds);
+          var d = pathCommandsToD(warpedCmds);
+          if (d.trim()) records.push({ d: d.trim(), style: clone(style), paperJson: paperJsonFromNativeCommands(warpedCmds, style) }); // FIX v14.9
+        });
+      } else if (shape.subpaths && shape.subpaths.length) {
+        shape.subpaths.forEach(function(sp){
+          var warped = sp.points.map(function(p){ var q = skinPointByPose(p, pose); return { x: q.x + ox - nativeOriginX, y: q.y + oy - nativeOriginY }; }); // FIX v15.1
+          var d = pointsToSubpath(warped, sp.closed);
+          if (d.trim()) records.push({ d: d.trim(), style: clone(style), paperJson: paperJsonFromPointList(warped, !!sp.closed, style) }); // FIX v14.9
+        });
+      }
+    });
+    return records;
+  }
+
+  function svgColorToPaperColor(value){ // FIX v14.8
+    value = String(value == null ? '' : value).trim();
+    if (!value || value === 'none' || value === 'transparent') return null;
+    return value;
+  }
+
+  function paperJsonStyleFromSvgStyle(style){ // FIX v14.9
+    style = style || {};
+    var data = { applyMatrix: true };
+    var fill = svgColorToPaperColor(style.fill);
+    var stroke = svgColorToPaperColor(style.stroke);
+    if (fill) data.fillColor = fill;
+    else data.fillColor = null;
+    if (stroke) data.strokeColor = stroke;
+    else data.strokeColor = null;
+    if (style['stroke-width'] != null) data.strokeWidth = Number(style['stroke-width']) || 1;
+    if (style.opacity != null) data.opacity = Number(style.opacity);
+    if (style['stroke-linecap'] != null) data.strokeCap = style['stroke-linecap'];
+    if (style['stroke-linejoin'] != null) data.strokeJoin = style['stroke-linejoin'];
+    return data;
+  }
+
+  function paperJsonSegment(point, handleIn, handleOut){ // FIX v14.9
+    point = point || { x:0, y:0 };
+    handleIn = handleIn || { x:0, y:0 };
+    handleOut = handleOut || { x:0, y:0 };
+    return [[round(point.x), round(point.y)], [round(handleIn.x), round(handleIn.y)], [round(handleOut.x), round(handleOut.y)]];
+  }
+
+  function paperJsonFromPointList(points, closed, style){ // FIX v14.9
+    var data = paperJsonStyleFromSvgStyle(style);
+    data.closed = !!closed;
+    data.segments = (points || []).map(function(p){ return paperJsonSegment(p); });
+    return ['Path', data];
+  }
+
+  function paperJsonFromNativeCommands(cmds, style){ // FIX v14.9
+    var data = paperJsonStyleFromSvgStyle(style);
+    var segments = [];
+    var currentPoint = null;
+    var closed = false;
+    function pushPoint(p, handleIn){
+      var seg = paperJsonSegment(p, handleIn || { x:0, y:0 }, { x:0, y:0 });
+      segments.push(seg);
+      currentPoint = { x:p.x, y:p.y };
+      return seg;
+    }
+    (cmds || []).forEach(function(cmd){
+      if (!cmd || !cmd.type) return;
+      if (cmd.type === 'M' && cmd.p) {
+        pushPoint(cmd.p);
+      } else if (cmd.type === 'L' && cmd.p) {
+        pushPoint(cmd.p);
+      } else if (cmd.type === 'Q' && cmd.c1 && cmd.p && currentPoint) {
+        var c1 = { x: currentPoint.x + (2 / 3) * (cmd.c1.x - currentPoint.x), y: currentPoint.y + (2 / 3) * (cmd.c1.y - currentPoint.y) };
+        var c2 = { x: cmd.p.x + (2 / 3) * (cmd.c1.x - cmd.p.x), y: cmd.p.y + (2 / 3) * (cmd.c1.y - cmd.p.y) };
+        if (segments.length) segments[segments.length - 1][2] = [round(c1.x - currentPoint.x), round(c1.y - currentPoint.y)];
+        pushPoint(cmd.p, { x: c2.x - cmd.p.x, y: c2.y - cmd.p.y });
+      } else if (cmd.type === 'C' && cmd.c1 && cmd.c2 && cmd.p && currentPoint) {
+        if (segments.length) segments[segments.length - 1][2] = [round(cmd.c1.x - currentPoint.x), round(cmd.c1.y - currentPoint.y)];
+        pushPoint(cmd.p, { x: cmd.c2.x - cmd.p.x, y: cmd.c2.y - cmd.p.y });
+      } else if (cmd.type === 'Z') {
+        closed = true;
+      }
+    });
+    data.closed = !!closed;
+    data.segments = segments;
+    return ['Path', data];
+  }
+
+  function applyNativeCurveStyle(path, style){ // FIX v14.8
+    style = style || {};
+    try { path.fillColor = svgColorToPaperColor(style.fill); } catch(e){}
+    try { path.strokeColor = svgColorToPaperColor(style.stroke); } catch(e){}
+    try { if (style['stroke-width'] != null) path.strokeWidth = Number(style['stroke-width']) || 1; } catch(e){}
+    try { if (style.opacity != null) path.opacity = Number(style.opacity); } catch(e){}
+    try { if (style['stroke-linecap'] != null) path.strokeCap = style['stroke-linecap']; } catch(e){}
+    try { if (style['stroke-linejoin'] != null) path.strokeJoin = style['stroke-linejoin']; } catch(e){}
+    return path;
+  }
+
+  function createNativeWickPathFromRecord(record, frameIndex, shapeIndex){ // FIX v14.9
+    var d = String(record && record.d || '').trim();
+    if (!d) throw new Error('Empty native curve path data');
+    var style = record.style || {};
+    var paperJson = record && record.paperJson ? clone(record.paperJson) : null; // FIX v14.9
+    var paperItem = null;
+    try {
+      if (!paperJson && App.paper && App.paper.project && typeof App.paper.project.importSVG === 'function') {
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg"><path d="' + escapeXmlAttr(d) + '"' + styleMapToAttrs(style) + '/></svg>';
+        paperItem = App.paper.project.importSVG(svg, { insert:false });
+        try { if (paperItem && paperItem.children && paperItem.children.length === 1) paperItem = paperItem.children[0]; } catch(e0){}
+        if (paperItem) {
+          applyNativeCurveStyle(paperItem, style);
+          try { paperJson = paperItem.exportJSON({ asString:false }); } catch(e1){} // FIX v14.9
+          try { if (typeof paperItem.remove === 'function') paperItem.remove(); } catch(e2){}
+        }
+      }
+    } catch(e3){}
+    if (!paperJson) throw new Error('Could not build Paper JSON for native Wick curve.'); // FIX v14.9
+    var path = null;
+    var errors = [];
+    function attempt(fn){ try { var made = fn(); if (made) { path = made; return true; } } catch(e){ errors.push(e && e.message ? e.message : String(e)); } return false; }
+    if (App.Wick && App.Wick.Path) {
+      attempt(function(){ var p = new App.Wick.Path(); p.json = clone(paperJson); return p; }); // FIX v14.9
+      if (!path) attempt(function(){ return new App.Wick.Path({ json: clone(paperJson) }); }); // FIX v14.9
+      if (!path) attempt(function(){ var p2 = new App.Wick.Path({ json: clone(paperJson) }); p2.json = clone(paperJson); return p2; }); // FIX v14.9
+    }
+    if (!path) throw new Error('Could not create native Wick curve path' + (errors.length ? ': ' + errors.join(' | ') : ''));
+    try { path.identifier = makeValidIdentifier('native_curve_' + frameIndex + '_' + shapeIndex, 'native_curve_' + frameIndex + '_' + shapeIndex); } catch(e4){}
+    try { path.name = 'Native_Curve_' + frameIndex + '_' + shapeIndex; } catch(e5){}
+    try { path.json = clone(paperJson); } catch(e6){} // FIX v14.9
+    try { path.pathData = d; } catch(e7){}
+    applyNativeCurveStyle(path, style);
+    return path;
+  }
+
+  function countNativeCurveClipPaths(clip){ // FIX v14.9
+    var total = 0;
+    try {
+      (clip.timeline.layers || []).forEach(function(layer){
+        (layer.frames || []).forEach(function(frame){
+          if (Array.isArray(frame.paths)) total += frame.paths.length;
+          else if (Array.isArray(frame._children)) total += frame._children.filter(function(child){ return child && child.json; }).length;
+          else if (Array.isArray(frame.children)) total += frame.children.length;
+          else if (Array.isArray(frame.objects)) total += frame.objects.length;
+        });
+      });
+    } catch(e){}
+    return total;
+  }
+
+  function buildNativeCurveClip(clipName, exportBounds){ // FIX v14.9
+    if (!App.source.svgNative || !App.source.svgNative.shapes || !App.source.svgNative.shapes.length) throw new Error('Native Wick curve commit needs parsed SVG Native shapes.');
+    exportBounds = computeNativeCurveUppermostBoneOriginForExportBounds(exportBounds); // FIX v15.1
+    var clipIdentifier = makeValidIdentifier(clipName, 'BoneWarpNativeCurveClip');
+    var clip = new App.Wick.Clip({ identifier: clipIdentifier });
+    try { clip.name = clipName; } catch(e){}
+    try { clip.width = Math.max(1, Number(exportBounds.width || App.source.width || 1)); } catch(e2){}
+    try { clip.height = Math.max(1, Number(exportBounds.height || App.source.height || 1)); } catch(e3){}
+    try { clip.bounds = { x:-(Number(exportBounds.nativeOriginX || 0)), y:0, width:clip.width, height:clip.height }; } catch(e4){} // FIX v15.0
+    var safeN = 10;
+    while (clip.timeline.layers.length && safeN-- > 0) {
+      try { clip.timeline.removeLayer(clip.timeline.layers[0]); } catch(e5){ break; }
+    }
+    var layer = new App.Wick.Layer();
+    layer.name = 'native curves';
+    clip.timeline.addLayer(layer);
+    for (var fi = 1; fi <= App.frameCount; fi++) {
+      var frame = new App.Wick.Frame({ start: fi, end: fi });
+      frame.identifier = 'frame_' + fi;
+      layer.addFrame(frame);
+      var records = nativeShapePathRecordsFromFrame(fi, exportBounds);
+      for (var si = 0; si < records.length; si++) {
+        var path = createNativeWickPathFromRecord(records[si], fi, si + 1);
+        addToFrame(frame, path);
+      }
+    }
+    return clip;
   }
 
   function nativeSvgFileFromFrame(frameNum, fileName, exportBounds){ // FIX v7.3
@@ -6834,10 +7685,70 @@ button.warn {
       log('WARNING: PNG export is using a stage crop source, so transparency will not be correct until the original PNG asset is captured.');
     }
     var exportBounds = computeAnimationExportBounds(); // FIX v6.9
-    log('Committing ' + App.frameCount + ' warped ' + (exportMode === 'svgNative' ? 'SVG native' : (exportMode === 'svg' ? 'SVG mesh' : 'PNG')) + ' frames from the real Wick timeline...'); // FIX v13.2
+    log('Committing ' + App.frameCount + ' warped ' + (exportMode === 'nativeCurve' ? 'native Wick curve' : (exportMode === 'svgNative' ? 'SVG native' : (exportMode === 'svg' ? 'SVG mesh' : 'PNG'))) + ' frames from the real Wick timeline...'); // FIX v14.8
+    if (!Object.keys(App.keyframes || {}).length) log('Commit note: no animation keys found. The clip will commit the current rest pose on every frame. Use the Animate tab to create keys.'); // FIX v16.7
     if (exportBounds.width > App.source.width || exportBounds.height > App.source.height || exportBounds.minX < 0 || exportBounds.minY < 0) { // FIX v6.9
       log('Auto expanded the export area to avoid clipping: ' + exportBounds.width + ' x ' + exportBounds.height + ' px.'); // FIX v6.9
     }
+    if (exportMode === 'nativeCurve') { // FIX v14.8
+      try {
+        var nativeClip = buildNativeCurveClip(clipName, exportBounds);
+        var syncWithParentNative = !!(el('chkSyncWithParent') && el('chkSyncWithParent').checked);
+        try { nativeClip.animationType = 'loop'; } catch(e){} // FIX v16.7: Wick rejects syncWithParent for clips, so keep commit animation valid.
+        try { nativeClip.timeline.playheadPosition = 1; } catch(e2){}
+        addClipToWickProject(nativeClip);
+        try { log('Native curve clip created with ' + countNativeCurveClipPaths(nativeClip) + ' Wick path object' + (countNativeCurveClipPaths(nativeClip) === 1 ? '' : 's') + '. Origin: ' + (exportBounds.nativeOriginMode || 'uppermost-bone') + '.'); } catch(countErr){} // FIX v16.7
+        try {
+          if (!App.committedClipIdentifiers) App.committedClipIdentifiers = [];
+          App.committedClipIdentifiers.push(nativeClip.identifier || nativeClip.name || clipName);
+        } catch(e3){}
+        var placeAtSourceNative = el('chkPlaceAtSource').checked;
+        var stampBoundsNative = getSetAreaStageBounds() || App.source.stageBounds || null;
+        if (placeAtSourceNative && stampBoundsNative) {
+          try {
+            var srcWNative = Math.max(1, Number(App.source.width) || 1);
+            var srcHNative = Math.max(1, Number(App.source.height) || 1);
+            var scaleXNative = stampBoundsNative.w / srcWNative;
+            var scaleYNative = stampBoundsNative.h / srcHNative;
+            var nativeOriginSourceX = Number(exportBounds.nativeOriginX || 0) - Number(exportBounds.offsetX || 0); // FIX v15.0
+            var nativeOriginSourceY = Number(exportBounds.nativeOriginY || 0) - Number(exportBounds.offsetY || 0); // FIX v15.0
+            nativeClip.transformation.x = stampBoundsNative.x + (nativeOriginSourceX * scaleXNative); // FIX v15.0
+            nativeClip.transformation.y = stampBoundsNative.y + (nativeOriginSourceY * scaleYNative); // FIX v15.0
+            nativeClip.transformation.scaleX = scaleXNative;
+            nativeClip.transformation.scaleY = scaleYNative;
+            nativeClip.transformation.rotation = 0;
+          } catch(e4){}
+        } else if (placeAtSourceNative && App.source.stageBounds) { // FIX v15.0
+          try {
+            var srcWNativeB = Math.max(1, Number(App.source.width) || 1); // FIX v15.0
+            var srcHNativeB = Math.max(1, Number(App.source.height) || 1); // FIX v15.0
+            var nativeOriginSourceXB = Number(exportBounds.nativeOriginX || 0) - Number(exportBounds.offsetX || 0); // FIX v15.0
+            var nativeOriginSourceYB = Number(exportBounds.nativeOriginY || 0) - Number(exportBounds.offsetY || 0); // FIX v15.0
+            nativeClip.transformation.x = App.source.stageBounds.x + (nativeOriginSourceXB / srcWNativeB) * App.source.stageBounds.w; // FIX v15.0
+            nativeClip.transformation.y = App.source.stageBounds.y + (nativeOriginSourceYB / srcHNativeB) * App.source.stageBounds.h; // FIX v15.0
+            nativeClip.transformation.scaleX = App.source.stageBounds.w / srcWNativeB; // FIX v15.0
+            nativeClip.transformation.scaleY = App.source.stageBounds.h / srcHNativeB; // FIX v15.0
+            nativeClip.transformation.rotation = App.source.stageRotation || 0;
+          } catch(e5){}
+        } else if (placeAtSourceNative && App.source.stageCenter) {
+          try {
+            nativeClip.transformation.x = App.source.stageCenter.x;
+            nativeClip.transformation.y = App.source.stageCenter.y;
+            nativeClip.transformation.scaleX = 1;
+            nativeClip.transformation.scaleY = 1;
+            nativeClip.transformation.rotation = App.source.stageRotation || 0;
+          } catch(e5b){}
+        }
+        try { removeOverlay(); } catch(e6){}
+        try { removeSetAreaOverlay(); } catch(e7){}
+        markDirty();
+        log('Clip committed to Wick with native editable curves on each frame: ' + clipName);
+      } catch(nativeErr) {
+        log('Native curve commit failed: ' + (nativeErr && nativeErr.message ? nativeErr.message : nativeErr));
+      }
+      return;
+    }
+
     var files = [];
     var names = [];
     for (var i = 1; i <= App.frameCount; i++) {
@@ -6902,7 +7813,7 @@ button.warn {
       }
 
       var syncWithParent = !!(el('chkSyncWithParent') && el('chkSyncWithParent').checked); // FIX v6.1
-      try { clip.animationType = syncWithParent ? 'syncWithParent' : 'loop'; } catch(e){} // FIX v6.1
+      try { clip.animationType = 'loop'; } catch(e){} // FIX v16.7: Wick rejects syncWithParent for clips, so keep commit animation valid.
       try { clip.timeline.playheadPosition = 1; } catch(e){} // FIX v6.1
 
       addClipToWickProject(clip); // FIX v13.8: create a real Wick clip on the active Wick timeline/frame
@@ -6963,9 +7874,13 @@ button.warn {
     });
     if (el('btnEditApplyBone')) el('btnEditApplyBone').addEventListener('click', applyEditBoneFields); // FIX v6.7
     if (el('btnEditRefreshBone')) el('btnEditRefreshBone').addEventListener('click', function(){ updateEditBoneControls(); updateUI(); }); // FIX v6.7
+    if (el('btnEditBoneModeBone')) el('btnEditBoneModeBone').addEventListener('click', function(){ setEditBoneMode('bone'); }); // FIX v16.6
+    if (el('btnEditBoneModeEnvelope')) el('btnEditBoneModeEnvelope').addEventListener('click', function(){ setEditBoneMode('envelope'); }); // FIX v16.6
 
     el('btnSetArea').addEventListener('click', beginSetAreaMode); // FIX v6.0
     el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } promptLocalImageFile(); }); // FIX v6.0
+    if (el('btnUseSelectedCurve')) el('btnUseSelectedCurve').addEventListener('click', useSelectedWickCurveAsSource); // FIX v14.4
+    if (el('btnUseSelectedCurveRemove')) el('btnUseSelectedCurveRemove').addEventListener('click', useSelectedWickCurveAsSourceAndRemoveOriginal); // FIX v14.5
     el('fileImageLoader').addEventListener('change', onImageFileChosen); // FIX v6.0
     el('btnRefreshOverlay').addEventListener('click', function(){ if (!App.source.image) { updateUI(); return; } ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); renderOverlay(); updateUI(); }); // FIX v7.8
     el('btnRemoveOverlay').addEventListener('click', function(){ removeSetAreaOverlay(); removeOverlay(); updateUI(); }); // FIX v6.0
@@ -6974,6 +7889,8 @@ button.warn {
     if (el('rngSvgSmoothAmount')) el('rngSvgSmoothAmount').addEventListener('input', function(){ App.smooth.amount = clamp((parseInt(this.value,10) || 0) / 100, 0, 1); updateUI(); renderOverlay(); }); // FIX v8.7
     if (el('rngSvgCurveStrength')) el('rngSvgCurveStrength').addEventListener('input', function(){ App.smooth.curveStrength = clamp((parseInt(this.value,10) || 0) / 100, 0, 1); updateUI(); renderOverlay(); }); // FIX v8.7
     if (el('chkSvgSmoothPreserveEnds')) el('chkSvgSmoothPreserveEnds').addEventListener('change', function(){ App.smooth.preserveEnds = !!this.checked; updateUI(); renderOverlay(); }); // FIX v8.7
+    if (el('chkSvgSmoothKeepFlatEnds')) el('chkSvgSmoothKeepFlatEnds').addEventListener('change', function(){ App.smooth.keepFlatEnds = !!this.checked; updateUI(); renderOverlay(); }); // FIX v16.2
+    if (el('rngSelectedCurvePointDensity')) el('rngSelectedCurvePointDensity').addEventListener('input', function(){ App.selectedCurve.pointDensity = clamp(parseInt(this.value,10) || 0, 0, 100); updateUI(); }); // FIX v14.6
     if (el('btnSvgSmoothPreview')) el('btnSvgSmoothPreview').addEventListener('click', function(){ renderOverlay(); updateUI(); }); // FIX v8.7
 
     el('chkShowImage').addEventListener('change', function(){ App.flags.showImage = !!this.checked; renderOverlay(); });
