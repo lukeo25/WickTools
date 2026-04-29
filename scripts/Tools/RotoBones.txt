@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LukeTools Bone Warp Stamp v17.1</title> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>LukeTools Bone Warp Stamp v17.2</title> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -265,8 +265,8 @@ button.warn {
           <div class="row" style="margin-top:8px;">
             <button id="btnSetArea">Set Area</button>
             <button id="btnLoadImage" class="secondary">Load SVG</button>
-            <button id="btnUseSelectedCurve" class="secondary">Use Selected Wick Curve</button> <!-- FIX v14.4 -->
-            <button id="btnUseSelectedCurveRemove" class="secondary">Use Selected Curve And Remove Original</button> <!-- FIX v14.5 -->
+            <button id="btnUseSelectedCurve" class="secondary">Use Selected Wick Curves</button> <!-- FIX v17.2 -->
+            <button id="btnUseSelectedCurveRemove" class="secondary">Use Selected Curves And Remove Originals</button> <!-- FIX v17.2 -->
             <button id="btnRefreshOverlay" class="secondary">Refresh Overlay</button>
             <button id="btnRemoveOverlay" class="secondary">Remove Overlay</button>
             <input type="file" id="fileImageLoader" accept=".svg,image/svg+xml" style="display:none;">
@@ -628,8 +628,8 @@ button.warn {
           <ol class="small" style="line-height:1.6; padding-left:18px;">
             <li>Click <b>Set Area</b> and drag the first placement area on the Wick stage.</li>
             <li>Click <b>Load SVG</b> and choose a normal SVG or Inkscape SVG file.</li>
-            <li>Or select a Wick curve on the stage and click <b>Use Selected Wick Curve</b>. The selected curve is converted into an internal SVG source and its current stage bounds are used as the placement area.</li> <!-- FIX v14.4 -->
-            <li>Use <b>Use Selected Curve And Remove Original</b> if you want the tool to ingest the selected Wick curve and then delete the original stage object only after the conversion succeeds.</li> <!-- FIX v14.5 -->
+            <li>Or select one or more Wick curves on the stage and click <b>Use Selected Wick Curves</b>. The selected curves are converted into one internal SVG source, using a shared placement area around all selected curves.</li> <!-- FIX v17.2 -->
+            <li>Use <b>Use Selected Curves And Remove Originals</b> if you want the tool to ingest the selected Wick curves and then delete the original stage objects only after the conversion succeeds.</li> <!-- FIX v17.2 -->
             <li>Use <b>Curve point density</b> before ingesting a selected Wick curve if the artwork needs more points for smoother bone bending. This inserts extra points between the existing corner points only. Corner points are preserved exactly, so the design is not smoothed, averaged, simplified, or rearranged.</li> <!-- FIX v14.7 -->
             <li>The Set Area frame is only used for initial placement. After loading or converting a selected curve, the visible tool overlay shows the SVG, bones, envelopes, handles, and Frame Bones.</li>
             <li>The SVG keeps its aspect ratio. Mesh controls are not part of this SVG Native workflow.</li>
@@ -1197,18 +1197,34 @@ button.warn {
   }
 
   function getSelectedObject(){
-    try { if (App.B && typeof App.B.getSelectedObject === 'function') return App.B.getSelectedObject(); } catch(e){}
+    var arr = getSelectedObjects(); // FIX v17.2
+    return arr && arr[0] ? arr[0] : null; // FIX v17.2
+  }
+
+  function getSelectedObjects(){ // FIX v17.2
+    var out = [];
+    function add(value){
+      if (!value) return;
+      if (out.indexOf(value) >= 0) return;
+      out.push(value);
+    }
+    try { if (App.B && typeof App.B.getSelectedObjects === 'function') { var bArr = App.B.getSelectedObjects(); if (bArr && bArr.length) Array.prototype.slice.call(bArr).forEach(add); } } catch(e){}
     try {
-      var sel = (App.project && App.project.selection) || (App.ed && App.ed.selection);
-      if (sel) {
-        if (typeof sel.getSelectedObjects === 'function') {
-          var arr = sel.getSelectedObjects();
-          return arr && arr[0] ? arr[0] : null;
-        }
-        if (Array.isArray(sel.selectedObjects)) return sel.selectedObjects[0] || null;
-      }
+      var sources = [];
+      try { sources.push((App.project && App.project.selection) || null); } catch(e0){}
+      try { sources.push((App.ed && App.ed.selection) || null); } catch(e1){}
+      sources.forEach(function(sel){
+        if (!sel) return;
+        try { if (typeof sel.getSelectedObjects === 'function') { var arr = sel.getSelectedObjects(); if (arr && arr.length) Array.prototype.slice.call(arr).forEach(add); } } catch(e2){}
+        try { if (Array.isArray(sel.selectedObjects)) sel.selectedObjects.forEach(add); } catch(e3){}
+        try { if (Array.isArray(sel.objects)) sel.objects.forEach(add); } catch(e4){}
+        try { if (Array.isArray(sel.items)) sel.items.forEach(add); } catch(e5){}
+      });
     } catch(e){}
-    return null;
+    if (!out.length) {
+      try { if (App.B && typeof App.B.getSelectedObject === 'function') add(App.B.getSelectedObject()); } catch(e){}
+    }
+    return out;
   }
 
   function getSelectionInfo(){
@@ -2279,6 +2295,68 @@ button.warn {
     return { svgRaw:selectedCurveWrapSvgContent(inner, bounds, name), bounds:bounds, fileName:makeValidIdentifier(name, 'Selected_Wick_Curve') + '.svg' };
   }
 
+  function selectedCurveManualRectSvgAbsolute(obj, bounds){ // FIX v17.2
+    bounds = bounds || { x:0, y:0, w:100, h:100 };
+    var fill = 'none';
+    var stroke = '#000000';
+    var strokeWidth = 1;
+    try { fill = selectedCurveCssColor(obj.fillColor || obj.fill, 'none'); } catch(e){}
+    try { stroke = selectedCurveCssColor(obj.strokeColor || obj.stroke, '#000000'); } catch(e){}
+    try { strokeWidth = selectedCurveNumber(obj.strokeWidth || obj.stroke_width, 1); } catch(e){}
+    return '<rect x="' + selectedCurveSvgEscape(round(bounds.x || 0)) + '" y="' + selectedCurveSvgEscape(round(bounds.y || 0)) + '" width="' + Math.max(1, round(bounds.w)) + '" height="' + Math.max(1, round(bounds.h)) + '" fill="' + selectedCurveSvgEscape(fill || 'none') + '" stroke="' + selectedCurveSvgEscape(stroke || '#000000') + '" stroke-width="' + selectedCurveSvgEscape(strokeWidth) + '"/>';
+  }
+
+  function selectedCurveObjectToSvgPart(obj, index){ // FIX v17.2
+    if (!obj) throw new Error('A selected Wick object was empty.');
+    var item = selectedCurveFindPaperItem(obj);
+    var bounds = selectedCurvePaperBounds(item) || getObjectStageBounds(obj) || selectedCurveGetBounds(obj);
+    if (!bounds || bounds.w <= 0 || bounds.h <= 0) throw new Error('A selected object does not expose usable bounds.');
+    var name = String(obj.identifier || obj.name || ('Selected_Wick_Curve_' + (index + 1)));
+    var density = clamp(Number(App.selectedCurve && App.selectedCurve.pointDensity != null ? App.selectedCurve.pointDensity : 50), 0, 100);
+    var inner = '';
+    var rawExport = '';
+    if (item && density > 0) inner = selectedCurveDensifiedPathFromPaperItem(item, bounds, selectedCurveDensityToMaxStep(density)); // FIX v17.2: preserves original colours through selectedCurveStyleAttributesFromPaperItem.
+    if (!inner && item && item.segments && item.segments.length) inner = selectedCurveManualPathFromPaperItem(item, { x:0, y:0, w:bounds.w, h:bounds.h, cx:0, cy:0 }); // FIX v17.2: absolute path coordinates for shared SVG bounds.
+    if (!inner && item && typeof item.exportSVG === 'function') {
+      try { rawExport = String(item.exportSVG({ asString:true }) || ''); } catch(e){}
+      if (!rawExport) { try { rawExport = String(item.exportSVG({ asString:true, precision:3 }) || ''); } catch(e2){} }
+      inner = rawExport ? selectedCurveExtractSvgInner(rawExport) : '';
+    }
+    if (!inner) inner = selectedCurveManualRectSvgAbsolute(obj, bounds);
+    return { inner:'<g data-luketools-selected-curve-index="' + selectedCurveSvgEscape(index + 1) + '" data-luketools-selected-curve-name="' + selectedCurveSvgEscape(name) + '">\n' + inner + '\n</g>', bounds:bounds, name:name };
+  }
+
+  function selectedCurveUnionBounds(parts){ // FIX v17.2
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    (parts || []).forEach(function(part){
+      var b = part && part.bounds ? part.bounds : null;
+      if (!b) return;
+      minX = Math.min(minX, b.x);
+      minY = Math.min(minY, b.y);
+      maxX = Math.max(maxX, b.x + b.w);
+      maxY = Math.max(maxY, b.y + b.h);
+    });
+    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY) || maxX <= minX || maxY <= minY) return null;
+    return { x:minX, y:minY, w:maxX - minX, h:maxY - minY, cx:(minX + maxX) * 0.5, cy:(minY + maxY) * 0.5 };
+  }
+
+  function selectedCurveObjectsToSvg(objects){ // FIX v17.2
+    var list = (objects || []).filter(function(obj){ return !!obj; });
+    if (!list.length) throw new Error('No Wick curves are selected. Select one or more Wick curves on the stage first.');
+    var parts = [];
+    var errors = [];
+    list.forEach(function(obj, index){
+      try { parts.push(selectedCurveObjectToSvgPart(obj, index)); }
+      catch(e) { errors.push(e && e.message ? e.message : String(e)); }
+    });
+    if (!parts.length) throw new Error('None of the selected objects could be converted to SVG.' + (errors.length ? ' ' + errors.join(' ') : ''));
+    var bounds = selectedCurveUnionBounds(parts);
+    if (!bounds) throw new Error('Could not calculate shared bounds for the selected Wick curves.');
+    var fileName = parts.length === 1 ? makeValidIdentifier(parts[0].name, 'Selected_Wick_Curve') + '.svg' : 'Selected_Wick_Curves_' + parts.length + '.svg';
+    var label = parts.length === 1 ? 'Selected Wick Curve' : ('Selected Wick Curves (' + parts.length + ')');
+    return { svgRaw:selectedCurveWrapSvgContent(parts.map(function(p){ return p.inner; }).join('\n'), bounds, label), bounds:bounds, fileName:fileName, count:parts.length, errors:errors };
+  }
+
   function removeOriginalSelectedCurveObject(obj){ // FIX v14.5
     var removed = false;
     var lastErr = null;
@@ -2348,6 +2426,63 @@ button.warn {
     return true;
   }
 
+
+  function removeOriginalSelectedCurveObjects(objects){ // FIX v17.2
+    objects = (objects || []).filter(function(obj){ return !!obj; });
+    if (!objects.length) return true;
+    if (objects.length === 1) return removeOriginalSelectedCurveObject(objects[0]);
+    var removed = false;
+    var lastErr = null;
+    refreshBridgeRefs();
+    try {
+      if (App.B && typeof App.B.deleteSelectedObjects === 'function') {
+        App.B.deleteSelectedObjects();
+        removed = true;
+      }
+    } catch(e) { lastErr = e; }
+    if (!removed) {
+      try {
+        if (App.ed && typeof App.ed.deleteSelectedObjects === 'function') {
+          App.ed.deleteSelectedObjects();
+          removed = true;
+        }
+      } catch(e) { lastErr = e; }
+    }
+    if (!removed) {
+      try {
+        if (App.project && App.project.selection && typeof App.project.selection.delete === 'function') {
+          App.project.selection.delete();
+          removed = true;
+        }
+      } catch(e) { lastErr = e; }
+    }
+    if (!removed) {
+      var removedCount = 0;
+      objects.forEach(function(obj){
+        var didRemove = false;
+        try { if (!didRemove && obj && typeof obj.remove === 'function') { obj.remove(); didRemove = true; } } catch(e) { lastErr = e; }
+        try { if (!didRemove && obj && obj.parent && typeof obj.parent.removeChild === 'function') { obj.parent.removeChild(obj); didRemove = true; } } catch(e) { lastErr = e; }
+        try {
+          if (!didRemove && obj && obj.parent && Array.isArray(obj.parent.objects)) {
+            var idx = obj.parent.objects.indexOf(obj);
+            if (idx >= 0) { obj.parent.objects.splice(idx, 1); didRemove = true; }
+          }
+        } catch(e) { lastErr = e; }
+        try {
+          if (!didRemove && obj && obj.parent && Array.isArray(obj.parent.children)) {
+            var idx2 = obj.parent.children.indexOf(obj);
+            if (idx2 >= 0) { obj.parent.children.splice(idx2, 1); didRemove = true; }
+          }
+        } catch(e) { lastErr = e; }
+        if (didRemove) removedCount++;
+      });
+      removed = removedCount === objects.length;
+    }
+    if (!removed) throw new Error('Converted the selected Wick curves, but could not remove every original stage object automatically.' + (lastErr && lastErr.message ? ' ' + lastErr.message : ''));
+    markDirty();
+    return true;
+  }
+
   async function loadSvgTextAsSource(svgRaw, fileName, mode, bounds){ // FIX v14.4
     if (!svgRaw || !/^\s*<svg[\s>]/i.test(String(svgRaw))) throw new Error('Could not build a valid SVG from the selected object.');
     if (bounds) {
@@ -2372,19 +2507,22 @@ button.warn {
     } else log('Selected Wick curve converted to SVG source, but no native vector shapes were parsed.');
   }
 
-  async function useSelectedWickCurveAsSourceInternal(removeOriginal){ // FIX v14.5
+  async function useSelectedWickCurveAsSourceInternal(removeOriginal){ // FIX v17.2
     try {
       refreshBridgeRefs();
       try { if (App.B && typeof App.B.captureSelectionNow === 'function') App.B.captureSelectionNow(); } catch(e){}
-      var obj = getSelectedObject();
-      if (!obj) throw new Error('No Wick object is selected. Select a Wick curve or path on the stage first.');
-      var converted = selectedCurveObjectToSvg(obj);
+      var objects = getSelectedObjects(); // FIX v17.2
+      if (!objects.length) throw new Error('No Wick curves are selected. Select one or more Wick curves on the stage first.');
+      var converted = selectedCurveObjectsToSvg(objects); // FIX v17.2
       rememberSelectedCurveSourceTimeline(); // FIX v14.8
-      await loadSvgTextAsSource(converted.svgRaw, converted.fileName, 'selected-wick-curve', converted.bounds);
+      await loadSvgTextAsSource(converted.svgRaw, converted.fileName, converted.count > 1 ? 'selected-wick-curves' : 'selected-wick-curve', converted.bounds);
       if (removeOriginal) {
-        removeOriginalSelectedCurveObject(obj); // FIX v14.5
-        log('Selected Wick curve ingested and original removed from the Wick stage.'); // FIX v14.5
+        removeOriginalSelectedCurveObjects(objects); // FIX v17.2
+        log((converted.count > 1 ? converted.count + ' selected Wick curves ingested and originals removed from the Wick stage.' : 'Selected Wick curve ingested and original removed from the Wick stage.')); // FIX v17.2
+      } else {
+        log((converted.count > 1 ? converted.count + ' selected Wick curves ingested as one source. Colours were preserved from the selected curves.' : 'Selected Wick curve ingested as source.')); // FIX v17.2
       }
+      if (converted.errors && converted.errors.length) log('Some selected objects were skipped: ' + converted.errors.join(' | ')); // FIX v17.2
       removeSetAreaOverlay();
       ensureOverlay();
       hideSetAreaVisualFrame();
@@ -2392,16 +2530,16 @@ button.warn {
       renderOverlay();
       updateUI();
     } catch(err) {
-      log((removeOriginal ? 'Use Selected Curve And Remove Original failed: ' : 'Use Selected Wick Curve failed: ') + (err && err.message ? err.message : err));
+      log((removeOriginal ? 'Use Selected Curves And Remove Originals failed: ' : 'Use Selected Wick Curves failed: ') + (err && err.message ? err.message : err));
     }
   }
 
-  async function useSelectedWickCurveAsSource(){ // FIX v14.5
-    return useSelectedWickCurveAsSourceInternal(false); // FIX v14.5
+  async function useSelectedWickCurveAsSource(){ // FIX v17.2
+    return useSelectedWickCurveAsSourceInternal(false); // FIX v17.2
   }
 
-  async function useSelectedWickCurveAsSourceAndRemoveOriginal(){ // FIX v14.5
-    return useSelectedWickCurveAsSourceInternal(true); // FIX v14.5
+  async function useSelectedWickCurveAsSourceAndRemoveOriginal(){ // FIX v17.2
+    return useSelectedWickCurveAsSourceInternal(true); // FIX v17.2
   }
 
   async function onImageFileChosen(evt){ // FIX v7.1
