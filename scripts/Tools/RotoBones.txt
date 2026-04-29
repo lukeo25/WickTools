@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LukeTools Bone Warp Stamp v16.7</title> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>LukeTools Bone Warp Stamp v17.1</title> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -298,7 +298,7 @@ button.warn {
       <div class="panelPage" data-page="bones">
         <div class="section">
           <h3>Bone creation</h3>
-          <div class="notice">The Bones tab is always in Add Bone mode. Drag empty overlay space to create a normal warp bone. Click a bone to select it. Deleting a bone returns straight back to Add Bone mode.</div>
+          <div class="notice">The Bones tab is always in Add Bone mode. Drag empty overlay space to create the selected bone type. Click a bone to select it. Deleting a bone returns straight back to Add Bone mode.</div>
           <div class="row" style="margin-top:8px;">
             <button id="btnDeleteBone" class="warn">Delete Selected Bone</button>
             <button id="btnClearBones" class="warn">Clear All Bones</button>
@@ -311,6 +311,13 @@ button.warn {
             <label>Bone name</label>
             <input type="text" id="inpBoneName" value="Bone 1">
             <button id="btnRenameBone" class="secondary">Rename</button>
+          </div>
+          <div class="row"> <!-- FIX v17.0 -->
+            <label>Bone type</label>
+            <select id="selBoneType">
+              <option value="normal">Normal Bone</option>
+              <option value="stretchy">Stretchy Bone</option>
+            </select>
           </div>
           <div class="row">
             <label>Parent bone</label>
@@ -549,10 +556,10 @@ button.warn {
           <div class="row">
             <label>Export mode</label>
             <select id="selExportMode">
-              <option value="png" selected>PNG with transparency</option>
+              <option value="png">PNG with transparency</option>
               <option value="svg">SVG mesh warp</option>
               <option value="svgNative">SVG Native point warp</option>
-              <option value="nativeCurve">Native Wick curves</option> <!-- FIX v14.8 -->
+              <option value="nativeCurve" selected>Native Wick curves</option> <!-- FIX v16.9 -->
             </select>
           </div>
           <div class="row">
@@ -633,7 +640,7 @@ button.warn {
           <h3>3. Bones</h3>
           <ol class="small" style="line-height:1.6; padding-left:18px;">
             <li>The Bones tab is automatically in Add Bone mode.</li>
-            <li>Drag on empty SVG space to create a normal warp bone.</li>
+            <li>Drag on empty SVG space to create a normal warp bone, or set Bone type to Stretchy Bone before dragging if you want the tail length to be keyable and to pull nearby curve points along the bone axis.</li> <!-- FIX v17.1 -->
             <li>Click an existing bone to select it.</li>
             <li><b>Delete Selected Bone</b> only deletes the currently selected bone. After deletion, no other bone is deleted unless you select another bone and click delete again.</li>
             <li>Connected child bones keep their head locked to the parent tail and evaluate their angle relative to the parent bone.</li>
@@ -701,7 +708,8 @@ button.warn {
 
   var App = {
     activeTab: 'source',
-    editBoneMode: 'bone', // FIX v16.6: Edit Bone tab has explicit non-keying edit modes.
+    editBoneMode: 'bone',
+    newBoneType: 'normal', // FIX v17.0 // FIX v16.6: Edit Bone tab has explicit non-keying edit modes.
     B: null,
     ed: null,
     project: null,
@@ -959,6 +967,18 @@ button.warn {
     return App.activeTab === 'bones' || App.activeTab === 'editbone';
   }
 
+  function normaliseBoneType(value){ // FIX v17.0
+    return value === 'stretchy' ? 'stretchy' : 'normal';
+  }
+
+  function isStretchyBone(bone){ // FIX v17.0
+    return !!(bone && normaliseBoneType(bone.type) === 'stretchy');
+  }
+
+  function boneTypeLabel(bone){ // FIX v17.0
+    return isStretchyBone(bone) ? 'Stretchy Bone' : 'Normal Bone';
+  }
+
   function isAnimateKeyContext(){ // FIX v16.6
     return App.activeTab === 'animate';
   }
@@ -993,7 +1013,7 @@ button.warn {
 
   function updateEditBoneControls(){ // FIX v6.7
     var bone = getSelectedBone();
-    if (el('editBoneInfo')) el('editBoneInfo').textContent = bone ? bone.name : 'None';
+    if (el('editBoneInfo')) el('editBoneInfo').textContent = bone ? (bone.name + '  ' + boneTypeLabel(bone)) : 'None'; // FIX v17.0
     if (!bone) return;
     setInputValueIfPresent('numEditHeadX', Math.round(bone.head.x));
     setInputValueIfPresent('numEditHeadY', Math.round(bone.head.y));
@@ -1077,13 +1097,16 @@ button.warn {
     el('selectedInfo').textContent = App.source.viewportRect ? ('x ' + Math.round(App.source.viewportRect.x) + '  y ' + Math.round(App.source.viewportRect.y) + '  w ' + Math.round(App.source.viewportRect.width) + '  h ' + Math.round(App.source.viewportRect.height)) : 'No area set'; // FIX v6.0
     el('sourceInfo').textContent = App.source.image ? (((App.source.fileName || 'image') + '  ' + App.source.width + ' x ' + App.source.height + ' px  ' + (App.source.captureMode || 'local-file') + (App.source.svgNative && App.source.svgNative.shapes ? '  SVG shapes=' + App.source.svgNative.shapes.length : '')).trim()) : 'No SVG loaded'; // FIX v7.1
     el('overlayInfo').textContent = App.overlay.active ? ('Overlay active ' + Math.round((App.source.viewportRect ? App.source.viewportRect.width : 0)) + ' x ' + Math.round((App.source.viewportRect ? App.source.viewportRect.height : 0)) + ' vp px') : (App.interaction.setAreaActive ? 'Set Area mode active' : 'Not active'); // FIX v6.0
-    el('selectedBoneInfo').textContent = bone ? (bone.name + '  parent=' + getBoneName(bone.parentId) + '  env=' + Math.round(getBoneEnvStart(bone)) + '/' + Math.round(getBoneEnvEnd(bone)) + '  strength=' + round(bone.strength)) : 'None';
+    el('selectedBoneInfo').textContent = bone ? (bone.name + '  type=' + boneTypeLabel(bone) + '  parent=' + getBoneName(bone.parentId) + '  env=' + Math.round(getBoneEnvStart(bone)) + '/' + Math.round(getBoneEnvEnd(bone)) + '  strength=' + round(bone.strength)) : 'None'; // FIX v17.0
     if (bone) {
       el('inpBoneName').value = bone.name;
       el('rngBoneRadius').value = String(Math.round(Math.max(getBoneEnvStart(bone), getBoneEnvEnd(bone))));
       if (el('rngEnvStart')) el('rngEnvStart').value = String(Math.round(getBoneEnvStart(bone)));
       if (el('rngEnvEnd')) el('rngEnvEnd').value = String(Math.round(getBoneEnvEnd(bone)));
       el('rngBoneStrength').value = String(Math.round(bone.strength * 100));
+      if (el('selBoneType')) el('selBoneType').value = normaliseBoneType(bone.type); // FIX v17.0
+    } else if (el('selBoneType')) {
+      el('selBoneType').value = normaliseBoneType(App.newBoneType); // FIX v17.0
     }
     updateParentSelect();
     el('inpCurrentFrame').value = String(App.currentFrame);
@@ -2345,7 +2368,7 @@ button.warn {
     }
     if (svgNative && svgNative.shapes && svgNative.shapes.length) {
       log('Selected Wick curve converted to SVG Native source: parsed ' + svgNative.shapes.length + ' vector shape' + (svgNative.shapes.length === 1 ? '' : 's') + '.');
-      if (el('selExportMode')) el('selExportMode').value = 'svgNative';
+      if (el('selExportMode')) el('selExportMode').value = 'nativeCurve'; // FIX v16.9: native Wick curves are the default commit mode.
     } else log('Selected Wick curve converted to SVG source, but no native vector shapes were parsed.');
   }
 
@@ -2389,7 +2412,7 @@ button.warn {
       applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX v7.5
       if (loaded.svgNative && loaded.svgNative.shapes && loaded.svgNative.shapes.length) {
         log('SVG Native Mode ready: parsed ' + loaded.svgNative.shapes.length + ' vector shape' + (loaded.svgNative.shapes.length === 1 ? '' : 's') + ' with preserved curve commands.');
-        if (el('selExportMode')) el('selExportMode').value = 'svgNative';
+        if (el('selExportMode')) el('selExportMode').value = 'nativeCurve'; // FIX v16.9: native Wick curves are the default commit mode.
       }
     } catch(e) {
       log('SVG load failed: ' + (e && e.message ? e.message : e));
@@ -3120,7 +3143,7 @@ button.warn {
     App.bones.forEach(function(b){
       var div = document.createElement('div');
       div.className = 'boneItem' + (b.id === App.selectedBoneId ? ' active' : '');
-      div.innerHTML = '<span>' + escapeHtml(b.name) + '</span><span class="small">parent ' + escapeHtml(getBoneName(b.parentId)) + '  env ' + Math.round(getBoneEnvStart(b)) + '/' + Math.round(getBoneEnvEnd(b)) + '  s ' + round(b.strength) + '</span>';
+      div.innerHTML = '<span>' + escapeHtml(b.name) + '</span><span class="small">' + escapeHtml(boneTypeLabel(b)) + '  parent ' + escapeHtml(getBoneName(b.parentId)) + '  env ' + Math.round(getBoneEnvStart(b)) + '/' + Math.round(getBoneEnvEnd(b)) + '  s ' + round(b.strength) + '</span>'; // FIX v17.0
       div.addEventListener('click', function(){ App.selectedBoneId = b.id; updateUI(); renderOverlay(); });
       list.appendChild(div);
     });
@@ -3640,6 +3663,7 @@ button.warn {
       removeOverlay(); App.source.dataUrl = ''; App.source.embeddedDataUrl = ''; App.source.image = null; App.source.width = 0; App.source.height = 0; App.source.fileName = ''; App.source.captureMode = ''; App.source.svgRaw = ''; App.source.svgNative = null; App.source.selectedIdentifier = ''; App.source.selectedUUID = '';
     }
     App.bones = safeJsonClone(data.bones || []);
+    App.bones.forEach(function(b){ b.type = normaliseBoneType(b.type); }); // FIX v17.0
     App.nextBoneId = Number(data.nextBoneId || ((App.bones || []).reduce(function(maxId, item){ return Math.max(maxId, Number(item.id || 0)); }, 0) + 1) || 1);
     App.selectedBoneId = data.selectedBoneId == null ? (App.bones[0] ? Number(App.bones[0].id) : null) : Number(data.selectedBoneId);
     App.frameBones = safeJsonClone(data.frameBones || []);
@@ -4055,7 +4079,8 @@ button.warn {
       radius: defaultEnvelope, // FIX v7.7
       envStart: defaultEnvelope, // FIX v7.7
       envEnd: defaultEnvelope, // FIX v7.7
-      strength: 1
+      strength: 1,
+      type: normaliseBoneType(App.newBoneType) // FIX v17.0
     };
     App.bones.push(bone);
     App.selectedBoneId = bone.id;
@@ -4115,6 +4140,19 @@ button.warn {
     renderOverlay();
   }
 
+  function setSelectedBoneType(value){ // FIX v17.0
+    App.newBoneType = normaliseBoneType(value);
+    var b = getSelectedBone();
+    if (b) {
+      b.type = App.newBoneType;
+      if (isStretchyBone(b)) b.restLength = boneLengthFromPoseItem(b);
+      else setItemTailToLockedLength(b, b);
+      updateUI();
+      renderOverlay();
+      scheduleProxyFrame();
+    }
+  }
+
   function boneLengthFromPoseItem(item){
     if (!item || !item.head || !item.tail) return 1;
     return Math.max(1, dist(item.head, item.tail));
@@ -4128,8 +4166,18 @@ button.warn {
     return Math.max(1, bone.restLength);
   }
 
+  function getBoneLengthForItem(bone, item){ // FIX v17.0
+    if (isStretchyBone(bone) && item && item.head && item.tail) return boneLengthFromPoseItem(item);
+    return getLockedBoneLength(bone);
+  }
+
   function setItemTailToLockedLength(item, bone){ // FIX v4.7
     if (!item || !item.head || !item.tail || !bone) return;
+    if (isStretchyBone(bone)) { // FIX v17.0: stretchy bones keep their current tail distance instead of being forced back to rest length.
+      item.angle = Math.atan2(item.tail.y - item.head.y, item.tail.x - item.head.x);
+      if (item === bone) bone.restLength = boneLengthFromPoseItem(bone);
+      return;
+    }
     var length = getLockedBoneLength(bone);
     if (typeof item.angle === 'number' && isFinite(item.angle)) { // FIX v8.6: keep explicit full rotation angle when present
       item.tail = tailFromAngle(item.head, item.angle, length);
@@ -4226,7 +4274,7 @@ button.warn {
       var finalAngle = parentFinalAngle + childLocalAngle; // FIX v13.0
       pose[child.id] = {
         head: clone(pose[parentId].tail), // FIX v12.9: hard lock child head to parent tail
-        tail: tailFromAngle(pose[parentId].tail, finalAngle, getLockedBoneLength(child)), // FIX v13.0
+        tail: tailFromAngle(pose[parentId].tail, finalAngle, getBoneLengthForItem(child, sourceChild)), // FIX v17.0
         angle: finalAngle,
         localAngle: childLocalAngle, // FIX v13.0
         envStart: getBoneEnvStart(sourceChild),
@@ -4291,9 +4339,10 @@ button.warn {
       var bLocal = (typeof pB.localAngle === 'number' && isFinite(pB.localAngle)) ? pB.localAngle : (typeof rest.localAngle === 'number' ? rest.localAngle : 0);
       interpLocalAngle = lerp(aLocal, bLocal, t);
     }
+    var interpLength = isStretchyBone(b) ? lerp(boneLengthFromPoseItem(pA), boneLengthFromPoseItem(pB), t) : getLockedBoneLength(b); // FIX v17.0
     var result = {
       head: interpHead,
-      tail: tailFromAngle(interpHead, interpAngle, getLockedBoneLength(b)),
+      tail: tailFromAngle(interpHead, interpAngle, interpLength),
       angle: interpAngle,
       envStart: lerp(getBoneEnvStart(pA), getBoneEnvStart(pB), t),
       envEnd: lerp(getBoneEnvEnd(pA), getBoneEnvEnd(pB), t)
@@ -4775,9 +4824,12 @@ button.warn {
       var rel = { x: p.x - rest.head.x, y: p.y - rest.head.y };
       var u = rel.x * restDir.x + rel.y * restDir.y;
       var v = rel.x * restPerp.x + rel.y * restPerp.y;
-      var scale = 1; // FIX v4.7: warp is rotation plus translation only, not bone length scaling
-      var tx = cur.head.x + curDir.x * u * scale + curPerp.x * v * scale; // FIX v4.7
-      var ty = cur.head.y + curDir.y * u * scale + curPerp.y * v * scale; // FIX v4.7
+      var restLen = Math.max(0.0001, Math.sqrt(restDirV.x * restDirV.x + restDirV.y * restDirV.y)); // FIX v17.1
+      var curLen = Math.max(0.0001, Math.sqrt(curDirV.x * curDirV.x + curDirV.y * curDirV.y)); // FIX v17.1
+      var scaleU = isStretchyBone(b) ? (curLen / restLen) : 1; // FIX v17.1: stretchy bones pull curve points along the bone axis as the tail stretches.
+      var scaleV = 1; // FIX v17.1: do not thicken or squash the curve sideways when a stretchy bone changes length.
+      var tx = cur.head.x + curDir.x * u * scaleU + curPerp.x * v * scaleV; // FIX v17.1
+      var ty = cur.head.y + curDir.y * u * scaleU + curPerp.y * v * scaleV; // FIX v17.1
       sumX += tx * w;
       sumY += ty * w;
       sumW += w;
@@ -5490,8 +5542,14 @@ button.warn {
         bone.angle = App.interaction.startBone.angle; // FIX v8.6
       } else if (App.interaction.dragType === 'tail') {
         var restAngle = updateContinuousDragAngleForBone(cur, App.interaction.startBone.head); // FIX v8.6
-        bone.tail = tailFromAngle(bone.head, restAngle, getLockedBoneLength(bone)); // FIX v8.6
-        bone.angle = restAngle; // FIX v8.6
+        if (isStretchyBone(bone)) { // FIX v17.0
+          bone.tail = clone(cur);
+          bone.angle = Math.atan2(bone.tail.y - bone.head.y, bone.tail.x - bone.head.x);
+          bone.restLength = boneLengthFromPoseItem(bone);
+        } else {
+          bone.tail = tailFromAngle(bone.head, restAngle, getLockedBoneLength(bone)); // FIX v8.6
+          bone.angle = restAngle; // FIX v8.6
+        }
       } else {
         bone.head.x = App.interaction.startBone.head.x + dx;
         bone.head.y = App.interaction.startBone.head.y + dy;
@@ -5515,8 +5573,13 @@ button.warn {
         pb.angle = App.interaction.startBone.angle; // FIX v8.6
       } else if (App.interaction.dragType === 'tail') {
         var poseAngle = updateContinuousDragAngleForBone(cur, App.interaction.startBone.head); // FIX v8.6
-        pb.tail = tailFromAngle(pb.head, poseAngle, getLockedBoneLength(bone)); // FIX v8.6
-        pb.angle = poseAngle; // FIX v8.6
+        if (isStretchyBone(bone)) { // FIX v17.0
+          pb.tail = clone(cur);
+          pb.angle = Math.atan2(pb.tail.y - pb.head.y, pb.tail.x - pb.head.x);
+        } else {
+          pb.tail = tailFromAngle(pb.head, poseAngle, getLockedBoneLength(bone)); // FIX v8.6
+          pb.angle = poseAngle; // FIX v8.6
+        }
       } else {
         pb.head.x = App.interaction.startBone.head.x + dx;
         pb.head.y = App.interaction.startBone.head.y + dy;
@@ -7285,33 +7348,30 @@ button.warn {
     return { minX:minX, minY:minY, maxX:maxX, maxY:maxY, width:Math.max(1, maxX - minX), height:Math.max(1, maxY - minY), cx:(minX + maxX) * 0.5, cy:(minY + maxY) * 0.5 };
   }
 
-  function getUppermostBoneOriginLocalForFrame(frameNumber){ // FIX v16.7
-    var best = null;
+  function getFirstBoneOriginLocalForFrame(frameNumber){ // FIX v16.8
+    var frame = Math.max(1, Math.round(Number(frameNumber || 1)));
+    var firstBone = null;
+    try { firstBone = (App.bones || [])[0] || null; } catch(e) { firstBone = null; }
+    if (!firstBone) return null;
     var pose = null;
-    try { pose = getPoseForFrame(Math.max(1, Math.round(Number(frameNumber || 1)))); } catch(e) { pose = null; }
-    (App.bones || []).forEach(function(bone){
-      if (!bone) return;
-      var item = pose ? getBonePoseLike(bone, pose) : bone;
-      if (!item) item = bone;
-      [{ kind:'head', point:item.head }, { kind:'tail', point:item.tail }].forEach(function(entry){
-        var p = entry.point || null;
-        if (!p) return;
-        var x = Number(p.x);
-        var y = Number(p.y);
-        if (!isFinite(x) || !isFinite(y)) return;
-        if (!best || y < best.y || (y === best.y && x < best.x)) best = { x:x, y:y, boneId:bone.id, boneName:bone.name || '', kind:entry.kind, frame:Math.max(1, Math.round(Number(frameNumber || 1))) };
-      });
-    });
-    return best;
+    try { pose = getPoseForFrame(frame); } catch(e2) { pose = null; }
+    var item = pose ? getBonePoseLike(firstBone, pose) : firstBone;
+    if (!item) item = firstBone;
+    var p = item.head || firstBone.head || null; // FIX v16.8: first bone sets the native clip origin by its head position.
+    if (!p) return null;
+    var x = Number(p.x);
+    var y = Number(p.y);
+    if (!isFinite(x) || !isFinite(y)) return null;
+    return { x:x, y:y, boneId:firstBone.id, boneName:firstBone.name || 'Bone 1', kind:'head', frame:frame };
   }
 
-  function getUppermostBoneOriginLocal(){ // FIX v16.7
-    return getUppermostBoneOriginLocalForFrame(1);
+  function getFirstBoneOriginLocal(){ // FIX v16.8
+    return getFirstBoneOriginLocalForFrame(1);
   }
 
-  function computeNativeCurveUppermostBoneOriginForExportBounds(exportBounds){ // FIX v16.7
+  function computeNativeCurveFirstBoneOriginForExportBounds(exportBounds){ // FIX v16.8
     exportBounds = exportBounds || { width: Math.max(1, Math.round(App.source.width)), height: Math.max(1, Math.round(App.source.height)), offsetX: 0, offsetY: 0 };
-    var origin = getUppermostBoneOriginLocalForFrame(1); // FIX v16.7: commit origin must match the animated pose used by frame 1, not a stale rest pose.
+    var origin = getFirstBoneOriginLocalForFrame(1); // FIX v16.8: native curve clip origin is set by Bone 1 on frame 1.
     if (origin) {
       exportBounds.nativeOriginX = Number(exportBounds.offsetX || 0) + origin.x;
       exportBounds.nativeOriginY = Number(exportBounds.offsetY || 0) + origin.y;
@@ -7319,7 +7379,7 @@ button.warn {
       exportBounds.nativeOriginBoneName = origin.boneName;
       exportBounds.nativeOriginBonePoint = origin.kind;
       exportBounds.nativeOriginFrame = origin.frame;
-      exportBounds.nativeOriginMode = 'uppermost-bone-frame-1';
+      exportBounds.nativeOriginMode = 'first-bone-head-frame-1';
       return exportBounds;
     }
     exportBounds.nativeOriginX = Number(exportBounds.offsetX || 0) + Math.max(0, Number(exportBounds.width || 0) * 0.5);
@@ -7497,7 +7557,7 @@ button.warn {
 
   function buildNativeCurveClip(clipName, exportBounds){ // FIX v14.9
     if (!App.source.svgNative || !App.source.svgNative.shapes || !App.source.svgNative.shapes.length) throw new Error('Native Wick curve commit needs parsed SVG Native shapes.');
-    exportBounds = computeNativeCurveUppermostBoneOriginForExportBounds(exportBounds); // FIX v15.1
+    exportBounds = computeNativeCurveFirstBoneOriginForExportBounds(exportBounds); // FIX v16.8
     var clipIdentifier = makeValidIdentifier(clipName, 'BoneWarpNativeCurveClip');
     var clip = new App.Wick.Clip({ identifier: clipIdentifier });
     try { clip.name = clipName; } catch(e){}
@@ -7680,7 +7740,7 @@ button.warn {
     stop();
     var clipName = (el('inpClipName').value || '').trim() || ('BoneWarpClip_' + Date.now());
     var base = clipName.replace(/\s+/g, '_');
-    var exportMode = (el('selExportMode') && el('selExportMode').value) || 'png'; // FIX v5.4
+    var exportMode = (el('selExportMode') && el('selExportMode').value) || 'nativeCurve'; // FIX v16.9: native Wick curves are the default commit mode.
     if (exportMode === 'png' && App.source.captureMode === 'stage-crop') { // FIX v5.5
       log('WARNING: PNG export is using a stage crop source, so transparency will not be correct until the original PNG asset is captured.');
     }
@@ -7697,7 +7757,7 @@ button.warn {
         try { nativeClip.animationType = 'loop'; } catch(e){} // FIX v16.7: Wick rejects syncWithParent for clips, so keep commit animation valid.
         try { nativeClip.timeline.playheadPosition = 1; } catch(e2){}
         addClipToWickProject(nativeClip);
-        try { log('Native curve clip created with ' + countNativeCurveClipPaths(nativeClip) + ' Wick path object' + (countNativeCurveClipPaths(nativeClip) === 1 ? '' : 's') + '. Origin: ' + (exportBounds.nativeOriginMode || 'uppermost-bone') + '.'); } catch(countErr){} // FIX v16.7
+        try { log('Native curve clip created with ' + countNativeCurveClipPaths(nativeClip) + ' Wick path object' + (countNativeCurveClipPaths(nativeClip) === 1 ? '' : 's') + '. Origin: ' + (exportBounds.nativeOriginMode || 'first-bone-head') + '.'); } catch(countErr){} // FIX v16.7
         try {
           if (!App.committedClipIdentifiers) App.committedClipIdentifiers = [];
           App.committedClipIdentifiers.push(nativeClip.identifier || nativeClip.name || clipName);
@@ -7929,6 +7989,7 @@ button.warn {
     el('btnDeleteBone').addEventListener('click', deleteSelectedBone);
     el('btnClearBones').addEventListener('click', clearBones);
     el('btnRenameBone').addEventListener('click', renameSelectedBone);
+    if (el('selBoneType')) el('selBoneType').addEventListener('change', function(){ setSelectedBoneType(this.value); }); // FIX v17.0
     el('selBoneParent').addEventListener('change', function(){ setSelectedBoneParent(this.value); });
     el('selRigMode').addEventListener('change', function(){ App.rig.mode = (this.value === 'chainIk' || this.value === 'splineIk') ? this.value : 'fk'; updateUI(); renderOverlay(); });
     el('chkAutoConnect').addEventListener('change', function(){ App.rig.autoConnect = !!this.checked; updateUI(); });
