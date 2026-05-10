@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MyCharacter v_067</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>MyCharacter v088 from v087 pin inherits parent transform scale</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -1836,16 +1836,47 @@ html, body, #app{
     return App.activeTab === 'bones' || App.activeTab === 'editbone';
   }
 
-  function normaliseBoneType(value){ // FIX v18.0
-    value = String(value || '').toLowerCase();
-    if (value === 'stretchy') return 'stretchy';
-    if (value === 'lip') return 'lip';
-    if (value === 'wink') return 'wink';
+  function normaliseBoneType(value){ // FIX v18.0 // FIX v_068: accept all saved stretchy bone aliases instead of downgrading them to normal.
+    var raw = String(value == null ? '' : value).toLowerCase().replace(/[\s_\-]+/g, '');
+    if (raw === 'stretchy' || raw === 'stretch' || raw === 'stretchbone' || raw === 'stretchybones' || raw === 'stretchybone' || raw === 'elastic' || raw === 'elasticbone') return 'stretchy';
+    if (raw === 'lip' || raw === 'lipbone') return 'lip';
+    if (raw === 'wink' || raw === 'winkbone' || raw === 'eyebone') return 'wink';
     return 'normal';
   }
 
-  function isStretchyBone(bone){ // FIX v17.0
-    return !!(bone && normaliseBoneType(bone.type) === 'stretchy');
+  function normaliseBoneTypeFromBone(bone){ // FIX v_068: RotoBones JSON variants may store the type under different fields.
+    if (!bone) return 'normal';
+    var candidates = [bone.type, bone.boneType, bone.kind, bone.mode, bone.role, bone.rigType];
+    for (var i = 0; i < candidates.length; i += 1) {
+      var t = normaliseBoneType(candidates[i]);
+      if (t !== 'normal') return t;
+    }
+    if (bone.isStretchy === true || bone.stretchy === true || bone.stretch === true || bone.allowStretch === true || bone.canStretch === true) return 'stretchy';
+    if (bone.isLipBone === true || bone.lipBone === true) return 'lip';
+    if (bone.isWinkBone === true || bone.winkBone === true || bone.eyeBone === true) return 'wink';
+    return normaliseBoneType(bone.type);
+  }
+
+  function normaliseLoadedBoneRecord(bone){ // FIX v_068: preserve stretchy metadata when MyCharacter imports a RotoBones part.
+    if (!bone) return bone;
+    bone.type = normaliseBoneTypeFromBone(bone);
+    if (bone.type === 'stretchy') {
+      var len = Number(bone.restLength);
+      if (!isFinite(len) || len <= 0) len = Number(bone.lockedLength || bone.length || bone.restLen || 0);
+      if ((!isFinite(len) || len <= 0) && bone.head && bone.tail) len = boneLengthFromPoseItem(bone);
+      if (isFinite(len) && len > 0) bone.restLength = len;
+      bone.isStretchy = true;
+    }
+    return bone;
+  }
+
+  function normaliseLoadedBoneArray(list){ // FIX v_068
+    if (!Array.isArray(list)) return [];
+    return list.map(function(b){ return normaliseLoadedBoneRecord(b); });
+  }
+
+  function isStretchyBone(bone){ // FIX v17.0 // FIX v_068
+    return !!(bone && normaliseBoneTypeFromBone(bone) === 'stretchy');
   }
 
   function isLipBone(bone){ // FIX v18.0
@@ -6563,8 +6594,7 @@ html, body, #app{
     } else {
       removeOverlay(); App.source.dataUrl = ''; App.source.embeddedDataUrl = ''; App.source.image = null; App.source.width = 0; App.source.height = 0; App.source.fileName = ''; App.source.captureMode = ''; App.source.svgRaw = ''; App.source.svgNative = null; App.source.selectedIdentifier = ''; App.source.selectedUUID = '';
     }
-    App.bones = safeJsonClone(data.bones || []);
-    App.bones.forEach(function(b){ b.type = normaliseBoneType(b.type); }); // FIX v17.0
+    App.bones = normaliseLoadedBoneArray(safeJsonClone(data.bones || [])); // FIX v17.0 // FIX v_068: do not lose stretchy bone type/restLength data when loading a MyCharacter part.
     App.nextBoneId = Number(data.nextBoneId || ((App.bones || []).reduce(function(maxId, item){ return Math.max(maxId, Number(item.id || 0)); }, 0) + 1) || 1);
     App.selectedBoneId = data.selectedBoneId == null ? (App.bones[0] ? Number(App.bones[0].id) : null) : Number(data.selectedBoneId);
     App.frameBones = safeJsonClone(data.frameBones || []);
@@ -8481,9 +8511,16 @@ html, body, #app{
     var canvasScaleX = App.overlay.canvasScaleX || 1; // FIX v18.69_NodeClickNoJumpShapePreserve
     var canvasScaleY = App.overlay.canvasScaleY || 1; // FIX v18.69_NodeClickNoJumpShapePreserve
 
-    var nativePreview = updateNativeSvgPreviewLayer(pose, ox, oy); // FIX v7.5
-    if (!nativePreview) { // FIX v7.5
-      renderWarpToContext(ctx, pose, { canvasWidth: w, canvasHeight: h, offsetX: ox, offsetY: oy }); // FIX v7.0
+    var mcHideSelectedArtInOverlay_v083 = false; // FIX v_083: selected MyCharacter artwork is drawn in the character layer stack, not the edit overlay.
+    try { mcHideSelectedArtInOverlay_v083 = !!(App.myCharacter && App.myCharacter.parts && App.myCharacter.parts.length && App.myCharacter.selectedId); } catch(eMcHideArt_v083){}
+    var nativePreview = false;
+    if (mcHideSelectedArtInOverlay_v083) { // FIX v_083
+      try { if (App.overlay.svgLayer) { App.overlay.svgLayer.innerHTML = ''; App.overlay.svgLayer.style.display = 'none'; } } catch(eMcSvgHide_v083){}
+    } else {
+      nativePreview = updateNativeSvgPreviewLayer(pose, ox, oy); // FIX v7.5
+      if (!nativePreview) { // FIX v7.5
+        renderWarpToContext(ctx, pose, { canvasWidth: w, canvasHeight: h, offsetX: ox, offsetY: oy }); // FIX v7.0
+      }
     }
 
     ctx.save(); // FIX v7.0
@@ -11986,6 +12023,7 @@ html, body, #app{
     if (!refreshBridgeRefs()) { mcLog('Bridge/editor not available.'); return; }
     var loadedParts = (mc.parts || []).filter(function(p){ return p && p.state && p.visible !== false; });
     if (!loadedParts.length) { mcLog('No loaded character parts to commit.'); return; }
+    var commitParts_v083 = loadedParts.slice().reverse(); // FIX v_083: kept for setup compatibility. FIX v_084 applies this order inside each committed frame.
     syncFrameCountFromWickTimeline();
     stop();
     var savedState = null;
@@ -12004,8 +12042,8 @@ html, body, #app{
     try { parentClip.bounds = { x:0, y:0, width:parentClip.width || parentBounds.w, height:parentClip.height || parentBounds.h }; } catch(eBounds){}
     var partExportBounds = {};
     var madePaths = 0;
-    for (var pIndex = 0; pIndex < loadedParts.length; pIndex += 1) {
-      var basePart = loadedParts[pIndex];
+    for (var pIndex = 0; pIndex < commitParts_v083.length; pIndex += 1) {
+      var basePart = commitParts_v083[pIndex]; // FIX v_083
       var partName = String(basePart.name || ('Part ' + basePart.id));
       var layer = new App.Wick.Layer();
       try { layer.name = partName; } catch(eLayerName){}
@@ -13070,7 +13108,7 @@ html, body, #app{
       out.source.selectedIdentifier = String(out.source.selectedIdentifier || '') + '__' + uid;
       out.source.selectedUUID = String(out.source.selectedUUID || '') + '__' + uid;
     }
-    out.bones = mcSafeClone(out.bones || []);
+    out.bones = normaliseLoadedBoneArray(mcSafeClone(out.bones || [])); // FIX v_068: each part card keeps imported stretchy bone data.
     out.frameBones = mcSafeClone(out.frameBones || []);
     out.keyframes = mcSafeClone(out.keyframes || {});
     out.pointKeys = mcSafeClone(out.pointKeys || {});
@@ -13769,8 +13807,12 @@ html, body, #app{
     if (evt && evt.preventDefault) evt.preventDefault();
     if (evt && evt.stopPropagation) evt.stopPropagation();
     var mc = mcEnsure();
-    mcCaptureActivePart();
+    // FIX v_083: Add Part is data only. Do not capture the live App rig state or copy JSON from the selected part.
     var id = mc.nextId++;
+    var insertIndex = mc.parts.length;
+    for (var ai = 0; ai < mc.parts.length; ai += 1) {
+      if (Number(mc.parts[ai] && mc.parts[ai].id || 0) === Number(mc.selectedId || 0)) { insertIndex = ai; break; }
+    }
     var part = {
       id:id,
       uid:mcNewPartUid(id), // FIX v_024
@@ -13782,7 +13824,7 @@ html, body, #app{
       mode:'assemble',
       editTarget:'bone'
     };
-    mc.parts.push(part);
+    mc.parts.splice(insertIndex, 0, part); // FIX v_083: new part is added above the selected part in the Build Character stack.
     mc.selectedId = id;
     mc.pendingLoadPartId = id;
     mcRenderPanel();
@@ -13872,12 +13914,14 @@ html, body, #app{
     id = Number(id || mc.selectedId);
     var p = mcFindPart(id);
     if (!p) return;
+    // FIX v_083: reorder is array only. No activate, no capture, no App state writeback.
     var i = mc.parts.indexOf(p);
-    var j = i + dir;
-    if (j < 0 || j >= mc.parts.length) return;
-    var tmp = mc.parts[i]; mc.parts[i] = mc.parts[j]; mc.parts[j] = tmp;
-    mc.selectedId = id;
+    var j = i + Number(dir || 0);
+    if (i < 0 || j < 0 || j >= mc.parts.length) return;
+    mc.parts.splice(i, 1);
+    mc.parts.splice(j, 0, p);
     mcRenderPanel();
+    try { mcRenderStageParts(); } catch(eMcStageReorder_v083){}
   }
 
   function mcApplyFieldsFor(id, card){
@@ -14057,7 +14101,7 @@ html, body, #app{
     var mc = mcEnsure();
     id = Number(id || 0);
     var card = target && target.closest ? target.closest('.mcPartCard') : null;
-    if (action !== 'name' && action !== 'x' && action !== 'y' && action !== 'w' && action !== 'h' && action !== 'rot') {
+    if (action !== 'name' && action !== 'x' && action !== 'y' && action !== 'w' && action !== 'h' && action !== 'rot' && action !== 'up' && action !== 'down' && action !== 'arrow') { // FIX v_083: reorder must not activate another part.
       if (id) mc.selectedId = id;
     }
     if (mc.pinPickSourceId && action !== 'pin' && id && id !== mc.pinPickSourceId) { // FIX v_022
@@ -15404,6 +15448,7 @@ html, body, #app{
     if (!refreshBridgeRefs()) { mcLog('Bridge/editor not available.'); return; }
     var loadedParts = (mc.parts || []).filter(function(p){ return p && p.state && p.visible !== false; });
     if (!loadedParts.length) { mcLog('No loaded character parts to commit.'); return; }
+    var commitParts_v083 = loadedParts.slice().reverse(); // FIX v_083: kept for setup compatibility. FIX v_084 applies this order inside each committed frame.
     syncFrameCountFromWickTimeline();
     stop();
     var savedState = null;
@@ -15444,8 +15489,9 @@ html, body, #app{
       try { parentFrame.identifier = makeValidIdentifier('character_frame_' + fi, 'character_frame_' + fi); } catch(eParentFrameId){}
       layer.addFrame(parentFrame);
       var resolvedParts = mcResolvedPartsForCommitFrame(loadedParts, fi);
-      for (var pIndex = 0; pIndex < loadedParts.length; pIndex += 1) {
-        var basePart = loadedParts[pIndex];
+      var commitFrameParts_v084 = loadedParts.slice().reverse(); // FIX v_084: Wick draws later children above earlier children, so bottom cards are added first and top cards are added last.
+      for (var pIndex = 0; pIndex < commitFrameParts_v084.length; pIndex += 1) {
+        var basePart = commitFrameParts_v084[pIndex]; // FIX v_084
         var resolvedPart = mcFindPartInList(resolvedParts, basePart.id) || basePart;
         var partName = String(basePart.name || ('Part ' + basePart.id));
         var exportBounds = partExportBounds[basePart.id];
@@ -15633,7 +15679,7 @@ html, body, #app{
     if (!part || !part.state || !callback) return null;
     var saved = {
       source:App.source,
-      bones:App.bones,
+      bones:normaliseLoadedBoneArray(App.bones), // FIX v_068
       keyframes:App.keyframes,
       pointKeys:App.pointKeys,
       frameBones:App.frameBones,
@@ -15645,7 +15691,7 @@ html, body, #app{
     };
     try {
       App.source = part.state.source || {};
-      App.bones = Array.isArray(part.state.bones) ? part.state.bones : [];
+      App.bones = normaliseLoadedBoneArray(Array.isArray(part.state.bones) ? part.state.bones : []); // FIX v_068: secondary preview honours stretchy bones.
       App.keyframes = part.state.keyframes || {};
       App.pointKeys = part.state.pointKeys || {};
       App.frameBones = Array.isArray(part.state.frameBones) ? part.state.frameBones : [];
@@ -16810,28 +16856,32 @@ html, body, #app{
     } catch(eOrigin) { return '50% 50%'; }
   }
 
-  function mcRenderStageParts_v066(){
+  function mcRenderStageParts_v083(){
     var mc = mcEnsure();
     try { mcRefreshPinnedChildren(); } catch(eRefresh){}
     try { mcHideOldStagePartsHost_v040(); } catch(eHide){}
     var host = mcEnsureStagePartsHost_v040 ? mcEnsureStagePartsHost_v040() : mcEnsureStagePartsHost();
     if (!host) return;
     var stageRect = mcStageRect_v040 ? mcStageRect_v040() : (updateOverlayClipHost() || {left:0,top:0});
-    var selectedId = Number(mc.selectedId || 0);
     var fadeInactive = mcShouldFadeInactiveParts_v050 ? mcShouldFadeInactiveParts_v050() : false;
     try { host.style.pointerEvents = mc.pinPickSourceId ? 'auto' : 'none'; } catch(eHostPointer){}
-    try { host.style.zIndex = fadeInactive ? '1' : '0'; } catch(eZ){}
-    try { if (App.overlay && App.overlay.root) App.overlay.root.style.zIndex = fadeInactive ? '2147481200' : '100'; } catch(eOverlayZ){}
+    try { host.style.zIndex = '949'; } catch(eZ){} // FIX v_083: artwork stack is one stack below edit controls.
+    try {
+      if (App.overlay && App.overlay.clipHost) {
+        App.overlay.clipHost.style.zIndex = '950'; // FIX v_083: overlay is controls only.
+        App.overlay.clipHost.style.pointerEvents = 'auto';
+      }
+      if (App.overlay && App.overlay.root) App.overlay.root.style.zIndex = '950';
+    } catch(eOverlayZ){}
     var html = '';
     var boneOverlay = '';
     for (var i = 0; i < mc.parts.length; i += 1) {
       var part = mcNormalizePartMode(mc.parts[i]);
       if (!part || !part.state || part.visible === false) continue;
-      if (Number(part.id) === selectedId) continue;
       var rect = mcPartClientRect_v040 ? mcPartClientRect_v040(part) : null;
       if (!rect) {
         var tFallback = part.transform || { x:50, y:50, w:300, h:200, rotation:0 };
-        rect = stageBoundsToViewportRect({ x:Number(tFallback.x || 0), y:Number(tFallback.y || 0), w:Math.max(1, Number(tFallback.w || 1)), h:Math.max(1, Number(tFallback.h || 1)) });
+        try { rect = stageBoundsToViewportRect({ x:Number(tFallback.x || 0), y:Number(tFallback.y || 0), w:Math.max(1, Number(tFallback.w || 1)), h:Math.max(1, Number(tFallback.h || 1)) }); } catch(eRect){}
       }
       if (!rect) continue;
       var markup = mcSourceMarkupForStagePart(part);
@@ -16841,10 +16891,11 @@ html, body, #app{
       var top = Math.round(Number(rect.y || 0) - Number(stageRect.top || 0));
       var width = Math.max(1, Math.round(Math.abs(Number(rect.width || 1))));
       var height = Math.max(1, Math.round(Math.abs(Number(rect.height || 1))));
-      var opacity = fadeInactive ? 0.32 : 1;
+      var opacity = fadeInactive && Number(part.id) !== Number(mc.selectedId || 0) ? 0.32 : 1;
       var origin = part.parentPin ? mcPinnedCssOriginForPart_v066(part) : '50% 50%';
-      html += '<div data-mc-stage-part-id="' + Number(part.id) + '" style="position:absolute;left:' + left + 'px;top:' + top + 'px;width:' + width + 'px;height:' + height + 'px;z-index:' + (20 + i) + ';pointer-events:none;opacity:' + opacity + ';transform-origin:' + origin + ';transform:rotate(' + (Number(t.rotation || 0) || 0) + 'deg);overflow:visible;">' + markup + '</div>';
-      if (fadeInactive) boneOverlay += mcPartBoneMarkupForStage_v052(part, stageRect, 0.45);
+      var z = 10000 - i; // FIX v_083: top card index 0 draws above lower cards.
+      html += '<div data-mc-stage-part-id="' + Number(part.id) + '" style="position:absolute;left:' + left + 'px;top:' + top + 'px;width:' + width + 'px;height:' + height + 'px;z-index:' + z + ';pointer-events:none;opacity:' + opacity + ';transform-origin:' + origin + ';transform:rotate(' + (Number(t.rotation || 0) || 0) + 'deg);overflow:visible;">' + markup + '</div>';
+      if (fadeInactive && Number(part.id) !== Number(mc.selectedId || 0)) boneOverlay += mcPartBoneMarkupForStage_v052(part, stageRect, 0.45);
     }
     if (boneOverlay) {
       html += '<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;z-index:2147481300;pointer-events:none;">' + boneOverlay + '</svg>';
@@ -16859,7 +16910,7 @@ html, body, #app{
   }
 
   mcRenderStageParts = function(){
-    try { mcRenderStageParts_v066(); } catch(e) { mcLog('Stage part render failed: ' + (e && e.message ? e.message : e)); }
+    try { mcRenderStageParts_v083(); } catch(e) { mcLog('Stage part render failed: ' + (e && e.message ? e.message : e)); }
   };
 
   mcAfterPinnedChildAnimationChange_v065 = function(){
@@ -16878,7 +16929,525 @@ html, body, #app{
     } catch(eAfterPinned_v066){}
   };
 
-  try { log('MyCharacter v_067 pinned child root origin transform active.'); } catch(e){}
+  try { log('MyCharacter v_070 layer hierarchy selected overlay order active.'); } catch(e){}
+
+// FIX v_071: Assemble mode scale handles for the selected part. This only wraps MyCharacter part transform editing and does not change RotoBones deformation, pinning, or key code.
+  function mcParentDoc_v071(){
+    try { return window.parent && window.parent.document ? window.parent.document : document; } catch(e) { return document; }
+  }
+
+  function mcStageRect_v071(){
+    try { return mcStageRect_v040 ? mcStageRect_v040() : getWickStageClipRect(); } catch(e) { return { left:0, top:0, width:window.innerWidth || 1, height:window.innerHeight || 1 }; }
+  }
+
+  function mcRotAxes_v071(t){
+    var a = (Number(t && t.rotation || 0) || 0) * Math.PI / 180;
+    return { ux:Math.cos(a), uy:Math.sin(a), vx:-Math.sin(a), vy:Math.cos(a) };
+  }
+
+  function mcRotatedRectPoint_v071(t, lx, ly){
+    t = t || {x:0,y:0,w:1,h:1,rotation:0};
+    var w = Math.max(1, Number(t.w || 1));
+    var h = Math.max(1, Number(t.h || 1));
+    var cx = Number(t.x || 0) + w * 0.5;
+    var cy = Number(t.y || 0) + h * 0.5;
+    var ax = mcRotAxes_v071(t);
+    var dx = Number(lx || 0) - w * 0.5;
+    var dy = Number(ly || 0) - h * 0.5;
+    return { x:cx + ax.ux * dx + ax.vx * dy, y:cy + ax.uy * dx + ax.vy * dy };
+  }
+
+  function mcScaleHandlesForPart_v071(part){
+    if (!part || !part.transform) return [];
+    var t = part.transform;
+    var w = Math.max(1, Number(t.w || 1));
+    var h = Math.max(1, Number(t.h || 1));
+    return [
+      { id:'nw', cursor:'nwse-resize', xSign:-1, ySign:-1, p:mcRotatedRectPoint_v071(t, 0, 0) },
+      { id:'n', cursor:'ns-resize', xSign:0, ySign:-1, p:mcRotatedRectPoint_v071(t, w * 0.5, 0) },
+      { id:'ne', cursor:'nesw-resize', xSign:1, ySign:-1, p:mcRotatedRectPoint_v071(t, w, 0) },
+      { id:'e', cursor:'ew-resize', xSign:1, ySign:0, p:mcRotatedRectPoint_v071(t, w, h * 0.5) },
+      { id:'se', cursor:'nwse-resize', xSign:1, ySign:1, p:mcRotatedRectPoint_v071(t, w, h) },
+      { id:'s', cursor:'ns-resize', xSign:0, ySign:1, p:mcRotatedRectPoint_v071(t, w * 0.5, h) },
+      { id:'sw', cursor:'nesw-resize', xSign:-1, ySign:1, p:mcRotatedRectPoint_v071(t, 0, h) },
+      { id:'w', cursor:'ew-resize', xSign:-1, ySign:0, p:mcRotatedRectPoint_v071(t, 0, h * 0.5) }
+    ];
+  }
+
+  function mcStagePointToClient_v071(pt){
+    if (!pt) return null;
+    try {
+      var r = stageBoundsToViewportRect({ x:Number(pt.x || 0), y:Number(pt.y || 0), w:1, h:1 });
+      if (r) return { x:Number(r.x || r.left || 0), y:Number(r.y || r.top || 0) };
+    } catch(e0){}
+    try { return stageToVp(Number(pt.x || 0), Number(pt.y || 0), getFittedStageRect()); } catch(e1){}
+    return null;
+  }
+
+  function mcHitScaleHandle_v071(evt){
+    var p = mcSelectedPart ? mcSelectedPart() : null;
+    if (!p || !p.state) return null;
+    p = mcNormalizePartMode(p);
+    if (p.mode !== 'assemble') return null;
+    if (!evt) return null;
+    var client = mcEventClientInParent ? mcEventClientInParent(evt) : { x:Number(evt.clientX || 0), y:Number(evt.clientY || 0) };
+    var handles = mcScaleHandlesForPart_v071(p);
+    var best = null;
+    var bestD = Infinity;
+    for (var i = 0; i < handles.length; i += 1) {
+      var cp = mcStagePointToClient_v071(handles[i].p);
+      if (!cp) continue;
+      var dx = Number(client.x || 0) - Number(cp.x || 0);
+      var dy = Number(client.y || 0) - Number(cp.y || 0);
+      var d = Math.sqrt(dx * dx + dy * dy);
+      if (d < bestD) { bestD = d; best = handles[i]; }
+    }
+    var hitRadius = 8; // FIX v_085: smaller handle hit zone so normal part dragging still starts reliably near the handles.
+    return best && bestD <= hitRadius ? best : null;
+  }
+
+  function mcEnsureScaleHandleHost_v071(){
+    var pdoc = mcParentDoc_v071();
+    if (!pdoc || !pdoc.body) return null;
+    var host = pdoc.getElementById ? pdoc.getElementById('mcScaleHandlesHost_v071') : null;
+    if (!host) {
+      host = pdoc.createElement('div');
+      host.id = 'mcScaleHandlesHost_v071';
+      host.setAttribute('data-luketools-bonewarp-overlay', App.interaction.overlayOwnerId || 'mc');
+      host.setAttribute('data-luketools-bonewarp-kind', 'mc-scale-handles-v071');
+      pdoc.body.appendChild(host);
+    }
+    var r = mcStageRect_v071();
+    host.style.cssText = [
+      'position:fixed',
+      'left:' + Math.round(Number(r.left || 0)) + 'px',
+      'top:' + Math.round(Number(r.top || 0)) + 'px',
+      'width:' + Math.max(1, Math.round(Number(r.width || 1))) + 'px',
+      'height:' + Math.max(1, Math.round(Number(r.height || 1))) + 'px',
+      'z-index:2147482600',
+      'pointer-events:none',
+      'overflow:hidden',
+      'background:transparent',
+      'user-select:none'
+    ].join(';');
+    return host;
+  }
+
+  function mcRenderScaleHandles_v071(){
+    var host = mcEnsureScaleHandleHost_v071();
+    if (!host) return;
+    var p = mcSelectedPart ? mcSelectedPart() : null;
+    p = p ? mcNormalizePartMode(p) : null;
+    if (!p || !p.state || p.mode !== 'assemble' || p.visible === false) { host.innerHTML = ''; return; }
+    var stageRect = mcStageRect_v071();
+    var handles = mcScaleHandlesForPart_v071(p);
+    var html = '<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;">';
+    var outline = handles.map(function(h){
+      var cp = mcStagePointToClient_v071(h.p);
+      return cp ? { x:Number(cp.x || 0) - Number(stageRect.left || 0), y:Number(cp.y || 0) - Number(stageRect.top || 0), id:h.id } : null;
+    }).filter(Boolean);
+    var by = {};
+    outline.forEach(function(o){ by[o.id] = o; });
+    if (by.nw && by.ne && by.se && by.sw) {
+      html += '<path d="M ' + by.nw.x + ' ' + by.nw.y + ' L ' + by.ne.x + ' ' + by.ne.y + ' L ' + by.se.x + ' ' + by.se.y + ' L ' + by.sw.x + ' ' + by.sw.y + ' Z" fill="none" stroke="#ffd84a" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.95"/>';
+    }
+    outline.forEach(function(o){
+      html += '<rect x="' + (o.x - 4) + '" y="' + (o.y - 4) + '" width="8" height="8" rx="2" ry="2" fill="#ffffff" stroke="#17354f" stroke-width="2" opacity="0.95"/>'; // FIX v_085
+    });
+    html += '</svg>';
+    host.innerHTML = html;
+  }
+
+  var mcRenderStageParts_Base_v071 = mcRenderStageParts;
+  mcRenderStageParts = function(){
+    try { mcRenderStageParts_Base_v071(); } catch(e) { mcLog('Stage part render failed: ' + (e && e.message ? e.message : e)); }
+    try { mcRenderScaleHandles_v071(); } catch(e2) { try { mcLog('Scale handle render failed: ' + (e2 && e2.message ? e2.message : e2)); } catch(ignore){} }
+  };
+
+  var renderOverlay_Base_v071 = renderOverlay;
+  renderOverlay = function(){
+    try { renderOverlay_Base_v071(); } finally { try { mcRenderScaleHandles_v071(); } catch(e){} }
+  };
+
+  var mcBeginPartDrag_Base_v071 = mcBeginPartDrag;
+  mcBeginPartDrag = function(local, evt){
+    var p = mcSelectedPart ? mcSelectedPart() : null;
+    var hit = mcHitScaleHandle_v071(evt);
+    if (p && hit) {
+      App.interaction.dragging = true;
+      App.interaction.dragType = 'mcPartMove';
+      App.interaction.mcScaleHandle = { id:hit.id, xSign:Number(hit.xSign || 0), ySign:Number(hit.ySign || 0), cursor:hit.cursor || 'nwse-resize' };
+      App.interaction.startLocal = { x:Number(local && local.x || 0), y:Number(local && local.y || 0) };
+      App.interaction.startTransform = mcSafeClone(p.transform || mcReadTransform());
+      try { if (App.overlay && App.overlay.canvas) App.overlay.canvas.style.cursor = hit.cursor || 'nwse-resize'; } catch(e){}
+      return true;
+    }
+    App.interaction.mcScaleHandle = null;
+    return mcBeginPartDrag_Base_v071(local, evt);
+  };
+
+  var mcUpdatePartDrag_Base_v071 = mcUpdatePartDrag;
+  mcUpdatePartDrag = function(local, shiftKey, evt){
+    var handle = App.interaction.mcScaleHandle;
+    if (!handle) return mcUpdatePartDrag_Base_v071(local, shiftKey, evt);
+    var p = mcSelectedPart ? mcSelectedPart() : null;
+    var base = App.interaction.startTransform;
+    if (!p || !base || !App.interaction.startLocal || !local) return;
+    var ax = mcRotAxes_v071(base);
+    var dx = Number(local.x || 0) - Number(App.interaction.startLocal.x || 0);
+    var dy = Number(local.y || 0) - Number(App.interaction.startLocal.y || 0);
+    var du = dx * ax.ux + dy * ax.uy;
+    var dv = dx * ax.vx + dy * ax.vy;
+    var xSign = Number(handle.xSign || 0);
+    var ySign = Number(handle.ySign || 0);
+    var baseW = Math.max(1, Number(base.w || 1));
+    var baseH = Math.max(1, Number(base.h || 1));
+    var newW = baseW;
+    var newH = baseH;
+    var centerShiftU = 0;
+    var centerShiftV = 0;
+    if (xSign > 0) { newW = baseW + du; centerShiftU = du * 0.5; }
+    if (xSign < 0) { newW = baseW - du; centerShiftU = du * 0.5; }
+    if (ySign > 0) { newH = baseH + dv; centerShiftV = dv * 0.5; }
+    if (ySign < 0) { newH = baseH - dv; centerShiftV = dv * 0.5; }
+    newW = Math.max(8, newW);
+    newH = Math.max(8, newH);
+    if (shiftKey && xSign && ySign) {
+      var ratio = Math.max(newW / baseW, newH / baseH);
+      newW = Math.max(8, baseW * ratio);
+      newH = Math.max(8, baseH * ratio);
+      var signedDu = xSign > 0 ? (newW - baseW) : (baseW - newW);
+      var signedDv = ySign > 0 ? (newH - baseH) : (baseH - newH);
+      centerShiftU = signedDu * 0.5;
+      centerShiftV = signedDv * 0.5;
+    }
+    var baseCx = Number(base.x || 0) + baseW * 0.5;
+    var baseCy = Number(base.y || 0) + baseH * 0.5;
+    var newCx = baseCx + ax.ux * centerShiftU + ax.vx * centerShiftV;
+    var newCy = baseCy + ax.uy * centerShiftU + ax.vy * centerShiftV;
+    var t = {
+      x:newCx - newW * 0.5,
+      y:newCy - newH * 0.5,
+      w:newW,
+      h:newH,
+      rotation:Number(base.rotation || 0) || 0
+    };
+    var oldT = mcSafeClone(p.transform || base);
+    p.transform = t;
+    mcApplyPinnedChildren(p.id, oldT, t);
+    mcApplyTransformToApp(t);
+    mcRenderPanel();
+    updateUI();
+    try { renderOverlay(); } catch(eScaleRender_v083){}
+  };
+
+  try { log('MyCharacter v_085 assemble scale handles active with reduced hit zone.'); } catch(e){}
+
+
+  // FIX v_086: Pin transforms must not be overwritten by live App stage bounds capture.
+  // When a selected part is pinned, its transform is inherited from the parent bone.
+  // Capturing the live RotoBones state must store bone keys and point keys only, while preserving the pinned transform.
+  var mcCaptureActivePart_Base_v086 = mcCaptureActivePart;
+  mcCaptureActivePart = function(){
+    var p = mcSelectedPart ? mcSelectedPart() : null;
+    if (!p || !p.state || (App.myCharacter && App.myCharacter.loading)) return;
+    if (p.parentPin && p.parentPin.boneId) {
+      var keepTransform = mcSafeClone(p.transform || {});
+      try { if (keepTransform) mcApplyTransformToApp(keepTransform); } catch(eApplyPinBeforeCapture_v086){}
+      try {
+        p.state = buildRigProjectState();
+        p.transform = keepTransform;
+        if (App.source && App.source.fileName) p.name = p.name || App.source.fileName;
+      } catch(ePinnedCapture_v086) {
+        try { mcLog('Could not capture pinned active part: ' + (ePinnedCapture_v086 && ePinnedCapture_v086.message ? ePinnedCapture_v086.message : ePinnedCapture_v086)); } catch(ignore){}
+      }
+      return;
+    }
+    return mcCaptureActivePart_Base_v086();
+  };
+
+  function mcSolvePinnedTransformsNow_v086(){
+    var mc = mcEnsure();
+    var changed = false;
+    if (!mc || !mc.parts) return false;
+    try { if (!mc.loading) mcCaptureActivePart(); } catch(eCapture_v086){}
+    for (var pass = 0; pass < 16; pass += 1) {
+      var passChanged = false;
+      for (var i = 0; i < mc.parts.length; i += 1) {
+        var part = mc.parts[i];
+        if (part && part.parentPin && part.parentPin.boneId) {
+          try {
+            passChanged = mcUpdatePinnedChildFromParentBoneForFrame(part, mc.parts, App.currentFrame || 1) || passChanged;
+          } catch(eSolvePart_v086){}
+        }
+      }
+      changed = changed || passChanged;
+      if (!passChanged) break;
+    }
+    var selected = mcSelectedPart ? mcSelectedPart() : null;
+    if (selected && selected.parentPin && selected.parentPin.boneId && selected.transform) {
+      try { mcApplyTransformToApp(selected.transform); } catch(eApplySelected_v086){}
+    }
+    return changed;
+  }
+
+  var mcRefreshPinnedChildren_Base_v086 = mcRefreshPinnedChildren;
+  mcRefreshPinnedChildren = function(){
+    try { return mcSolvePinnedTransformsNow_v086(); }
+    catch(eRefresh_v086) {
+      try { return mcRefreshPinnedChildren_Base_v086 ? mcRefreshPinnedChildren_Base_v086() : false; } catch(eFallback_v086) { return false; }
+    }
+  };
+
+  var mcCompletePinToBone_Base_v086 = mcCompletePinToBone;
+  mcCompletePinToBone = function(source, target, bone, evt){
+    var out = mcCompletePinToBone_Base_v086(source, target, bone, evt);
+    try {
+      var mc = mcEnsure();
+      var pinned = source && source.id != null ? mcFindPart(source.id) : (mcSelectedPart ? mcSelectedPart() : null);
+      if (pinned && pinned.parentPin && pinned.parentPin.boneId) {
+        var resolved = mcPinnedTransformForFrame_v066 ? mcPinnedTransformForFrame_v066(pinned, mc.parts || [], App.currentFrame || 1) : null;
+        if (resolved) pinned.transform = resolved;
+        if (Number(pinned.id || 0) === Number(mc.selectedId || 0)) mcApplyTransformToApp(pinned.transform);
+      }
+      mcSolvePinnedTransformsNow_v086();
+      try { mcRenderStageParts(); } catch(eStage_v086){}
+      try { renderOverlay(); } catch(eOverlay_v086){}
+    } catch(eAfterPin_v086){}
+    return out;
+  };
+
+  var mcAfterPinnedChildAnimationChange_Base_v086 = mcAfterPinnedChildAnimationChange_v065;
+  mcAfterPinnedChildAnimationChange_v065 = function(){
+    try {
+      var part = mcSelectedPinnedPart_v065 ? mcSelectedPinnedPart_v065() : null;
+      if (part) {
+        var keepTransform = mcSafeClone(part.transform || {});
+        try { part.state = buildRigProjectState(); } catch(eState_v086){}
+        part.transform = keepTransform;
+        var mc = mcEnsure();
+        var resolved = mcPinnedTransformForFrame_v066 ? mcPinnedTransformForFrame_v066(part, mc.parts || [], App.currentFrame || 1) : null;
+        if (resolved) part.transform = resolved;
+        try { mcApplyTransformToApp(part.transform); } catch(eApply_v086){}
+        try { mcSolvePinnedTransformsNow_v086(); } catch(eSolve_v086){}
+        try { mcRenderStageParts(); } catch(eStage2_v086){}
+        return;
+      }
+    } catch(ePinnedAfter_v086){}
+    try { if (mcAfterPinnedChildAnimationChange_Base_v086) return mcAfterPinnedChildAnimationChange_Base_v086(); } catch(eFallbackAfter_v086){}
+  };
+
+  try { log('MyCharacter v_086 pin transform capture fix active.'); } catch(e){}
+
+
+  // FIX v_087: Resolve parent bone pin transforms into the live part stack before every preview draw.
+  // This is the important part: the displayed MyCharacter art stack must use the same evaluated parent bone transform
+  // that commit uses, otherwise pinned children keep their old placement and the parent bone transform does not take.
+  function mcResolvedLivePartsForFrame_v087(frame){
+    var mc = mcEnsure();
+    frame = Math.max(1, Math.round(Number(frame || App.currentFrame || 1) || 1));
+    try { if (mc && mc.parts && mc.parts.length && !mc.loading) mcCaptureActivePart(); } catch(eCapture_v087){}
+    var resolved = null;
+    try { resolved = mcResolvedPartsForCommitFrame ? mcResolvedPartsForCommitFrame(mc.parts || [], frame) : null; } catch(eResolve_v087){}
+    if (!resolved || !resolved.length) resolved = mc.parts || [];
+    try {
+      for (var i = 0; i < (resolved || []).length; i += 1) {
+        var rp = resolved[i];
+        if (!rp || rp.id == null || !rp.transform) continue;
+        var live = mcFindPart ? mcFindPart(rp.id) : null;
+        if (live && live.parentPin && live.parentPin.boneId) {
+          live.transform = mcSafeClone(rp.transform); // FIX v_087
+        }
+      }
+      var selected = mcSelectedPart ? mcSelectedPart() : null;
+      if (selected && selected.parentPin && selected.parentPin.boneId && selected.transform) mcApplyTransformToApp(selected.transform);
+    } catch(eCopyResolved_v087){}
+    return resolved;
+  }
+
+  function mcFindResolvedPart_v087(list, id){
+    for (var i = 0; i < (list || []).length; i += 1) {
+      if (Number(list[i] && list[i].id || 0) === Number(id || 0)) return list[i];
+    }
+    return null;
+  }
+
+  function mcRenderStageParts_v087(){
+    var mc = mcEnsure();
+    var frame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
+    var resolvedParts = mcResolvedLivePartsForFrame_v087(frame);
+    try { mcHideOldStagePartsHost_v040(); } catch(eHide){}
+    var host = mcEnsureStagePartsHost_v040 ? mcEnsureStagePartsHost_v040() : mcEnsureStagePartsHost();
+    if (!host) return;
+    var stageRect = mcStageRect_v040 ? mcStageRect_v040() : (updateOverlayClipHost() || {left:0,top:0});
+    var fadeInactive = mcShouldFadeInactiveParts_v050 ? mcShouldFadeInactiveParts_v050() : false;
+    try { host.style.pointerEvents = mc.pinPickSourceId ? 'auto' : 'none'; } catch(eHostPointer){}
+    try { host.style.zIndex = '949'; } catch(eZ){}
+    try {
+      if (App.overlay && App.overlay.clipHost) {
+        App.overlay.clipHost.style.zIndex = '950';
+        App.overlay.clipHost.style.pointerEvents = 'auto';
+      }
+      if (App.overlay && App.overlay.root) App.overlay.root.style.zIndex = '950';
+    } catch(eOverlayZ){}
+    var html = '';
+    var boneOverlay = '';
+    for (var i = 0; i < (mc.parts || []).length; i += 1) {
+      var livePart = mcNormalizePartMode(mc.parts[i]);
+      if (!livePart || !livePart.state || livePart.visible === false) continue;
+      var part = mcNormalizePartMode(mcFindResolvedPart_v087(resolvedParts, livePart.id) || livePart); // FIX v_087: draw with evaluated pin transform.
+      var rect = mcPartClientRect_v040 ? mcPartClientRect_v040(part) : null;
+      if (!rect) {
+        var tFallback = part.transform || { x:50, y:50, w:300, h:200, rotation:0 };
+        try { rect = stageBoundsToViewportRect({ x:Number(tFallback.x || 0), y:Number(tFallback.y || 0), w:Math.max(1, Number(tFallback.w || 1)), h:Math.max(1, Number(tFallback.h || 1)) }); } catch(eRect){}
+      }
+      if (!rect) continue;
+      var markup = mcSourceMarkupForStagePart(part);
+      if (!markup) continue;
+      var t = part.transform || { rotation:0 };
+      var left = Math.round(Number(rect.x || 0) - Number(stageRect.left || 0));
+      var top = Math.round(Number(rect.y || 0) - Number(stageRect.top || 0));
+      var width = Math.max(1, Math.round(Math.abs(Number(rect.width || 1))));
+      var height = Math.max(1, Math.round(Math.abs(Number(rect.height || 1))));
+      var opacity = fadeInactive && Number(part.id) !== Number(mc.selectedId || 0) ? 0.32 : 1;
+      var origin = part.parentPin ? mcPinnedCssOriginForPart_v066(part) : '50% 50%';
+      var z = 10000 - i;
+      html += '<div data-mc-stage-part-id="' + Number(part.id) + '" style="position:absolute;left:' + left + 'px;top:' + top + 'px;width:' + width + 'px;height:' + height + 'px;z-index:' + z + ';pointer-events:none;opacity:' + opacity + ';transform-origin:' + origin + ';transform:rotate(' + (Number(t.rotation || 0) || 0) + 'deg);overflow:visible;">' + markup + '</div>';
+      if (fadeInactive && Number(part.id) !== Number(mc.selectedId || 0)) boneOverlay += mcPartBoneMarkupForStage_v052(part, stageRect, 0.45);
+    }
+    if (boneOverlay) {
+      html += '<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;z-index:2147481300;pointer-events:none;">' + boneOverlay + '</svg>';
+    }
+    host.innerHTML = html;
+    if (mc.pinPickSourceId) {
+      try { mcRenderPinPickLayer_v039(); } catch(ePin){}
+      try { mcBindStagePinLayerEvents(host); } catch(eBind){}
+    } else {
+      try { mcRemovePinPickLayer_v039(); } catch(eRemove){}
+    }
+    try { if (typeof mcRenderScaleHandles_v071 === 'function') mcRenderScaleHandles_v071(); } catch(eScale_v087){}
+  }
+
+  mcRenderStageParts = function(){
+    try { mcRenderStageParts_v087(); } catch(e) { mcLog('Stage part render failed: ' + (e && e.message ? e.message : e)); }
+  };
+
+  var renderOverlay_Base_v087 = renderOverlay;
+  renderOverlay = function(){
+    try { mcResolvedLivePartsForFrame_v087(App.currentFrame || 1); } catch(eResolveBeforeOverlay_v087){}
+    var result = renderOverlay_Base_v087.apply(this, arguments);
+    try { mcResolvedLivePartsForFrame_v087(App.currentFrame || 1); } catch(eResolveAfterOverlay_v087){}
+    try { mcRenderStageParts_v087(); } catch(eStageAfterOverlay_v087){}
+    return result;
+  };
+
+  var mcCompletePinToBone_Base_v087 = mcCompletePinToBone;
+  mcCompletePinToBone = function(source, target, bone, evt){
+    var out = mcCompletePinToBone_Base_v087(source, target, bone, evt);
+    try {
+      mcResolvedLivePartsForFrame_v087(App.currentFrame || 1);
+      mcRenderStageParts_v087();
+      renderOverlay();
+    } catch(eAfterPin_v087){}
+    return out;
+  };
+
+  try { log('MyCharacter v_087 live pin transform solve active.'); } catch(e){}
+
+
+  // FIX v_088: A pin must inherit the parent part transform, not only the parent bone point.
+  // Store the parent and child scale at the moment of pinning, then solve the child using the parent scale ratio.
+  // This keeps the child attached when the parent part is moved, rotated, scaled, or when the target bone animates.
+  function mcPartTransformScaleForPin_v088(part){
+    part = mcNormalizePartMode(part || {});
+    var t = part && part.transform ? part.transform : {};
+    var src = part && part.state && part.state.source ? part.state.source : {};
+    var sw = Math.max(1, Number(src.width || t.w || 1));
+    var sh = Math.max(1, Number(src.height || t.h || 1));
+    return {
+      sx:Math.max(0.0001, Number(t.w || sw) / sw),
+      sy:Math.max(0.0001, Number(t.h || sh) / sh),
+      w:Math.max(1, Number(t.w || sw)),
+      h:Math.max(1, Number(t.h || sh)),
+      srcW:sw,
+      srcH:sh
+    };
+  }
+
+  var mcCompletePinToBone_Base_v088 = mcCompletePinToBone;
+  mcCompletePinToBone = function(source, target, bone, evt){
+    var out = mcCompletePinToBone_Base_v088(source, target, bone, evt);
+    try {
+      if (source && target && source.parentPin) {
+        var parentScale = mcPartTransformScaleForPin_v088(target);
+        var childScale = mcPartTransformScaleForPin_v088(source);
+        source.parentPin.inheritParentTransform = true; // FIX v_088
+        source.parentPin.parentScaleAtPin = { sx:parentScale.sx, sy:parentScale.sy, w:parentScale.w, h:parentScale.h };
+        source.parentPin.childScaleAtPin = { sx:childScale.sx, sy:childScale.sy, w:childScale.w, h:childScale.h };
+        source.parentPin.childSizeAtPin = { w:childScale.w, h:childScale.h };
+        var mc = mcEnsure();
+        var resolved = mcPinnedTransformForFrame_v066 ? mcPinnedTransformForFrame_v066(source, mc.parts || [], App.currentFrame || 1) : null;
+        if (resolved) {
+          source.transform = resolved;
+          if (Number(source.id || 0) === Number(mc.selectedId || 0)) mcApplyTransformToApp(source.transform);
+        }
+      }
+      try { mcRefreshPinnedChildren(); } catch(eRefresh_v088){}
+      try { mcRenderStageParts(); } catch(eStage_v088){}
+    } catch(ePinScale_v088){}
+    return out;
+  };
+
+  var mcPinnedTransformForFrame_Base_v088 = mcPinnedTransformForFrame_v066;
+  mcPinnedTransformForFrame_v066 = function(child, parts, frame){
+    child = mcNormalizePartMode(child || {});
+    var pin = child && child.parentPin ? child.parentPin : null;
+    if (!pin || !pin.boneId) return mcPinnedTransformForFrame_Base_v088(child, parts, frame);
+    var parent = mcFindPartInList(parts || mcEnsure().parts || [], pin.targetPartId);
+    if (!parent || !parent.state) return mcPinnedTransformForFrame_Base_v088(child, parts, frame);
+
+    var originalTransform = child.transform ? mcSafeClone(child.transform) : null;
+    var parentNow = mcPartTransformScaleForPin_v088(parent);
+    var childAtPin = pin.childSizeAtPin || pin.childScaleAtPin || null;
+    var parentAtPin = pin.parentScaleAtPin || null;
+
+    if (pin.inheritParentTransform && childAtPin && parentAtPin && originalTransform) {
+      var ratioX = parentNow.sx / Math.max(0.0001, Number(parentAtPin.sx || 1));
+      var ratioY = parentNow.sy / Math.max(0.0001, Number(parentAtPin.sy || 1));
+      child.transform = mcSafeClone(originalTransform);
+      child.transform.w = Math.max(1, Number(childAtPin.w || originalTransform.w || 1) * ratioX);
+      child.transform.h = Math.max(1, Number(childAtPin.h || originalTransform.h || 1) * ratioY);
+    }
+
+    var resolved = mcPinnedTransformForFrame_Base_v088(child, parts || mcEnsure().parts || [], frame || App.currentFrame || 1);
+
+    if (originalTransform) child.transform = originalTransform;
+    return resolved;
+  };
+
+  mcPinnedTransformForFrame_v054 = function(child, parts, frame){ return mcPinnedTransformForFrame_v066(child, parts, frame); };
+  mcPinnedTransformForFrame_v059 = function(child, parts, frame){ return mcPinnedTransformForFrame_v066(child, parts, frame); };
+  mcPinnedTransformForFrame_v063 = function(child, parts, frame){ return mcPinnedTransformForFrame_v066(child, parts, frame); };
+
+  var mcApplyPinnedChildren_Base_v088 = mcApplyPinnedChildren;
+  mcApplyPinnedChildren = function(parentId, oldT, newT, visited){
+    try {
+      var out = mcApplyPinnedChildren_Base_v088(parentId, oldT, newT, visited);
+      var mc = mcEnsure();
+      for (var i = 0; i < (mc.parts || []).length; i += 1) {
+        var child = mc.parts[i];
+        if (!child || !child.parentPin || Number(child.parentPin.targetPartId || 0) !== Number(parentId || 0)) continue;
+        var resolved = mcPinnedTransformForFrame_v066(child, mc.parts || [], App.currentFrame || 1);
+        if (resolved) child.transform = resolved;
+      }
+      try { mcRenderStageParts(); } catch(eStageApply_v088){}
+      return out;
+    } catch(eApplyPin_v088) {
+      try { return mcApplyPinnedChildren_Base_v088(parentId, oldT, newT, visited); } catch(eFallback_v088){}
+    }
+  };
+
+  try { log('MyCharacter v_088 pin inherits parent transform scale active.'); } catch(e){}
 
   function init(){
     try { forceToolPanelFill(); } catch(e){ console.error('[MyCharacter] forceToolPanelFill failed', e); } // FIX v_018
@@ -16895,7 +17464,7 @@ html, body, #app{
     try { window.addEventListener('message', function(e){ if (e && e.data && (e.data.type === 'LukeToolsClose' || e.data.type === 'LukeToolsToolClosed')) cleanupToolOverlays(); }); } catch(e){}
     try { syncFrameCountFromWickTimeline(); } catch(e){ console.error('[MyCharacter] sync frame count failed', e); } // FIX v_018
     try { updateUI(); } catch(e){ console.error('[MyCharacter] updateUI failed', e); } // FIX v_018
-    try { log('MyCharacter v_067 ready. Pinned child root origin transform active.'); } catch(e){} // FIX v_018
+    try { log('MyCharacter v_070 ready. Layer hierarchy selected overlay order active.'); } catch(e){} // FIX v_018
     try { if (!App.B) log('Warning: LukeToolsBridge not found yet. The tool will still retry when you capture selection.'); } catch(e){}
   }
 
