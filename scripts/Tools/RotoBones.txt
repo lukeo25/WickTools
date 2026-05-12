@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MyCharacter v088 from v087 pin inherits parent transform scale</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>MyCharacter GPT v108 Frame_Bone actual Wick line thickness on commit</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -908,7 +908,7 @@ html, body, #app{
       <div class="panelPage" data-page="bones">
         <div class="section">
           <h3>Bone creation</h3>
-          <div class="notice">The Bones tab is always in Add Bone mode. Drag empty overlay space to create the selected bone type. Click a bone to select it. Deleting a bone returns straight back to Add Bone mode. Lip_Bone and Wink_Bone are bone setup choices, but they are created as small pinned Frame Bone attachments. After creation you stay here to adjust their scale or rotation before opening Expression. Select a Lip_Bone or Wink_Bone frame bone on the overlay, then drag the corner square to scale or the round handle above it to rotate. <!-- FIX v18.10 --></div>
+          <div class="notice">The Bones tab is always in Add Bone mode. Drag empty overlay space to create the selected bone type. Click a bone to select it. Deleting a bone returns straight back to Add Bone mode. Lip_Bone and Frame_Bone are bone setup choices, but they are created as small pinned Frame_Bone attachments. After creation you stay here to adjust their scale or rotation before opening Expression. Select a Lip_Bone or Frame_Bone on the overlay, then drag the corner square to scale or the round handle above it to rotate. <!-- FIX v18.90 --></div>
           <div class="row" style="margin-top:8px;">
             <button id="btnDeleteBone" class="warn">Delete Selected Bone</button>
             <button id="btnClearBones" class="warn">Clear All Bones</button>
@@ -928,7 +928,7 @@ html, body, #app{
               <option value="normal">Normal Bone</option>
               <option value="stretchy">Stretchy Bone</option>
               <option value="lip">Lip_Bone</option> <!-- FIX v18.7 -->
-              <option value="wink">Wink_Bone</option> <!-- FIX v18.7 -->
+              <option value="wink">Frame_Bone</option> <!-- FIX v18.90 -->
             </select>
             <button id="btnApplyBoneType" class="secondary">Apply To Selected Bone</button> <!-- FIX v18.4 -->
           </div>
@@ -1213,7 +1213,7 @@ html, body, #app{
       <div class="panelPage" data-page="expression"> <!-- FIX v18.0 -->
         <div class="section softSection">
           <h3>Expression Bones</h3>
-          <div class="notice">Lip Bones and Wink Bones are Frame Bone style attachments. Create them by attaching to a selected parent bone or by pinning them to a point on the arm of a selected bone. Lip Service and Eye Service show their frame images and key the selected frame bone on the real Wick timeline. <!-- FIX v18.6 --></div>
+          <div class="notice">Lip_Bone and Frame_Bone are frame bone style attachments. Create them by attaching to a selected parent bone or by pinning them to a point on the arm of a selected bone. Lip Service and Eye Service show their frame images and key the selected frame bone on the real Wick timeline. <!-- FIX v18.90 --></div>
           <div class="row" style="margin-top:10px;">
             <label>Selected expression frame bone</label>
             <div id="expressionBoneInfo" class="small">None</div>
@@ -1254,11 +1254,11 @@ html, body, #app{
             </div>
           </div>
           <div class="expressionPanel" data-expression-panel="eye">
-            <div class="notice">Wink_Bone is created as a pinned Frame Bone. After creating the Wink_Bone, the Bones tab stays open so you can adjust scale and rotation before choosing Expression. <!-- FIX v18.8 --></div>
+            <div class="notice">Frame_Bone is created as a real frame bone attachment for wink images. Load as many images as needed here and every image slot appears below. Click an image slot to key that Frame_Bone on the real Wick timeline. <!-- FIX v18.90 --></div>
             <div class="softActionRow" style="margin-top:10px;">
-              <button id="btnAttachWinkFrameBone" class="softBtn softBtnAccent">Attach Wink Bone</button> <!-- FIX v18.6 -->
-              <button id="btnPinWinkFrameBone" class="softBtn softBtnSecondary">Pin Wink Bone</button> <!-- FIX v18.6 -->
-              <button id="btnLoadWinkExpressionImages" class="softBtn softBtnSecondary">Load Wink Images</button> <!-- FIX v18.34 -->
+              <button id="btnAttachWinkFrameBone" class="softBtn softBtnAccent">Attach Frame_Bone</button> <!-- FIX v18.90 -->
+              <button id="btnPinWinkFrameBone" class="softBtn softBtnSecondary">Pin Frame_Bone</button> <!-- FIX v18.90 -->
+              <button id="btnLoadWinkExpressionImages" class="softBtn softBtnSecondary">Load Frame_Bone Images</button> <!-- FIX v18.90 -->
             </div>
             <div id="eyeExpressionSlots" class="expressionSlotGrid"></div>
             <div class="softActionRow" style="margin-top:10px;">
@@ -1294,7 +1294,7 @@ html, body, #app{
           <div class="row"> <!-- FIX v18.0 -->
             <label>Expression bones</label>
             <input type="checkbox" id="chkCommitExpressionScript" checked>
-            <span class="small">Also add the Lip Bone and Wink Bone script driver where possible.</span>
+            <span class="small">Also add the Lip_Bone and Frame_Bone script driver where possible.</span>
           </div>
           <div class="row">
             <label>Place at source</label>
@@ -1303,6 +1303,11 @@ html, body, #app{
           <div class="row">
             <label>Sync with parent</label>
             <input type="checkbox" id="chkSyncWithParent" checked>
+          </div>
+          <div class="row"> <!-- FIX v18.108_GPT -->
+            <label>Frame_Bone line thickness</label>
+            <input type="number" id="numFrameBoneCommitStrokeWidth" min="0" max="50" step="0.1" value="1">
+            <span class="small">Actual Wick stroke weight for Frame_Bone SVG lines. 0 removes stroked Frame_Bone lines. Fill only parts stay outline free.</span>
           </div>
           <div class="row">
             <button id="btnStampClip">Commit To Wick</button>
@@ -1894,7 +1899,7 @@ html, body, #app{
   function boneTypeLabel(bone){ // FIX v18.0
     if (isStretchyBone(bone)) return 'Stretchy Bone';
     if (isLipBone(bone)) return 'Lip Bone';
-    if (isWinkBone(bone)) return 'Wink Bone';
+    if (isWinkBone(bone)) return 'Frame_Bone';
     return 'Normal Bone';
   }
 
@@ -2023,8 +2028,8 @@ html, body, #app{
   }
 
 
-  function expressionKindLabel(kind){ // FIX v18.6
-    return kind === 'eye' ? 'Wink' : 'Lip';
+  function expressionKindLabel(kind){ // FIX v18.92
+    return kind === 'eye' ? 'Frame_Bone' : 'Lip_Bone';
   }
 
   function isExpressionBoneTypeValue(value){ // FIX v18.7
@@ -2058,7 +2063,7 @@ html, body, #app{
     fb.expressionKind = kind;
     if (fb.expressionDefaultScaleApplied !== true) { fb.scale = kind === 'eye' ? 0.28 : 0.22; fb.expressionDefaultScaleApplied = true; } // FIX v18.8: pinned expression frame bones start small and remain adjustable in Bones tab
     if (fb.expressionDefaultRotationApplied !== true) { fb.rotationDeg = kind === 'lip' ? 90 : (Number(fb.rotationDeg || 0) || 0); fb.expressionDefaultRotationApplied = true; } // FIX v18.34: Lip_Bone starts at 90 degrees, then remains user adjustable
-    fb.name = fb.name && fb.name.indexOf('Frame Bone') < 0 ? fb.name : (expressionKindLabel(kind) + ' Bone ' + fb.id);
+    if (kind === 'eye') { fb.name = (!fb.name || /^(Wink Bone|Frame Bone|Frame_Bone)\b/.test(String(fb.name))) ? ('Frame_Bone ' + fb.id) : fb.name; } else { fb.name = fb.name && fb.name.indexOf('Frame Bone') < 0 ? fb.name : (expressionKindLabel(kind) + ' Bone ' + fb.id); } // FIX v18.90
     var frameList = expressionFramesForFrameBoneKind(kind);
     fb.frameCount = frameList.length;
     fb.frames = fb.frames || {};
@@ -2118,7 +2123,7 @@ html, body, #app{
       App.frameBonePinMode = true;
       App.interaction.addBoneMode = false;
       App.activeTab = 'bones';
-      log('Select a normal parent bone first, then click on the bone arm to pin the ' + expressionKindLabel(kind) + '_Bone frame bone.');
+      log('Select a normal parent bone first, then click on the bone arm to pin the ' + expressionKindLabel(kind) + '.'); // FIX v18.92
       updateUI();
       renderOverlay();
       updateExpressionTabHighlight(); // FIX v18.8
@@ -2137,25 +2142,29 @@ html, body, #app{
     renderExpressionUI();
     renderOverlay();
     updateExpressionTabHighlight(); // FIX v18.8
-    App.newBoneType = 'normal'; // FIX v18.29: one shot Lip_Bone and Wink_Bone creation stops repeated mouth image/frame bone creation
+    App.newBoneType = 'normal'; // FIX v18.29: one shot Lip_Bone and Frame_Bone creation stops repeated image/frame bone creation
     if (el('selBoneType')) el('selBoneType').value = 'normal'; // FIX v18.29
     App.interaction.addBoneMode = false; // FIX v18.29
-    log('Added ' + expressionKindLabel(kind) + '_Bone as a small pinned Frame Bone attached to ' + parent.name + '. Adjust Scale and Rotate in Frame bones, then open Expression when ready.');
+    log('Added ' + expressionKindLabel(kind) + ' as a small pinned Frame_Bone attached to ' + parent.name + '. Adjust Scale and Rotate in Frame bones, then open Expression when ready.'); // FIX v18.92
     return fb;
   }
 
-  function beginPinExpressionFrameBone(kind){ // FIX v18.6
+  function beginPinExpressionFrameBone(kind){ // FIX v18.92
     var parent = getSelectedBone();
-    if (!parent) { log('Select a parent bone first, then pin the ' + expressionKindLabel(kind) + ' Bone to the arm of that bone.'); return; }
+    if (!parent) { log('Select a normal parent bone first, then pin the ' + expressionKindLabel(kind) + ' to the arm of that bone.'); return; } // FIX v18.92
+    if (isExpressionBone(parent)) { log('Select a normal parent bone, not an expression Frame_Bone or Lip_Bone.'); return; } // FIX v18.92
     App.pendingExpressionFrameKind = (kind === 'eye' || kind === 'wink') ? 'eye' : 'lip';
     App.frameBonePinMode = true;
+    App.frameBoneCreateMode = 'pin'; // FIX v18.92
     App.interaction.addBoneMode = false;
-    App.activeTab = 'expression';
+    App.activeTab = 'bones'; // FIX v18.92: keep the overlay in bone click mode while pinning
     App.expressionSubTab = App.pendingExpressionFrameKind;
+    qa('.tabBtn').forEach(function(btn){ btn.classList.toggle('active', btn.getAttribute('data-tab') === App.activeTab); }); // FIX v18.92
+    qa('.panelPage').forEach(function(page){ page.classList.toggle('active', page.getAttribute('data-page') === App.activeTab); }); // FIX v18.92
     updateUI();
     renderExpressionUI();
     renderOverlay();
-    log('Pin ' + expressionKindLabel(App.pendingExpressionFrameKind) + ' Bone mode: click on the parent bone arm or nearby artwork to place it.');
+    log('Pin ' + expressionKindLabel(App.pendingExpressionFrameKind) + ' mode: click on the selected parent bone arm or nearby artwork to place it.'); // FIX v18.92
   }
 
   function attachExpressionFrameBone(kind){ // FIX v18.6
@@ -2284,7 +2293,7 @@ html, body, #app{
 
   function setExpressionKey(kind, key){ // FIX v18.0
     var bone = currentExpressionBone();
-    if (!bone) { log('Select a Lip Bone or Wink Bone first.'); return; }
+    if (!bone) { log('Select a Lip_Bone or Frame_Bone first.'); return; }
     var actualKind = expressionKindForBone(bone);
     if (kind && kind !== actualKind) { log('Selected bone is not the right expression type.'); return; }
     ensureExpressionProfileForBone(bone);
@@ -2299,7 +2308,7 @@ html, body, #app{
 
   function clearExpressionKey(kind){ // FIX v18.0
     var bone = currentExpressionBone();
-    if (!bone) { log('Select a Lip Bone or Wink Bone first.'); return; }
+    if (!bone) { log('Select a Lip_Bone or Frame_Bone first.'); return; }
     var actualKind = expressionKindForBone(bone);
     if (kind && kind !== actualKind) { log('Selected bone is not the right expression type.'); return; }
     var id = String(bone.id);
@@ -2323,7 +2332,7 @@ html, body, #app{
       return;
     }
     var bone = currentExpressionBone();
-    if (!bone) { log('Select a Lip Bone or Wink Bone first.'); return; }
+    if (!bone) { log('Select a Lip_Bone or Frame_Bone first.'); return; }
     var profile = ensureExpressionProfileForBone(bone);
     var node = el('inpExpressionTargetClip');
     var name = node ? String(node.value || '').trim() : '';
@@ -2856,7 +2865,7 @@ html, body, #app{
       clearFrameBoneKeysForFrameBone(fb); // FIX v18.29: loading JSON replaces the old Lip_Bone keys instead of leaving only the previous Rest key.
       appliedCount = applyExpressionKeyMapToFrameBone(kind, fb, keyMap);
     } else {
-      log('No ' + (kind === 'eye' ? 'Wink_Bone' : 'Lip_Bone') + ' exists yet, so JSON timing could not be applied to a frame bone. Create the expression bone first, then load the JSON.'); // FIX v18.34
+      log('No ' + (kind === 'eye' ? 'Frame_Bone' : 'Lip_Bone') + ' exists yet, so JSON timing could not be applied to a frame bone. Create the expression bone first, then load the JSON.'); // FIX v18.34
     }
 
     var bone = currentExpressionBone();
@@ -2892,7 +2901,42 @@ html, body, #app{
     }
   }
 
-  function expressionSlotFromFileName(kind, fileName, fallback){ // FIX v18.34
+  function winkFrameLabelFromFileName(fileName, fallback){ // FIX v18.89: Frame_Bone uses the user loaded frame images as its real frame bone slots
+    var base = String(fileName || '').replace(/\.[^.]+$/, '').trim();
+    if (!base) return 'Frame ' + (Number(fallback || 1) || 1);
+    return base;
+  }
+
+  function winkExpressionImageFileList(files){ // FIX v18.90: keep every user selected Frame_Bone image, not just the old two wink defaults
+    if (!files || !files.length) return [];
+    var list = Array.prototype.slice.call(files).filter(function(f){
+      return f && (/\.svg$/i.test(f.name || '') || /\.png$/i.test(f.name || '') || String(f.type || '').indexOf('image/') === 0);
+    });
+    list.sort(function(a,b){
+      var an = slotNumberFromFileName(a.name, 9999);
+      var bn = slotNumberFromFileName(b.name, 9999);
+      return an === bn ? String(a.name || '').localeCompare(String(b.name || '')) : an - bn;
+    });
+    return list;
+  }
+
+  function ensureWinkExpressionFramesForLoadedFiles(files){ // FIX v18.90: Frame_Bone slots are rebuilt from the complete user image set
+    var list = winkExpressionImageFileList(files);
+    if (!list.length) return 0;
+    var nextFrames = [];
+    list.forEach(function(file, idx){
+      var label = winkFrameLabelFromFileName(file.name, idx + 1);
+      nextFrames.push({
+        key: String(label),
+        label: String(label),
+        dataUrl: ''
+      });
+    });
+    EYE_EXPRESSION_FRAMES = nextFrames;
+    return nextFrames.length;
+  }
+
+  function expressionSlotFromFileName(kind, fileName, fallback){ // FIX v18.90
     kind = (kind === 'eye' || kind === 'wink') ? 'eye' : 'lip';
     var base = String(fileName || '').replace(/\.[^.]+$/, '').trim().toLowerCase();
     var frames = expressionFramesForKind(kind);
@@ -2901,6 +2945,7 @@ html, body, #app{
       var l = String(frames[i].label || '').toLowerCase();
       if (base === k || base === l) return i + 1;
     }
+    if (kind === 'eye') return clamp(Number(fallback || 1) || 1, 1, Math.max(1, frames.length)); // FIX v18.90: arbitrary Frame_Bone image names stay in the chosen sequence
     return clamp(slotNumberFromFileName(fileName, fallback || 1), 1, Math.max(1, frames.length));
   }
 
@@ -2931,7 +2976,7 @@ html, body, #app{
   function promptExpressionFrameImages(kind){ // FIX v18.34
     kind = (kind === 'eye' || kind === 'wink') ? 'eye' : 'lip';
     var fb = getExpressionFrameBoneForKind(kind);
-    if (!fb) { log('Create or select a ' + (kind === 'eye' ? 'Wink_Bone' : 'Lip_Bone') + ' first.'); return; }
+    if (!fb) { log('Create or select a ' + (kind === 'eye' ? 'Frame_Bone' : 'Lip_Bone') + ' first.'); return; }
     App.selectedFrameBoneId = fb.id;
     var inp = el(kind === 'eye' ? 'fileWinkExpressionImages' : 'fileLipExpressionImages');
     if (!inp) return;
@@ -2939,20 +2984,24 @@ html, body, #app{
     inp.click();
   }
 
-  function onExpressionFrameImagesChosen(kind, files){ // FIX v18.34
+  function onExpressionFrameImagesChosen(kind, files){ // FIX v18.90
     kind = (kind === 'eye' || kind === 'wink') ? 'eye' : 'lip';
     var fb = getExpressionFrameBoneForKind(kind);
     if (!fb || !files || !files.length) return;
+    var list = kind === 'eye' ? winkExpressionImageFileList(files) : Array.prototype.slice.call(files).filter(function(f){ return f && (/\.svg$/i.test(f.name || '') || /\.png$/i.test(f.name || '') || String(f.type || '').indexOf('image/') === 0); });
+    if (kind !== 'eye') {
+      list.sort(function(a,b){
+        var as = expressionSlotFromFileName(kind, a.name, 9999);
+        var bs = expressionSlotFromFileName(kind, b.name, 9999);
+        return as === bs ? String(a.name || '').localeCompare(String(b.name || '')) : as - bs;
+      });
+    }
+    if (!list.length) return;
+    if (kind === 'eye') ensureWinkExpressionFramesForLoadedFiles(list); // FIX v18.90: Frame_Bone frame slots come from all selected image files
     prepareExpressionFrameBone(fb, kind);
-    var list = Array.prototype.slice.call(files).filter(function(f){ return f && (/\.svg$/i.test(f.name || '') || /\.png$/i.test(f.name || '') || String(f.type || '').indexOf('image/') === 0); });
-    list.sort(function(a,b){
-      var as = expressionSlotFromFileName(kind, a.name, 9999);
-      var bs = expressionSlotFromFileName(kind, b.name, 9999);
-      return as === bs ? String(a.name || '').localeCompare(String(b.name || '')) : as - bs;
-    });
     var tasks = [];
     list.forEach(function(file, idx){
-      var slot = expressionSlotFromFileName(kind, file.name, idx + 1);
+      var slot = kind === 'eye' ? (idx + 1) : expressionSlotFromFileName(kind, file.name, idx + 1); // FIX v18.90
       tasks.push(loadExpressionImageIntoSlot(fb, kind, slot, file));
     });
     Promise.all(tasks).then(function(){
@@ -2960,7 +3009,7 @@ html, body, #app{
       updateFrameBoneUI();
       renderExpressionUI();
       renderOverlay();
-      log('Loaded ' + tasks.length + ' ' + (kind === 'eye' ? 'wink' : 'lip') + ' image' + (tasks.length === 1 ? '' : 's') + ' into ' + fb.name + '.');
+      log('Loaded ' + tasks.length + ' ' + (kind === 'eye' ? 'Frame_Bone' : 'lip') + ' image' + (tasks.length === 1 ? '' : 's') + ' into ' + fb.name + '.'); // FIX v18.90
     }).catch(function(e){ log('Expression image load failed: ' + (e && e.message ? e.message : e)); });
   }
 
@@ -2971,12 +3020,25 @@ html, body, #app{
     var fb = getExpressionFrameBoneForKind(kind); // FIX v18.6
     var bone = currentExpressionBone();
     var frames = expressionFramesForKind(kind);
+    if (kind === 'eye' && fb) { // FIX v18.90: render every loaded Frame_Bone slot even if the old Eye Service list was only two items
+      var maxFrameSlot = Math.max(Number(fb.frameCount || 0) || 0, frames.length || 0);
+      Object.keys(fb.frames || {}).forEach(function(slotKey){ var n = Number(slotKey); if (isFinite(n) && n > maxFrameSlot) maxFrameSlot = n; });
+      if (maxFrameSlot > frames.length) {
+        var expandedFrames = frames.slice();
+        for (var frameIndex = expandedFrames.length + 1; frameIndex <= maxFrameSlot; frameIndex += 1) {
+          var slotData = fb.frames ? fb.frames[frameIndex] : null;
+          var label = slotData ? frameBoneSlotDisplayName(fb, frameIndex) : ('Frame ' + frameIndex);
+          expandedFrames.push({ key:String(label), label:String(label), dataUrl:'' });
+        }
+        frames = expandedFrames;
+      }
+    }
     host.innerHTML = '';
     var canKeyOldExpressionBone = !!(!fb && bone && expressionKindForBone(bone) === kind); // FIX v18.6
     if (!fb && !canKeyOldExpressionBone) {
       var notice = document.createElement('div');
       notice.className = 'notice';
-      notice.textContent = 'Create or select a ' + (kind === 'eye' ? 'Wink Bone' : 'Lip Bone') + ' frame bone attachment first. The default images are shown below.';
+      notice.textContent = 'Create or select a ' + (kind === 'eye' ? 'Frame_Bone' : 'Lip Bone') + ' frame bone attachment first. ' + (kind === 'eye' ? 'Load Wink images here to create the frame slots.' : 'The default images are shown below.'); // FIX v18.89
       host.appendChild(notice);
     }
     if (fb && (!fb.frames || Number(fb.frameCount || 0) !== frames.length || expressionFrameBoneKind(fb) !== kind)) prepareExpressionFrameBone(fb, kind); // FIX v18.29
@@ -3007,7 +3069,7 @@ html, body, #app{
       card.addEventListener('click', function(){
         if (fb) { App.selectedFrameBoneId = fb.id; setSelectedFrameBoneKeyToSlot(slot); }
         else if (canKeyOldExpressionBone) setExpressionKey(kind, item.key);
-        else log('Create or select a ' + (kind === 'eye' ? 'Wink Bone' : 'Lip Bone') + ' frame bone attachment before keying.');
+        else log('Create or select a ' + (kind === 'eye' ? 'Frame_Bone' : 'Lip Bone') + ' frame bone attachment before keying.');
       });
       host.appendChild(card);
     });
@@ -3156,7 +3218,7 @@ html, body, #app{
   function buildExpressionDriverScript(forcedOwner, exportBounds){ // FIX v18.29
     var lines = [];
     lines.push('// RotoBones Expression BEGIN');
-    lines.push('// Compact driver for Lip_Bone and Wink_Bone frame bones');
+    lines.push('// Compact driver for Lip_Bone and Frame_Bone frame bones');
     lines.push("onEvent('update', function(){");
     var owner = forcedOwner === 'this' ? 'this' : (App.expressionCommitMode === 'clipInClip' ? 'this' : 'project'); // FIX v18.29
     lines.push('  function _rbNum(v){ v = Number(v); return isFinite(v) ? v : null; }'); // FIX v18.52_RelaxBrush
@@ -3194,7 +3256,7 @@ html, body, #app{
       expressionApplyPlacementLines(clipPath, placement).forEach(function(line){ lines.push(line); });
       count++;
     });
-    if (!count) lines.push('  // No Lip_Bone or Wink_Bone frame bones have been created yet.');
+    if (!count) lines.push('  // No Lip_Bone or Frame_Bone frame bones have been created yet.');
     lines.push('});');
     lines.push('// RotoBones Expression END');
     return lines.join('\n');
@@ -3381,7 +3443,7 @@ html, body, #app{
       bone = currentExpressionBone();
       activeFb = getExpressionFrameBoneForKind(App.expressionSubTab || 'lip');
     }
-    if (!bone && !activeFb) { log('Create a Lip Bone or Wink Bone first.'); return; }
+    if (!bone && !activeFb) { log('Create a Lip_Bone or Frame_Bone first.'); return; }
     var kind = activeFb ? expressionFrameBoneKind(activeFb) : expressionKindForBone(bone);
     var profile = bone ? ensureExpressionProfileForBone(bone) : null;
     var targetName = ((activeFb && activeFb.targetClipName) || (profile && profile.targetClipName) || (kind === 'eye' ? 'EyeShape' : 'MouthShape')).trim();
@@ -3926,6 +3988,7 @@ html, body, #app{
     var keys = ['fill','stroke','stroke-width','stroke-linecap','stroke-linejoin','opacity','fill-opacity','stroke-opacity','fill-rule','clip-rule'];
     var s = '';
     keys.forEach(function(k){ if (style && style[k] != null && style[k] !== '') s += ' ' + k + '="' + escapeXmlAttr(style[k]) + '"'; });
+    if (!svgStyleHasVisibleStroke_v103(style)) s += ' stroke="none" stroke-width="0"'; // FIX v18.103_GPT: do not let Paper or Wick add a default outline to fill only Frame_Bone SVG parts.
     return s;
   }
 
@@ -4287,6 +4350,86 @@ html, body, #app{
     }).filter(function(sp){ return sp.points && sp.points.length > 1; });
   }
 
+
+
+  function svgArcAngleBetween_v102(ux, uy, vx, vy){ // FIX v18.102_GPT
+    var dot = ux * vx + uy * vy; // FIX v18.102_GPT
+    var len = Math.sqrt((ux * ux + uy * uy) * (vx * vx + vy * vy)); // FIX v18.102_GPT
+    if (!len) return 0; // FIX v18.102_GPT
+    var a = Math.acos(clamp(dot / len, -1, 1)); // FIX v18.102_GPT
+    if ((ux * vy - uy * vx) < 0) a = -a; // FIX v18.102_GPT
+    return a; // FIX v18.102_GPT
+  }
+
+  function svgArcPointAndDerivative_v102(cx, cy, rx, ry, cosPhi, sinPhi, theta){ // FIX v18.102_GPT
+    var ct = Math.cos(theta); // FIX v18.102_GPT
+    var st = Math.sin(theta); // FIX v18.102_GPT
+    return { // FIX v18.102_GPT
+      x: cx + cosPhi * rx * ct - sinPhi * ry * st, // FIX v18.102_GPT
+      y: cy + sinPhi * rx * ct + cosPhi * ry * st, // FIX v18.102_GPT
+      dx: -cosPhi * rx * st - sinPhi * ry * ct, // FIX v18.102_GPT
+      dy: -sinPhi * rx * st + cosPhi * ry * ct // FIX v18.102_GPT
+    }; // FIX v18.102_GPT
+  }
+
+  function svgArcToCubicSegments_v102(x1, y1, rx, ry, axisRotation, largeArcFlag, sweepFlag, x2, y2){ // FIX v18.102_GPT
+    var segs = []; // FIX v18.102_GPT
+    x1 = Number(x1); y1 = Number(y1); x2 = Number(x2); y2 = Number(y2); // FIX v18.102_GPT
+    rx = Math.abs(Number(rx) || 0); // FIX v18.102_GPT
+    ry = Math.abs(Number(ry) || 0); // FIX v18.102_GPT
+    if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2) || rx <= 0 || ry <= 0 || (Math.abs(x1 - x2) < 0.000001 && Math.abs(y1 - y2) < 0.000001)) return segs; // FIX v18.102_GPT
+    var phi = (Number(axisRotation) || 0) * Math.PI / 180; // FIX v18.102_GPT
+    var cosPhi = Math.cos(phi); // FIX v18.102_GPT
+    var sinPhi = Math.sin(phi); // FIX v18.102_GPT
+    var dx2 = (x1 - x2) / 2; // FIX v18.102_GPT
+    var dy2 = (y1 - y2) / 2; // FIX v18.102_GPT
+    var x1p = cosPhi * dx2 + sinPhi * dy2; // FIX v18.102_GPT
+    var y1p = -sinPhi * dx2 + cosPhi * dy2; // FIX v18.102_GPT
+    var rx2 = rx * rx; // FIX v18.102_GPT
+    var ry2 = ry * ry; // FIX v18.102_GPT
+    var x1p2 = x1p * x1p; // FIX v18.102_GPT
+    var y1p2 = y1p * y1p; // FIX v18.102_GPT
+    var lambda = x1p2 / rx2 + y1p2 / ry2; // FIX v18.102_GPT
+    if (lambda > 1) { // FIX v18.102_GPT
+      var s = Math.sqrt(lambda); // FIX v18.102_GPT
+      rx *= s; // FIX v18.102_GPT
+      ry *= s; // FIX v18.102_GPT
+      rx2 = rx * rx; // FIX v18.102_GPT
+      ry2 = ry * ry; // FIX v18.102_GPT
+    } // FIX v18.102_GPT
+    var denom = rx2 * y1p2 + ry2 * x1p2; // FIX v18.102_GPT
+    if (!denom) return segs; // FIX v18.102_GPT
+    var sign = (Number(largeArcFlag) === Number(sweepFlag)) ? -1 : 1; // FIX v18.102_GPT
+    var coef = sign * Math.sqrt(Math.max(0, (rx2 * ry2 - rx2 * y1p2 - ry2 * x1p2) / denom)); // FIX v18.102_GPT
+    var cxp = coef * (rx * y1p / ry); // FIX v18.102_GPT
+    var cyp = coef * (-ry * x1p / rx); // FIX v18.102_GPT
+    var cx = cosPhi * cxp - sinPhi * cyp + (x1 + x2) / 2; // FIX v18.102_GPT
+    var cy = sinPhi * cxp + cosPhi * cyp + (y1 + y2) / 2; // FIX v18.102_GPT
+    var ux = (x1p - cxp) / rx; // FIX v18.102_GPT
+    var uy = (y1p - cyp) / ry; // FIX v18.102_GPT
+    var vx = (-x1p - cxp) / rx; // FIX v18.102_GPT
+    var vy = (-y1p - cyp) / ry; // FIX v18.102_GPT
+    var theta1 = svgArcAngleBetween_v102(1, 0, ux, uy); // FIX v18.102_GPT
+    var delta = svgArcAngleBetween_v102(ux, uy, vx, vy); // FIX v18.102_GPT
+    if (!sweepFlag && delta > 0) delta -= Math.PI * 2; // FIX v18.102_GPT
+    if (sweepFlag && delta < 0) delta += Math.PI * 2; // FIX v18.102_GPT
+    var segmentCount = Math.max(1, Math.ceil(Math.abs(delta) / (Math.PI / 2))); // FIX v18.102_GPT
+    var step = delta / segmentCount; // FIX v18.102_GPT
+    for (var iSeg = 0; iSeg < segmentCount; iSeg += 1) { // FIX v18.102_GPT
+      var t1 = theta1 + iSeg * step; // FIX v18.102_GPT
+      var t2 = t1 + step; // FIX v18.102_GPT
+      var p1 = svgArcPointAndDerivative_v102(cx, cy, rx, ry, cosPhi, sinPhi, t1); // FIX v18.102_GPT
+      var p2 = svgArcPointAndDerivative_v102(cx, cy, rx, ry, cosPhi, sinPhi, t2); // FIX v18.102_GPT
+      var alpha = (4 / 3) * Math.tan((t2 - t1) / 4); // FIX v18.102_GPT
+      segs.push({ // FIX v18.102_GPT
+        c1:{ x:p1.x + alpha * p1.dx, y:p1.y + alpha * p1.dy }, // FIX v18.102_GPT
+        c2:{ x:p2.x - alpha * p2.dx, y:p2.y - alpha * p2.dy }, // FIX v18.102_GPT
+        p:{ x:p2.x, y:p2.y } // FIX v18.102_GPT
+      }); // FIX v18.102_GPT
+    } // FIX v18.102_GPT
+    return segs; // FIX v18.102_GPT
+  }
+
   function parsePathToCommandSubpaths(d, matrix){ // FIX v7.3
     var tok = tokenizePathD(d), i = 0, cmd = '', cur = {x:0,y:0}, start = {x:0,y:0};
     var paths = [], cmds = [];
@@ -4355,12 +4498,25 @@ html, body, #app{
           var tp = { x: rel ? cur.x + tx : tx, y: rel ? cur.y + ty : ty };
           addQuad(tq, tp);
         }
-      } else if (C === 'A') {
-        while (hasNum()) {
-          num(); num(); num(); num(); num();
-          var ax=num(), ay=num();
-          addLine({x:rel?cur.x+ax:ax, y:rel?cur.y+ay:ay});
-        }
+      } else if (C === 'A') { // FIX v18.102_GPT: preserve SVG arc curves instead of flattening them to one line.
+        while (hasNum()) { // FIX v18.102_GPT
+          var arx = num(); // FIX v18.102_GPT
+          var ary = num(); // FIX v18.102_GPT
+          var axisRot = num(); // FIX v18.102_GPT
+          var largeArc = num() ? 1 : 0; // FIX v18.102_GPT
+          var sweep = num() ? 1 : 0; // FIX v18.102_GPT
+          var ax = num(); // FIX v18.102_GPT
+          var ay = num(); // FIX v18.102_GPT
+          var endArc = { x: rel ? cur.x + ax : ax, y: rel ? cur.y + ay : ay }; // FIX v18.102_GPT
+          var arcSegs = svgArcToCubicSegments_v102(cur.x, cur.y, arx, ary, axisRot, largeArc, sweep, endArc.x, endArc.y); // FIX v18.102_GPT
+          if (arcSegs && arcSegs.length) { // FIX v18.102_GPT
+            for (var ai2 = 0; ai2 < arcSegs.length; ai2 += 1) { // FIX v18.102_GPT
+              addCubic(arcSegs[ai2].c1, arcSegs[ai2].c2, arcSegs[ai2].p); // FIX v18.102_GPT
+            } // FIX v18.102_GPT
+          } else { // FIX v18.102_GPT
+            addLine(endArc); // FIX v18.102_GPT
+          } // FIX v18.102_GPT
+        } // FIX v18.102_GPT
       } else if (C === 'Z') {
         cmds.push({ type: 'Z' });
         cur = {x:start.x,y:start.y};
@@ -5837,7 +5993,7 @@ html, body, #app{
     var bone = attachBoneId ? getBoneById(attachBoneId) : getSelectedBone();
     var fb = {
       id: App.nextFrameBoneId++,
-      name: 'Frame Bone ' + (App.nextFrameBoneId - 1),
+      name: 'Frame_Bone ' + (App.nextFrameBoneId - 1), // FIX v18.92
       attachedBoneId: bone ? bone.id : null,
       point: clone(point),
       local: bone ? boneLocalFromPoint(bone, point) : null,
@@ -6293,7 +6449,7 @@ html, body, #app{
     var fb = getSelectedFrameBone();
     container.innerHTML = '';
     if (!fb) { container.textContent = 'No selected frame bone'; return; }
-    if (isExpressionFrameBone(fb)) { // FIX v18.34: Lip_Bone and Wink_Bone images are managed in the Expression tab, not the generic Frame Bones slot grid
+    if (isExpressionFrameBone(fb)) { // FIX v18.34: Lip_Bone and Frame_Bone images are managed in the Expression tab, not the generic Frame Bones slot grid
       container.innerHTML = '<div class="notice">This is an expression frame bone. Load and key its images in the Expression tab.</div>';
       return;
     }
@@ -6604,6 +6760,7 @@ html, body, #app{
     App.expressionKeys = safeJsonClone(data.expressionKeys || {}); App.expressionProfiles = safeJsonClone(data.expressionProfiles || {}); App.expressionCommitMode = data.expressionCommitMode === 'clipInClip' ? 'clipInClip' : 'script'; if (Array.isArray(data.lipExpressionFrames)) LIP_EXPRESSION_FRAMES = normaliseExpressionFrameList(data.lipExpressionFrames, LIP_EXPRESSION_FRAMES); if (Array.isArray(data.eyeExpressionFrames)) EYE_EXPRESSION_FRAMES = normaliseExpressionFrameList(data.eyeExpressionFrames, EYE_EXPRESSION_FRAMES); App.importedExpressionAudioName = data.importedExpressionAudioName || ''; App.importedExpressionAudioDataUrl = data.importedExpressionAudioDataUrl || ''; App.importedExpressionAudioType = data.importedExpressionAudioType || ''; App.importedExpressionAudioDuration = Number(data.importedExpressionAudioDuration || 0) || 0; if (App.importedExpressionAudioName && App.importedExpressionAudioDataUrl) { registerExpressionAudioForStagePlayback({ name: App.importedExpressionAudioName, dataUrl: App.importedExpressionAudioDataUrl, type: App.importedExpressionAudioType, duration: App.importedExpressionAudioDuration }); try { prepareScrubExpressionAudio(App.importedExpressionAudioDataUrl); } catch(ePrepRestoredAudio){} } // FIX v18.32
     App.frameCount = Math.max(1, Number(data.frameCount || App.frameCount || 1)); App.fps = clamp(Number(data.fps || App.fps || 12), 1, 60); App.currentFrame = clamp(Number(data.currentFrame || 1), 1, App.frameCount);
     enforceAllRestChains(); Object.keys(App.keyframes || {}).forEach(function(fr){ if (App.keyframes[fr]) enforceAllPoseChains(App.keyframes[fr]); });
+    if (App.mcCommitSuppressProxySync) { return; } // FIX v18.99_GPT: MyCharacter commit loads part states only for baking. Do not create Wick proxy layers during that internal load because those proxy rows are not commit children and can break Wick dirty traversal.
     if (App.source.image) { ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); }
     try { syncProxyLayersToBones(true); } catch(e){}
     scheduleProxyFrame(); updateUI(); renderOverlay(); markDirty();
@@ -9385,11 +9542,33 @@ html, body, #app{
   }
 
   function onOverlayMouseDown(e){
-    if (!App.source.image) return;
+    var local = clientToOverlayLocal(e.clientX, e.clientY); // FIX v18.92: calculate before source image guard so Frame_Bone pinning works for curve only parts
+    App.interaction.hoverLocal = local; // FIX v18.92
+    App.interaction.shift = !!e.shiftKey; // FIX v18.92
+    if ((App.activeTab === 'bones' || App.activeTab === 'expression') && App.frameBonePinMode) { // FIX v18.92: Frame_Bone pinning must not be blocked by missing App.source.image
+      if (App.activeTab === 'bones' || App.activeTab === 'expression') pushUndoSnapshot('Pin Frame_Bone'); // FIX v18.92
+      var attachForPin = getSelectedBone();
+      if (App.pendingExpressionFrameKind && (!attachForPin || isExpressionBone(attachForPin))) { log('Select a normal parent bone first, then click where the ' + expressionKindLabel(App.pendingExpressionFrameKind) + ' should be pinned.'); return; } // FIX v18.92
+      var fbPinnedEarly = addFrameBoneAtPoint(local, attachForPin ? attachForPin.id : null);
+      if (App.pendingExpressionFrameKind) {
+        prepareExpressionFrameBone(fbPinnedEarly, App.pendingExpressionFrameKind);
+        App.expressionSubTab = App.pendingExpressionFrameKind;
+        App.pendingExpressionFrameKind = null;
+        App.newBoneType = 'normal'; // FIX v18.92
+        if (el('selBoneType')) el('selBoneType').value = 'normal'; // FIX v18.92
+        renderExpressionUI();
+      }
+      App.frameBonePinMode = false; // FIX v18.92
+      App.frameBoneCreateMode = 'attach'; // FIX v18.92
+      App.interaction.addBoneMode = false; // FIX v18.92
+      updateFrameBoneUI();
+      renderOverlay();
+      log('Pinned ' + (fbPinnedEarly && fbPinnedEarly.name ? fbPinnedEarly.name : 'Frame_Bone') + (attachForPin ? ' to ' + attachForPin.name : '') + '.'); // FIX v18.92
+      try { e.preventDefault(); e.stopPropagation(); } catch(ePinStop){} // FIX v18.92
+      return;
+    }
+    if (!App.source.image && !(App.source && App.source.nativeShapes && App.source.nativeShapes.length)) return; // FIX v18.92
     if (App.activeTab === 'bones' || App.activeTab === 'editbone' || App.activeTab === 'animate' || App.activeTab === 'animatepoints' || App.activeTab === 'expression' || App.activeTab === 'animatepoints') pushUndoSnapshot('Overlay edit'); // FIX v18.54_AnimatePoints // FIX v18.52_RelaxBrush
-    var local = clientToOverlayLocal(e.clientX, e.clientY);
-    App.interaction.hoverLocal = local;
-    App.interaction.shift = !!e.shiftKey;
     if (mcEnsure().pinPickSourceId) { // FIX v_022
       if (mcHandleStagePinBoneClick(local, e)) return;
     }
@@ -9433,22 +9612,7 @@ html, body, #app{
       renderOverlay();
       return;
     }
-    if ((App.activeTab === 'bones' || App.activeTab === 'expression') && App.frameBonePinMode) { // FIX v18.6
-      var attach = getSelectedBone();
-      var fbPinned = addFrameBoneAtPoint(local, attach ? attach.id : null);
-      if (App.pendingExpressionFrameKind) {
-        prepareExpressionFrameBone(fbPinned, App.pendingExpressionFrameKind);
-        App.expressionSubTab = App.pendingExpressionFrameKind;
-        App.pendingExpressionFrameKind = null;
-        App.frameBonePinMode = false;
-        App.newBoneType = 'normal'; // FIX v18.29: pin creation is also one shot
-        if (el('selBoneType')) el('selBoneType').value = 'normal'; // FIX v18.29
-        App.interaction.addBoneMode = false; // FIX v18.29
-        renderExpressionUI();
-      }
-      App.interaction.addBoneMode = true;
-      return;
-    }
+    // FIX v18.92: Frame_Bone pin mode is handled at the top of onOverlayMouseDown before the source image guard.
     var frameBoneHit = hitTestFrameBone(local); // FIX v18.10
     if (frameBoneHit && (App.activeTab === 'bones' || App.activeTab === 'expression' || App.activeTab === 'editbone')) { // FIX v18.10
       if (beginFrameBoneHandleDrag(frameBoneHit, local)) return; // FIX v18.10
@@ -10837,7 +11001,7 @@ html, body, #app{
           if (isFrameBoneLayer) {
             ctx.font = 'bold ' + Math.max(8, 9 * scaleY) + 'px Arial';
             ctx.fillStyle = '#ffffff';
-            ctx.fillText(frameBoneSlotDisplayName(frameBone, frameBoneSlotForTimelineFrame(frameBone, k)), cx + 9, cy + 3); // FIX v18.29: show Lip or Wink frame names on the Wick proxy timeline, not numeric slot labels
+            ctx.fillText(frameBoneSlotDisplayName(frameBone, frameBoneSlotForTimelineFrame(frameBone, k)), cx + 9, cy + 3); // FIX v18.29: show Lip_Bone or Frame_Bone frame names on the Wick proxy timeline, not numeric slot labels
             hitMeta.push({ frame:k, frameBoneId:frameBone.id, type:'frameBone', x:cx, y:cy, cssX:cx / scaleX, cssY:cy / scaleY }); // FIX v15.7
           } else {
             hitMeta.push({ frame:k, boneId:bone.id, type:'bone', x:cx, y:cy, cssX:cx / scaleX, cssY:cy / scaleY }); // FIX v15.7
@@ -11377,6 +11541,35 @@ html, body, #app{
     return addClipToSpecificWickTimeline(clip, App.source.sourceTimeline || null, App.source.sourceLayer || null, App.source.sourceFrameNumber || null); // FIX v14.8
   }
 
+  function mcCaptureVisibleStageCommitTarget(){ // FIX v18.96_GPT: capture the real visible Wick stage before MyCharacter loads part states.
+    refreshBridgeRefs(); // FIX v18.96_GPT
+    var project = App.project || null; // FIX v18.96_GPT
+    var tl = null; // FIX v18.96_GPT
+    var layer = null; // FIX v18.96_GPT
+    var frameNumber = 1; // FIX v18.96_GPT
+    var frame = null; // FIX v18.96_GPT
+    try { if (project && project.timeline) tl = project.timeline; } catch(e0){} // FIX v18.96_GPT: prefer the root project timeline, not an active nested part timeline.
+    try { if (!tl && project && project.activeTimeline) tl = project.activeTimeline; } catch(e1){} // FIX v18.96_GPT
+    try { if (!tl && project && project.focus && project.focus.timeline) tl = project.focus.timeline; } catch(e2){} // FIX v18.96_GPT
+    if (!tl) throw new Error('Could not find the visible Wick stage timeline'); // FIX v18.96_GPT
+    try { frameNumber = getTimelinePlayheadForCommit(project, tl); } catch(e3){ frameNumber = 1; } // FIX v18.96_GPT
+    try { layer = tl.activeLayer; } catch(e4){} // FIX v18.96_GPT
+    if (typeof layer === 'number') { try { layer = tl.layers[layer] || null; } catch(e5){ layer = null; } } // FIX v18.96_GPT
+    try { if (!layer && tl.layers && tl.layers.length) layer = tl.layers[0]; } catch(e6){} // FIX v18.96_GPT
+    if (!layer) layer = ensureCommitLayer(tl); // FIX v18.96_GPT
+    frame = ensureCommitFrame(layer, frameNumber); // FIX v18.96_GPT
+    return { timeline: tl, layer: layer, frame: frame, frameNumber: frameNumber }; // FIX v18.96_GPT
+  }
+
+  function mcInsertClipOnCapturedVisibleStage(clip, target){ // FIX v18.96_GPT: force final MyCharacter parent clip onto the original visible stage target.
+    if (!target || !target.timeline) throw new Error('Visible stage commit target missing'); // FIX v18.96_GPT
+    var frame = addClipToSpecificWickTimeline(clip, target.timeline, target.layer, target.frameNumber); // FIX v18.96_GPT
+    try { App.source.sourceTimeline = target.timeline; App.source.sourceLayer = target.layer; App.source.sourceFrame = frame || target.frame; App.source.sourceFrameNumber = target.frameNumber || 1; } catch(e0){} // FIX v18.96_GPT
+    try { if (App.project) { App.project.activeTimeline = target.timeline; App.project.activeFrame = frame || target.frame; } } catch(e1){} // FIX v18.96_GPT
+    try { target.timeline.activeLayer = target.layer; } catch(e2){} // FIX v18.96_GPT
+    return frame; // FIX v18.96_GPT
+  }
+
   function escapeXmlAttr(value){ // FIX v5.2
     return String(value == null ? '' : value)
       .replace(/&/g, '&amp;')
@@ -11590,16 +11783,28 @@ html, body, #app{
     return value;
   }
 
+  function svgStyleHasVisibleStroke_v103(style){ // FIX v18.103_GPT: preserve fill only SVG parts without inventing an outline.
+    style = style || {};
+    var stroke = svgColorToPaperColor(style.stroke);
+    if (!stroke) return false;
+    if (style['stroke-opacity'] != null && Number(style['stroke-opacity']) <= 0) return false;
+    if (style.opacity != null && Number(style.opacity) <= 0) return false;
+    if (style['stroke-width'] != null && Number(style['stroke-width']) <= 0) return false;
+    return true;
+  }
+
   function paperJsonStyleFromSvgStyle(style){ // FIX v14.9
     style = style || {};
     var data = { applyMatrix: true };
     var fill = svgColorToPaperColor(style.fill);
     var stroke = svgColorToPaperColor(style.stroke);
+    var hasStroke = svgStyleHasVisibleStroke_v103(style); // FIX v18.103_GPT
     if (fill) data.fillColor = fill;
     else data.fillColor = null;
-    if (stroke) data.strokeColor = stroke;
-    else data.strokeColor = null;
-    if (style['stroke-width'] != null) data.strokeWidth = Number(style['stroke-width']) || 1;
+    if (hasStroke) data.strokeColor = stroke;
+    else data.strokeColor = null; // FIX v18.103_GPT
+    if (hasStroke) data.strokeWidth = style['stroke-width'] != null ? (Number(style['stroke-width']) || 1) : 1;
+    else data.strokeWidth = 0; // FIX v18.103_GPT: no stroke means no Wick default outline.
     if (style.opacity != null) data.opacity = Number(style.opacity);
     if (style['stroke-linecap'] != null) data.strokeCap = style['stroke-linecap'];
     if (style['stroke-linejoin'] != null) data.strokeJoin = style['stroke-linejoin'];
@@ -11656,9 +11861,10 @@ html, body, #app{
 
   function applyNativeCurveStyle(path, style){ // FIX v14.8
     style = style || {};
+    var hasStroke = svgStyleHasVisibleStroke_v103(style); // FIX v18.103_GPT
     try { path.fillColor = svgColorToPaperColor(style.fill); } catch(e){}
-    try { path.strokeColor = svgColorToPaperColor(style.stroke); } catch(e){}
-    try { if (style['stroke-width'] != null) path.strokeWidth = Number(style['stroke-width']) || 1; } catch(e){}
+    try { path.strokeColor = hasStroke ? svgColorToPaperColor(style.stroke) : null; } catch(e){} // FIX v18.103_GPT
+    try { path.strokeWidth = hasStroke ? (style['stroke-width'] != null ? (Number(style['stroke-width']) || 1) : 1) : 0; } catch(e){} // FIX v18.103_GPT
     try { if (style.opacity != null) path.opacity = Number(style.opacity); } catch(e){}
     try { if (style['stroke-linecap'] != null) path.strokeCap = style['stroke-linecap']; } catch(e){}
     try { if (style['stroke-linejoin'] != null) path.strokeJoin = style['stroke-linejoin']; } catch(e){}
@@ -12097,7 +12303,7 @@ html, body, #app{
       parentClip.transformation.rotation = 0;
       parentClip.animationType = 'loop';
     } catch(eParentT){}
-    try { addClipToWickProject(parentClip); } catch(addErr) { mcLog('Character commit failed: ' + (addErr && addErr.message ? addErr.message : addErr)); return; }
+    try { addClipToWickProject(parentClip); } catch(addErr) { mcLog('Character commit failed: ' + (addErr && addErr.message ? addErr.message : addErr)); return; } // FIX v18.97_GPT: restored original stage insertion path from RotoBones(4).txt
     try {
       if (!App.committedClipIdentifiers) App.committedClipIdentifiers = [];
       App.committedClipIdentifiers.push(parentClip.identifier || parentClip.name || parentName);
@@ -12108,7 +12314,7 @@ html, body, #app{
     try { var host = (window.parent && window.parent.document ? window.parent.document : document).getElementById('mcStagePartsHost'); if (host && host.parentNode) host.parentNode.removeChild(host); } catch(eHostRemove){}
     try { markDirty(); } catch(eDirty){}
     mcRenderPanel();
-    mcLog('Committed assembled character into one native Wick clip with baked part placement, inherited pin transforms, and bone deformation.');
+    mcLog('Committed assembled character into one native Wick clip with the original Wick stage insertion path restored, plus Frame_Bone support.'); // FIX v18.97_GPT
   }
 
 
@@ -15529,7 +15735,7 @@ html, body, #app{
       parentClip.__myCharacterParentBounds = mcSafeClone(parentBounds);
       parentClip.__myCharacterCommittedAs = 'part child clips with per frame transforms';
     } catch(eParentT){}
-    try { addClipToWickProject(parentClip); } catch(addErr) { mcLog('Character commit failed: ' + (addErr && addErr.message ? addErr.message : addErr)); return; }
+    try { addClipToWickProject(parentClip); } catch(addErr) { mcLog('Character commit failed: ' + (addErr && addErr.message ? addErr.message : addErr)); return; } // FIX v18.97_GPT: restored original stage insertion path from RotoBones(4).txt
     try {
       if (!App.committedClipIdentifiers) App.committedClipIdentifiers = [];
       App.committedClipIdentifiers.push(parentClip.identifier || parentClip.name || parentName);
@@ -15542,6 +15748,9 @@ html, body, #app{
     mcRenderPanel();
     mcLog('Committed assembled character into one native Wick clip. Each part is a child clip with baked deformation and recorded per frame placement, including inherited pin motion.');
   };
+
+  var mcCommitCharacterNativeClip_OriginalStage_v098_GPT = mcCommitCharacterNativeClip; // FIX v18.98_GPT: preserve the original MyCharacter stage commit routine before later Frame_Bone overrides can replace it.
+
 
 
 
@@ -17448,6 +17657,751 @@ html, body, #app{
   };
 
   try { log('MyCharacter v_088 pin inherits parent transform scale active.'); } catch(e){}
+
+
+  // FIX v18.91: MyCharacter must include Frame_Bone image attachments in preview and commit, not only warped native curves.
+  function mcFrameBoneSafeName_v091(value, fallback){
+    var text = String(value || fallback || 'Frame_Bone').trim();
+    text = text.replace(/\.[^.]+$/g, '').replace(/[^A-Za-z0-9_\-]+/g, '_');
+    return text || String(fallback || 'Frame_Bone');
+  }
+
+  function mcFrameBoneDataForFrame_v091(fb, frameNumber){
+    if (!fb || !fb.frames) return null;
+    var slot = 1;
+    try { slot = frameBoneSlotForTimelineFrame(fb, frameNumber || App.currentFrame || 1); } catch(eSlot){ slot = 1; }
+    slot = Math.max(1, Math.round(Number(slot || 1) || 1));
+    return { slot:slot, data:fb.frames[slot] || null };
+  }
+
+  function mcFrameBoneAllList_v091(){
+    return (App.frameBones || []).filter(function(fb){
+      if (!fb || !fb.frames) return false;
+      var max = Math.max(1, Number(fb.frameCount || 1) || 1);
+      for (var slot = 1; slot <= max; slot += 1) {
+        if (fb.frames && fb.frames[slot] && fb.frames[slot].dataUrl) return true;
+      }
+      return false;
+    });
+  }
+
+  function mcFrameBoneImageMarkupForPreview_v091(frameNumber){
+    var out = '';
+    var pose = null;
+    try { pose = getPoseForFrame(frameNumber || App.currentFrame || 1); } catch(ePose){ pose = getRestPose ? getRestPose() : null; }
+    var fbs = mcFrameBoneAllList_v091();
+    for (var i = 0; i < fbs.length; i += 1) {
+      var fb = fbs[i];
+      var pair = mcFrameBoneDataForFrame_v091(fb, frameNumber || App.currentFrame || 1);
+      var data = pair && pair.data ? pair.data : null;
+      if (!data || !data.dataUrl) continue;
+      var fp = null;
+      try { fp = frameBonePointFromPose(fb, pose || getRestPose()); } catch(eFp){ fp = { x:0, y:0, angle:0 }; }
+      var rawW = Math.max(1, Number(data.width || 80) || 80);
+      var rawH = Math.max(1, Number(data.height || 80) || 80);
+      var sc = 1;
+      try { sc = frameBoneScale(fb); } catch(eScale){ sc = Number(fb.scale || 1) || 1; }
+      var rot = 0;
+      try { rot = (((fp && fp.angle) || 0) + frameBoneRotationRad(fb)) * 180 / Math.PI; } catch(eRot){ rot = 0; }
+      var x = Number(fp && fp.x || 0);
+      var y = Number(fp && fp.y || 0);
+      var w = rawW * sc;
+      var h = rawH * sc;
+      out += '<image href="' + htmlEscape(data.dataUrl) + '" x="' + round(-w * 0.5) + '" y="' + round(-h * 0.5) + '" width="' + round(w) + '" height="' + round(h) + '" preserveAspectRatio="xMidYMid meet" transform="translate(' + round(x) + ' ' + round(y) + ') rotate(' + round(rot) + ')" />';
+    }
+    return out;
+  }
+
+  var mcDeformedMarkupForStagePart_Base_v091 = mcDeformedMarkupForStagePart_v053;
+  mcDeformedMarkupForStagePart_v053 = function(part, frame){
+    if (!part || !part.state || !part.state.source) return '';
+    var src = part.state.source || {};
+    var w = Math.max(1, Number(src.width || 300));
+    var h = Math.max(1, Number(src.height || 200));
+    var payload = mcWithPartStateForPreview_v053(part, frame || App.currentFrame || 1, function(){
+      var bounds = { width:w, height:h, offsetX:0, offsetY:0, nativeOriginX:0, nativeOriginY:0 };
+      var records = nativeShapePathRecordsFromFrame(App.currentFrame || 1, bounds) || [];
+      var frameBoneMarkup = mcFrameBoneImageMarkupForPreview_v091(App.currentFrame || 1);
+      return { records:records, frameBoneMarkup:frameBoneMarkup };
+    });
+    if (!payload) return mcDeformedMarkupForStagePart_Base_v091 ? mcDeformedMarkupForStagePart_Base_v091(part, frame) : '';
+    var body = '';
+    var records = payload.records || [];
+    for (var i = 0; i < records.length; i += 1) {
+      var rec = records[i] || {};
+      if (!String(rec.d || '').trim()) continue;
+      body += '<path d="' + escapeXmlAttr(String(rec.d).trim()) + '"' + styleMapToAttrs(rec.style || {}) + ' />';
+    }
+    body += payload.frameBoneMarkup || '';
+    if (!body) return '';
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;">' + body + '</svg>';
+  };
+
+  function mcEnsureFrameBoneAssetForCommit_v091(fb, slot, data){
+    var ext = /image\/png/i.test(String(data && (data.mimeType || data.type || data.dataUrl) || '')) ? '.png' : '.svg';
+    var label = '';
+    try { label = frameBoneSlotDisplayName(fb, slot); } catch(eLabel){ label = 'Frame_' + slot; }
+    var nm = mcFrameBoneSafeName_v091((fb && fb.name) || 'Frame_Bone', 'Frame_Bone') + '_' + mcFrameBoneSafeName_v091(label, 'Frame_' + slot) + '_' + slot + ext;
+    var file = dataURLToFile(data.dataUrl, nm);
+    var asset = null;
+    try {
+      var assets = getProjectAssetsArray();
+      for (var ai = 0; ai < assets.length; ai += 1) {
+        var a = assets[ai];
+        var an = a && (a.name || a.filename || a.identifier);
+        if (an === nm) { asset = a; break; }
+      }
+    } catch(eFind){}
+    if (!asset) {
+      asset = makeSyntheticImageAssetForCommit(nm, data.dataUrl, file);
+      try { if (App.project && typeof App.project.addAsset === 'function') App.project.addAsset(asset); else if (App.project && Array.isArray(App.project.assets)) App.project.assets.push(asset); } catch(eAddAsset){
+        try { if (App.project && Array.isArray(App.project.assets)) App.project.assets.push(asset); } catch(ePushAsset){}
+      }
+    }
+    return { asset:asset, name:nm, file:file };
+  }
+
+  function mcFrameBoneDataUrlIsSvg_v093(data){ // FIX v18.93
+    var value = String(data && data.dataUrl || ''); // FIX v18.93
+    if (/^data:image\/svg\+xml/i.test(value)) return true; // FIX v18.93
+    if (/\.svg$/i.test(String(data && (data.fileName || data.name || data.filename || '') || ''))) return true; // FIX v18.93
+    return false; // FIX v18.93
+  }
+
+  function mcFrameBoneSvgTextFromDataUrl_v093(data){ // FIX v18.93
+    var value = String(data && data.dataUrl || ''); // FIX v18.93
+    if (!value) return ''; // FIX v18.93
+    var comma = value.indexOf(','); // FIX v18.93
+    if (comma < 0) return value; // FIX v18.93
+    var head = value.slice(0, comma); // FIX v18.93
+    var body = value.slice(comma + 1); // FIX v18.93
+    try { // FIX v18.93
+      if (/;base64/i.test(head)) return atob(body); // FIX v18.93
+      return decodeURIComponent(body); // FIX v18.93
+    } catch(eDecode_v093) { // FIX v18.93
+      try { return decodeURIComponent(body.replace(/\+/g, '%20')); } catch(eDecode2_v093){} // FIX v18.93
+    } // FIX v18.93
+    return ''; // FIX v18.93
+  }
+
+  function mcFrameBoneTransformPoint_v093(pt, cx, cy, rawW, rawH, sc, rotRad){ // FIX v18.93
+    var x = (Number(pt && pt.x || 0) - rawW * 0.5) * sc; // FIX v18.93
+    var y = (Number(pt && pt.y || 0) - rawH * 0.5) * sc; // FIX v18.93
+    var c = Math.cos(rotRad || 0); // FIX v18.93
+    var s2 = Math.sin(rotRad || 0); // FIX v18.93
+    return { x:round(cx + x * c - y * s2), y:round(cy + x * s2 + y * c) }; // FIX v18.93
+  }
+
+  function mcFrameBoneCommitStrokeWidth_v108(){ // FIX v18.108_GPT: user controlled actual Wick stroke weight for Frame_Bone SVG lines before commit.
+    var v = 1; // FIX v18.108_GPT: actual Wick line thickness, not a scale or multiplier.
+    try {
+      var node = el('numFrameBoneCommitStrokeWidth');
+      if (node && node.value !== '') v = Number(node.value);
+    } catch(eFrameBoneStrokeRead_v108){}
+    if (!isFinite(v)) v = 1;
+    if (v < 0) v = 0;
+    if (v > 50) v = 50;
+    return v;
+  }
+
+  function mcFrameBoneNativeRecordsForCommit_v093(fb, data, fp, sc, exportBounds, pivot){ // FIX v18.93
+    var records = []; // FIX v18.93
+    if (!mcFrameBoneDataUrlIsSvg_v093(data)) return records; // FIX v18.93
+    var svgText = mcFrameBoneSvgTextFromDataUrl_v093(data); // FIX v18.93
+    if (!svgText) return records; // FIX v18.93
+    var rawW = Math.max(1, Number(data.width || 80) || 80); // FIX v18.93
+    var rawH = Math.max(1, Number(data.height || 80) || 80); // FIX v18.93
+    var native = null; // FIX v18.93
+    try { native = parseNativeSvg(svgText, rawW, rawH); } catch(eParse_v093) { return records; } // FIX v18.93
+    if (!native || !native.shapes || !native.shapes.length) return records; // FIX v18.93
+    var cx = Number(fp && fp.x || 0) + Number(exportBounds && exportBounds.offsetX || 0) - Number(exportBounds && exportBounds.nativeOriginX || 0) - Number(pivot && pivot.x || 0); // FIX v18.93
+    var cy = Number(fp && fp.y || 0) + Number(exportBounds && exportBounds.offsetY || 0) - Number(exportBounds && exportBounds.nativeOriginY || 0) - Number(pivot && pivot.y || 0); // FIX v18.93
+    var rotRad = Number((fp && fp.angle) || 0) + frameBoneRotationRad(fb); // FIX v18.93
+    (native.shapes || []).forEach(function(shape){ // FIX v18.93
+      var style = clone(shape.style || {}); // FIX v18.93
+      try { // FIX v18.108_GPT: Frame_Bone committed stroke width is an actual Wick line thickness, not a percent or multiplier.
+        var hasVisibleStroke = svgStyleHasVisibleStroke_v103(style); // FIX v18.108_GPT
+        if (hasVisibleStroke) { // FIX v18.108_GPT
+          var userStrokeWidth = mcFrameBoneCommitStrokeWidth_v108(); // FIX v18.108_GPT
+          style['stroke-width'] = String(userStrokeWidth <= 0 ? 0 : userStrokeWidth); // FIX v18.108_GPT: exact Wick stroke weight chosen by the user.
+          if (userStrokeWidth <= 0) style.stroke = 'none'; // FIX v18.108_GPT
+        } else { // FIX v18.108_GPT
+          style.stroke = 'none'; // FIX v18.108_GPT
+          style['stroke-width'] = '0'; // FIX v18.108_GPT
+        } // FIX v18.108_GPT
+      } catch(eStrokeWidth_v108) {} // FIX v18.108_GPT
+      if (shape.cmdSubpaths && shape.cmdSubpaths.length) { // FIX v18.93
+        shape.cmdSubpaths.forEach(function(sp){ // FIX v18.93
+          var cmds = []; // FIX v18.93
+          (sp.commands || []).forEach(function(cmd){ // FIX v18.93
+            var out = { type:cmd.type }; // FIX v18.93
+            if (cmd.p) out.p = mcFrameBoneTransformPoint_v093(cmd.p, cx, cy, rawW, rawH, sc, rotRad); // FIX v18.93
+            if (cmd.c1) out.c1 = mcFrameBoneTransformPoint_v093(cmd.c1, cx, cy, rawW, rawH, sc, rotRad); // FIX v18.93
+            if (cmd.c2) out.c2 = mcFrameBoneTransformPoint_v093(cmd.c2, cx, cy, rawW, rawH, sc, rotRad); // FIX v18.93
+            cmds.push(out); // FIX v18.93
+          }); // FIX v18.93
+          var d = pathCommandsToD(cmds); // FIX v18.93
+          if (String(d || '').trim()) records.push({ d:String(d).trim(), style:clone(style), paperJson:paperJsonFromNativeCommands(cmds, style) }); // FIX v18.93
+        }); // FIX v18.93
+      } else if (shape.subpaths && shape.subpaths.length) { // FIX v18.93
+        shape.subpaths.forEach(function(sp){ // FIX v18.93
+          var pts = (sp.points || []).map(function(p){ return mcFrameBoneTransformPoint_v093(p, cx, cy, rawW, rawH, sc, rotRad); }); // FIX v18.93
+          var d2 = pointsToSubpath(pts, !!sp.closed); // FIX v18.93
+          if (String(d2 || '').trim()) records.push({ d:String(d2).trim(), style:clone(style), paperJson:paperJsonFromPointList(pts, !!sp.closed, style) }); // FIX v18.93
+        }); // FIX v18.93
+      } // FIX v18.93
+    }); // FIX v18.93
+    return records; // FIX v18.93
+  }
+
+  async function mcAddFrameBonesToPartChildClip_v091(childClip, frame, frameNumber, exportBounds, pivotLocal){ // FIX v18.93
+    if (!childClip || !frame) return 0; // FIX v18.93
+    var fbs = mcFrameBoneAllList_v091(); // FIX v18.93
+    if (!fbs.length) return 0; // FIX v18.93
+    var pose = null; // FIX v18.93
+    try { pose = getPoseForFrame(frameNumber || App.currentFrame || 1); } catch(ePose){ pose = getRestPose ? getRestPose() : null; } // FIX v18.93
+    var pivot = mcCommitPivotRecordOffset_v051 ? mcCommitPivotRecordOffset_v051(pivotLocal || {x:0,y:0}, exportBounds || {}) : {x:0,y:0}; // FIX v18.93
+    var added = 0; // FIX v18.93
+    for (var i = 0; i < fbs.length; i += 1) { // FIX v18.93
+      var fb = fbs[i]; // FIX v18.93
+      var pair = mcFrameBoneDataForFrame_v091(fb, frameNumber || App.currentFrame || 1); // FIX v18.93
+      var data = pair && pair.data ? pair.data : null; // FIX v18.93
+      if (!data || !data.dataUrl) continue; // FIX v18.93
+      try { // FIX v18.93
+        var fp = frameBonePointFromPose(fb, pose || getRestPose()); // FIX v18.93
+        var sc = frameBoneScale(fb); // FIX v18.93
+        var records = mcFrameBoneNativeRecordsForCommit_v093(fb, data, fp, sc, exportBounds, pivot); // FIX v18.93
+        if (!records.length) { // FIX v18.93
+          try { mcLog('Frame_Bone commit skipped raster image on ' + ((fb && fb.name) || 'Frame_Bone') + ' frame ' + frameNumber + '. Commit now uses native SVG paths only to avoid Wick image asset recursion.'); } catch(eRasterLog_v093){} // FIX v18.93
+          continue; // FIX v18.93
+        } // FIX v18.93
+        for (var ri = 0; ri < records.length; ri += 1) { // FIX v18.93
+          var path = createNativeWickPathFromRecord(records[ri], frameNumber || 1, ri + 1); // FIX v18.93
+          try { path.name = ((fb && fb.name) || 'Frame_Bone') + '_' + frameBoneSlotDisplayName(fb, pair.slot) + '_Curve_' + (ri + 1); } catch(eName_v093){} // FIX v18.93
+          mcResetPathTransformAfterBake(path); // FIX v18.93
+          addToFrame(frame, path); // FIX v18.93
+          added += 1; // FIX v18.93
+        } // FIX v18.93
+      } catch(eAdd) { // FIX v18.93
+        try { mcLog('Frame_Bone commit skipped on ' + ((fb && fb.name) || 'Frame_Bone') + ' frame ' + frameNumber + ': ' + (eAdd && eAdd.message ? eAdd.message : eAdd)); } catch(eLog){} // FIX v18.93
+      } // FIX v18.93
+    } // FIX v18.93
+    return added; // FIX v18.93
+  }
+
+  var mcCreatePartFrameChildClip_Base_v091 = mcCreatePartFrameChildClip_v050;
+  mcCreatePartFrameChildClip_v050 = async function(partName, part, frameNumber, exportBounds, parentBounds){
+    var pivotLocal = mcCommitPivotLocalForPart_v051(part);
+    var pivotOffset = mcCommitPivotRecordOffset_v051(pivotLocal, exportBounds);
+    var childIdentifier = makeValidIdentifier(partName + '_f_' + frameNumber + '_' + Date.now() + '_' + Math.floor(Math.random() * 100000), 'MyCharacterPartFrame');
+    var childClip = new App.Wick.Clip({ identifier: childIdentifier });
+    try { childClip.name = partName + '_frame_' + frameNumber; } catch(eName){}
+    try { childClip.width = Math.max(1, Math.round(Number(exportBounds && exportBounds.width || App.source.width || 1))); } catch(eW){}
+    try { childClip.height = Math.max(1, Math.round(Number(exportBounds && exportBounds.height || App.source.height || 1))); } catch(eH){}
+    try {
+      childClip.bounds = {
+        x:mcRoundCoordForCommit(-Math.max(0, Number(pivotOffset.x || 0))),
+        y:mcRoundCoordForCommit(-Math.max(0, Number(pivotOffset.y || 0))),
+        width:Math.max(1, Math.round(Number(exportBounds && exportBounds.width || App.source.width || 1) + Math.abs(Number(pivotOffset.x || 0)))),
+        height:Math.max(1, Math.round(Number(exportBounds && exportBounds.height || App.source.height || 1) + Math.abs(Number(pivotOffset.y || 0))))
+      };
+    } catch(eB){}
+    var safeN = 50;
+    try { while (childClip.timeline.layers.length && safeN-- > 0) childClip.timeline.removeLayer(childClip.timeline.layers[0]); } catch(eClear){}
+    var layer = new App.Wick.Layer();
+    try { layer.name = partName + ' native curves and Frame_Bones'; } catch(eLayerName){}
+    childClip.timeline.addLayer(layer);
+    var frame = new App.Wick.Frame({ start:1, end:1 });
+    try { frame.identifier = makeValidIdentifier(partName + '_child_frame_' + frameNumber, 'child_frame_' + frameNumber); } catch(eFrameId){}
+    layer.addFrame(frame);
+    var count = 0;
+    var records = nativeShapePathRecordsFromFrame(frameNumber, exportBounds);
+    for (var si = 0; si < records.length; si += 1) {
+      var shiftedRecord = mcShiftRecordToPivotLocal_v051(records[si], pivotLocal, exportBounds);
+      var path = createNativeWickPathFromRecord(shiftedRecord, frameNumber, si + 1);
+      try { path.name = partName + '_Curve_' + frameNumber + '_' + (si + 1); } catch(ePathName){}
+      mcResetPathTransformAfterBake(path);
+      addToFrame(frame, path);
+      count += 1;
+    }
+    count += await mcAddFrameBonesToPartChildClip_v091(childClip, frame, frameNumber, exportBounds, pivotLocal);
+    mcApplyPivotedResolvedPartTransformToChildClip_v051(childClip, part, exportBounds, parentBounds, pivotLocal);
+    try {
+      childClip.__myCharacterPartName = partName;
+      childClip.__myCharacterSourcePartId = part.id;
+      childClip.__myCharacterFrame = frameNumber;
+      childClip.__myCharacterTransform = mcSafeClone(part.transform || {});
+      childClip.__myCharacterParentPin = mcSafeClone(part.parentPin || null);
+      childClip.__myCharacterOrientationPoint = mcSafeClone(pivotLocal || {});
+      childClip.__myCharacterCommitPivot = 'v_093 orientation point with native Frame_Bone SVG paths'; // FIX v18.93
+    } catch(eMeta){}
+    return count ? childClip : null;
+  };
+
+  var mcCommitCharacterNativeClip_Base_v091 = mcCommitCharacterNativeClip;
+  mcCommitCharacterNativeClip = async function(){
+    var mc = mcEnsure();
+    try { mcCaptureActivePart(); } catch(eCapture){}
+    if (!refreshBridgeRefs()) { mcLog('Bridge/editor not available.'); return; }
+    var loadedParts = (mc.parts || []).filter(function(p){ return p && p.state && p.visible !== false; });
+    if (!loadedParts.length) { mcLog('No loaded character parts to commit.'); return; }
+    syncFrameCountFromWickTimeline();
+    stop();
+    var savedState = null;
+    var savedSelected = mc.selectedId;
+    var commitTargetTimeline_v094 = null; // FIX v18.94: remember the visible Wick stage target before loading any character part state.
+    var commitTargetLayer_v094 = null; // FIX v18.94
+    var commitTargetFrameNumber_v094 = 1; // FIX v18.94
+    try { // FIX v18.94
+      commitTargetTimeline_v094 = getCommitTimeline(App.project); // FIX v18.94
+      commitTargetLayer_v094 = commitTargetTimeline_v094 ? ensureCommitLayer(commitTargetTimeline_v094) : null; // FIX v18.94
+      commitTargetFrameNumber_v094 = getTimelinePlayheadForCommit(App.project, commitTargetTimeline_v094) || 1; // FIX v18.94
+    } catch(eCommitTarget_v094) { // FIX v18.94
+      commitTargetTimeline_v094 = null; // FIX v18.94
+      commitTargetLayer_v094 = null; // FIX v18.94
+      commitTargetFrameNumber_v094 = 1; // FIX v18.94
+    } // FIX v18.94
+    try { savedState = buildRigProjectState(); } catch(eSave){}
+    var parentName = (el('inpClipName') && el('inpClipName').value ? String(el('inpClipName').value).trim() : '') || 'MyCharacter';
+    if (loadedParts.length > 1 && parentName === 'BoneWarpClip') parentName = 'MyCharacter';
+    var parentIdentifier = makeValidIdentifier(parentName + '_' + Date.now(), 'MyCharacterClip');
+    var parentClip = new App.Wick.Clip({ identifier: parentIdentifier });
+    try { parentClip.name = parentName; } catch(eName){}
+    var safeN = 50;
+    try { while (parentClip.timeline.layers.length && safeN-- > 0) parentClip.timeline.removeLayer(parentClip.timeline.layers[0]); } catch(eClear){}
+    var frameTotal = Math.max(1, Math.round(Number(App.frameCount || 1)));
+    var parentBounds = mcPartUnionBoundsForCommitFrames(loadedParts, frameTotal);
+    try { parentClip.width = Math.max(1, Math.round(parentBounds.w)); parentClip.height = Math.max(1, Math.round(parentBounds.h)); } catch(eSize){}
+    try { parentClip.bounds = { x:0, y:0, width:parentClip.width || parentBounds.w, height:parentClip.height || parentBounds.h }; } catch(eBounds){}
+    var partExportBounds = {};
+    var madeChildren = 0;
+    for (var setupIndex = 0; setupIndex < loadedParts.length; setupIndex += 1) {
+      var setupPart = loadedParts[setupIndex];
+      try {
+        mc.loading = true;
+        await loadRigProjectState(mcSafeClone(setupPart.state));
+        mc.loading = false;
+        syncFrameCountFromWickTimeline();
+        ensureFirstFrameKeysAlways();
+        partExportBounds[setupPart.id] = computeAnimationExportBounds();
+      } catch(partSetupErr) {
+        mc.loading = false;
+        mcLog('Commit setup skipped ' + (setupPart.name || ('Part ' + setupPart.id)) + ': ' + (partSetupErr && partSetupErr.message ? partSetupErr.message : partSetupErr));
+      }
+    }
+    var layer = new App.Wick.Layer();
+    try { layer.name = 'assembled character parts'; } catch(eLayerName){}
+    parentClip.timeline.addLayer(layer);
+    for (var fi = 1; fi <= frameTotal; fi += 1) {
+      var parentFrame = new App.Wick.Frame({ start:fi, end:fi });
+      try { parentFrame.identifier = makeValidIdentifier('character_frame_' + fi, 'character_frame_' + fi); } catch(eParentFrameId){}
+      layer.addFrame(parentFrame);
+      var resolvedParts = mcResolvedPartsForCommitFrame(loadedParts, fi);
+      var commitFrameParts_v084 = loadedParts.slice().reverse();
+      for (var pIndex = 0; pIndex < commitFrameParts_v084.length; pIndex += 1) {
+        var basePart = commitFrameParts_v084[pIndex];
+        var resolvedPart = mcFindPartInList(resolvedParts, basePart.id) || basePart;
+        var partName = String(basePart.name || ('Part ' + basePart.id));
+        var exportBounds = partExportBounds[basePart.id];
+        if (!exportBounds) continue;
+        try {
+          mc.loading = true;
+          await loadRigProjectState(mcSafeClone(basePart.state));
+          mc.loading = false;
+          App.frameCount = frameTotal;
+          var childClip = await mcCreatePartFrameChildClip_v050(partName, resolvedPart, fi, exportBounds, parentBounds);
+          if (childClip) {
+            addToFrame(parentFrame, childClip);
+            madeChildren += 1;
+          }
+        } catch(frameErr) {
+          mc.loading = false;
+          mcLog('Commit skipped ' + partName + ' frame ' + fi + ': ' + (frameErr && frameErr.message ? frameErr.message : frameErr));
+        }
+      }
+    }
+    mc.loading = false;
+    if (!madeChildren) {
+      if (savedState) { try { await loadRigProjectState(savedState); } catch(eRestoreFail){} }
+      mc.selectedId = savedSelected;
+      mcLog('Character commit failed. No part clips were committed.');
+      return;
+    }
+    try {
+      parentClip.transformation.x = Number(parentBounds.x || 0);
+      parentClip.transformation.y = Number(parentBounds.y || 0);
+      parentClip.transformation.scaleX = 1;
+      parentClip.transformation.scaleY = 1;
+      parentClip.transformation.rotation = 0;
+      parentClip.animationType = 'loop';
+      parentClip.__myCharacterParentBounds = mcSafeClone(parentBounds);
+      parentClip.__myCharacterCommittedAs = 'part child clips with per frame transforms and native Frame_Bone SVG paths'; // FIX v18.93
+    } catch(eParentT){}
+    try { // FIX v18.94
+      if (commitTargetTimeline_v094) addClipToSpecificWickTimeline(parentClip, commitTargetTimeline_v094, commitTargetLayer_v094, commitTargetFrameNumber_v094); // FIX v18.94
+      else addClipToWickProject(parentClip); // FIX v18.94
+    } catch(addErr) { mcLog('Character commit failed: ' + (addErr && addErr.message ? addErr.message : addErr)); return; } // FIX v18.94
+    try {
+      if (!App.committedClipIdentifiers) App.committedClipIdentifiers = [];
+      App.committedClipIdentifiers.push(parentClip.identifier || parentClip.name || parentName);
+    } catch(eRemember){}
+    if (savedState) { try { await loadRigProjectState(savedState); } catch(eRestore){} }
+    mc.selectedId = savedSelected;
+    try { removeOverlay(); } catch(eRO){}
+    try { var host = (window.parent && window.parent.document ? window.parent.document : document).getElementById('mcStagePartsHost_v040'); if (host && host.parentNode) host.parentNode.removeChild(host); } catch(eHostRemove){}
+    try { markDirty(); } catch(eDirty){}
+    mcRenderPanel();
+    mcLog('Committed assembled character clip to the visible Wick stage with Frame_Bones as native SVG paths inside each part frame.'); // FIX v18.94
+  };
+
+
+
+  // FIX v18.95: MyCharacter commit must create one true Wick Clip with real timeline frames and editable native Wick curves directly inside those frames.
+  // FIX v18.95: It must not build a set area artwork result and it must not hide part curves inside one frame child clips.
+  function mcFrameBoneNativeRecordsForDirectParentCommit_v095(fb, data, fp, sc, exportBounds){ // FIX v18.95
+    var records = []; // FIX v18.95
+    if (!mcFrameBoneDataUrlIsSvg_v093(data)) return records; // FIX v18.95
+    var svgText = mcFrameBoneSvgTextFromDataUrl_v093(data); // FIX v18.95
+    if (!svgText) return records; // FIX v18.95
+    var rawW = Math.max(1, Number(data.width || 80) || 80); // FIX v18.95
+    var rawH = Math.max(1, Number(data.height || 80) || 80); // FIX v18.95
+    var native = null; // FIX v18.95
+    try { native = parseNativeSvg(svgText, rawW, rawH); } catch(eParse_v095) { return records; } // FIX v18.95
+    if (!native || !native.shapes || !native.shapes.length) return records; // FIX v18.95
+    var cx = Number(fp && fp.x || 0) + Number(exportBounds && exportBounds.offsetX || 0) - Number(exportBounds && exportBounds.nativeOriginX || 0); // FIX v18.95
+    var cy = Number(fp && fp.y || 0) + Number(exportBounds && exportBounds.offsetY || 0) - Number(exportBounds && exportBounds.nativeOriginY || 0); // FIX v18.95
+    var rotRad = Number((fp && fp.angle) || 0) + frameBoneRotationRad(fb); // FIX v18.95
+    (native.shapes || []).forEach(function(shape){ // FIX v18.95
+      var style = clone(shape.style || {}); // FIX v18.95
+      if (shape.cmdSubpaths && shape.cmdSubpaths.length) { // FIX v18.95
+        shape.cmdSubpaths.forEach(function(sp){ // FIX v18.95
+          var cmds = []; // FIX v18.95
+          (sp.commands || []).forEach(function(cmd){ // FIX v18.95
+            var out = { type:cmd.type }; // FIX v18.95
+            if (cmd.p) out.p = mcFrameBoneTransformPoint_v093(cmd.p, cx, cy, rawW, rawH, sc, rotRad); // FIX v18.95
+            if (cmd.c1) out.c1 = mcFrameBoneTransformPoint_v093(cmd.c1, cx, cy, rawW, rawH, sc, rotRad); // FIX v18.95
+            if (cmd.c2) out.c2 = mcFrameBoneTransformPoint_v093(cmd.c2, cx, cy, rawW, rawH, sc, rotRad); // FIX v18.95
+            cmds.push(out); // FIX v18.95
+          }); // FIX v18.95
+          var d = pathCommandsToD(cmds); // FIX v18.95
+          if (String(d || '').trim()) records.push({ d:String(d).trim(), style:clone(style), paperJson:paperJsonFromNativeCommands(cmds, style) }); // FIX v18.95
+        }); // FIX v18.95
+      } else if (shape.subpaths && shape.subpaths.length) { // FIX v18.95
+        shape.subpaths.forEach(function(sp){ // FIX v18.95
+          var pts = (sp.points || []).map(function(p){ return mcFrameBoneTransformPoint_v093(p, cx, cy, rawW, rawH, sc, rotRad); }); // FIX v18.95
+          var d2 = pointsToSubpath(pts, !!sp.closed); // FIX v18.95
+          if (String(d2 || '').trim()) records.push({ d:String(d2).trim(), style:clone(style), paperJson:paperJsonFromPointList(pts, !!sp.closed, style) }); // FIX v18.95
+        }); // FIX v18.95
+      } // FIX v18.95
+    }); // FIX v18.95
+    return records; // FIX v18.95
+  }
+
+  function mcDirectFrameBoneRecordsForParentFrame_v095(frameNumber, exportBounds){ // FIX v18.95
+    var out = []; // FIX v18.95
+    var fbs = mcFrameBoneAllList_v091(); // FIX v18.95
+    if (!fbs.length) return out; // FIX v18.95
+    var pose = null; // FIX v18.95
+    try { pose = getPoseForFrame(frameNumber || App.currentFrame || 1); } catch(ePose_v095){ pose = getRestPose ? getRestPose() : null; } // FIX v18.95
+    for (var i = 0; i < fbs.length; i += 1) { // FIX v18.95
+      var fb = fbs[i]; // FIX v18.95
+      var pair = mcFrameBoneDataForFrame_v091(fb, frameNumber || App.currentFrame || 1); // FIX v18.95
+      var data = pair && pair.data ? pair.data : null; // FIX v18.95
+      if (!data || !data.dataUrl) continue; // FIX v18.95
+      try { // FIX v18.95
+        var fp = frameBonePointFromPose(fb, pose || getRestPose()); // FIX v18.95
+        var sc = frameBoneScale(fb); // FIX v18.95
+        var recs = mcFrameBoneNativeRecordsForDirectParentCommit_v095(fb, data, fp, sc, exportBounds); // FIX v18.95
+        if (!recs.length) { // FIX v18.95
+          try { mcLog('Frame_Bone commit skipped raster image on ' + ((fb && fb.name) || 'Frame_Bone') + ' frame ' + frameNumber + '. Use SVG frames for editable Wick curve commit.'); } catch(eRasterLog_v095){} // FIX v18.95
+          continue; // FIX v18.95
+        } // FIX v18.95
+        for (var ri = 0; ri < recs.length; ri += 1) { // FIX v18.95
+          try { recs[ri].name = ((fb && fb.name) || 'Frame_Bone') + '_' + frameBoneSlotDisplayName(fb, pair.slot) + '_Curve_' + (ri + 1); } catch(eName_v095){} // FIX v18.95
+          out.push(recs[ri]); // FIX v18.95
+        } // FIX v18.95
+      } catch(eAdd_v095) { // FIX v18.95
+        try { mcLog('Frame_Bone commit skipped on ' + ((fb && fb.name) || 'Frame_Bone') + ' frame ' + frameNumber + ': ' + (eAdd_v095 && eAdd_v095.message ? eAdd_v095.message : eAdd_v095)); } catch(eLog_v095){} // FIX v18.95
+      } // FIX v18.95
+    } // FIX v18.95
+    return out; // FIX v18.95
+  }
+
+  mcCommitCharacterNativeClip = async function(){ // FIX v18.95
+    var mc = mcEnsure(); // FIX v18.95
+    try { mcCaptureActivePart(); } catch(eCapture_v095){} // FIX v18.95
+    if (!refreshBridgeRefs()) { mcLog('Bridge/editor not available.'); return; } // FIX v18.95
+    var loadedParts = (mc.parts || []).filter(function(p){ return p && p.state && p.visible !== false; }); // FIX v18.95
+    if (!loadedParts.length) { mcLog('No loaded character parts to commit.'); return; } // FIX v18.95
+    syncFrameCountFromWickTimeline(); // FIX v18.95
+    stop(); // FIX v18.95
+    var savedState = null; // FIX v18.95
+    var savedSelected = mc.selectedId; // FIX v18.95
+    try { savedState = buildRigProjectState(); } catch(eSave_v095){} // FIX v18.95
+    var parentName = (el('inpClipName') && el('inpClipName').value ? String(el('inpClipName').value).trim() : '') || 'MyCharacter'; // FIX v18.95
+    if (loadedParts.length > 1 && parentName === 'BoneWarpClip') parentName = 'MyCharacter'; // FIX v18.95
+    var parentIdentifier = makeValidIdentifier(parentName + '_' + Date.now(), 'MyCharacterClip'); // FIX v18.95
+    var parentClip = new App.Wick.Clip({ identifier: parentIdentifier }); // FIX v18.95
+    try { parentClip.name = parentName; } catch(eName_v095){} // FIX v18.95
+    var safeN = 50; // FIX v18.95
+    try { while (parentClip.timeline.layers.length && safeN-- > 0) parentClip.timeline.removeLayer(parentClip.timeline.layers[0]); } catch(eClear_v095){} // FIX v18.95
+    var frameTotal = Math.max(1, Math.round(Number(App.frameCount || 1))); // FIX v18.95
+    var parentBounds = mcPartUnionBoundsForCommitFrames(loadedParts, frameTotal); // FIX v18.95
+    try { parentClip.width = Math.max(1, Math.round(parentBounds.w)); parentClip.height = Math.max(1, Math.round(parentBounds.h)); } catch(eSize_v095){} // FIX v18.95
+    try { parentClip.bounds = { x:0, y:0, width:parentClip.width || parentBounds.w, height:parentClip.height || parentBounds.h }; } catch(eBounds_v095){} // FIX v18.95
+    var partExportBounds = {}; // FIX v18.95
+    var madePaths = 0; // FIX v18.95
+    var commitParts_v095 = loadedParts.slice().reverse(); // FIX v18.95
+    for (var pIndex = 0; pIndex < commitParts_v095.length; pIndex += 1) { // FIX v18.95
+      var basePart = commitParts_v095[pIndex]; // FIX v18.95
+      var partName = String(basePart.name || ('Part ' + basePart.id)); // FIX v18.95
+      var layer = new App.Wick.Layer(); // FIX v18.95
+      try { layer.name = partName; } catch(eLayerName_v095){} // FIX v18.95
+      parentClip.timeline.addLayer(layer); // FIX v18.95
+      try { // FIX v18.95
+        mc.loading = true; // FIX v18.95
+        await loadRigProjectState(mcSafeClone(basePart.state)); // FIX v18.95
+        mc.loading = false; // FIX v18.95
+        App.frameCount = frameTotal; // FIX v18.95
+        syncFrameCountFromWickTimeline(); // FIX v18.95
+        ensureFirstFrameKeysAlways(); // FIX v18.95
+        partExportBounds[basePart.id] = computeAnimationExportBounds(); // FIX v18.95
+      } catch(partSetupErr_v095) { // FIX v18.95
+        mc.loading = false; // FIX v18.95
+        mcLog('Commit setup skipped ' + partName + ': ' + (partSetupErr_v095 && partSetupErr_v095.message ? partSetupErr_v095.message : partSetupErr_v095)); // FIX v18.95
+        continue; // FIX v18.95
+      } // FIX v18.95
+      for (var fi = 1; fi <= frameTotal; fi += 1) { // FIX v18.95
+        var frame = new App.Wick.Frame({ start:fi, end:fi }); // FIX v18.95
+        try { frame.identifier = makeValidIdentifier('frame_' + fi + '_' + basePart.id, 'frame_' + fi); } catch(eFrameId_v095){} // FIX v18.95
+        layer.addFrame(frame); // FIX v18.95
+        try { // FIX v18.95
+          var resolvedParts = mcResolvedPartsForCommitFrame(loadedParts, fi); // FIX v18.95
+          var resolvedPart = mcFindPartInList(resolvedParts, basePart.id) || basePart; // FIX v18.95
+          var exportBounds = partExportBounds[basePart.id] || computeAnimationExportBounds(); // FIX v18.95
+          var records = nativeShapePathRecordsFromFrame(fi, exportBounds) || []; // FIX v18.95
+          var frameBoneRecords = mcDirectFrameBoneRecordsForParentFrame_v095(fi, exportBounds) || []; // FIX v18.95
+          for (var fbr = 0; fbr < frameBoneRecords.length; fbr += 1) records.push(frameBoneRecords[fbr]); // FIX v18.95
+          for (var si = 0; si < records.length; si += 1) { // FIX v18.95
+            var bakedRecord = mcBakeRecordToCharacterClip(records[si], resolvedPart, exportBounds, parentBounds); // FIX v18.95
+            var path = createNativeWickPathFromRecord(bakedRecord, fi, si + 1); // FIX v18.95
+            try { path.name = records[si].name || (partName + '_Curve_' + fi + '_' + (si + 1)); } catch(ePathName_v095){} // FIX v18.95
+            mcResetPathTransformAfterBake(path); // FIX v18.95
+            addToFrame(frame, path); // FIX v18.95
+            madePaths += 1; // FIX v18.95
+          } // FIX v18.95
+        } catch(frameErr_v095) { // FIX v18.95
+          mcLog('Commit skipped ' + partName + ' frame ' + fi + ': ' + (frameErr_v095 && frameErr_v095.message ? frameErr_v095.message : frameErr_v095)); // FIX v18.95
+        } // FIX v18.95
+      } // FIX v18.95
+    } // FIX v18.95
+    mc.loading = false; // FIX v18.95
+    if (!madePaths) { // FIX v18.95
+      if (savedState) { try { await loadRigProjectState(savedState); } catch(eRestoreFail_v095){} } // FIX v18.95
+      mc.selectedId = savedSelected; // FIX v18.95
+      mcLog('Character commit failed. No native curves were committed.'); // FIX v18.95
+      return; // FIX v18.95
+    } // FIX v18.95
+    try { // FIX v18.95
+      parentClip.transformation.x = Number(parentBounds.x || 0); // FIX v18.95
+      parentClip.transformation.y = Number(parentBounds.y || 0); // FIX v18.95
+      parentClip.transformation.scaleX = 1; // FIX v18.95
+      parentClip.transformation.scaleY = 1; // FIX v18.95
+      parentClip.transformation.rotation = 0; // FIX v18.95
+      parentClip.animationType = 'loop'; // FIX v18.95
+      parentClip.__myCharacterParentBounds = mcSafeClone(parentBounds); // FIX v18.95
+      parentClip.__myCharacterCommittedAs = 'true Wick clip inserted on visible root stage with direct timeline frames and editable native curves'; // FIX v18.96_GPT
+    } catch(eParentT_v095){} // FIX v18.95
+    try { // FIX v18.96_GPT
+      addClipToWickProject(parentClip); // FIX v18.97_GPT: restored original Wick stage insertion path from RotoBones(4).txt
+    } catch(addErr_v096) { // FIX v18.96_GPT
+      mcLog('Character commit failed while inserting the real Wick clip on the visible stage: ' + (addErr_v096 && addErr_v096.message ? addErr_v096.message : addErr_v096)); // FIX v18.96_GPT
+      return; // FIX v18.96_GPT
+    } // FIX v18.96_GPT
+    try { // FIX v18.95
+      if (!App.committedClipIdentifiers) App.committedClipIdentifiers = []; // FIX v18.95
+      App.committedClipIdentifiers.push(parentClip.identifier || parentClip.name || parentName); // FIX v18.95
+    } catch(eRemember_v095){} // FIX v18.95
+    if (savedState) { try { await loadRigProjectState(savedState); } catch(eRestore_v095){} } // FIX v18.95
+    mc.selectedId = savedSelected; // FIX v18.95
+    try { removeOverlay(); } catch(eRO_v095){} // FIX v18.95
+    try { var host = (window.parent && window.parent.document ? window.parent.document : document).getElementById('mcStagePartsHost_v040'); if (host && host.parentNode) host.parentNode.removeChild(host); } catch(eHostRemove_v095){} // FIX v18.95
+    try { markDirty(); } catch(eDirty_v095){} // FIX v18.95
+    mcRenderPanel(); // FIX v18.95
+    mcLog('Committed a true Wick clip onto the visible Wick stage: one parent clip, real internal frames, part layers, editable native curves, and Frame_Bone SVG slots as native curves.'); // FIX v18.96_GPT
+  }; // FIX v18.95
+
+  try { log('MyCharacter GPT v_096 visible stage true Wick clip commit active.'); } catch(e){} // FIX v18.96_GPT
+  try { log('MyCharacter v_094 Frame_Bone visible Wick stage commit target fix active.'); } catch(e){} // FIX v18.94
+
+  mcCommitCharacterNativeClip = async function(){ // FIX v18.99_GPT: keep the original stage commit routine, but prevent internal part loads from creating Wick proxy layers during commit.
+    var oldSuppress = !!App.mcCommitSuppressProxySync;
+    App.mcCommitSuppressProxySync = true;
+    try {
+      return await mcCommitCharacterNativeClip_OriginalStage_v098_GPT.apply(this, arguments);
+    } finally {
+      App.mcCommitSuppressProxySync = oldSuppress;
+      try { if (!App.mcCommitSuppressProxySync) { updateUI(); renderOverlay(); } } catch(eRefreshAfterCommit){}
+    }
+  }; // FIX v18.99_GPT
+  try { log('MyCharacter GPT v18.98 using original Wick stage commit routine.'); } catch(e){} // FIX v18.98_GPT
+
+  // FIX v18.101_GPT: MyCharacter commit stroke and Frame_Bone sync child creator fix.
+  // This keeps the original Wick stage commit route, but replaces the child clip creator used by that route.
+  // It avoids extra visible line thickness by compensating stroke width for the child clip scale.
+  // It also adds Frame_Bone SVG paths synchronously, so the restored original commit routine never receives a Promise.
+  (function(){
+    try {
+      function mcCommitClone_v101(obj){
+        try { return JSON.parse(JSON.stringify(obj)); } catch(e) { return obj; }
+      }
+
+      function mcCommitPartScaleAverage_v101(part){
+        var sx = 1;
+        var sy = 1;
+        try {
+          var t = part && part.transform ? part.transform : { w:1, h:1 };
+          var src = part && part.state && part.state.source ? part.state.source : (App.source || {});
+          var srcW = Math.max(1, Number(src.width || App.source.width || t.w || 1));
+          var srcH = Math.max(1, Number(src.height || App.source.height || t.h || 1));
+          sx = Math.max(0.0001, Math.abs(Number(t.w || srcW) / srcW));
+          sy = Math.max(0.0001, Math.abs(Number(t.h || srcH) / srcH));
+        } catch(eScale) {
+          sx = 1;
+          sy = 1;
+        }
+        var avg = (sx + sy) * 0.5;
+        if (!isFinite(avg) || avg <= 0) avg = 1;
+        return avg;
+      }
+
+      function mcCommitStyleWithoutAddedThickness_v101(style, part){
+        var out = mcCommitClone_v101(style || {}) || {};
+        try {
+          if (out['stroke-width'] != null && out['stroke-width'] !== '') {
+            var sw = Number(out['stroke-width']);
+            var avg = mcCommitPartScaleAverage_v101(part);
+            if (isFinite(sw) && sw > 0 && isFinite(avg) && avg > 0) {
+              out['stroke-width'] = String(Math.max(0.01, sw / avg));
+            }
+          }
+        } catch(eStroke) {}
+        return out;
+      }
+
+      function mcCommitRecordWithoutAddedThickness_v101(record, part){
+        var out = mcCommitClone_v101(record || {}) || {};
+        out.style = mcCommitStyleWithoutAddedThickness_v101(out.style || {}, part);
+        try {
+          if (out.paperJson && Array.isArray(out.paperJson) && out.paperJson[1]) {
+            var data = out.paperJson[1];
+            if (out.style && out.style['stroke-width'] != null && out.style['stroke-width'] !== '') {
+              var sw = Number(out.style['stroke-width']);
+              if (isFinite(sw) && sw > 0) data.strokeWidth = sw;
+            }
+          }
+        } catch(eJson) {}
+        return out;
+      }
+
+      function mcAddFrameBonesToPartChildClipSync_v101(childClip, frame, frameNumber, exportBounds, pivotLocal, part){
+        if (!childClip || !frame) return 0;
+        if (typeof mcFrameBoneAllList_v091 !== 'function') return 0;
+        var fbs = mcFrameBoneAllList_v091();
+        if (!fbs || !fbs.length) return 0;
+        var pose = null;
+        try { pose = getPoseForFrame(frameNumber || App.currentFrame || 1); } catch(ePose) { try { pose = getRestPose(); } catch(eRest) { pose = null; } }
+        var pivot = { x:0, y:0 };
+        try { pivot = mcCommitPivotRecordOffset_v051(pivotLocal || {x:0,y:0}, exportBounds || {}); } catch(ePivot) {}
+        var added = 0;
+        for (var i = 0; i < fbs.length; i += 1) {
+          var fb = fbs[i];
+          var pair = null;
+          try { pair = mcFrameBoneDataForFrame_v091(fb, frameNumber || App.currentFrame || 1); } catch(ePair) { pair = null; }
+          var data = pair && pair.data ? pair.data : null;
+          if (!data || !data.dataUrl) continue;
+          try {
+            var fp = frameBonePointFromPose(fb, pose || getRestPose());
+            var sc = frameBoneScale(fb);
+            var records = mcFrameBoneNativeRecordsForCommit_v093(fb, data, fp, sc, exportBounds, pivot) || [];
+            if (!records.length) {
+              try { mcLog('Frame_Bone commit skipped raster image on ' + ((fb && fb.name) || 'Frame_Bone') + ' frame ' + frameNumber + '. Use SVG frames for editable Wick curve commit.'); } catch(eLogRaster) {}
+              continue;
+            }
+            for (var ri = 0; ri < records.length; ri += 1) {
+              var cleanRecord = mcCommitRecordWithoutAddedThickness_v101(records[ri], part);
+              var path = createNativeWickPathFromRecord(cleanRecord, frameNumber || 1, ri + 1);
+              try { path.name = ((fb && fb.name) || 'Frame_Bone') + '_' + frameBoneSlotDisplayName(fb, pair.slot) + '_Curve_' + (ri + 1); } catch(eName) {}
+              mcResetPathTransformAfterBake(path);
+              addToFrame(frame, path);
+              added += 1;
+            }
+          } catch(eAdd) {
+            try { mcLog('Frame_Bone commit skipped on ' + ((fb && fb.name) || 'Frame_Bone') + ' frame ' + frameNumber + ': ' + (eAdd && eAdd.message ? eAdd.message : eAdd)); } catch(eLog) {}
+          }
+        }
+        return added;
+      }
+
+      function mcCreatePartFrameChildClip_v101_GPT(partName, part, frameNumber, exportBounds, parentBounds){
+        var pivotLocal = mcCommitPivotLocalForPart_v051(part);
+        var pivotOffset = mcCommitPivotRecordOffset_v051(pivotLocal, exportBounds);
+        var childIdentifier = makeValidIdentifier(partName + '_f_' + frameNumber + '_' + Date.now() + '_' + Math.floor(Math.random() * 100000), 'MyCharacterPartFrame');
+        var childClip = new App.Wick.Clip({ identifier: childIdentifier });
+        try { childClip.name = partName + '_frame_' + frameNumber; } catch(eName){}
+        try { childClip.width = Math.max(1, Math.round(Number(exportBounds && exportBounds.width || App.source.width || 1))); } catch(eW){}
+        try { childClip.height = Math.max(1, Math.round(Number(exportBounds && exportBounds.height || App.source.height || 1))); } catch(eH){}
+        try {
+          childClip.bounds = {
+            x:mcRoundCoordForCommit(-Math.max(0, Number(pivotOffset.x || 0))),
+            y:mcRoundCoordForCommit(-Math.max(0, Number(pivotOffset.y || 0))),
+            width:Math.max(1, Math.round(Number(exportBounds && exportBounds.width || App.source.width || 1) + Math.abs(Number(pivotOffset.x || 0)))),
+            height:Math.max(1, Math.round(Number(exportBounds && exportBounds.height || App.source.height || 1) + Math.abs(Number(pivotOffset.y || 0))))
+          };
+        } catch(eB){}
+        var safeN = 50;
+        try { while (childClip.timeline.layers.length && safeN-- > 0) childClip.timeline.removeLayer(childClip.timeline.layers[0]); } catch(eClear){}
+        var layer = new App.Wick.Layer();
+        try { layer.name = partName + ' native curves and Frame_Bones'; } catch(eLayerName){}
+        childClip.timeline.addLayer(layer);
+        var frame = new App.Wick.Frame({ start:1, end:1 });
+        try { frame.identifier = makeValidIdentifier(partName + '_child_frame_' + frameNumber, 'child_frame_' + frameNumber); } catch(eFrameId){}
+        layer.addFrame(frame);
+        var count = 0;
+        var records = nativeShapePathRecordsFromFrame(frameNumber, exportBounds);
+        for (var si = 0; si < records.length; si += 1) {
+          var shiftedRecord = mcShiftRecordToPivotLocal_v051(records[si], pivotLocal, exportBounds);
+          shiftedRecord = mcCommitRecordWithoutAddedThickness_v101(shiftedRecord, part);
+          var path = createNativeWickPathFromRecord(shiftedRecord, frameNumber, si + 1);
+          try { path.name = partName + '_Curve_' + frameNumber + '_' + (si + 1); } catch(ePathName){}
+          mcResetPathTransformAfterBake(path);
+          addToFrame(frame, path);
+          count += 1;
+        }
+        count += mcAddFrameBonesToPartChildClipSync_v101(childClip, frame, frameNumber, exportBounds, pivotLocal, part);
+        mcApplyPivotedResolvedPartTransformToChildClip_v051(childClip, part, exportBounds, parentBounds, pivotLocal);
+        try {
+          childClip.__myCharacterPartName = partName;
+          childClip.__myCharacterSourcePartId = part.id;
+          childClip.__myCharacterFrame = frameNumber;
+          childClip.__myCharacterTransform = mcSafeClone(part.transform || {});
+          childClip.__myCharacterParentPin = mcSafeClone(part.parentPin || null);
+          childClip.__myCharacterOrientationPoint = mcSafeClone(pivotLocal || {});
+          childClip.__myCharacterCommitPivot = 'v18.101_GPT original stage commit with stroke compensation and sync Frame_Bone paths';
+        } catch(eMeta){}
+        return count ? childClip : null;
+      }
+
+      mcCreatePartFrameChildClip_Base_v091 = mcCreatePartFrameChildClip_v101_GPT;
+      mcCreatePartFrameChildClip_v050 = mcCreatePartFrameChildClip_v101_GPT;
+      try { log('MyCharacter v18.108 GPT commit uses actual Wick Frame_Bone line thickness and keeps stage insertion.'); } catch(eLog){}
+    } catch(eOuter) {
+      try { console.error('[RotoBones GPT v18.108] commit patch failed', eOuter); } catch(eConsole){}
+    }
+  })();
+
+
+  try { log('MyCharacter GPT v18.106 uses thinner Frame_Bone SVG stroke scale during commit.'); } catch(e){} // FIX v18.104_GPT
 
   function init(){
     try { forceToolPanelFill(); } catch(e){ console.error('[MyCharacter] forceToolPanelFill failed', e); } // FIX v_018
