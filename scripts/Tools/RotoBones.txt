@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MyCharacter GPT v108 Frame_Bone actual Wick line thickness on commit</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>MyCharacter GPT v18.146 mostly works commit live solve</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -2063,7 +2063,7 @@ html, body, #app{
     fb.expressionKind = kind;
     if (fb.expressionDefaultScaleApplied !== true) { fb.scale = kind === 'eye' ? 0.28 : 0.22; fb.expressionDefaultScaleApplied = true; } // FIX v18.8: pinned expression frame bones start small and remain adjustable in Bones tab
     if (fb.expressionDefaultRotationApplied !== true) { fb.rotationDeg = kind === 'lip' ? 90 : (Number(fb.rotationDeg || 0) || 0); fb.expressionDefaultRotationApplied = true; } // FIX v18.34: Lip_Bone starts at 90 degrees, then remains user adjustable
-    if (kind === 'eye') { fb.name = (!fb.name || /^(Wink Bone|Frame Bone|Frame_Bone)\b/.test(String(fb.name))) ? ('Frame_Bone ' + fb.id) : fb.name; } else { fb.name = fb.name && fb.name.indexOf('Frame Bone') < 0 ? fb.name : (expressionKindLabel(kind) + ' Bone ' + fb.id); } // FIX v18.90
+    if (kind === 'eye') { fb.name = (!fb.name || /^(Wink Bone|Frame Bone|Frame_Bone)\b/.test(String(fb.name))) ? ('Frame_Bone ' + fb.id) : fb.name; } else { fb.name = (!fb.name || /^(Lip Bone|Lip_Bone|Frame Bone|Frame_Bone)\b/.test(String(fb.name))) ? ('Lip_Bone ' + fb.id) : fb.name; } // FIX v18.111_GPT: Lip_Bone keeps its own name instead of inheriting the generic Frame_Bone name.
     var frameList = expressionFramesForFrameBoneKind(kind);
     fb.frameCount = frameList.length;
     fb.frames = fb.frames || {};
@@ -6214,6 +6214,26 @@ html, body, #app{
     return (isFinite(d) ? d : 0) * Math.PI / 180;
   }
 
+
+  function frameBoneUsesTopPivot(fb){ // FIX v18.111_GPT: Lip_Bone artwork pivots from the top centre again.
+    return expressionFrameBoneKind(fb) === 'lip'; // FIX v18.111_GPT
+  }
+
+  function frameBoneRawAnchor(fb, rawW, rawH){ // FIX v18.111_GPT
+    rawW = Math.max(1, Number(rawW || 1) || 1); // FIX v18.111_GPT
+    rawH = Math.max(1, Number(rawH || 1) || 1); // FIX v18.111_GPT
+    return { x: rawW * 0.5, y: frameBoneUsesTopPivot(fb) ? 0 : rawH * 0.5 }; // FIX v18.111_GPT
+  }
+
+  function frameBoneVisualLocalBounds(fb, info){ // FIX v18.111_GPT
+    info = info || frameBoneVisualData(fb); // FIX v18.111_GPT
+    var rawW = Math.max(1, Number(info.rawW || 1) || 1); // FIX v18.111_GPT
+    var rawH = Math.max(1, Number(info.rawH || 1) || 1); // FIX v18.111_GPT
+    var sc = Math.max(0.0001, Number(info.scale || 1) || 1); // FIX v18.111_GPT
+    var anchor = frameBoneRawAnchor(fb, rawW, rawH); // FIX v18.111_GPT
+    return { left: -anchor.x * sc, top: -anchor.y * sc, right: (rawW - anchor.x) * sc, bottom: (rawH - anchor.y) * sc, rawLeft: -anchor.x, rawTop: -anchor.y, rawRight: rawW - anchor.x, rawBottom: rawH - anchor.y }; // FIX v18.111_GPT
+  }
+
   function applySelectedFrameBoneTransform(){ // FIX v13.6
     var fb = getSelectedFrameBone();
     if (!fb) return;
@@ -6231,12 +6251,15 @@ html, body, #app{
     if (!data || !data.dataUrl) return '';
     var fp = frameBonePointFromPose(fb, pose);
     var s = frameBoneScale(fb);
-    var w = Math.max(1, Number(data.width || 80)) * s;
-    var h = Math.max(1, Number(data.height || 80)) * s;
+    var rawW = Math.max(1, Number(data.width || 80)); // FIX v18.111_GPT
+    var rawH = Math.max(1, Number(data.height || 80)); // FIX v18.111_GPT
+    var w = rawW * s;
+    var h = rawH * s;
+    var anchor = frameBoneRawAnchor(fb, rawW, rawH); // FIX v18.111_GPT
     var cx = fp.x + (ox || 0);
     var cy = fp.y + (oy || 0);
     var angleDeg = (fp.angle + frameBoneRotationRad(fb)) * 180 / Math.PI;
-    return '<image href="' + escapeXmlAttr(data.dataUrl) + '" x="' + round(cx - w * 0.5) + '" y="' + round(cy - h * 0.5) + '" width="' + round(w) + '" height="' + round(h) + '" transform="rotate(' + round(angleDeg) + ' ' + round(cx) + ' ' + round(cy) + ')" />';
+    return '<image href="' + escapeXmlAttr(data.dataUrl) + '" x="' + round(cx - anchor.x * s) + '" y="' + round(cy - anchor.y * s) + '" width="' + round(w) + '" height="' + round(h) + '" transform="rotate(' + round(angleDeg) + ' ' + round(cx) + ' ' + round(cy) + ')" />'; // FIX v18.111_GPT: Lip_Bone image is positioned from its top pivot.
   }
 
   function buildFrameBoneSvgMarkup(frameNum, pose, ox, oy){ // FIX v13.2
@@ -6256,6 +6279,7 @@ html, body, #app{
   function frameBoneHandlePoints(fb, pose){ // FIX v18.10
     var fp = frameBonePointFromPose(fb, pose);
     var info = frameBoneVisualData(fb);
+    var bounds = frameBoneVisualLocalBounds(fb, info); // FIX v18.111_GPT
     var angle = (fp.angle || 0) + frameBoneRotationRad(fb);
     var cos = Math.cos(angle), sin = Math.sin(angle);
     function world(lx, ly){ return { x: fp.x + lx * cos - ly * sin, y: fp.y + lx * sin + ly * cos }; }
@@ -6263,8 +6287,9 @@ html, body, #app{
       center: { x: fp.x, y: fp.y },
       angle: angle,
       info: info,
-      scale: world(info.w * 0.5 + 16, info.h * 0.5 + 16),
-      rotate: world(0, -info.h * 0.5 - 28)
+      bounds: bounds, // FIX v18.111_GPT
+      scale: world(bounds.right + 16, bounds.bottom + 16), // FIX v18.111_GPT
+      rotate: world(0, bounds.top - 28) // FIX v18.111_GPT
     };
   }
 
@@ -6283,7 +6308,8 @@ html, body, #app{
       var dy = localPoint.y - hp.center.y;
       var lx = dx * Math.cos(-hp.angle) - dy * Math.sin(-hp.angle);
       var ly = dx * Math.sin(-hp.angle) + dy * Math.cos(-hp.angle);
-      if (Math.abs(lx) <= hp.info.w * 0.5 && Math.abs(ly) <= hp.info.h * 0.5) {
+      var hb = hp.bounds || frameBoneVisualLocalBounds(fb, hp.info); // FIX v18.111_GPT
+      if (lx >= hb.left && lx <= hb.right && ly >= hb.top && ly <= hb.bottom) { // FIX v18.111_GPT
         var dd = Math.sqrt(dx * dx + dy * dy);
         if (!best || dd < best.d) best = { frameBoneId: fb.id, type: 'frameBoneMove', d: dd, hit: hp };
       }
@@ -6357,28 +6383,29 @@ html, body, #app{
       ctx.translate(fp.x, fp.y);
       ctx.rotate((fp.angle || 0) + frameBoneRotationRad(fb));
       ctx.scale(frameBoneScale(fb), frameBoneScale(fb));
+      var bounds = frameBoneVisualLocalBounds(fb, visual); // FIX v18.111_GPT
       if (data && data.dataUrl && data.imageCache && data.imageCache.complete) {
         var w = Math.max(1, Number(data.width || 80));
         var h = Math.max(1, Number(data.height || 80));
-        try { ctx.drawImage(data.imageCache, -w * 0.5, -h * 0.5, w, h); } catch(e){}
+        try { ctx.drawImage(data.imageCache, bounds.rawLeft, bounds.rawTop, w, h); } catch(e){} // FIX v18.111_GPT: Lip_Bone image starts from its top pivot.
       }
       ctx.fillStyle = active ? 'rgba(255, 230, 70, 0.16)' : 'rgba(70, 210, 255, 0.12)';
       ctx.strokeStyle = active ? '#ffe646' : '#48d9ff';
       ctx.lineWidth = active ? 2.5 / frameBoneScale(fb) : 1.5 / frameBoneScale(fb);
       ctx.beginPath();
-      ctx.rect(-visual.rawW * 0.5, -visual.rawH * 0.5, visual.rawW, visual.rawH); // FIX v18.10
+      ctx.rect(bounds.rawLeft, bounds.rawTop, visual.rawW, visual.rawH); // FIX v18.111_GPT
       ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(-24 / frameBoneScale(fb), 0); ctx.lineTo(24 / frameBoneScale(fb), 0); ctx.moveTo(0, -24 / frameBoneScale(fb)); ctx.lineTo(0, 24 / frameBoneScale(fb)); ctx.stroke();
       if (active) { // FIX v18.10
         var invS = 1 / frameBoneScale(fb); // FIX v18.10
-        var sx = visual.rawW * 0.5 + 16 * invS; // FIX v18.10
-        var sy = visual.rawH * 0.5 + 16 * invS; // FIX v18.10
-        var ry = -visual.rawH * 0.5 - 28 * invS; // FIX v18.10
+        var sx = bounds.rawRight + 16 * invS; // FIX v18.111_GPT
+        var sy = bounds.rawBottom + 16 * invS; // FIX v18.111_GPT
+        var ry = bounds.rawTop - 28 * invS; // FIX v18.111_GPT
         ctx.strokeStyle = '#ffffff'; // FIX v18.10
         ctx.fillStyle = '#1ee29a'; // FIX v18.10
         ctx.lineWidth = 2 * invS; // FIX v18.10
         ctx.beginPath(); ctx.rect(sx - 6 * invS, sy - 6 * invS, 12 * invS, 12 * invS); ctx.fill(); ctx.stroke(); // FIX v18.10
-        ctx.beginPath(); ctx.moveTo(0, -visual.rawH * 0.5); ctx.lineTo(0, ry); ctx.stroke(); // FIX v18.10
+        ctx.beginPath(); ctx.moveTo(0, bounds.rawTop); ctx.lineTo(0, ry); ctx.stroke(); // FIX v18.111_GPT
         ctx.fillStyle = '#ffb040'; // FIX v18.10
         ctx.beginPath(); ctx.arc(0, ry, 7 * invS, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); // FIX v18.10
       }
@@ -14307,14 +14334,47 @@ html, body, #app{
     var mc = mcEnsure();
     id = Number(id || 0);
     var card = target && target.closest ? target.closest('.mcPartCard') : null;
-    if (action !== 'name' && action !== 'x' && action !== 'y' && action !== 'w' && action !== 'h' && action !== 'rot' && action !== 'up' && action !== 'down' && action !== 'arrow') { // FIX v_083: reorder must not activate another part.
+    if (action !== 'name' && action !== 'x' && action !== 'y' && action !== 'w' && action !== 'h' && action !== 'rot' && action !== 'up' && action !== 'down' && action !== 'arrow' && action !== 'pin') { // FIX v_083: reorder must not activate another part. // FIX v18.110_GPT: pin mode must not switch selectedId before the active part state is safely captured.
       if (id) mc.selectedId = id;
     }
-    if (mc.pinPickSourceId && action !== 'pin' && id && id !== mc.pinPickSourceId) { // FIX v_022
-      mcActivatePart(id).then(function(){
-        mcSetPinCursor(true);
-        mcLog('Now click a visible bone on ' + ((mcFindPart(id) && mcFindPart(id).name) || 'the parent part') + '.');
-      });
+    if (mc.pinPickSourceId && action !== 'pin' && id && id !== mc.pinPickSourceId) { // FIX v18.117_GPT
+      // FIX v18.117_GPT: Pin mode must allow loading an unselected target part so its bones can be picked.
+      // Keep the original source part id locked, and prevent the activation capture path from writing one part JSON into another part.
+      var sourceIdForPin117 = Number(mc.pinPickSourceId || 0);
+      var targetIdForPin117 = Number(id || 0);
+      var targetPartForPin117 = mcFindPart(targetIdForPin117);
+      if (targetPartForPin117 && targetPartForPin117.state) {
+        try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStopPin117){}
+        try { mcCaptureActivePart(); } catch(eCaptureSourcePin117){}
+        try { mc.selectedId = targetIdForPin117; } catch(eSelectTargetPin117){}
+        try { mc.pinPickSourceId = sourceIdForPin117; } catch(eSourceBeforePin117){}
+        Promise.resolve()
+          .then(function(){ return loadRigProjectState(mcSafeClone(targetPartForPin117.state)); })
+          .then(function(){
+            try { mcApplyTransformToApp(targetPartForPin117.transform || {}); } catch(eApplyTargetPin117){}
+            try { if (el('inpClipName') && targetPartForPin117.name) el('inpClipName').value = String(targetPartForPin117.name); } catch(eNamePin117){}
+            try { updateUI(); } catch(eUpdatePin117){}
+            try { renderOverlay(); } catch(eOverlayPin117){}
+            try { mc.pinPickSourceId = sourceIdForPin117; } catch(eSourceAfterPin117){}
+            try { mcSetPinCursor(true); } catch(eCursorPin117){}
+            try { mcInstallPinCursorFollower(); } catch(eFollowPin117){}
+            try { mcInstallParentStagePinPicker(); } catch(ePickerPin117){}
+            try { mcRenderStageParts(); } catch(eStagePin117){}
+            try { mcRenderPinPickLayer_v039(); } catch(eLayerPin117){}
+            try { mcRenderPanel(); } catch(ePanelPin117){}
+            mcLog('Now click a visible bone on ' + ((targetPartForPin117 && targetPartForPin117.name) || 'the parent part') + '.');
+          })
+          .catch(function(err){
+            try { mc.pinPickSourceId = sourceIdForPin117; } catch(eSourceErrPin117){}
+            try { mcSetPinCursor(true); } catch(eCursorErrPin117){}
+            mcLog('Pin target activation failed: ' + (err && err.message ? err.message : err));
+          });
+        return;
+      }
+      try { mcSetPinCursor(true); } catch(ePinCursor117){}
+      try { mcRenderStageParts(); } catch(eStagePin117b){}
+      try { renderOverlay(); } catch(eOverlayPin117b){}
+      mcLog('Now click a visible bone on ' + ((mcFindPart(id) && mcFindPart(id).name) || 'the parent part') + '.');
       return;
     }
     if (action === 'loadPart') {
@@ -17784,9 +17844,11 @@ html, body, #app{
     return ''; // FIX v18.93
   }
 
-  function mcFrameBoneTransformPoint_v093(pt, cx, cy, rawW, rawH, sc, rotRad){ // FIX v18.93
-    var x = (Number(pt && pt.x || 0) - rawW * 0.5) * sc; // FIX v18.93
-    var y = (Number(pt && pt.y || 0) - rawH * 0.5) * sc; // FIX v18.93
+  function mcFrameBoneTransformPoint_v093(pt, cx, cy, rawW, rawH, sc, rotRad, anchorX, anchorY){ // FIX v18.93
+    anchorX = isFinite(Number(anchorX)) ? Number(anchorX) : rawW * 0.5; // FIX v18.111_GPT
+    anchorY = isFinite(Number(anchorY)) ? Number(anchorY) : rawH * 0.5; // FIX v18.111_GPT
+    var x = (Number(pt && pt.x || 0) - anchorX) * sc; // FIX v18.111_GPT
+    var y = (Number(pt && pt.y || 0) - anchorY) * sc; // FIX v18.111_GPT
     var c = Math.cos(rotRad || 0); // FIX v18.93
     var s2 = Math.sin(rotRad || 0); // FIX v18.93
     return { x:round(cx + x * c - y * s2), y:round(cy + x * s2 + y * c) }; // FIX v18.93
@@ -17816,6 +17878,7 @@ html, body, #app{
     if (!native || !native.shapes || !native.shapes.length) return records; // FIX v18.93
     var cx = Number(fp && fp.x || 0) + Number(exportBounds && exportBounds.offsetX || 0) - Number(exportBounds && exportBounds.nativeOriginX || 0) - Number(pivot && pivot.x || 0); // FIX v18.93
     var cy = Number(fp && fp.y || 0) + Number(exportBounds && exportBounds.offsetY || 0) - Number(exportBounds && exportBounds.nativeOriginY || 0) - Number(pivot && pivot.y || 0); // FIX v18.93
+    var anchor = frameBoneRawAnchor(fb, rawW, rawH); // FIX v18.111_GPT
     var rotRad = Number((fp && fp.angle) || 0) + frameBoneRotationRad(fb); // FIX v18.93
     (native.shapes || []).forEach(function(shape){ // FIX v18.93
       var style = clone(shape.style || {}); // FIX v18.93
@@ -17835,9 +17898,9 @@ html, body, #app{
           var cmds = []; // FIX v18.93
           (sp.commands || []).forEach(function(cmd){ // FIX v18.93
             var out = { type:cmd.type }; // FIX v18.93
-            if (cmd.p) out.p = mcFrameBoneTransformPoint_v093(cmd.p, cx, cy, rawW, rawH, sc, rotRad); // FIX v18.93
-            if (cmd.c1) out.c1 = mcFrameBoneTransformPoint_v093(cmd.c1, cx, cy, rawW, rawH, sc, rotRad); // FIX v18.93
-            if (cmd.c2) out.c2 = mcFrameBoneTransformPoint_v093(cmd.c2, cx, cy, rawW, rawH, sc, rotRad); // FIX v18.93
+            if (cmd.p) out.p = mcFrameBoneTransformPoint_v093(cmd.p, cx, cy, rawW, rawH, sc, rotRad, anchor.x, anchor.y); // FIX v18.111_GPT
+            if (cmd.c1) out.c1 = mcFrameBoneTransformPoint_v093(cmd.c1, cx, cy, rawW, rawH, sc, rotRad, anchor.x, anchor.y); // FIX v18.111_GPT
+            if (cmd.c2) out.c2 = mcFrameBoneTransformPoint_v093(cmd.c2, cx, cy, rawW, rawH, sc, rotRad, anchor.x, anchor.y); // FIX v18.111_GPT
             cmds.push(out); // FIX v18.93
           }); // FIX v18.93
           var d = pathCommandsToD(cmds); // FIX v18.93
@@ -17845,7 +17908,7 @@ html, body, #app{
         }); // FIX v18.93
       } else if (shape.subpaths && shape.subpaths.length) { // FIX v18.93
         shape.subpaths.forEach(function(sp){ // FIX v18.93
-          var pts = (sp.points || []).map(function(p){ return mcFrameBoneTransformPoint_v093(p, cx, cy, rawW, rawH, sc, rotRad); }); // FIX v18.93
+          var pts = (sp.points || []).map(function(p){ return mcFrameBoneTransformPoint_v093(p, cx, cy, rawW, rawH, sc, rotRad, anchor.x, anchor.y); }); // FIX v18.111_GPT
           var d2 = pointsToSubpath(pts, !!sp.closed); // FIX v18.93
           if (String(d2 || '').trim()) records.push({ d:String(d2).trim(), style:clone(style), paperJson:paperJsonFromPointList(pts, !!sp.closed, style) }); // FIX v18.93
         }); // FIX v18.93
@@ -18234,16 +18297,110 @@ html, body, #app{
   try { log('MyCharacter GPT v_096 visible stage true Wick clip commit active.'); } catch(e){} // FIX v18.96_GPT
   try { log('MyCharacter v_094 Frame_Bone visible Wick stage commit target fix active.'); } catch(e){} // FIX v18.94
 
-  mcCommitCharacterNativeClip = async function(){ // FIX v18.99_GPT: keep the original stage commit routine, but prevent internal part loads from creating Wick proxy layers during commit.
+  function mcTimelineMaxEnd_v109(tl){ // FIX v18.109_GPT: read a timeline without depending on the currently selected nested clip.
+    var maxEnd = 1;
+    try {
+      if (tl && tl.layers && tl.layers.length) {
+        tl.layers.forEach(function(layer){
+          try {
+            if (layer && layer.frames && layer.frames.length) {
+              layer.frames.forEach(function(frame){
+                try { maxEnd = Math.max(maxEnd, getFrameEnd(frame)); } catch(eFrameEnd){}
+              });
+            }
+          } catch(eLayer){}
+        });
+      }
+    } catch(eTl){}
+    try { maxEnd = Math.max(maxEnd, Math.round(Number(tl && tl.playheadPosition || 1))); } catch(ePlay){}
+    if (!isFinite(maxEnd) || maxEnd < 1) maxEnd = 1;
+    return maxEnd;
+  }
+
+  function mcPutFrameCountCandidate_v109(box, value){ // FIX v18.109_GPT
+    try {
+      var n = Math.round(Number(value));
+      if (isFinite(n) && n > box.value) box.value = n;
+    } catch(e){}
+  }
+
+  function mcScanFrameCountFromState_v109(box, state){ // FIX v18.109_GPT: saved part states can retain the intended animation length even when the active Wick selection is a one frame nested clip.
+    if (!state || typeof state !== 'object') return;
+    mcPutFrameCountCandidate_v109(box, state.frameCount);
+    mcPutFrameCountCandidate_v109(box, state.currentFrame);
+    function scanKeyObject(obj){
+      if (!obj || typeof obj !== 'object') return;
+      try {
+        Object.keys(obj).forEach(function(k){
+          var n = Number(k);
+          if (isFinite(n)) mcPutFrameCountCandidate_v109(box, n);
+        });
+      } catch(e){}
+    }
+    scanKeyObject(state.keyframes);
+    scanKeyObject(state.frameBoneKeys);
+    scanKeyObject(state.pointKeys);
+    scanKeyObject(state.expressionKeys);
+    try {
+      if (state.pointAnimation && typeof state.pointAnimation === 'object') {
+        Object.keys(state.pointAnimation).forEach(function(k){ scanKeyObject(state.pointAnimation[k]); });
+      }
+    } catch(ePA){}
+    try {
+      (state.frameBones || []).forEach(function(fb){
+        scanKeyObject(fb && fb.expressionLoadedSlotMap);
+        scanKeyObject(fb && fb.keys);
+      });
+    } catch(eFB){}
+  }
+
+  function mcCommitFrameTotal_v109(parts){ // FIX v18.109_GPT: do not let MyCharacter commit collapse to one frame when Wick's selected timeline is an internal one frame clip.
+    var box = { value: 1 };
+    mcPutFrameCountCandidate_v109(box, App.frameCount);
+    mcPutFrameCountCandidate_v109(box, App.currentFrame);
+    try { mcPutFrameCountCandidate_v109(box, el('inpFrameCount') && el('inpFrameCount').value); } catch(eInp){}
+    try { mcPutFrameCountCandidate_v109(box, getWickTimelineFrameCount()); } catch(eSel){}
+    try { mcPutFrameCountCandidate_v109(box, mcTimelineMaxEnd_v109(App.project && App.project.timeline)); } catch(eRoot){}
+    try { mcPutFrameCountCandidate_v109(box, mcTimelineMaxEnd_v109(App.project && App.project.activeTimeline)); } catch(eActive){}
+    try {
+      var list = parts || (mcEnsure().parts || []);
+      (list || []).forEach(function(part){
+        mcScanFrameCountFromState_v109(box, part && part.state);
+      });
+    } catch(eParts){}
+    box.value = clamp(Math.max(1, Math.round(Number(box.value || 1))), 1, 300);
+    return box.value;
+  }
+
+  mcCommitCharacterNativeClip = async function(){ // FIX v18.109_GPT: keep original stage commit, but lock commit frame count so it cannot collapse to one frame.
     var oldSuppress = !!App.mcCommitSuppressProxySync;
+    var lockedFrameTotal = 1; // FIX v18.109_GPT
+    var oldSyncFrameCountFromWickTimeline = syncFrameCountFromWickTimeline; // FIX v18.109_GPT
+    var oldAppFrameCount = Number(App.frameCount || 1); // FIX v18.109_GPT
+    try {
+      var mc = mcEnsure(); // FIX v18.109_GPT
+      var loadedParts = (mc.parts || []).filter(function(p){ return p && p.state && p.visible !== false; }); // FIX v18.109_GPT
+      lockedFrameTotal = mcCommitFrameTotal_v109(loadedParts); // FIX v18.109_GPT
+    } catch(eLockCount) {
+      lockedFrameTotal = Math.max(1, Math.round(Number(App.frameCount || oldAppFrameCount || 1))); // FIX v18.109_GPT
+    }
     App.mcCommitSuppressProxySync = true;
     try {
+      App.frameCount = lockedFrameTotal; // FIX v18.109_GPT
+      try { if (el('inpFrameCount')) el('inpFrameCount').value = lockedFrameTotal; } catch(eInpSet){} // FIX v18.109_GPT
+      syncFrameCountFromWickTimeline = function(){ // FIX v18.109_GPT: original commit calls this, so return the locked commit length instead of the selected one frame child timeline.
+        App.frameCount = lockedFrameTotal;
+        App.currentFrame = clamp(App.currentFrame || 1, 1, App.frameCount);
+        return lockedFrameTotal;
+      };
       return await mcCommitCharacterNativeClip_OriginalStage_v098_GPT.apply(this, arguments);
     } finally {
+      try { syncFrameCountFromWickTimeline = oldSyncFrameCountFromWickTimeline; } catch(eRestoreSync){} // FIX v18.109_GPT
       App.mcCommitSuppressProxySync = oldSuppress;
+      try { App.frameCount = Math.max(lockedFrameTotal || 1, Number(App.frameCount || 1)); } catch(eFrameRestore){} // FIX v18.109_GPT
       try { if (!App.mcCommitSuppressProxySync) { updateUI(); renderOverlay(); } } catch(eRefreshAfterCommit){}
     }
-  }; // FIX v18.99_GPT
+  }; // FIX v18.109_GPT
   try { log('MyCharacter GPT v18.98 using original Wick stage commit routine.'); } catch(e){} // FIX v18.98_GPT
 
   // FIX v18.101_GPT: MyCharacter commit stroke and Frame_Bone sync child creator fix.
@@ -18394,14 +18551,1281 @@ html, body, #app{
 
       mcCreatePartFrameChildClip_Base_v091 = mcCreatePartFrameChildClip_v101_GPT;
       mcCreatePartFrameChildClip_v050 = mcCreatePartFrameChildClip_v101_GPT;
-      try { log('MyCharacter v18.108 GPT commit uses actual Wick Frame_Bone line thickness and keeps stage insertion.'); } catch(eLog){}
+      try { log('MyCharacter v18.109 GPT locks MyCharacter commit frame count and keeps actual Wick Frame_Bone line thickness.'); } catch(eLog){}
     } catch(eOuter) {
-      try { console.error('[RotoBones GPT v18.108] commit patch failed', eOuter); } catch(eConsole){}
+      try { console.error('[RotoBones GPT v18.109] commit patch failed', eOuter); } catch(eConsole){}
     }
   })();
 
 
   try { log('MyCharacter GPT v18.106 uses thinner Frame_Bone SVG stroke scale during commit.'); } catch(e){} // FIX v18.104_GPT
+
+
+
+  // FIX v18.110_GPT: MyCharacter pin safety.
+  // Pinning must not load the target part JSON, and completing a pin must not capture the currently loaded rig into the source part.
+  // This prevents the part JSON swap that happened when pinning while a part was in Animate mode.
+  (function installMyCharacterPinStateGuard_v18110_GPT(){
+    try {
+      var mcStartPinPickFor_Base_v18110_GPT = mcStartPinPickFor;
+      mcStartPinPickFor = function(id){
+        var mc = mcEnsure();
+        var previousSelectedId = mc.selectedId;
+        var sourceId = Number(id || mc.selectedId || 0);
+        try {
+          if (previousSelectedId != null) {
+            var activePart = mcFindPart(previousSelectedId);
+            if (activePart && activePart.state && !App.myCharacter.loading) {
+              // FIX v18.110_GPT: save the currently active animated part before starting pin mode.
+              mcCaptureActivePart();
+            }
+          }
+        } catch(eCaptureBeforePin110){}
+        try { mc.selectedId = previousSelectedId; } catch(eRestoreSelected110){}
+        return mcStartPinPickFor_Base_v18110_GPT(sourceId);
+      };
+
+      mcCompletePinToBone = function(source, target, bone, evt){
+        var mc = mcEnsure();
+        if (!source || !target || !bone) { mcLog('Click a visible bone on the part you want to pin to.'); return true; }
+        if (!source.state || !target.state) { mcLog('Pin failed. Source or target part JSON is missing.'); return true; }
+        var childRoot = mcRootBoneInState(source.state);
+        if (!childRoot || !childRoot.head) { mcLog('Pin failed. The part being pinned has no root bone.'); return true; }
+        var attachPoint = 'head';
+        try {
+          var node = evt && evt.target ? mcFindPinDataNode_v041(evt.target) : null;
+          if (node && node.getAttribute('data-mc-pin-attach') === 'tail') attachPoint = 'tail';
+        } catch(eAttach110){}
+        if (bone && bone._mcPinAttachPoint) attachPoint = bone._mcPinAttachPoint;
+        var frameNow = App.currentFrame || 1;
+        try { syncFrameFromWick(); frameNow = App.currentFrame || frameNow; } catch(eSyncPin110){}
+        var targetStage = mcPartStagePointForBone(target, bone.id, frameNow, attachPoint);
+        if (!targetStage) { mcLog('Pin failed. Target bone position is missing.'); return true; }
+        var oldT = mcSafeClone(source.transform || { x:0, y:0, w:1, h:1, rotation:0 });
+        var childRootStage = mcPartStagePointForBone(source, childRoot.id, frameNow, 'head');
+        if (!childRootStage) {
+          var childSrc = source.state && source.state.source ? source.state.source : {};
+          var childSx = Math.max(0.0001, Number(oldT.w || childSrc.width || 1) / Math.max(1, Number(childSrc.width || oldT.w || 1)));
+          var childSy = Math.max(0.0001, Number(oldT.h || childSrc.height || 1) / Math.max(1, Number(childSrc.height || oldT.h || 1)));
+          childRootStage = { x:Number(oldT.x || 0) + Number(childRoot.head.x || 0) * childSx, y:Number(oldT.y || 0) + Number(childRoot.head.y || 0) * childSy };
+        }
+        source.parentPin = {
+          targetPartId:target.id,
+          boneId:String(bone.id == null ? '' : bone.id),
+          attachPoint:attachPoint,
+          childRootBoneId:String(childRoot.id == null ? '' : childRoot.id),
+          offset:{
+            x:Number(childRootStage.x || 0) - Number(targetStage.x || 0),
+            y:Number(childRootStage.y || 0) - Number(targetStage.y || 0),
+            rotation:Number(oldT.rotation || 0) - Number(target.transform && target.transform.rotation || 0)
+          }
+        };
+        try {
+          var parentScale = mcPartTransformScaleForPin_v088(target);
+          var childScale = mcPartTransformScaleForPin_v088(source);
+          source.parentPin.inheritParentTransform = true;
+          source.parentPin.parentScaleAtPin = { sx:parentScale.sx, sy:parentScale.sy, w:parentScale.w, h:parentScale.h };
+          source.parentPin.childScaleAtPin = { sx:childScale.sx, sy:childScale.sy, w:childScale.w, h:childScale.h };
+          source.parentPin.childSizeAtPin = { w:childScale.w, h:childScale.h };
+        } catch(eScalePin110){}
+        source.transform = oldT;
+        mc.pinPickSourceId = null;
+        try { mcSetPinCursor(false); } catch(eCursorOff110){}
+        try { mcRemovePinPickLayer_v039(); } catch(eRemovePinLayer110){}
+        try {
+          var resolved = mcPinnedTransformForFrame_v066 ? mcPinnedTransformForFrame_v066(source, mc.parts || [], frameNow) : null;
+          if (resolved) source.transform = resolved;
+        } catch(eResolvedPin110){}
+        // FIX v18.110_GPT: do not call mcCaptureActivePart here.
+        // App may still contain another part's animated rig state, so capturing now is what swapped JSON between parts.
+        try { mcRefreshPinnedChildren(); } catch(eRefresh110){}
+        try { mcRenderPanel(); } catch(ePanel110){}
+        try { mcRenderStageParts(); } catch(eStage110){}
+        try { renderOverlay(); } catch(eOverlay110){}
+        try {
+          if (Number(source.id || 0) === Number(mc.selectedId || 0)) mcApplyTransformToApp(source.transform);
+        } catch(eApplySelected110){}
+        mcLog('Pinned ' + (source.name || 'part') + ' to ' + (target.name || 'part') + ' / ' + (bone.name || ('Bone ' + String(bone.id == null ? '' : bone.id))) + '.');
+        try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStop110){}
+        return true;
+      };
+
+      try { log('MyCharacter v18.110 GPT pin state guard active.'); } catch(eLog110){}
+    } catch(ePinGuard110) {
+      try { console.error('[RotoBones GPT v18.110] pin state guard failed', ePinGuard110); } catch(eConsole110){}
+    }
+  })();
+
+
+  // FIX v18.112_GPT: MyCharacter pin rotation must be measured against the target bone angle, not the parent part rotation.
+  // The v18.110 pin state guard prevented JSON swaps, but it stored offset.rotation from target.transform.rotation.
+  // On unpin and repin this could double rotate the pinned child because mcPinnedTransformForFrame_v066 adds the live target bone angle later.
+  // This override keeps the v18.110 no JSON swap behaviour and restores the original bone local rotation and offset solve.
+  (function installMyCharacterPinRotationFix_v18112_GPT(){
+    try {
+      mcCompletePinToBone = function(source, target, bone, evt){
+        var mc = mcEnsure();
+        if (!source || !target || !bone) { mcLog('Click a visible bone on the part you want to pin to.'); return true; }
+        if (!source.state || !target.state) { mcLog('Pin failed. Source or target part JSON is missing.'); return true; }
+        var childRoot = mcRootBoneInState(source.state);
+        if (!childRoot || !childRoot.head) { mcLog('Pin failed. The part being pinned has no root bone.'); return true; }
+        var attachPoint = 'head';
+        try {
+          var node = evt && evt.target ? mcFindPinDataNode_v041(evt.target) : null;
+          if (node && node.getAttribute('data-mc-pin-attach') === 'tail') attachPoint = 'tail';
+        } catch(eAttach112){}
+        if (bone && bone._mcPinAttachPoint) attachPoint = bone._mcPinAttachPoint;
+        var frameNow = App.currentFrame || 1;
+        try { syncFrameFromWick(); frameNow = App.currentFrame || frameNow; } catch(eSyncPin112){}
+        var targetStage = mcPartStagePointForBone(target, bone.id, frameNow, attachPoint);
+        if (!targetStage) { mcLog('Pin failed. Target bone position is missing.'); return true; }
+        var oldT = mcSafeClone(source.transform || { x:0, y:0, w:1, h:1, rotation:0 });
+        var childRootStage = mcPartStagePointForBone(source, childRoot.id, frameNow, 'head');
+        if (!childRootStage) {
+          try { childRootStage = mcLocalPointToPartStage(source, childRoot.head); } catch(eLocal112){}
+        }
+        if (!childRootStage) {
+          var childSrc = source.state && source.state.source ? source.state.source : {};
+          var childSx = Math.max(0.0001, Number(oldT.w || childSrc.width || 1) / Math.max(1, Number(childSrc.width || oldT.w || 1)));
+          var childSy = Math.max(0.0001, Number(oldT.h || childSrc.height || 1) / Math.max(1, Number(childSrc.height || oldT.h || 1)));
+          childRootStage = { x:Number(oldT.x || 0) + Number(childRoot.head.x || 0) * childSx, y:Number(oldT.y || 0) + Number(childRoot.head.y || 0) * childSy };
+        }
+        var targetBoneAngle = 0;
+        try {
+          targetBoneAngle = mcPinBoneStageAngleDegForCommit_v047 ? mcPinBoneStageAngleDegForCommit_v047(target, bone.id, frameNow) : mcPinBoneStageAngleDeg_v042(target, bone.id, frameNow);
+        } catch(eBoneAngle112) {
+          try { targetBoneAngle = mcPinBoneStageAngleDeg_v042(target, bone.id, frameNow); } catch(eBoneAngleFallback112) { targetBoneAngle = 0; }
+        }
+        var worldOffset = {
+          x:Number(childRootStage.x || 0) - Number(targetStage.x || 0),
+          y:Number(childRootStage.y || 0) - Number(targetStage.y || 0)
+        };
+        var localOffset = { x:worldOffset.x, y:worldOffset.y };
+        try { localOffset = mcRotatePoint_v042(worldOffset, -Number(targetBoneAngle || 0)); } catch(eLocalOffset112){}
+        source.parentPin = {
+          targetPartId:target.id,
+          boneId:String(bone.id == null ? '' : bone.id),
+          attachPoint:attachPoint,
+          childRootBoneId:String(childRoot.id == null ? '' : childRoot.id),
+          offset:{
+            x:Number(localOffset.x || 0),
+            y:Number(localOffset.y || 0),
+            rotation:Number(oldT.rotation || 0) - Number(targetBoneAngle || 0),
+            mode:'boneLocal'
+          },
+          offsetLocal:{ x:Number(localOffset.x || 0), y:Number(localOffset.y || 0) }
+        };
+        try {
+          var parentScale = mcPartTransformScaleForPin_v088(target);
+          var childScale = mcPartTransformScaleForPin_v088(source);
+          source.parentPin.inheritParentTransform = true;
+          source.parentPin.parentScaleAtPin = { sx:parentScale.sx, sy:parentScale.sy, w:parentScale.w, h:parentScale.h };
+          source.parentPin.childScaleAtPin = { sx:childScale.sx, sy:childScale.sy, w:childScale.w, h:childScale.h };
+          source.parentPin.childSizeAtPin = { w:childScale.w, h:childScale.h };
+        } catch(eScalePin112){}
+        source.transform = oldT;
+        mc.pinPickSourceId = null;
+        try { mcSetPinCursor(false); } catch(eCursorOff112){}
+        try { mcRemovePinPickLayer_v039(); } catch(eRemovePinLayer112){}
+        try {
+          var resolved = mcPinnedTransformForFrame_v066 ? mcPinnedTransformForFrame_v066(source, mc.parts || [], frameNow) : null;
+          if (resolved) source.transform = resolved;
+        } catch(eResolvedPin112){}
+        try { mcRefreshPinnedChildren(); } catch(eRefresh112){}
+        try { mcRenderPanel(); } catch(ePanel112){}
+        try { mcRenderStageParts(); } catch(eStage112){}
+        try { renderOverlay(); } catch(eOverlay112){}
+        try {
+          if (Number(source.id || 0) === Number(mc.selectedId || 0)) mcApplyTransformToApp(source.transform);
+        } catch(eApplySelected112){}
+        mcLog('Pinned ' + (source.name || 'part') + ' to ' + (target.name || 'part') + ' / ' + (bone.name || ('Bone ' + String(bone.id == null ? '' : bone.id))) + '.');
+        try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStop112){}
+        return true;
+      };
+
+      // FIX v18.115_GPT: mcHandleCardClick does not exist in this MyCharacter build.
+      // The working click route is mcHandleCardAction(action, id, target, evt), so hook that route instead.
+      var mcHandleCardAction_Base_v18115_GPT = (typeof mcHandleCardAction === 'function') ? mcHandleCardAction : null;
+      if (mcHandleCardAction_Base_v18115_GPT) {
+        mcHandleCardAction = function(action, id, target, evt){
+          try {
+            if (action === 'unpin') {
+              var mc = mcEnsure();
+              var up = mcFindPart(Number(id || 0));
+              if (up) {
+                up.parentPin = null;
+                if (up.transform) {
+                  delete up.transform.mcPinnedRootOriginX;
+                  delete up.transform.mcPinnedRootOriginY;
+                  delete up.transform.mcPinnedTransformOrigin;
+                }
+                mc.pinPickSourceId = null;
+                try { mcSetPinCursor(false); } catch(eCursorUnpin115){}
+                try { mcRemovePinPickLayer_v039(); } catch(eLayerUnpin115){}
+                try { mcLog('Unpinned ' + (up.name || 'part') + '.'); } catch(eLogUnpin115){}
+                try { mcRenderPanel(); } catch(ePanelUnpin115){}
+                try { mcRenderStageParts(); } catch(eStageUnpin115){}
+                try { renderOverlay(); } catch(eOverlayUnpin115){}
+                try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStopUnpin115){}
+                return false;
+              }
+            }
+          } catch(eUnpin115){}
+          return mcHandleCardAction_Base_v18115_GPT.apply(this, arguments);
+        };
+      }
+
+      try { log('MyCharacter v18.115 GPT pin rotation fix active.'); } catch(eLog112){}
+    } catch(ePinRot112) {
+      try { console.error('[RotoBones GPT v18.115] pin rotation fix failed', ePinRot112); } catch(eConsole112){}
+    }
+  })();
+
+
+
+  // FIX v18.113_GPT: Keying a Lip_Bone or Frame_Bone must never strip MyCharacter parentPin data.
+  // When the selected part is pinned, Frame_Bone keying can trigger renderOverlay, mcCaptureActivePart,
+  // mcRefreshPinnedChildren, and buildRigProjectState in quick succession. Older wrappers can rebuild the
+  // selected part state and accidentally leave the visible MyCharacter part list with missing parentPin data.
+  // This guard snapshots every part pin before the key operation and restores those pins after the key is written.
+  (function installPinnedFrameBoneKeyGuard_v18113_GPT(){
+    try {
+      function mcPinSnapshot_v18113_GPT(){
+        var mc = mcEnsure ? mcEnsure() : null;
+        var snap = {};
+        try {
+          (mc && mc.parts ? mc.parts : []).forEach(function(part){
+            if (!part || part.id == null) return;
+            snap[String(part.id)] = {
+              parentPin: part.parentPin ? mcSafeClone(part.parentPin) : null,
+              transform: part.transform ? mcSafeClone(part.transform) : null
+            };
+          });
+        } catch(eSnap){}
+        return snap;
+      }
+
+      function mcRestorePins_v18113_GPT(snap, restoreTransforms){
+        if (!snap) return;
+        var mc = mcEnsure ? mcEnsure() : null;
+        try {
+          (mc && mc.parts ? mc.parts : []).forEach(function(part){
+            if (!part || part.id == null) return;
+            var row = snap[String(part.id)];
+            if (!row) return;
+            // FIX v18.113_GPT: only restore pins that existed before the guarded operation.
+            // This prevents a frame key from deleting existing pins, while not inventing new pins.
+            if (row.parentPin) part.parentPin = mcSafeClone(row.parentPin);
+            if (restoreTransforms && row.transform) part.transform = mcSafeClone(row.transform);
+          });
+        } catch(eRestore){}
+      }
+
+      function mcSelectedPartIsPinned_v18113_GPT(){
+        try {
+          var p = mcSelectedPart ? mcSelectedPart() : null;
+          return !!(p && p.parentPin && p.parentPin.boneId);
+        } catch(eSelectedPinned) { return false; }
+      }
+
+      var setSelectedFrameBoneKeyToSlot_Base_v18113_GPT = setSelectedFrameBoneKeyToSlot;
+      setSelectedFrameBoneKeyToSlot = function(slot){
+        var pinSnap = mcPinSnapshot_v18113_GPT();
+        var selectedPinned = mcSelectedPartIsPinned_v18113_GPT();
+        App._mcPinnedFrameBoneKeyGuard_v18113_GPT = true;
+        try {
+          var out = setSelectedFrameBoneKeyToSlot_Base_v18113_GPT.apply(this, arguments);
+          // FIX v18.113_GPT: after the key is written, store only the selected pinned part rig state.
+          // parentPin belongs to the MyCharacter wrapper part, not inside the RotoBones project state.
+          if (selectedPinned) {
+            try {
+              var p = mcSelectedPart ? mcSelectedPart() : null;
+              if (p && p.parentPin && p.state) {
+                var keepPin = mcSafeClone(p.parentPin);
+                var keepTransform = p.transform ? mcSafeClone(p.transform) : null;
+                p.state = buildRigProjectState();
+                p.parentPin = keepPin;
+                if (keepTransform) p.transform = keepTransform;
+              }
+            } catch(eSavePinnedKey){}
+          }
+          return out;
+        } finally {
+          mcRestorePins_v18113_GPT(pinSnap, false);
+          App._mcPinnedFrameBoneKeyGuard_v18113_GPT = false;
+          try { mcRefreshPinnedChildren(); } catch(eRefreshPins113){}
+          try { mcRenderStageParts(); } catch(eStagePins113){}
+        }
+      };
+
+      var mcCaptureActivePart_Base_v18113_GPT = mcCaptureActivePart;
+      mcCaptureActivePart = function(){
+        if (App && App._mcPinnedFrameBoneKeyGuard_v18113_GPT) {
+          var pinSnap = mcPinSnapshot_v18113_GPT();
+          try { return mcCaptureActivePart_Base_v18113_GPT.apply(this, arguments); }
+          finally { mcRestorePins_v18113_GPT(pinSnap, false); }
+        }
+        return mcCaptureActivePart_Base_v18113_GPT.apply(this, arguments);
+      };
+
+      var mcRefreshPinnedChildren_Base_v18113_GPT = mcRefreshPinnedChildren;
+      mcRefreshPinnedChildren = function(){
+        if (App && App._mcPinnedFrameBoneKeyGuard_v18113_GPT) {
+          var pinSnap = mcPinSnapshot_v18113_GPT();
+          try { return mcRefreshPinnedChildren_Base_v18113_GPT.apply(this, arguments); }
+          finally { mcRestorePins_v18113_GPT(pinSnap, false); }
+        }
+        return mcRefreshPinnedChildren_Base_v18113_GPT.apply(this, arguments);
+      };
+
+      var mcAfterPinnedChildAnimationChange_Base_v18113_GPT = mcAfterPinnedChildAnimationChange_v065;
+      mcAfterPinnedChildAnimationChange_v065 = function(){
+        var pinSnap = mcPinSnapshot_v18113_GPT();
+        try { return mcAfterPinnedChildAnimationChange_Base_v18113_GPT ? mcAfterPinnedChildAnimationChange_Base_v18113_GPT.apply(this, arguments) : undefined; }
+        finally {
+          mcRestorePins_v18113_GPT(pinSnap, false);
+          try { mcRefreshPinnedChildren(); } catch(eRefreshAfterPinned113){}
+          try { mcRenderStageParts(); } catch(eStageAfterPinned113){}
+        }
+      };
+
+      try { log('MyCharacter v18.113 GPT pinned Frame_Bone key guard active.'); } catch(eLog113){}
+    } catch(ePinKeyGuard113) {
+      try { console.error('[RotoBones GPT v18.113] pinned Frame_Bone key guard failed', ePinKeyGuard113); } catch(eConsole113){}
+    }
+  })();
+
+
+  // FIX v18.114_GPT: Strong pin restore for pinned mouth and Frame_Bone animation.
+  // Earlier guard preserved the selected pinned part, but non selected pinned parts could still lose their wrapper parentPin
+  // because frame bone keying can call capture or refresh routines while the active RotoBones state is temporarily changed.
+  // This wrapper snapshots every MyCharacter wrapper part before keying and restores every non selected part completely.
+  (function installPinnedPartFullRestoreGuard_v18114_GPT(){
+    try {
+      function mcFullPartSnapshot_v18114_GPT(){
+        var mc = mcEnsure ? mcEnsure() : null;
+        var snap = { selectedId: mc ? mc.selectedId : null, rows: {} };
+        try {
+          (mc && mc.parts ? mc.parts : []).forEach(function(part){
+            if (!part || part.id == null) return;
+            snap.rows[String(part.id)] = {
+              id: part.id,
+              name: part.name,
+              parentPin: part.parentPin ? mcSafeClone(part.parentPin) : null,
+              transform: part.transform ? mcSafeClone(part.transform) : null,
+              state: part.state ? mcSafeClone(part.state) : null,
+              loadedName: part.loadedName,
+              loadedTag: part.loadedTag,
+              visible: part.visible,
+              locked: part.locked
+            };
+          });
+        } catch(eSnap114){}
+        return snap;
+      }
+
+      function mcRestorePinnedPartsAfterKey_v18114_GPT(snap, selectedId){
+        if (!snap || !snap.rows) return;
+        var mc = mcEnsure ? mcEnsure() : null;
+        try {
+          (mc && mc.parts ? mc.parts : []).forEach(function(part){
+            if (!part || part.id == null) return;
+            var row = snap.rows[String(part.id)];
+            if (!row) return;
+            var isSelected = String(part.id) === String(selectedId);
+            if (isSelected) {
+              // FIX v18.114_GPT: The selected part needs to keep the newly keyed App state,
+              // but its wrapper pin and transform must not be stripped or recalculated by capture routines.
+              if (row.parentPin) part.parentPin = mcSafeClone(row.parentPin);
+              if (row.transform) part.transform = mcSafeClone(row.transform);
+              return;
+            }
+            // FIX v18.114_GPT: Non selected parts must not be touched by mouth or Frame_Bone keying at all.
+            if (row.parentPin) part.parentPin = mcSafeClone(row.parentPin);
+            else part.parentPin = null;
+            if (row.transform) part.transform = mcSafeClone(row.transform);
+            if (row.state) part.state = mcSafeClone(row.state);
+            if (row.loadedName !== undefined) part.loadedName = row.loadedName;
+            if (row.loadedTag !== undefined) part.loadedTag = row.loadedTag;
+            if (row.visible !== undefined) part.visible = row.visible;
+            if (row.locked !== undefined) part.locked = row.locked;
+          });
+          if (mc && selectedId != null) mc.selectedId = selectedId;
+        } catch(eRestore114){}
+      }
+
+      function mcRunWithPinnedPartRestore_v18114_GPT(fn, ctx, args){
+        var mc = mcEnsure ? mcEnsure() : null;
+        var selectedId = mc ? mc.selectedId : null;
+        var snap = mcFullPartSnapshot_v18114_GPT();
+        App._mcPinnedPartFullRestoreGuard_v18114_GPT = true;
+        try {
+          return fn ? fn.apply(ctx, args || []) : undefined;
+        } finally {
+          mcRestorePinnedPartsAfterKey_v18114_GPT(snap, selectedId);
+          App._mcPinnedPartFullRestoreGuard_v18114_GPT = false;
+          try { mcRefreshPinnedChildren(); } catch(eRefresh114){}
+          try { mcRenderStageParts(); } catch(eStage114){}
+          try { mcRenderPanel(); } catch(ePanel114){}
+        }
+      }
+
+      if (typeof setSelectedFrameBoneKeyToSlot === 'function') {
+        var setSelectedFrameBoneKeyToSlot_Base_v18114_GPT = setSelectedFrameBoneKeyToSlot;
+        setSelectedFrameBoneKeyToSlot = function(slot){
+          return mcRunWithPinnedPartRestore_v18114_GPT(setSelectedFrameBoneKeyToSlot_Base_v18114_GPT, this, arguments);
+        };
+      }
+
+      if (typeof clearSelectedFrameBoneKey === 'function') {
+        var clearSelectedFrameBoneKey_Base_v18114_GPT = clearSelectedFrameBoneKey;
+        clearSelectedFrameBoneKey = function(){
+          return mcRunWithPinnedPartRestore_v18114_GPT(clearSelectedFrameBoneKey_Base_v18114_GPT, this, arguments);
+        };
+      }
+
+      // FIX v18.114_GPT: During the guarded key operation, capture may still fire from older handlers.
+      // Let it update the active selected state, then immediately restore all other pinned wrapper parts.
+      var mcCaptureActivePart_Base_v18114_GPT = mcCaptureActivePart;
+      mcCaptureActivePart = function(){
+        if (App && App._mcPinnedPartFullRestoreGuard_v18114_GPT) {
+          var mc = mcEnsure ? mcEnsure() : null;
+          var selectedId = mc ? mc.selectedId : null;
+          var snap = mcFullPartSnapshot_v18114_GPT();
+          try { return mcCaptureActivePart_Base_v18114_GPT.apply(this, arguments); }
+          finally { mcRestorePinnedPartsAfterKey_v18114_GPT(snap, selectedId); }
+        }
+        return mcCaptureActivePart_Base_v18114_GPT.apply(this, arguments);
+      };
+
+      try { log('MyCharacter v18.114 GPT full pinned part restore guard active.'); } catch(eLog114){}
+    } catch(eGuard114) {
+      try { console.error('[RotoBones GPT v18.114] full pinned part restore guard failed', eGuard114); } catch(eConsole114){}
+    }
+  })();
+
+
+  // FIX v18.117_GPT: Frame_Bone keying must not unpin any other MyCharacter parts.
+  // Wink Frame_Bone keying can render or capture while the active part state is loaded, so protect every wrapper part.
+  (function installWinkFrameBonePinGuard_v18117_GPT(){
+    try {
+      if (App.__RotoBones_GPT_WinkFrameBonePinGuard_v18117) return;
+      App.__RotoBones_GPT_WinkFrameBonePinGuard_v18117 = true;
+
+      function mcPartFullSnapshot_v18117_GPT(){
+        var mc = mcEnsure ? mcEnsure() : null;
+        var snap = { selectedId: mc ? mc.selectedId : null, pinPickSourceId: mc ? mc.pinPickSourceId : null, rows: {} };
+        try {
+          (mc && mc.parts ? mc.parts : []).forEach(function(part){
+            if (!part || part.id == null) return;
+            snap.rows[String(part.id)] = {
+              parentPin: part.parentPin ? mcSafeClone(part.parentPin) : null,
+              transform: part.transform ? mcSafeClone(part.transform) : null,
+              state: part.state ? mcSafeClone(part.state) : null,
+              mode: part.mode,
+              editTarget: part.editTarget,
+              loadedName: part.loadedName,
+              loadedTag: part.loadedTag,
+              visible: part.visible,
+              locked: part.locked
+            };
+          });
+        } catch(eSnap117){}
+        return snap;
+      }
+
+      function mcRestorePartPinsAndNonSelectedState_v18117_GPT(snap, selectedId, keepSelectedState){
+        if (!snap || !snap.rows) return;
+        var mc = mcEnsure ? mcEnsure() : null;
+        try {
+          (mc && mc.parts ? mc.parts : []).forEach(function(part){
+            if (!part || part.id == null) return;
+            var row = snap.rows[String(part.id)];
+            if (!row) return;
+            var isSelected = String(part.id) === String(selectedId);
+            if (row.parentPin) part.parentPin = mcSafeClone(row.parentPin);
+            else part.parentPin = null;
+            if (row.transform) part.transform = mcSafeClone(row.transform);
+            if (!isSelected || !keepSelectedState) {
+              if (row.state) part.state = mcSafeClone(row.state);
+              if (row.mode !== undefined) part.mode = row.mode;
+              if (row.editTarget !== undefined) part.editTarget = row.editTarget;
+              if (row.loadedName !== undefined) part.loadedName = row.loadedName;
+              if (row.loadedTag !== undefined) part.loadedTag = row.loadedTag;
+              if (row.visible !== undefined) part.visible = row.visible;
+              if (row.locked !== undefined) part.locked = row.locked;
+            }
+          });
+          if (mc && selectedId != null) mc.selectedId = selectedId;
+          if (mc) mc.pinPickSourceId = snap.pinPickSourceId || null;
+        } catch(eRestore117){}
+      }
+
+      var setSelectedFrameBoneKeyToSlot_Base_v18117_GPT = setSelectedFrameBoneKeyToSlot;
+      setSelectedFrameBoneKeyToSlot = function(slot){
+        var mc = mcEnsure ? mcEnsure() : null;
+        var selectedId = mc ? mc.selectedId : null;
+        var selectedPart = selectedId != null && mcFindPart ? mcFindPart(selectedId) : null;
+        var snap = mcPartFullSnapshot_v18117_GPT();
+        App._mcWinkFrameBonePinGuard_v18117_GPT = true;
+        try {
+          var out = setSelectedFrameBoneKeyToSlot_Base_v18117_GPT.apply(this, arguments);
+          try {
+            selectedPart = selectedId != null && mcFindPart ? mcFindPart(selectedId) : selectedPart;
+            if (selectedPart && selectedPart.state) {
+              var keepPin = selectedPart.parentPin ? mcSafeClone(selectedPart.parentPin) : null;
+              var keepTransform = selectedPart.transform ? mcSafeClone(selectedPart.transform) : null;
+              selectedPart.state = buildRigProjectState();
+              if (keepPin) selectedPart.parentPin = keepPin;
+              else selectedPart.parentPin = null;
+              if (keepTransform) selectedPart.transform = keepTransform;
+            }
+          } catch(eSaveState117){}
+          return out;
+        } finally {
+          mcRestorePartPinsAndNonSelectedState_v18117_GPT(snap, selectedId, true);
+          App._mcWinkFrameBonePinGuard_v18117_GPT = false; // FIX v18.118_GPT: let pin resolver run after restore.
+          try { mcRefreshPinnedChildren(); } catch(eRefresh117){} // FIX v18.118_GPT: non selected pinned parts must re evaluate against the head after Wink keying.
+          try { mcRenderStageParts(); } catch(eStage117){}
+          try { mcRenderPanel(); } catch(ePanel117){}
+          try { renderOverlay(); } catch(eOverlay117){}
+        }
+      };
+
+      var clearSelectedFrameBoneKey_Base_v18117_GPT = clearSelectedFrameBoneKey;
+      clearSelectedFrameBoneKey = function(){
+        var mc = mcEnsure ? mcEnsure() : null;
+        var selectedId = mc ? mc.selectedId : null;
+        var snap = mcPartFullSnapshot_v18117_GPT();
+        App._mcWinkFrameBonePinGuard_v18117_GPT = true;
+        try { return clearSelectedFrameBoneKey_Base_v18117_GPT.apply(this, arguments); }
+        finally {
+          mcRestorePartPinsAndNonSelectedState_v18117_GPT(snap, selectedId, true);
+          App._mcWinkFrameBonePinGuard_v18117_GPT = false; // FIX v18.118_GPT: let pin resolver run after restore.
+          try { mcRefreshPinnedChildren(); } catch(eRefreshClear117){} // FIX v18.118_GPT: non selected pinned parts must re evaluate against the head after clearing a Wink key.
+          try { mcRenderStageParts(); } catch(eStageClear117){}
+          try { mcRenderPanel(); } catch(ePanelClear117){}
+          try { renderOverlay(); } catch(eOverlayClear117){}
+        }
+      };
+
+      var mcCaptureActivePart_Base_v18117_GPT = mcCaptureActivePart;
+      mcCaptureActivePart = function(){
+        if (App && App._mcWinkFrameBonePinGuard_v18117_GPT) {
+          var mc = mcEnsure ? mcEnsure() : null;
+          var selectedId = mc ? mc.selectedId : null;
+          var snap = mcPartFullSnapshot_v18117_GPT();
+          try { return mcCaptureActivePart_Base_v18117_GPT.apply(this, arguments); }
+          finally { mcRestorePartPinsAndNonSelectedState_v18117_GPT(snap, selectedId, true); }
+        }
+        return mcCaptureActivePart_Base_v18117_GPT.apply(this, arguments);
+      };
+
+      var mcRefreshPinnedChildren_Base_v18117_GPT = mcRefreshPinnedChildren;
+      mcRefreshPinnedChildren = function(){
+        if (App && App._mcWinkFrameBonePinGuard_v18117_GPT) {
+          var mc = mcEnsure ? mcEnsure() : null;
+          var selectedId = mc ? mc.selectedId : null;
+          var snap = mcPartFullSnapshot_v18117_GPT();
+          try { return mcRefreshPinnedChildren_Base_v18117_GPT.apply(this, arguments); }
+          finally { mcRestorePartPinsAndNonSelectedState_v18117_GPT(snap, selectedId, true); }
+        }
+        return mcRefreshPinnedChildren_Base_v18117_GPT.apply(this, arguments);
+      };
+
+      try { log('MyCharacter v18.118 GPT Wink Frame_Bone pin refresh guard active.'); } catch(eLog117){}
+    } catch(eGuard117) {
+      try { console.error('[RotoBones GPT v18.117] Wink Frame_Bone pin guard failed', eGuard117); } catch(eConsole117){}
+    }
+  })();
+
+
+  // FIX v18.118_GPT: Wink Frame_Bone keying restored pins but left non selected pinned parts on their old transforms.
+  // After the key operation, pins are restored first, then mcRefreshPinnedChildren is allowed to run with the guard off.
+
+
+  // FIX v18.119_GPT: Choosing Animate or Expression on a pinned mouth or Wink Frame_Bone must not leave the other pinned parts visually stale.
+  // The JSON comparison showed parentPin data was still present after the break. The failure was that non selected pinned wrappers kept old frame transforms.
+  // This solver re evaluates every pinned MyCharacter part against the current Wick frame after tab changes, expression keying, render, and save.
+  function mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT(reason){
+    var mc = null;
+    try { mc = mcEnsure ? mcEnsure() : null; } catch(eEnsure119) { mc = null; }
+    if (!mc || !mc.parts || !mc.parts.length) return false;
+    var frame = 1;
+    try { frame = Math.max(1, Math.round(Number(App.currentFrame || (el('inpCurrentFrame') && el('inpCurrentFrame').value) || 1) || 1)); } catch(eFrame119) { frame = 1; }
+    var changed = false;
+    try {
+      if (!mc.loading && typeof mcCaptureActivePart === 'function') mcCaptureActivePart();
+    } catch(eCapture119){}
+    for (var pass = 0; pass < 16; pass += 1) {
+      var passChanged = false;
+      for (var i = 0; i < mc.parts.length; i += 1) {
+        var part = mc.parts[i];
+        if (!part || !part.parentPin || !part.parentPin.boneId) continue;
+        var before = part.transform ? mcSafeClone(part.transform) : null;
+        var resolved = null;
+        try {
+          if (typeof mcPinnedTransformForFrame_v066 === 'function') resolved = mcPinnedTransformForFrame_v066(part, mc.parts, frame);
+        } catch(eResolve119) { resolved = null; }
+        if (resolved && isFinite(Number(resolved.x)) && isFinite(Number(resolved.y))) {
+          part.transform = resolved;
+        } else {
+          try { if (typeof mcUpdatePinnedChildFromParentBoneForFrame === 'function') mcUpdatePinnedChildFromParentBoneForFrame(part, mc.parts, frame); } catch(eUpdate119){}
+        }
+        var after = part.transform || null;
+        if (!before || !after || Math.abs(Number(before.x || 0) - Number(after.x || 0)) > 0.001 || Math.abs(Number(before.y || 0) - Number(after.y || 0)) > 0.001 || Math.abs(Number(before.rotation || 0) - Number(after.rotation || 0)) > 0.001) {
+          passChanged = true;
+          changed = true;
+        }
+      }
+      if (!passChanged) break;
+    }
+    try {
+      var selected = typeof mcSelectedPart === 'function' ? mcSelectedPart() : null;
+      if (selected && selected.parentPin && selected.parentPin.boneId && selected.transform && typeof mcApplyTransformToApp === 'function') mcApplyTransformToApp(selected.transform);
+    } catch(eApply119){}
+    return changed;
+  }
+
+  var mcRefreshPinnedChildren_Base_v18119_GPT = mcRefreshPinnedChildren;
+  mcRefreshPinnedChildren = function(){
+    var out = false;
+    try { out = mcRefreshPinnedChildren_Base_v18119_GPT ? mcRefreshPinnedChildren_Base_v18119_GPT.apply(this, arguments) : false; } catch(eBaseRefresh119){}
+    try { out = mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT('refresh') || out; } catch(eForceRefresh119){}
+    return out;
+  };
+
+  var mcOpenTab_Base_v18119_GPT = mcOpenTab;
+  mcOpenTab = function(name){
+    var out = mcOpenTab_Base_v18119_GPT ? mcOpenTab_Base_v18119_GPT.apply(this, arguments) : undefined;
+    try {
+      if (String(name || '').toLowerCase() === 'animate' || String(name || '').toLowerCase() === 'expression') {
+        mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT('tab ' + String(name || ''));
+        if (typeof mcRenderStageParts === 'function') mcRenderStageParts();
+        if (typeof renderOverlay === 'function') renderOverlay();
+      }
+    } catch(eTab119){}
+    return out;
+  };
+
+  var mcBuildCharacterState_Base_v18119_GPT = mcBuildCharacterState;
+  mcBuildCharacterState = function(){
+    try { mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT('save before build'); } catch(eBeforeBuild119){}
+    var data = mcBuildCharacterState_Base_v18119_GPT ? mcBuildCharacterState_Base_v18119_GPT.apply(this, arguments) : null;
+    try { mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT('save after build'); } catch(eAfterBuild119){}
+    if (!data) {
+      var mc = mcEnsure ? mcEnsure() : null;
+      data = { app:'MyCharacter', version:'v_052', savedAt:new Date().toISOString(), nextId:mc ? mc.nextId : 1, selectedId:mc ? mc.selectedId : null, parts:mcSafeClone(mc && mc.parts ? mc.parts : []) };
+    } else {
+      try {
+        var live = mcEnsure ? mcEnsure() : null;
+        data.parts = mcSafeClone(live && live.parts ? live.parts : data.parts || []);
+      } catch(eCopyLive119){}
+    }
+    return data;
+  };
+
+  var setSelectedFrameBoneKeyToSlot_Base_v18119_GPT = setSelectedFrameBoneKeyToSlot;
+  setSelectedFrameBoneKeyToSlot = function(slot){
+    var out = setSelectedFrameBoneKeyToSlot_Base_v18119_GPT ? setSelectedFrameBoneKeyToSlot_Base_v18119_GPT.apply(this, arguments) : undefined;
+    try {
+      mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT('frame bone key');
+      if (typeof mcRenderStageParts === 'function') mcRenderStageParts();
+      if (typeof renderOverlay === 'function') renderOverlay();
+      if (typeof mcRenderPanel === 'function') mcRenderPanel();
+    } catch(eKey119){}
+    return out;
+  };
+
+  var clearSelectedFrameBoneKey_Base_v18119_GPT = clearSelectedFrameBoneKey;
+  clearSelectedFrameBoneKey = function(){
+    var out = clearSelectedFrameBoneKey_Base_v18119_GPT ? clearSelectedFrameBoneKey_Base_v18119_GPT.apply(this, arguments) : undefined;
+    try {
+      mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT('clear frame bone key');
+      if (typeof mcRenderStageParts === 'function') mcRenderStageParts();
+      if (typeof renderOverlay === 'function') renderOverlay();
+      if (typeof mcRenderPanel === 'function') mcRenderPanel();
+    } catch(eClear119){}
+    return out;
+  };
+
+  var renderOverlay_Base_v18119_GPT = renderOverlay;
+  renderOverlay = function(){
+    try { mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT('before render overlay'); } catch(eBeforeOverlay119){}
+    var out = renderOverlay_Base_v18119_GPT ? renderOverlay_Base_v18119_GPT.apply(this, arguments) : undefined;
+    try { mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT('after render overlay'); } catch(eAfterOverlay119){}
+    return out;
+  };
+
+  try { log('MyCharacter v18.119 GPT pinned expression live solve active.'); } catch(eLog119){}
+
+
+
+  // FIX v18.120_GPT: MyCharacter render and pin refresh must never capture the wrong loaded RotoBones state into the selected part.
+  // The broken JSON showed parentPin data still existed, but selected curve identifiers were repeatedly re stamped with other part ids.
+  // That means the render or refresh path was calling mcCaptureActivePart while App still contained a different part's rig.
+  // Track which MyCharacter part is actually loaded in App, and block capture when selectedId and loaded part id do not match.
+  function mcCurrentLoadedPartId_v18120_GPT(){
+    try {
+      if (App && App.myCharacter && App.myCharacter.activeLoadedPartId != null) return Number(App.myCharacter.activeLoadedPartId || 0);
+    } catch(eLoadedId120){}
+    return 0;
+  }
+
+  function mcSetCurrentLoadedPartId_v18120_GPT(id){
+    try {
+      var mc = mcEnsure ? mcEnsure() : null;
+      if (mc) mc.activeLoadedPartId = Number(id || 0);
+      if (App && App.myCharacter) App.myCharacter.activeLoadedPartId = Number(id || 0);
+    } catch(eSetLoadedId120){}
+  }
+
+  function mcCaptureIsSafeForSelectedPart_v18120_GPT(){
+    try {
+      var mc = mcEnsure ? mcEnsure() : null;
+      if (!mc) return false;
+      var selectedId = Number(mc.selectedId || 0);
+      if (!selectedId) return false;
+      var loadedId = mcCurrentLoadedPartId_v18120_GPT();
+      if (!loadedId) return true;
+      return loadedId === selectedId;
+    } catch(eSafe120){}
+    return false;
+  }
+
+  var mcActivatePart_Base_v18120_GPT = mcActivatePart;
+  mcActivatePart = async function(id){
+    var out = await mcActivatePart_Base_v18120_GPT.apply(this, arguments);
+    try { mcSetCurrentLoadedPartId_v18120_GPT(id); } catch(eActiveLoaded120){}
+    return out;
+  };
+
+  var loadRigProjectState_Base_v18120_GPT = loadRigProjectState;
+  loadRigProjectState = async function(state){
+    var out = await loadRigProjectState_Base_v18120_GPT.apply(this, arguments);
+    try {
+      var mc = mcEnsure ? mcEnsure() : null;
+      if (mc && mc.loading && mc.selectedId != null) mcSetCurrentLoadedPartId_v18120_GPT(mc.selectedId);
+    } catch(eLoadStateLoaded120){}
+    return out;
+  };
+
+  var mcCaptureActivePart_Base_v18120_GPT = mcCaptureActivePart;
+  mcCaptureActivePart = function(){
+    try {
+      if (!mcCaptureIsSafeForSelectedPart_v18120_GPT()) {
+        try { console.warn('[RotoBones GPT v18.120] blocked unsafe MyCharacter capture. selectedId and loaded rig part id do not match.'); } catch(eWarn120){}
+        return;
+      }
+    } catch(eBlock120) { return; }
+    return mcCaptureActivePart_Base_v18120_GPT.apply(this, arguments);
+  };
+
+  var mcPersistActivePartKeys_Base_v18120_GPT = mcPersistActivePartKeys;
+  mcPersistActivePartKeys = function(){
+    try {
+      if (!mcCaptureIsSafeForSelectedPart_v18120_GPT()) {
+        try { console.warn('[RotoBones GPT v18.120] blocked unsafe key persist. selectedId and loaded rig part id do not match.'); } catch(eWarnPersist120){}
+        return;
+      }
+    } catch(ePersistBlock120) { return; }
+    return mcPersistActivePartKeys_Base_v18120_GPT.apply(this, arguments);
+  };
+
+  // When Build Character saves, only the selected loaded part is allowed to refresh its RotoBones state.
+  // Non selected pinned parts keep their own saved JSON and only have wrapper transforms re solved.
+  var mcBuildCharacterState_Base_v18120_GPT = mcBuildCharacterState;
+  mcBuildCharacterState = function(){
+    try {
+      var mc = mcEnsure ? mcEnsure() : null;
+      if (mc && mc.selectedId != null && mcCaptureIsSafeForSelectedPart_v18120_GPT()) {
+        mcCaptureActivePart();
+      }
+    } catch(ePreBuildCapture120){}
+    return mcBuildCharacterState_Base_v18120_GPT.apply(this, arguments);
+  };
+
+  try { log('MyCharacter v18.120 GPT safe capture guard active.'); } catch(eLog120){}
+
+
+  // FIX v18.121_GPT: Pin solving must not capture or save a different part's RotoBones state.
+  // BrokenHead(1).json showed the head state received new animation keys while the selected part was the Mouths part.
+  // The cause was pin refresh / render paths calling mcCaptureActivePart while solving sibling pins. That lets the currently loaded
+  // RotoBones rig be written into the wrong MyCharacter wrapper. This version makes pin solve read only and updates wrapper transforms only.
+  var mcPinSolveBusy_v18121_GPT = false;
+
+  function mcPartIdFromSourceIdentifier_v18121_GPT(){
+    try {
+      var vals = [];
+      if (App && App.source) {
+        vals.push(App.source.selectedIdentifier || '');
+        vals.push(App.source.selectedUUID || '');
+        vals.push(App.source.fileName || '');
+      }
+      for (var i = 0; i < vals.length; i += 1) {
+        var s = String(vals[i] || '');
+        var m = s.match(/__mc_part_(\d+)_/);
+        if (m && m[1]) return Number(m[1] || 0);
+        m = s.match(/mc_part_(\d+)_/);
+        if (m && m[1]) return Number(m[1] || 0);
+      }
+    } catch(eParseSource121){}
+    return 0;
+  }
+
+  function mcCurrentLoadedPartId_Strict_v18121_GPT(){
+    var parsed = mcPartIdFromSourceIdentifier_v18121_GPT();
+    if (parsed) return parsed;
+    try { if (App && App.myCharacter && App.myCharacter.activeLoadedPartId != null) return Number(App.myCharacter.activeLoadedPartId || 0); } catch(eLoaded121){}
+    return 0;
+  }
+
+  function mcCaptureIsSafeForSelectedPart_Strict_v18121_GPT(){
+    try {
+      if (mcPinSolveBusy_v18121_GPT) return false;
+      var mc = mcEnsure ? mcEnsure() : null;
+      if (!mc) return false;
+      var selectedId = Number(mc.selectedId || 0);
+      if (!selectedId) return false;
+      var loadedId = mcCurrentLoadedPartId_Strict_v18121_GPT();
+      if (!loadedId) return true;
+      return loadedId === selectedId;
+    } catch(eSafe121){}
+    return false;
+  }
+
+  var mcCaptureActivePart_Base_v18121_GPT = mcCaptureActivePart;
+  mcCaptureActivePart = function(){
+    try {
+      if (!mcCaptureIsSafeForSelectedPart_Strict_v18121_GPT()) {
+        try { console.warn('[RotoBones GPT v18.121] blocked capture during pin solve or wrong loaded part.'); } catch(eWarn121){}
+        return;
+      }
+    } catch(eBlockCapture121) { return; }
+    return mcCaptureActivePart_Base_v18121_GPT.apply(this, arguments);
+  };
+
+  var mcPersistActivePartKeys_Base_v18121_GPT = mcPersistActivePartKeys;
+  mcPersistActivePartKeys = function(){
+    try {
+      if (!mcCaptureIsSafeForSelectedPart_Strict_v18121_GPT()) {
+        try { console.warn('[RotoBones GPT v18.121] blocked key persist during pin solve or wrong loaded part.'); } catch(eWarnPersist121){}
+        return;
+      }
+    } catch(eBlockPersist121) { return; }
+    return mcPersistActivePartKeys_Base_v18121_GPT.apply(this, arguments);
+  };
+
+  function mcCopyResolvedPinnedTransformsBack_v18121_GPT(resolvedParts){
+    var mc = mcEnsure ? mcEnsure() : null;
+    if (!mc || !mc.parts || !resolvedParts) return false;
+    var changed = false;
+    for (var i = 0; i < resolvedParts.length; i += 1) {
+      var rp = resolvedParts[i];
+      if (!rp || rp.id == null || !rp.transform || !rp.parentPin || !rp.parentPin.boneId) continue;
+      var live = mcFindPart ? mcFindPart(rp.id) : null;
+      if (!live || !live.parentPin || !live.parentPin.boneId) continue;
+      var before = live.transform || {};
+      if (Math.abs(Number(before.x || 0) - Number(rp.transform.x || 0)) > 0.001 ||
+          Math.abs(Number(before.y || 0) - Number(rp.transform.y || 0)) > 0.001 ||
+          Math.abs(Number(before.rotation || 0) - Number(rp.transform.rotation || 0)) > 0.001 ||
+          Math.abs(Number(before.w || 0) - Number(rp.transform.w || 0)) > 0.001 ||
+          Math.abs(Number(before.h || 0) - Number(rp.transform.h || 0)) > 0.001) {
+        changed = true;
+      }
+      live.transform = mcSafeClone(rp.transform);
+    }
+    try {
+      var selected = mcSelectedPart ? mcSelectedPart() : null;
+      if (selected && selected.parentPin && selected.parentPin.boneId && selected.transform && typeof mcApplyTransformToApp === 'function') mcApplyTransformToApp(selected.transform);
+    } catch(eApply121){}
+    return changed;
+  }
+
+  mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT = function(reason){
+    var mc = null;
+    try { mc = mcEnsure ? mcEnsure() : null; } catch(eEnsure121) { mc = null; }
+    if (!mc || !mc.parts || !mc.parts.length) return false;
+    var frame = 1;
+    try { frame = Math.max(1, Math.round(Number(App.currentFrame || (el('inpCurrentFrame') && el('inpCurrentFrame').value) || 1) || 1)); } catch(eFrame121) { frame = 1; }
+    var changed = false;
+    mcPinSolveBusy_v18121_GPT = true;
+    try {
+      var resolved = null;
+      try { resolved = mcResolvedPartsForCommitFrame ? mcResolvedPartsForCommitFrame(mc.parts || [], frame) : null; } catch(eResolved121) { resolved = null; }
+      if (resolved && resolved.length) changed = mcCopyResolvedPinnedTransformsBack_v18121_GPT(resolved) || changed;
+      else {
+        for (var pass = 0; pass < 16; pass += 1) {
+          var passChanged = false;
+          for (var i = 0; i < mc.parts.length; i += 1) {
+            var part = mc.parts[i];
+            if (!part || !part.parentPin || !part.parentPin.boneId) continue;
+            try { passChanged = mcUpdatePinnedChildFromParentBoneForFrame(part, mc.parts, frame) || passChanged; } catch(eUpdate121){}
+          }
+          changed = changed || passChanged;
+          if (!passChanged) break;
+        }
+      }
+    } finally {
+      mcPinSolveBusy_v18121_GPT = false;
+    }
+    try {
+      var selected = mcSelectedPart ? mcSelectedPart() : null;
+      if (selected && selected.parentPin && selected.parentPin.boneId && selected.transform && typeof mcApplyTransformToApp === 'function') mcApplyTransformToApp(selected.transform);
+    } catch(eApplySelected121){}
+    return changed;
+  };
+
+  mcResolvedLivePartsForFrame_v087 = function(frame){
+    var mc = mcEnsure();
+    frame = Math.max(1, Math.round(Number(frame || App.currentFrame || 1) || 1));
+    var resolved = null;
+    mcPinSolveBusy_v18121_GPT = true;
+    try { resolved = mcResolvedPartsForCommitFrame ? mcResolvedPartsForCommitFrame(mc.parts || [], frame) : null; } catch(eResolveLive121) { resolved = null; }
+    finally { mcPinSolveBusy_v18121_GPT = false; }
+    if (!resolved || !resolved.length) resolved = mc.parts || [];
+    try { mcCopyResolvedPinnedTransformsBack_v18121_GPT(resolved); } catch(eCopyLive121){}
+    return resolved;
+  };
+
+  var mcRefreshPinnedChildren_Base_v18121_GPT = mcRefreshPinnedChildren;
+  mcRefreshPinnedChildren = function(){
+    try { return mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT('refresh v18.121'); }
+    catch(eRefresh121) {
+      try { return mcRefreshPinnedChildren_Base_v18121_GPT ? mcRefreshPinnedChildren_Base_v18121_GPT.apply(this, arguments) : false; } catch(eFallback121) { return false; }
+    }
+  };
+
+  var mcBuildCharacterState_Base_v18121_GPT = mcBuildCharacterState;
+  mcBuildCharacterState = function(){
+    try {
+      if (mcCaptureIsSafeForSelectedPart_Strict_v18121_GPT()) mcCaptureActivePart();
+    } catch(eBuildCapture121){}
+    try { mcForceResolvePinnedPartsToCurrentFrame_v18119_GPT('save v18.121'); } catch(eBuildSolve121){}
+    var data = mcBuildCharacterState_Base_v18121_GPT ? mcBuildCharacterState_Base_v18121_GPT.apply(this, arguments) : null;
+    try {
+      var mc = mcEnsure ? mcEnsure() : null;
+      if (data && mc && mc.parts) data.parts = mcSafeClone(mc.parts);
+    } catch(eBuildCopy121){}
+    return data;
+  };
+
+  try { log('MyCharacter v18.121 GPT shared pin bone safe solve active.'); } catch(eLog121){}
+
+  // FIX v18.122_GPT: MyCharacter commit must insert the final parent clip on the visible root Wick stage.
+  // v18.121 kept the original commit structure, but loadRigProjectState can still leave App.source.sourceTimeline pointing at an internal part timeline.
+  // Capture the visible stage before the part states are loaded, then force only the final parent addClipToWickProject call onto that captured stage.
+  var mcCommitCharacterNativeClip_Base_v18122_GPT = mcCommitCharacterNativeClip; // FIX v18.122_GPT
+  var addClipToWickProject_Base_v18122_GPT = addClipToWickProject; // FIX v18.122_GPT
+  var mcVisibleStageCommitTarget_v18122_GPT = null; // FIX v18.122_GPT
+  var mcDirectStageCommitBusy_v18122_GPT = false; // FIX v18.122_GPT
+
+  function mcCaptureRootStageCommitTarget_v18122_GPT(){ // FIX v18.122_GPT
+    var target = null;
+    try { target = mcCaptureVisibleStageCommitTarget ? mcCaptureVisibleStageCommitTarget() : null; } catch(eCapA) { target = null; }
+    if (target && target.timeline) return target;
+    try {
+      refreshBridgeRefs();
+      var project = App.project || null;
+      var tl = null;
+      var layer = null;
+      var frameNumber = 1;
+      if (project && project.timeline) tl = project.timeline;
+      if (!tl && project && project.root && project.root.timeline) tl = project.root.timeline;
+      if (!tl && project && project.activeTimeline) tl = project.activeTimeline;
+      if (!tl) return null;
+      try { frameNumber = Math.max(1, Math.round(Number(getTimelinePlayheadForCommit(project, tl) || 1))); } catch(eFrame) { frameNumber = 1; }
+      try { layer = tl.activeLayer; } catch(eLayer) { layer = null; }
+      if (typeof layer === 'number') { try { layer = tl.layers[layer] || null; } catch(eLayerIndex) { layer = null; } }
+      try { if (!layer && tl.layers && tl.layers.length) layer = tl.layers[0]; } catch(eLayerFallback) { layer = null; }
+      if (!layer && typeof ensureCommitLayer === 'function') layer = ensureCommitLayer(tl);
+      if (!layer) return null;
+      var frame = ensureCommitFrame(layer, frameNumber);
+      return { timeline: tl, layer: layer, frame: frame, frameNumber: frameNumber };
+    } catch(eCapB) {
+      return null;
+    }
+  }
+
+  addClipToWickProject = function(clip){ // FIX v18.122_GPT
+    if (mcDirectStageCommitBusy_v18122_GPT && mcVisibleStageCommitTarget_v18122_GPT && clip) {
+      try {
+        var t = mcVisibleStageCommitTarget_v18122_GPT;
+        var frame = addClipToSpecificWickTimeline(clip, t.timeline, t.layer, t.frameNumber);
+        try { App.source.sourceTimeline = t.timeline; App.source.sourceLayer = t.layer; App.source.sourceFrame = frame || t.frame; App.source.sourceFrameNumber = t.frameNumber || 1; } catch(eSrc122){}
+        try { if (App.project) { App.project.activeTimeline = t.timeline; App.project.activeFrame = frame || t.frame; } } catch(eProj122){}
+        try { if (t.timeline) t.timeline.activeLayer = t.layer; } catch(eTl122){}
+        return frame;
+      } catch(eDirect122) {
+        try { console.warn('[RotoBones GPT v18.122] direct visible stage insert failed, falling back to original addClipToWickProject.', eDirect122); } catch(eWarn122){}
+      }
+    }
+    return addClipToWickProject_Base_v18122_GPT.apply(this, arguments);
+  };
+
+  mcCommitCharacterNativeClip = async function(){ // FIX v18.122_GPT
+    var oldTarget = mcVisibleStageCommitTarget_v18122_GPT;
+    var oldBusy = mcDirectStageCommitBusy_v18122_GPT;
+    try {
+      mcVisibleStageCommitTarget_v18122_GPT = mcCaptureRootStageCommitTarget_v18122_GPT();
+      mcDirectStageCommitBusy_v18122_GPT = !!mcVisibleStageCommitTarget_v18122_GPT;
+      if (!mcVisibleStageCommitTarget_v18122_GPT) {
+        try { mcLog('Warning: visible Wick stage target was not captured. Falling back to original commit target.'); } catch(eLogTarget122){}
+      }
+      return await mcCommitCharacterNativeClip_Base_v18122_GPT.apply(this, arguments);
+    } finally {
+      mcVisibleStageCommitTarget_v18122_GPT = oldTarget;
+      mcDirectStageCommitBusy_v18122_GPT = oldBusy;
+    }
+  };
+
+  try { log('MyCharacter v18.122 GPT visible Wick stage commit target restored.'); } catch(eLog122){}
+
+
+  // FIX v18.146_GPT: commit must keep the MostlyWorks load path and only fix the commit bake helpers.
+  // This block does not replace mcCommitCharacterNativeClip. It patches the pose readers used by the existing working commit path.
+  (function installMostlyWorksCommitLiveSolve_v18146_GPT(){
+    try {
+      if (App.__RotoBones_GPT_v18146_MostlyWorksCommitLiveSolve) return; // FIX v18.146_GPT
+      App.__RotoBones_GPT_v18146_MostlyWorksCommitLiveSolve = true; // FIX v18.146_GPT
+
+      function mcClone_v18146_GPT(v){ // FIX v18.146_GPT
+        try { return (typeof mcSafeClone === 'function') ? mcSafeClone(v) : JSON.parse(JSON.stringify(v)); } catch(eClone) { return v; } // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcFrame_v18146_GPT(frame){ // FIX v18.146_GPT
+        var n = Number(frame); // FIX v18.146_GPT
+        if (!isFinite(n) || n < 1) n = 1; // FIX v18.146_GPT
+        return Math.max(1, Math.round(n)); // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcAngleOfItem_v18146_GPT(item){ // FIX v18.146_GPT
+        if (item && typeof item.angle === 'number' && isFinite(item.angle)) return Number(item.angle); // FIX v18.146_GPT
+        var h = item && item.head ? item.head : {x:0,y:0}; // FIX v18.146_GPT
+        var t = item && item.tail ? item.tail : {x:1,y:0}; // FIX v18.146_GPT
+        return Math.atan2(Number(t.y || 0) - Number(h.y || 0), Number(t.x || 0) - Number(h.x || 0)); // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcDistance_v18146_GPT(a, b){ // FIX v18.146_GPT
+        var dx = Number((b && b.x) || 0) - Number((a && a.x) || 0); // FIX v18.146_GPT
+        var dy = Number((b && b.y) || 0) - Number((a && a.y) || 0); // FIX v18.146_GPT
+        return Math.max(1, Math.sqrt(dx * dx + dy * dy)); // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcTailFromAngle_v18146_GPT(head, angle, length){ // FIX v18.146_GPT
+        if (typeof tailFromAngle === 'function') return tailFromAngle(head, angle, length); // FIX v18.146_GPT
+        return { x:Number(head.x || 0) + Math.cos(angle) * length, y:Number(head.y || 0) + Math.sin(angle) * length }; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcFindStateBone_v18146_GPT(state, boneId){ // FIX v18.146_GPT
+        var idText = String(boneId == null ? '' : boneId); // FIX v18.146_GPT
+        var bones = state && Array.isArray(state.bones) ? state.bones : []; // FIX v18.146_GPT
+        for (var i = 0; i < bones.length; i += 1) { // FIX v18.146_GPT
+          if (String(bones[i] && bones[i].id) === idText) return bones[i]; // FIX v18.146_GPT
+        } // FIX v18.146_GPT
+        return null; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcStateChildrenOfBone_v18146_GPT(state, parentId){ // FIX v18.146_GPT
+        var out = []; // FIX v18.146_GPT
+        var parentText = String(parentId == null ? '' : parentId); // FIX v18.146_GPT
+        var bones = state && Array.isArray(state.bones) ? state.bones : []; // FIX v18.146_GPT
+        for (var i = 0; i < bones.length; i += 1) { // FIX v18.146_GPT
+          if (String(bones[i] && bones[i].parentId) === parentText) out.push(bones[i]); // FIX v18.146_GPT
+        } // FIX v18.146_GPT
+        return out; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcStateRestPoseItem_v18146_GPT(state, bone){ // FIX v18.146_GPT
+        var h = bone && bone.head ? bone.head : {x:0,y:0}; // FIX v18.146_GPT
+        var t = bone && bone.tail ? bone.tail : {x:1,y:0}; // FIX v18.146_GPT
+        var item = { head:mcClone_v18146_GPT(h), tail:mcClone_v18146_GPT(t), angle:Math.atan2(Number(t.y || 0) - Number(h.y || 0), Number(t.x || 0) - Number(h.x || 0)) }; // FIX v18.146_GPT
+        if (bone && bone.parentId !== null && bone.parentId !== undefined && bone.parentId !== '') { // FIX v18.146_GPT
+          var parent = mcFindStateBone_v18146_GPT(state, bone.parentId); // FIX v18.146_GPT
+          if (parent && parent.head && parent.tail) { // FIX v18.146_GPT
+            var parentAngle = Math.atan2(Number(parent.tail.y || 0) - Number(parent.head.y || 0), Number(parent.tail.x || 0) - Number(parent.head.x || 0)); // FIX v18.146_GPT
+            item.localAngle = item.angle - parentAngle; // FIX v18.146_GPT
+          } // FIX v18.146_GPT
+        } // FIX v18.146_GPT
+        return item; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcStateKeyObject_v18146_GPT(state, frame, bone){ // FIX v18.146_GPT
+        try { if (typeof mcStateKeyFrameObjectForBone_v044 === 'function') return mcStateKeyFrameObjectForBone_v044(state, frame, bone); } catch(eBaseKey) {} // FIX v18.146_GPT
+        var keys = state && state.keyframes ? (state.keyframes[String(frame)] || state.keyframes[Number(frame)] || null) : null; // FIX v18.146_GPT
+        if (!keys || !bone) return null; // FIX v18.146_GPT
+        var bid = String(bone.id == null ? '' : bone.id); // FIX v18.146_GPT
+        if (keys[bid]) return keys[bid]; // FIX v18.146_GPT
+        if (keys[bone.id]) return keys[bone.id]; // FIX v18.146_GPT
+        var names = Object.keys(keys); // FIX v18.146_GPT
+        for (var i = 0; i < names.length; i += 1) { // FIX v18.146_GPT
+          if (String(names[i]) === bid) return keys[names[i]]; // FIX v18.146_GPT
+        } // FIX v18.146_GPT
+        return null; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcStateFramesForBone_v18146_GPT(state, bone){ // FIX v18.146_GPT
+        if (!state || !state.keyframes || !bone) return []; // FIX v18.146_GPT
+        return Object.keys(state.keyframes).map(function(v){ return Number(v); }).filter(function(f){ return isFinite(f) && !!mcStateKeyObject_v18146_GPT(state, f, bone); }).sort(function(a,b){ return a - b; }); // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcCopyAngleFallback_v18146_GPT(item, bone, state){ // FIX v18.146_GPT
+        if (!item) return item; // FIX v18.146_GPT
+        if (!item.head) item.head = mcClone_v18146_GPT(bone && bone.head ? bone.head : {x:0,y:0}); // FIX v18.146_GPT
+        if (!item.tail) item.tail = mcClone_v18146_GPT(bone && bone.tail ? bone.tail : {x:1,y:0}); // FIX v18.146_GPT
+        if (typeof item.angle !== 'number' || !isFinite(item.angle)) item.angle = mcAngleOfItem_v18146_GPT(item); // FIX v18.146_GPT
+        if (bone && bone.parentId !== null && bone.parentId !== undefined && bone.parentId !== '' && (typeof item.localAngle !== 'number' || !isFinite(item.localAngle))) { // FIX v18.146_GPT
+          var rest = mcStateRestPoseItem_v18146_GPT(state, bone); // FIX v18.146_GPT
+          item.localAngle = (typeof rest.localAngle === 'number' && isFinite(rest.localAngle)) ? rest.localAngle : 0; // FIX v18.146_GPT
+        } // FIX v18.146_GPT
+        return item; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcInterpolateStateItem_v18146_GPT(state, bone, a, b, t){ // FIX v18.146_GPT
+        a = mcCopyAngleFallback_v18146_GPT(mcClone_v18146_GPT(a || mcStateRestPoseItem_v18146_GPT(state, bone)), bone, state); // FIX v18.146_GPT
+        b = mcCopyAngleFallback_v18146_GPT(mcClone_v18146_GPT(b || a), bone, state); // FIX v18.146_GPT
+        var ah = a.head || {x:0,y:0}; // FIX v18.146_GPT
+        var bh = b.head || ah; // FIX v18.146_GPT
+        var at = a.tail || {x:1,y:0}; // FIX v18.146_GPT
+        var bt = b.tail || at; // FIX v18.146_GPT
+        var head = { x:Number(ah.x || 0) + (Number(bh.x || 0) - Number(ah.x || 0)) * t, y:Number(ah.y || 0) + (Number(bh.y || 0) - Number(ah.y || 0)) * t }; // FIX v18.146_GPT
+        var angle = Number(a.angle || 0) + (Number(b.angle || 0) - Number(a.angle || 0)) * t; // FIX v18.146_GPT
+        var len = Math.max(1, mcDistance_v18146_GPT(at, ah) + (mcDistance_v18146_GPT(bt, bh) - mcDistance_v18146_GPT(at, ah)) * t); // FIX v18.146_GPT
+        var item = { head:head, tail:mcTailFromAngle_v18146_GPT(head, angle, len), angle:angle }; // FIX v18.146_GPT
+        if (bone && bone.parentId !== null && bone.parentId !== undefined && bone.parentId !== '') { // FIX v18.146_GPT
+          var al = (typeof a.localAngle === 'number' && isFinite(a.localAngle)) ? a.localAngle : 0; // FIX v18.146_GPT
+          var bl = (typeof b.localAngle === 'number' && isFinite(b.localAngle)) ? b.localAngle : al; // FIX v18.146_GPT
+          item.localAngle = al + (bl - al) * t; // FIX v18.146_GPT
+        } // FIX v18.146_GPT
+        return item; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcRawStatePoseForBone_v18146_GPT(state, bone, frame){ // FIX v18.146_GPT
+        var rest = mcStateRestPoseItem_v18146_GPT(state, bone); // FIX v18.146_GPT
+        var frames = mcStateFramesForBone_v18146_GPT(state, bone); // FIX v18.146_GPT
+        if (!frames.length) return rest; // FIX v18.146_GPT
+        var prev = null; // FIX v18.146_GPT
+        var next = null; // FIX v18.146_GPT
+        for (var i = 0; i < frames.length; i += 1) { // FIX v18.146_GPT
+          if (frames[i] <= frame) prev = frames[i]; // FIX v18.146_GPT
+          if (frames[i] >= frame) { next = frames[i]; break; } // FIX v18.146_GPT
+        } // FIX v18.146_GPT
+        if (prev !== null && prev === frame) return mcCopyAngleFallback_v18146_GPT(mcClone_v18146_GPT(mcStateKeyObject_v18146_GPT(state, prev, bone) || rest), bone, state); // FIX v18.146_GPT
+        if (prev !== null && next !== null && prev !== next) return mcInterpolateStateItem_v18146_GPT(state, bone, mcStateKeyObject_v18146_GPT(state, prev, bone) || rest, mcStateKeyObject_v18146_GPT(state, next, bone) || rest, (frame - prev) / Math.max(1, next - prev)); // FIX v18.146_GPT
+        if (prev !== null) return mcCopyAngleFallback_v18146_GPT(mcClone_v18146_GPT(mcStateKeyObject_v18146_GPT(state, prev, bone) || rest), bone, state); // FIX v18.146_GPT
+        if (next !== null) return mcCopyAngleFallback_v18146_GPT(mcClone_v18146_GPT(mcStateKeyObject_v18146_GPT(state, next, bone) || rest), bone, state); // FIX v18.146_GPT
+        return rest; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcResolvedStatePoseForFrame_v18146_GPT(state, frame){ // FIX v18.146_GPT
+        frame = mcFrame_v18146_GPT(frame); // FIX v18.146_GPT
+        var bones = state && Array.isArray(state.bones) ? state.bones : []; // FIX v18.146_GPT
+        var pose = {}; // FIX v18.146_GPT
+        var source = {}; // FIX v18.146_GPT
+        for (var i = 0; i < bones.length; i += 1) { // FIX v18.146_GPT
+          var raw = mcRawStatePoseForBone_v18146_GPT(state, bones[i], frame); // FIX v18.146_GPT
+          pose[String(bones[i].id)] = mcClone_v18146_GPT(raw); // FIX v18.146_GPT
+          source[String(bones[i].id)] = mcClone_v18146_GPT(raw); // FIX v18.146_GPT
+        } // FIX v18.146_GPT
+        var visited = {}; // FIX v18.146_GPT
+        function solveChildren(parentBone){ // FIX v18.146_GPT
+          if (!parentBone || parentBone.id === null || parentBone.id === undefined) return; // FIX v18.146_GPT
+          var parentKey = String(parentBone.id); // FIX v18.146_GPT
+          if (visited[parentKey]) return; // FIX v18.146_GPT
+          visited[parentKey] = true; // FIX v18.146_GPT
+          var parentPose = pose[parentKey] || mcStateRestPoseItem_v18146_GPT(state, parentBone); // FIX v18.146_GPT
+          var parentSource = source[parentKey] || parentPose; // FIX v18.146_GPT
+          var parentAngle = mcAngleOfItem_v18146_GPT(parentPose); // FIX v18.146_GPT
+          var parentSourceAngle = mcAngleOfItem_v18146_GPT(parentSource); // FIX v18.146_GPT
+          var kids = mcStateChildrenOfBone_v18146_GPT(state, parentBone.id); // FIX v18.146_GPT
+          for (var k = 0; k < kids.length; k += 1) { // FIX v18.146_GPT
+            var child = kids[k]; // FIX v18.146_GPT
+            var childKey = String(child.id); // FIX v18.146_GPT
+            var childSource = mcCopyAngleFallback_v18146_GPT(mcClone_v18146_GPT(source[childKey] || mcStateRestPoseItem_v18146_GPT(state, child)), child, state); // FIX v18.146_GPT
+            var local = (typeof childSource.localAngle === 'number' && isFinite(childSource.localAngle)) ? childSource.localAngle : (mcAngleOfItem_v18146_GPT(childSource) - parentSourceAngle); // FIX v18.146_GPT
+            var finalAngle = parentAngle + local; // FIX v18.146_GPT
+            var length = mcDistance_v18146_GPT(childSource.head, childSource.tail); // FIX v18.146_GPT
+            pose[childKey] = { head:mcClone_v18146_GPT(parentPose.tail), tail:mcTailFromAngle_v18146_GPT(parentPose.tail, finalAngle, length), angle:finalAngle, localAngle:local }; // FIX v18.146_GPT
+            solveChildren(child); // FIX v18.146_GPT
+          } // FIX v18.146_GPT
+        } // FIX v18.146_GPT
+        for (var r = 0; r < bones.length; r += 1) { // FIX v18.146_GPT
+          if (!bones[r].parentId) solveChildren(bones[r]); // FIX v18.146_GPT
+        } // FIX v18.146_GPT
+        return pose; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      function mcResolvedPoseItemForPartBone_v18146_GPT(part, boneId, frame){ // FIX v18.146_GPT
+        frame = mcFrame_v18146_GPT(frame); // FIX v18.146_GPT
+        var state = part && part.state ? part.state : null; // FIX v18.146_GPT
+        var pose = mcResolvedStatePoseForFrame_v18146_GPT(state, frame); // FIX v18.146_GPT
+        var key = String(boneId == null ? '' : boneId); // FIX v18.146_GPT
+        if (pose && pose[key]) return mcClone_v18146_GPT(pose[key]); // FIX v18.146_GPT
+        return null; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      mcBonePoseFromState = function(state, boneId, frame){ // FIX v18.146_GPT
+        return mcResolvedPoseItemForPartBone_v18146_GPT({ state:state, id:null }, boneId, frame); // FIX v18.146_GPT
+      }; // FIX v18.146_GPT
+
+      mcPoseForPartBone_v044 = function(part, boneId, frame){ // FIX v18.146_GPT
+        return mcResolvedPoseItemForPartBone_v18146_GPT(part, boneId, frame); // FIX v18.146_GPT
+      }; // FIX v18.146_GPT
+
+      mcPartStagePointForBone = function(part, boneId, frame, pointName){ // FIX v18.146_GPT
+        if (!part || !part.state || !part.transform) return null; // FIX v18.146_GPT
+        var pose = mcResolvedPoseItemForPartBone_v18146_GPT(part, boneId, frame); // FIX v18.146_GPT
+        if (!pose) return null; // FIX v18.146_GPT
+        var pt = (pointName === 'tail') ? pose.tail : pose.head; // FIX v18.146_GPT
+        return mcLocalPointToPartStage(part, pt); // FIX v18.146_GPT
+      }; // FIX v18.146_GPT
+
+      mcResolvedPartsForCommitFrame = function(parts, frame){ // FIX v18.146_GPT
+        var explicitFrame = mcFrame_v18146_GPT(frame); // FIX v18.146_GPT
+        var out = mcClone_v18146_GPT(parts || []); // FIX v18.146_GPT
+        try { out.forEach(function(p){ if (typeof mcNormalizePartMode === 'function') mcNormalizePartMode(p); }); } catch(eNorm) {} // FIX v18.146_GPT
+        for (var pass = 0; pass < 16; pass += 1) { // FIX v18.146_GPT
+          var changed = false; // FIX v18.146_GPT
+          out.forEach(function(part){ // FIX v18.146_GPT
+            if (part && part.parentPin && part.parentPin.boneId) changed = mcUpdatePinnedChildFromParentBoneForFrame(part, out, explicitFrame) || changed; // FIX v18.146_GPT
+          }); // FIX v18.146_GPT
+          if (!changed) break; // FIX v18.146_GPT
+        } // FIX v18.146_GPT
+        return out; // FIX v18.146_GPT
+      }; // FIX v18.146_GPT
+
+      if (typeof nativeShapePathRecordsFromFrame === 'function') { // FIX v18.146_GPT
+        var nativeShapePathRecordsFromFrame_Base_v18146_GPT = nativeShapePathRecordsFromFrame; // FIX v18.146_GPT
+        nativeShapePathRecordsFromFrame = function(frameNum, exportBounds){ // FIX v18.146_GPT
+          var explicitFrame = mcFrame_v18146_GPT(frameNum); // FIX v18.146_GPT
+          var oldFrame = App.currentFrame; // FIX v18.146_GPT
+          var oldCommitFrame = App.__RotoBones_GPT_CommitExplicitFrame_v18146; // FIX v18.146_GPT
+          try { // FIX v18.146_GPT
+            App.currentFrame = explicitFrame; // FIX v18.146_GPT
+            App.__RotoBones_GPT_CommitExplicitFrame_v18146 = explicitFrame; // FIX v18.146_GPT
+            return nativeShapePathRecordsFromFrame_Base_v18146_GPT.call(this, explicitFrame, exportBounds); // FIX v18.146_GPT
+          } finally { // FIX v18.146_GPT
+            App.currentFrame = oldFrame; // FIX v18.146_GPT
+            App.__RotoBones_GPT_CommitExplicitFrame_v18146 = oldCommitFrame; // FIX v18.146_GPT
+          } // FIX v18.146_GPT
+        }; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      if (typeof mcCommitCharacterNativeClip === 'function') { // FIX v18.146_GPT
+        var mcCommitCharacterNativeClip_Base_v18146_GPT = mcCommitCharacterNativeClip; // FIX v18.146_GPT
+        mcCommitCharacterNativeClip = async function(){ // FIX v18.146_GPT
+          App.__RotoBones_GPT_CommitAnimationActive_v18146 = true; // FIX v18.146_GPT
+          try { return await mcCommitCharacterNativeClip_Base_v18146_GPT.apply(this, arguments); } // FIX v18.146_GPT
+          finally { App.__RotoBones_GPT_CommitAnimationActive_v18146 = false; } // FIX v18.146_GPT
+        }; // FIX v18.146_GPT
+      } // FIX v18.146_GPT
+
+      try { log('MyCharacter v18.146 GPT: MostlyWorks commit path kept; commit bake now uses inherited parent-chain pose and explicit frame reads.'); } catch(eLog146) {} // FIX v18.146_GPT
+    } catch(eInstall146) { // FIX v18.146_GPT
+      try { console.error('[RotoBones GPT v18.146] mostly works commit live solve install failed', eInstall146); } catch(eConsole146) {} // FIX v18.146_GPT
+    } // FIX v18.146_GPT
+  })();
+
 
   function init(){
     try { forceToolPanelFill(); } catch(e){ console.error('[MyCharacter] forceToolPanelFill failed', e); } // FIX v_018
