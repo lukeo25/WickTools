@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MyCharacter GPT v18.146 mostly works commit live solve</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>MyCharacter GPT v18.150 accordion part cards</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -363,11 +363,12 @@ button.warn {
 #myCharacterPanel .mcTitleRow{
   grid-column:1 / -1 !important;
   display:grid !important;
-  grid-template-columns:22px auto minmax(82px,1fr) 28px !important;
+  grid-template-columns:24px 22px auto minmax(82px,1fr) 28px !important; /* FIX v18.150_GPT */
   gap:6px !important;
   align-items:center !important;
   margin-bottom:2px !important;
 }
+#myCharacterPanel .mcAccordionBtn, /* FIX v18.150_GPT */
 #myCharacterPanel .mcPinBtn,
 #myCharacterPanel .mcDeleteTop{
   appearance:none !important;
@@ -386,6 +387,24 @@ button.warn {
   outline:0 !important;
   cursor:pointer !important;
 }
+#myCharacterPanel .mcAccordionBtn{ /* FIX v18.150_GPT */
+  color:#dbeaff !important;
+  font-size:18px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+#myCharacterPanel .mcAccordionBtn:hover{ color:#88d8ff !important; } /* FIX v18.150_GPT */
+#myCharacterPanel .mcPartBody{ /* FIX v18.150_GPT */
+  grid-column:1 / -1 !important;
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+  gap:6px !important;
+  align-items:stretch !important;
+}
+#myCharacterPanel .mcPartCard.collapsed .mcPartBody{ display:none !important; } /* FIX v18.150_GPT */
+#myCharacterPanel .mcPartCard.collapsed .mcTitleRow{ margin-bottom:0 !important; } /* FIX v18.150_GPT */
+#myCharacterPanel .mcPartCard.collapsed{ padding-bottom:8px !important; } /* FIX v18.150_GPT */
 #myCharacterPanel .mcPinBtn{
   color:#ff525d !important;
   font-size:0 !important; /* FIX v_055: use supplied pin svg instead of text diamond */
@@ -666,7 +685,7 @@ button.warn {
   #myCharacterPanel .mcStatusLine{left:8px !important;right:8px !important;bottom:8px !important;}
   #myCharacterPanel{padding:8px !important;}
   #myCharacterPanel .mcPartCard{gap:8px !important;padding:10px !important;border-radius:14px !important;}
-  #myCharacterPanel .mcTitleRow{grid-template-columns:22px auto minmax(64px,1fr) 24px !important;gap:5px !important;}
+  #myCharacterPanel .mcTitleRow{grid-template-columns:24px 22px auto minmax(64px,1fr) 24px !important;gap:5px !important;} /* FIX v18.150_GPT */
   #myCharacterPanel .mcLabel{font-size:13px !important;}
   #myCharacterPanel .mcNameInput{height:34px !important;font-size:13px !important;}
   #myCharacterPanel .mcBtn,#myCharacterPanel .mcBigBtn{height:34px !important;min-height:34px !important;font-size:12px !important;padding:4px 5px !important;}
@@ -1001,6 +1020,13 @@ html, body, #app{
             <div class="softFieldBlock"><label class="softFieldLabel" for="numFrameBoneRotation">Rotate</label><input type="number" id="numFrameBoneRotation" class="softInput" min="-360" max="360" step="1" value="0"></div>
             <button id="btnApplyFrameBoneTransform" class="softBtn softBtnSecondary">Apply Transform</button>
           </div>
+          <div class="softFieldRow"> <!-- FIX v18.149_GPT -->
+            <div class="softFieldBlock"><label class="softFieldLabel" for="numFrameBoneOriginX">Origin X %</label><input type="number" id="numFrameBoneOriginX" class="softInput" min="-200" max="300" step="1" value="50"></div> <!-- FIX v18.149_GPT -->
+            <div class="softFieldBlock"><label class="softFieldLabel" for="numFrameBoneOriginY">Origin Y %</label><input type="number" id="numFrameBoneOriginY" class="softInput" min="-200" max="300" step="1" value="50"></div> <!-- FIX v18.149_GPT -->
+            <button id="btnApplyFrameBoneOrigin" class="softBtn softBtnSecondary">Apply Origin</button> <!-- FIX v18.149_GPT -->
+            <button id="btnFrameBoneOriginTop" class="softBtn softBtnSecondary">Top Centre</button> <!-- FIX v18.149_GPT -->
+            <button id="btnFrameBoneOriginCenter" class="softBtn softBtnSecondary">Centre</button> <!-- FIX v18.149_GPT -->
+          </div>
           <div id="frameBoneSlots" class="frameSlotGrid">No selected frame bone</div>
           <div style="height:10px;"></div>
           <div id="frameBoneList" class="softList">No frame bones</div>
@@ -1081,6 +1107,14 @@ html, body, #app{
           <div class="row">
             <label>Strength</label>
             <input type="number" id="numEditStrength" step="0.05" min="0" value="1">
+          </div>
+          <div class="row" style="margin-top:8px;"> <!-- FIX v18.149_GPT -->
+            <label>Frame bone origin</label> <!-- FIX v18.149_GPT -->
+            <input type="number" id="numEditFrameBoneOriginX" step="1" min="-200" max="300" value="50" title="Frame Bone Origin X percent"> <!-- FIX v18.149_GPT -->
+            <input type="number" id="numEditFrameBoneOriginY" step="1" min="-200" max="300" value="50" title="Frame Bone Origin Y percent"> <!-- FIX v18.149_GPT -->
+            <button id="btnEditApplyFrameBoneOrigin" class="secondary">Apply Origin</button> <!-- FIX v18.149_GPT -->
+            <button id="btnEditFrameBoneOriginTop" class="secondary">Top Centre</button> <!-- FIX v18.149_GPT -->
+            <button id="btnEditFrameBoneOriginCenter" class="secondary">Centre</button> <!-- FIX v18.149_GPT -->
           </div>
           <div class="row" style="margin-top:8px;">
             <button id="btnEditApplyBone">Apply Bone Values</button>
@@ -6215,14 +6249,39 @@ html, body, #app{
   }
 
 
-  function frameBoneUsesTopPivot(fb){ // FIX v18.111_GPT: Lip_Bone artwork pivots from the top centre again.
-    return expressionFrameBoneKind(fb) === 'lip'; // FIX v18.111_GPT
+  function frameBoneLooksLikeLip_v18149(fb){ // FIX v18.149_GPT
+    if (!fb) return false; // FIX v18.149_GPT
+    if (expressionFrameBoneKind(fb) === 'lip') return true; // FIX v18.149_GPT
+    var text = String((fb.name || '') + ' ' + (fb.type || '') + ' ' + (fb.kind || '') + ' ' + (fb.expressionKind || '') + ' ' + (fb.targetClipName || '')).toLowerCase(); // FIX v18.149_GPT
+    return text.indexOf('lip_bone') >= 0 || text.indexOf('lip bone') >= 0 || text.indexOf('mouth') >= 0 || /(^|\s)lip($|\s)/.test(text); // FIX v18.149_GPT
   }
 
-  function frameBoneRawAnchor(fb, rawW, rawH){ // FIX v18.111_GPT
-    rawW = Math.max(1, Number(rawW || 1) || 1); // FIX v18.111_GPT
-    rawH = Math.max(1, Number(rawH || 1) || 1); // FIX v18.111_GPT
-    return { x: rawW * 0.5, y: frameBoneUsesTopPivot(fb) ? 0 : rawH * 0.5 }; // FIX v18.111_GPT
+  function frameBoneOriginNumber_v18149(value, fallback){ // FIX v18.149_GPT
+    var n = Number(value); // FIX v18.149_GPT
+    if (!isFinite(n)) return fallback; // FIX v18.149_GPT
+    if (Math.abs(n) > 3) n = n / 100; // FIX v18.149_GPT: accepts old percent values if pasted into JSON.
+    return clamp(n, -2, 3); // FIX v18.149_GPT: allow deliberate off artwork origins.
+  }
+
+  function frameBoneDefaultOrigin_v18149(fb){ // FIX v18.149_GPT
+    return frameBoneLooksLikeLip_v18149(fb) ? { x:0.5, y:0 } : { x:0.5, y:0.5 }; // FIX v18.149_GPT
+  }
+
+  function frameBoneOrigin_v18149(fb){ // FIX v18.149_GPT
+    var d = frameBoneDefaultOrigin_v18149(fb); // FIX v18.149_GPT
+    if (!fb) return d; // FIX v18.149_GPT
+    return { x:frameBoneOriginNumber_v18149(fb.originX, d.x), y:frameBoneOriginNumber_v18149(fb.originY, d.y) }; // FIX v18.149_GPT
+  }
+
+  function frameBoneUsesTopPivot(fb){ // FIX v18.149_GPT: kept for older callers.
+    return frameBoneOrigin_v18149(fb).y <= 0.0001; // FIX v18.149_GPT
+  }
+
+  function frameBoneRawAnchor(fb, rawW, rawH){ // FIX v18.149_GPT
+    rawW = Math.max(1, Number(rawW || 1) || 1); // FIX v18.149_GPT
+    rawH = Math.max(1, Number(rawH || 1) || 1); // FIX v18.149_GPT
+    var o = frameBoneOrigin_v18149(fb); // FIX v18.149_GPT
+    return { x: rawW * o.x, y: rawH * o.y }; // FIX v18.149_GPT
   }
 
   function frameBoneVisualLocalBounds(fb, info){ // FIX v18.111_GPT
@@ -6243,6 +6302,35 @@ html, body, #app{
     fb.rotationDeg = clamp(Number(rotNode ? rotNode.value : 0) || 0, -360, 360);
     updateFrameBoneUI();
     renderOverlay();
+  }
+
+  function frameBoneOriginPercent_v18149(fb){ // FIX v18.149_GPT
+    var o = frameBoneOrigin_v18149(fb); // FIX v18.149_GPT
+    return { x:Math.round(o.x * 1000) / 10, y:Math.round(o.y * 1000) / 10 }; // FIX v18.149_GPT
+  }
+
+  function setSelectedFrameBoneOrigin_v18149(percentX, percentY){ // FIX v18.149_GPT
+    var fb = getSelectedFrameBone(); // FIX v18.149_GPT
+    if (!fb) { log('No frame bone selected.'); return; } // FIX v18.149_GPT
+    var ox = clamp(Number(percentX || 0) / 100, -2, 3); // FIX v18.149_GPT
+    var oy = clamp(Number(percentY || 0) / 100, -2, 3); // FIX v18.149_GPT
+    fb.originX = ox; // FIX v18.149_GPT
+    fb.originY = oy; // FIX v18.149_GPT
+    updateFrameBoneUI(); // FIX v18.149_GPT
+    renderOverlay(); // FIX v18.149_GPT
+    log('Set ' + (fb.name || 'Frame_Bone') + ' origin to X ' + (Math.round(ox * 1000) / 10) + '%, Y ' + (Math.round(oy * 1000) / 10) + '%.'); // FIX v18.149_GPT
+  }
+
+  function applySelectedFrameBoneOrigin_v18149(source){ // FIX v18.149_GPT
+    var xNode = el(source === 'edit' ? 'numEditFrameBoneOriginX' : 'numFrameBoneOriginX'); // FIX v18.149_GPT
+    var yNode = el(source === 'edit' ? 'numEditFrameBoneOriginY' : 'numFrameBoneOriginY'); // FIX v18.149_GPT
+    var cur = frameBoneOriginPercent_v18149(getSelectedFrameBone()); // FIX v18.149_GPT
+    setSelectedFrameBoneOrigin_v18149(xNode && xNode.value !== '' ? Number(xNode.value) : cur.x, yNode && yNode.value !== '' ? Number(yNode.value) : cur.y); // FIX v18.149_GPT
+  }
+
+  function setSelectedFrameBoneOriginPreset_v18149(mode){ // FIX v18.149_GPT
+    if (mode === 'top') setSelectedFrameBoneOrigin_v18149(50, 0); // FIX v18.149_GPT
+    else setSelectedFrameBoneOrigin_v18149(50, 50); // FIX v18.149_GPT
   }
 
   function frameBoneSvgMarkupForFrame(fb, frameNum, pose, ox, oy){ // FIX v13.6
@@ -6494,12 +6582,19 @@ html, body, #app{
     if (el('btnAddFrameBonePin')) el('btnAddFrameBonePin').classList.toggle('active', !!App.frameBonePinMode || (App.frameBoneCreateMode || 'attach') === 'pin');
     if (el('projectSaveInfo')) el('projectSaveInfo').textContent = 'Source ' + (App.source.fileName || 'none') + '   bones ' + App.bones.length + '   frame bones ' + App.frameBones.length + '   expression frame bones ' + (App.frameBones || []).filter(function(fb){ return isExpressionFrameBone(fb); }).length + '   keyed frames ' + Object.keys(App.keyframes || {}).length + '.';
     var fb = getSelectedFrameBone();
-    var selectedText = fb ? (fb.name + ' attached=' + getBoneName(fb.attachedBoneId) + ' frames=' + (fb.frameCount || 1) + ' current=' + frameBoneSlotDisplayName(fb, frameBoneSlotForTimelineFrame(fb, App.currentFrame))) : (App.frameBonePinMode ? 'Pin mode active: click on SVG' : 'None');
+    var selectedText = fb ? (fb.name + ' attached=' + getBoneName(fb.attachedBoneId) + ' frames=' + (fb.frameCount || 1) + ' current=' + frameBoneSlotDisplayName(fb, frameBoneSlotForTimelineFrame(fb, App.currentFrame)) + ' origin=' + frameBoneOriginPercent_v18149(fb).x + '%,' + frameBoneOriginPercent_v18149(fb).y + '%') : (App.frameBonePinMode ? 'Pin mode active: click on SVG' : 'None'); // FIX v18.149_GPT
     if (el('selectedFrameBoneInfo')) el('selectedFrameBoneInfo').textContent = selectedText;
     if (el('animateFrameBoneInfo')) el('animateFrameBoneInfo').textContent = fb ? ('Current Wick frame ' + App.currentFrame + ' will use ' + frameBoneSlotDisplayName(fb, frameBoneSlotForTimelineFrame(fb, App.currentFrame)) + ' unless you click a different image below.') : 'No selected frame bone';
     if (fb && el('numFrameBoneFrameCount') && document.activeElement !== el('numFrameBoneFrameCount')) el('numFrameBoneFrameCount').value = String(fb.frameCount || 1);
     if (fb && el('numFrameBoneScale') && document.activeElement !== el('numFrameBoneScale')) el('numFrameBoneScale').value = String(frameBoneScale(fb));
     if (fb && el('numFrameBoneRotation') && document.activeElement !== el('numFrameBoneRotation')) el('numFrameBoneRotation').value = String(Number(fb.rotationDeg || 0));
+    if (fb) { // FIX v18.149_GPT
+      var originPct_v18149 = frameBoneOriginPercent_v18149(fb); // FIX v18.149_GPT
+      if (el('numFrameBoneOriginX') && document.activeElement !== el('numFrameBoneOriginX')) el('numFrameBoneOriginX').value = String(originPct_v18149.x); // FIX v18.149_GPT
+      if (el('numFrameBoneOriginY') && document.activeElement !== el('numFrameBoneOriginY')) el('numFrameBoneOriginY').value = String(originPct_v18149.y); // FIX v18.149_GPT
+      if (el('numEditFrameBoneOriginX') && document.activeElement !== el('numEditFrameBoneOriginX')) el('numEditFrameBoneOriginX').value = String(originPct_v18149.x); // FIX v18.149_GPT
+      if (el('numEditFrameBoneOriginY') && document.activeElement !== el('numEditFrameBoneOriginY')) el('numEditFrameBoneOriginY').value = String(originPct_v18149.y); // FIX v18.149_GPT
+    } // FIX v18.149_GPT
     renderFrameBoneSlots('frameBoneSlots', 'setup');
     renderFrameBoneSlots('frameBoneAnimateSlots', 'animate');
     if (el('frameBoneList')) {
@@ -13132,6 +13227,16 @@ html, body, #app{
     if (el('btnApplyFrameBoneTransform')) el('btnApplyFrameBoneTransform').addEventListener('click', applySelectedFrameBoneTransform); // FIX v13.6
     if (el('numFrameBoneScale')) el('numFrameBoneScale').addEventListener('change', applySelectedFrameBoneTransform); // FIX v13.6
     if (el('numFrameBoneRotation')) el('numFrameBoneRotation').addEventListener('change', applySelectedFrameBoneTransform); // FIX v13.6
+    if (el('btnApplyFrameBoneOrigin')) el('btnApplyFrameBoneOrigin').addEventListener('click', function(){ applySelectedFrameBoneOrigin_v18149('bones'); }); // FIX v18.149_GPT
+    if (el('numFrameBoneOriginX')) el('numFrameBoneOriginX').addEventListener('change', function(){ applySelectedFrameBoneOrigin_v18149('bones'); }); // FIX v18.149_GPT
+    if (el('numFrameBoneOriginY')) el('numFrameBoneOriginY').addEventListener('change', function(){ applySelectedFrameBoneOrigin_v18149('bones'); }); // FIX v18.149_GPT
+    if (el('btnFrameBoneOriginTop')) el('btnFrameBoneOriginTop').addEventListener('click', function(){ setSelectedFrameBoneOriginPreset_v18149('top'); }); // FIX v18.149_GPT
+    if (el('btnFrameBoneOriginCenter')) el('btnFrameBoneOriginCenter').addEventListener('click', function(){ setSelectedFrameBoneOriginPreset_v18149('center'); }); // FIX v18.149_GPT
+    if (el('btnEditApplyFrameBoneOrigin')) el('btnEditApplyFrameBoneOrigin').addEventListener('click', function(){ applySelectedFrameBoneOrigin_v18149('edit'); }); // FIX v18.149_GPT
+    if (el('numEditFrameBoneOriginX')) el('numEditFrameBoneOriginX').addEventListener('change', function(){ applySelectedFrameBoneOrigin_v18149('edit'); }); // FIX v18.149_GPT
+    if (el('numEditFrameBoneOriginY')) el('numEditFrameBoneOriginY').addEventListener('change', function(){ applySelectedFrameBoneOrigin_v18149('edit'); }); // FIX v18.149_GPT
+    if (el('btnEditFrameBoneOriginTop')) el('btnEditFrameBoneOriginTop').addEventListener('click', function(){ setSelectedFrameBoneOriginPreset_v18149('top'); }); // FIX v18.149_GPT
+    if (el('btnEditFrameBoneOriginCenter')) el('btnEditFrameBoneOriginCenter').addEventListener('click', function(){ setSelectedFrameBoneOriginPreset_v18149('center'); }); // FIX v18.149_GPT
     if (el('btnSetFrameBoneKey')) el('btnSetFrameBoneKey').addEventListener('click', setSelectedFrameBoneKey); // FIX v13.2
     if (el('btnClearFrameBoneKey')) el('btnClearFrameBoneKey').addEventListener('click', clearSelectedFrameBoneKey); // FIX v13.2
     if (el('btnSaveRigProject')) el('btnSaveRigProject').addEventListener('click', saveRigProjectState); // FIX v13.4
@@ -13306,6 +13411,7 @@ html, body, #app{
     if (p.editTarget !== 'node') p.editTarget = 'bone';
     if (!p.transform) p.transform = { x:50, y:50, w:300, h:200, rotation:0 };
     if (p.visible !== false) p.visible = true;
+    if (typeof p.collapsed !== 'boolean') p.collapsed = false; // FIX v18.150_GPT
     return p;
   }
 
@@ -13953,6 +14059,7 @@ html, body, #app{
     if (!target) return;
     if (mc.selectedId !== id) mcCaptureActivePart();
     mc.selectedId = id;
+    try { target.collapsed = false; } catch(eCollapse150){} // FIX v18.150_GPT
     mc.loading = true;
     try {
       target = mcNormalizePartMode(target);
@@ -13996,37 +14103,42 @@ html, body, #app{
           var bone = p.mode === 'animate' && p.editTarget !== 'node' ? 'active' : '';
           var node = p.mode === 'animate' && p.editTarget === 'node' ? 'active' : '';
           var pin = mc.pinPickSourceId === p.id ? ' active' : '';
+          var collapsed = p.collapsed ? ' collapsed' : ''; // FIX v18.150_GPT
+          var toggleIcon = p.collapsed ? '▸' : '▾'; // FIX v18.150_GPT
           var t = p.transform || {x:50,y:50,w:300,h:200,rotation:0};
           var loaded = p.state ? 'Loaded RotoBones JSON' : 'No RotoBones JSON loaded';
           if (p.parentPin) loaded += '  pinned';
           return '' +
-            '<div class="mcPartCard' + active + '" data-id="' + p.id + '">' +
+            '<div class="mcPartCard' + active + collapsed + '" data-id="' + p.id + '">' +
               '<div class="mcTitleRow">' +
+                '<button type="button" class="mcAccordionBtn" data-action="togglePart" data-id="' + p.id + '" title="Open or close this part">' + toggleIcon + '</button>' +
                 '<button type="button" class="mcPinBtn' + pin + '" data-action="pin" data-id="' + p.id + '" title="Pin this part"></button>' +
                 '<label class="mcLabel">Part Name:</label>' +
                 '<input class="mcNameInput" data-action="name" data-id="' + p.id + '" type="text" value="' + htmlEscape(String(p.name || ('Part ' + p.id))) + '">' +
                 '<button type="button" class="mcDeleteTop" data-action="remove" data-id="' + p.id + '" title="Delete this item">×</button>' +
               '</div>' +
-              mcButton('Assemble', assemble, 'assemble', p.id) +
-              mcButton('Animate', animate, 'animate', p.id) +
-              mcButton('Load Bone Json', '', 'loadPart', p.id) +
-              mcButton('Bone Mode', bone, 'bone', p.id) +
-              '<div class="mcArrowBox" data-action="arrow" data-id="' + p.id + '" title="Move item up or down in the stack and z order">' +
-                '<div class="mcArrowHalf mcArrowUp" data-action="up" data-id="' + p.id + '"></div>' +
-                '<div class="mcArrowHalf mcArrowDown" data-action="down" data-id="' + p.id + '"></div>' +
-              '</div>' +
-              mcButton('Node Mode', node, 'node', p.id) +
-              mcButton('Delete key', '', 'deleteKey', p.id) +
-              mcButton('Clear All', '', 'clearKeys', p.id) +
-              '<div class="mcLoadedTag">' + htmlEscape(loaded) + '</div>' +
-              '<div class="mcPinInfo"><span class="mcPinText">' + htmlEscape(mcPinNameFor(p)) + '</span><button type="button" class="mcBigBtn mcUnpinBtn" data-action="unpin" data-id="' + p.id + '">Unpin</button></div>' +
-              '<div class="mcTransformRow">' +
-                '<input data-action="x" data-id="' + p.id + '" type="number" step="1" title="X" value="' + Math.round(Number(t.x || 0)) + '">' +
-                '<input data-action="y" data-id="' + p.id + '" type="number" step="1" title="Y" value="' + Math.round(Number(t.y || 0)) + '">' +
-                '<input data-action="w" data-id="' + p.id + '" type="number" step="1" title="Width" value="' + Math.round(Number(t.w || 1)) + '">' +
-                '<input data-action="h" data-id="' + p.id + '" type="number" step="1" title="Height" value="' + Math.round(Number(t.h || 1)) + '">' +
-                '<input data-action="rot" data-id="' + p.id + '" type="number" step="1" title="Rotation" value="' + Math.round(Number(t.rotation || 0)) + '">' +
-                '<button type="button" class="mcBigBtn mcApplyTransform" data-action="applyTransform" data-id="' + p.id + '">Apply</button>' +
+              '<div class="mcPartBody">' +
+                mcButton('Assemble', assemble, 'assemble', p.id) +
+                mcButton('Animate', animate, 'animate', p.id) +
+                mcButton('Load Bone Json', '', 'loadPart', p.id) +
+                mcButton('Bone Mode', bone, 'bone', p.id) +
+                '<div class="mcArrowBox" data-action="arrow" data-id="' + p.id + '" title="Move item up or down in the stack and z order">' +
+                  '<div class="mcArrowHalf mcArrowUp" data-action="up" data-id="' + p.id + '"></div>' +
+                  '<div class="mcArrowHalf mcArrowDown" data-action="down" data-id="' + p.id + '"></div>' +
+                '</div>' +
+                mcButton('Node Mode', node, 'node', p.id) +
+                mcButton('Delete key', '', 'deleteKey', p.id) +
+                mcButton('Clear All', '', 'clearKeys', p.id) +
+                '<div class="mcLoadedTag">' + htmlEscape(loaded) + '</div>' +
+                '<div class="mcPinInfo"><span class="mcPinText">' + htmlEscape(mcPinNameFor(p)) + '</span><button type="button" class="mcBigBtn mcUnpinBtn" data-action="unpin" data-id="' + p.id + '">Unpin</button></div>' +
+                '<div class="mcTransformRow">' +
+                  '<input data-action="x" data-id="' + p.id + '" type="number" step="1" title="X" value="' + Math.round(Number(t.x || 0)) + '">' +
+                  '<input data-action="y" data-id="' + p.id + '" type="number" step="1" title="Y" value="' + Math.round(Number(t.y || 0)) + '">' +
+                  '<input data-action="w" data-id="' + p.id + '" type="number" step="1" title="Width" value="' + Math.round(Number(t.w || 1)) + '">' +
+                  '<input data-action="h" data-id="' + p.id + '" type="number" step="1" title="Height" value="' + Math.round(Number(t.h || 1)) + '">' +
+                  '<input data-action="rot" data-id="' + p.id + '" type="number" step="1" title="Rotation" value="' + Math.round(Number(t.rotation || 0)) + '">' +
+                  '<button type="button" class="mcBigBtn mcApplyTransform" data-action="applyTransform" data-id="' + p.id + '">Apply</button>' +
+                '</div>' +
               '</div>' +
             '</div>';
         }).join('');
@@ -14053,6 +14165,7 @@ html, body, #app{
       state:null,
       transform:{ x:50 + (mc.parts.length * 20), y:50 + (mc.parts.length * 20), w:300, h:200, rotation:0 },
       visible:true,
+      collapsed:false, // FIX v18.150_GPT
       parentPin:null,
       mode:'assemble',
       editTarget:'bone'
@@ -14334,7 +14447,7 @@ html, body, #app{
     var mc = mcEnsure();
     id = Number(id || 0);
     var card = target && target.closest ? target.closest('.mcPartCard') : null;
-    if (action !== 'name' && action !== 'x' && action !== 'y' && action !== 'w' && action !== 'h' && action !== 'rot' && action !== 'up' && action !== 'down' && action !== 'arrow' && action !== 'pin') { // FIX v_083: reorder must not activate another part. // FIX v18.110_GPT: pin mode must not switch selectedId before the active part state is safely captured.
+    if (action !== 'name' && action !== 'x' && action !== 'y' && action !== 'w' && action !== 'h' && action !== 'rot' && action !== 'up' && action !== 'down' && action !== 'arrow' && action !== 'pin' && action !== 'togglePart') /* FIX v18.150_GPT */ { // FIX v_083: reorder must not activate another part. // FIX v18.110_GPT: pin mode must not switch selectedId before the active part state is safely captured.
       if (id) mc.selectedId = id;
     }
     if (mc.pinPickSourceId && action !== 'pin' && id && id !== mc.pinPickSourceId) { // FIX v18.117_GPT
@@ -14377,7 +14490,10 @@ html, body, #app{
       mcLog('Now click a visible bone on ' + ((mcFindPart(id) && mcFindPart(id).name) || 'the parent part') + '.');
       return;
     }
-    if (action === 'loadPart') {
+    if (action === 'togglePart') { // FIX v18.150_GPT
+      var tp = mcFindPart(id);
+      if (tp) { tp.collapsed = !tp.collapsed; mcRenderPanel(); }
+    } else if (action === 'loadPart') {
       mc.pendingLoadPartId = id;
       var i = el('mcPartFile');
       if (i) { try { i.value = ''; } catch(e){} i.click(); }
