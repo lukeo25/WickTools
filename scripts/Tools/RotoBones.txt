@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MyCharacter GPT v18.150 accordion part cards</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>MyCharacter GPT v18.180 WYSIWYG frame bone transform authority</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -19940,6 +19940,244 @@ html, body, #app{
     } catch(eInstall146) { // FIX v18.146_GPT
       try { console.error('[RotoBones GPT v18.146] mostly works commit live solve install failed', eInstall146); } catch(eConsole146) {} // FIX v18.146_GPT
     } // FIX v18.146_GPT
+  })();
+
+
+  // FIX v18.180_GPT: WYSIWYG frame bone transform authority.
+  // Create overlay, saved JSON preview, Build Character preview, animated preview, and commit must all use the same Frame_Bone transform chain.
+  // The authoritative chain is: part local space -> parent normal bone pose -> Frame_Bone local point -> frame artwork anchor -> scale -> rotation.
+  (function installFrameBoneWysiwygTransformAuthority_v18180_GPT(){
+    try {
+      function rbClone_v18180_GPT(obj){
+        try { return JSON.parse(JSON.stringify(obj)); } catch(eClone) { return obj; }
+      }
+
+      function rbNumber_v18180_GPT(value, fallback){
+        var n = Number(value);
+        return isFinite(n) ? n : Number(fallback || 0);
+      }
+
+      function rbRound_v18180_GPT(value){
+        try { return round(value); } catch(eRound) {
+          var n = Number(value);
+          if (!isFinite(n)) n = 0;
+          return Math.round(n * 1000) / 1000;
+        }
+      }
+
+      function rbFrameBonePosePoint_v18180_GPT(fb, frameNumber){
+        var pose = null;
+        try { pose = getPoseForFrame(frameNumber || App.currentFrame || 1); } catch(ePose) {
+          try { pose = getRestPose(); } catch(eRest) { pose = null; }
+        }
+        try { return frameBonePointFromPose(fb, pose || getRestPose()); } catch(eFp) {
+          return { x:rbNumber_v18180_GPT(fb && fb.point && fb.point.x, 0), y:rbNumber_v18180_GPT(fb && fb.point && fb.point.y, 0), angle:0 };
+        }
+      }
+
+      function rbFrameBoneSlotPair_v18180_GPT(fb, frameNumber){
+        var slot = 1;
+        try { slot = frameBoneSlotForTimelineFrame(fb, frameNumber || App.currentFrame || 1); } catch(eSlot) { slot = 1; }
+        slot = Math.max(1, Math.round(Number(slot || 1) || 1));
+        return { slot:slot, data:(fb && fb.frames ? (fb.frames[slot] || fb.frames[String(slot)] || null) : null) };
+      }
+
+      function rbFrameBoneWysiwygImageMarkup_v18180_GPT(fb, frameNumber, pose, ox, oy){
+        if (!fb) return '';
+        var pair = rbFrameBoneSlotPair_v18180_GPT(fb, frameNumber || App.currentFrame || 1);
+        var data = pair.data;
+        if (!data || !data.dataUrl) return '';
+        var fp = null;
+        try { fp = pose ? frameBonePointFromPose(fb, pose) : rbFrameBonePosePoint_v18180_GPT(fb, frameNumber); } catch(eFp) { fp = rbFrameBonePosePoint_v18180_GPT(fb, frameNumber); }
+        var rawW = Math.max(1, Number(data.width || 80) || 80);
+        var rawH = Math.max(1, Number(data.height || 80) || 80);
+        var sc = 1;
+        try { sc = frameBoneScale(fb); } catch(eScale) { sc = Math.max(0.0001, Number(fb.scale || 1) || 1); }
+        var anchor = { x:rawW * 0.5, y:rawH * 0.5 };
+        try { anchor = frameBoneRawAnchor(fb, rawW, rawH); } catch(eAnchor) {}
+        var cx = rbNumber_v18180_GPT(fp && fp.x, 0) + rbNumber_v18180_GPT(ox, 0);
+        var cy = rbNumber_v18180_GPT(fp && fp.y, 0) + rbNumber_v18180_GPT(oy, 0);
+        var rotDeg = 0;
+        try { rotDeg = (rbNumber_v18180_GPT(fp && fp.angle, 0) + frameBoneRotationRad(fb)) * 180 / Math.PI; } catch(eRot) { rotDeg = 0; }
+        return '<image href="' + htmlEscape(data.dataUrl) + '" x="' + rbRound_v18180_GPT(cx - anchor.x * sc) + '" y="' + rbRound_v18180_GPT(cy - anchor.y * sc) + '" width="' + rbRound_v18180_GPT(rawW * sc) + '" height="' + rbRound_v18180_GPT(rawH * sc) + '" preserveAspectRatio="xMidYMid meet" transform="rotate(' + rbRound_v18180_GPT(rotDeg) + ' ' + rbRound_v18180_GPT(cx) + ' ' + rbRound_v18180_GPT(cy) + ')" />';
+      }
+
+      function rbFrameBoneWysiwygMarkupForFrame_v18180_GPT(frameNumber){
+        var out = '';
+        var pose = null;
+        try { pose = getPoseForFrame(frameNumber || App.currentFrame || 1); } catch(ePose) { try { pose = getRestPose(); } catch(eRest) { pose = null; } }
+        var list = [];
+        try { list = mcFrameBoneAllList_v091 ? mcFrameBoneAllList_v091() : (App.frameBones || []); } catch(eList) { list = App.frameBones || []; }
+        for (var i = 0; i < (list || []).length; i += 1) {
+          out += rbFrameBoneWysiwygImageMarkup_v18180_GPT(list[i], frameNumber || App.currentFrame || 1, pose, 0, 0);
+        }
+        return out;
+      }
+
+      // FIX v18.180_GPT: Build Character preview previously centred Frame_Bone images with -w/2,-h/2.
+      // That was a different authority from the edit overlay, which uses frameBoneRawAnchor().
+      if (typeof mcFrameBoneImageMarkupForPreview_v091 === 'function') {
+        mcFrameBoneImageMarkupForPreview_v091 = function(frameNumber){
+          return rbFrameBoneWysiwygMarkupForFrame_v18180_GPT(frameNumber || App.currentFrame || 1);
+        };
+      }
+
+      // FIX v18.180_GPT: ensure Build Character deformed preview always uses the same framebone artwork transform as the edit overlay.
+      if (typeof mcDeformedMarkupForStagePart_v053 === 'function') {
+        var mcDeformedMarkupForStagePart_Base_v18180_GPT = mcDeformedMarkupForStagePart_v053;
+        mcDeformedMarkupForStagePart_v053 = function(part, frame){
+          if (!part || !part.state || !part.state.source) return '';
+          var src = part.state.source || {};
+          var w = Math.max(1, Number(src.width || 300));
+          var h = Math.max(1, Number(src.height || 200));
+          var payload = null;
+          try {
+            payload = mcWithPartStateForPreview_v053(part, frame || App.currentFrame || 1, function(){
+              var bounds = { width:w, height:h, offsetX:0, offsetY:0, nativeOriginX:0, nativeOriginY:0 };
+              var records = nativeShapePathRecordsFromFrame(App.currentFrame || 1, bounds) || [];
+              return { records:records, frameBoneMarkup:rbFrameBoneWysiwygMarkupForFrame_v18180_GPT(App.currentFrame || 1) };
+            });
+          } catch(ePayload) { payload = null; }
+          if (!payload) return mcDeformedMarkupForStagePart_Base_v18180_GPT ? mcDeformedMarkupForStagePart_Base_v18180_GPT(part, frame) : '';
+          var body = '';
+          var records = payload.records || [];
+          for (var i = 0; i < records.length; i += 1) {
+            var rec = records[i] || {};
+            if (!String(rec.d || '').trim()) continue;
+            body += '<path d="' + escapeXmlAttr(String(rec.d).trim()) + '"' + styleMapToAttrs(rec.style || {}) + ' />';
+          }
+          body += payload.frameBoneMarkup || '';
+          if (!body) return '';
+          return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;">' + body + '</svg>';
+        };
+      }
+
+      function rbNativeFrameBoneRecordsWysiwyg_v18180_GPT(fb, data, fp, sc, exportBounds, pivot){
+        var records = [];
+        if (!fb || !data || !data.dataUrl) return records;
+        if (typeof mcFrameBoneDataUrlIsSvg_v093 === 'function' && !mcFrameBoneDataUrlIsSvg_v093(data)) return records;
+        var svgText = '';
+        try { svgText = mcFrameBoneSvgTextFromDataUrl_v093(data); } catch(eText) { svgText = ''; }
+        if (!svgText) return records;
+        var rawW = Math.max(1, Number(data.width || 80) || 80);
+        var rawH = Math.max(1, Number(data.height || 80) || 80);
+        var native = null;
+        try { native = parseNativeSvg(svgText, rawW, rawH); } catch(eParse) { native = null; }
+        if (!native || !native.shapes || !native.shapes.length) return records;
+        var ox = rbNumber_v18180_GPT(exportBounds && exportBounds.offsetX, 0) - rbNumber_v18180_GPT(exportBounds && exportBounds.nativeOriginX, 0) - rbNumber_v18180_GPT(pivot && pivot.x, 0);
+        var oy = rbNumber_v18180_GPT(exportBounds && exportBounds.offsetY, 0) - rbNumber_v18180_GPT(exportBounds && exportBounds.nativeOriginY, 0) - rbNumber_v18180_GPT(pivot && pivot.y, 0);
+        var cx = rbNumber_v18180_GPT(fp && fp.x, 0) + ox;
+        var cy = rbNumber_v18180_GPT(fp && fp.y, 0) + oy;
+        var rotRad = rbNumber_v18180_GPT(fp && fp.angle, 0);
+        try { rotRad += frameBoneRotationRad(fb); } catch(eRot) {}
+        var anchor = { x:rawW * 0.5, y:rawH * 0.5 };
+        try { anchor = frameBoneRawAnchor(fb, rawW, rawH); } catch(eAnchor) {}
+        sc = Math.max(0.0001, Number(sc || 1) || 1);
+        (native.shapes || []).forEach(function(shape){
+          var style = rbClone_v18180_GPT(shape.style || {}) || {};
+          try {
+            if (typeof svgStyleHasVisibleStroke_v103 === 'function' && typeof mcFrameBoneCommitStrokeWidth_v108 === 'function') {
+              var hasVisibleStroke = svgStyleHasVisibleStroke_v103(style);
+              if (hasVisibleStroke) {
+                var userStrokeWidth = mcFrameBoneCommitStrokeWidth_v108();
+                style['stroke-width'] = String(userStrokeWidth <= 0 ? 0 : userStrokeWidth);
+                if (userStrokeWidth <= 0) style.stroke = 'none';
+              } else {
+                style.stroke = 'none';
+                style['stroke-width'] = '0';
+              }
+            }
+          } catch(eStroke) {}
+          if (shape.cmdSubpaths && shape.cmdSubpaths.length) {
+            shape.cmdSubpaths.forEach(function(sp){
+              var cmds = [];
+              (sp.commands || []).forEach(function(cmd){
+                var out = { type:cmd.type };
+                if (cmd.p) out.p = mcFrameBoneTransformPoint_v093(cmd.p, cx, cy, rawW, rawH, sc, rotRad, anchor.x, anchor.y);
+                if (cmd.c1) out.c1 = mcFrameBoneTransformPoint_v093(cmd.c1, cx, cy, rawW, rawH, sc, rotRad, anchor.x, anchor.y);
+                if (cmd.c2) out.c2 = mcFrameBoneTransformPoint_v093(cmd.c2, cx, cy, rawW, rawH, sc, rotRad, anchor.x, anchor.y);
+                cmds.push(out);
+              });
+              var d = pathCommandsToD(cmds);
+              if (String(d || '').trim()) records.push({ d:String(d).trim(), style:rbClone_v18180_GPT(style), paperJson:paperJsonFromNativeCommands(cmds, style) });
+            });
+          } else if (shape.subpaths && shape.subpaths.length) {
+            shape.subpaths.forEach(function(sp){
+              var pts = (sp.points || []).map(function(p){ return mcFrameBoneTransformPoint_v093(p, cx, cy, rawW, rawH, sc, rotRad, anchor.x, anchor.y); });
+              var d2 = pointsToSubpath(pts, !!sp.closed);
+              if (String(d2 || '').trim()) records.push({ d:String(d2).trim(), style:rbClone_v18180_GPT(style), paperJson:paperJsonFromPointList(pts, !!sp.closed, style) });
+            });
+          }
+        });
+        return records;
+      }
+
+      // FIX v18.180_GPT: direct parent commit was still using the default centre anchor because it did not pass frameBoneRawAnchor().
+      if (typeof mcFrameBoneNativeRecordsForDirectParentCommit_v095 === 'function') {
+        mcFrameBoneNativeRecordsForDirectParentCommit_v095 = function(fb, data, fp, sc, exportBounds){
+          return rbNativeFrameBoneRecordsWysiwyg_v18180_GPT(fb, data, fp, sc, exportBounds, {x:0,y:0});
+        };
+      }
+
+      // FIX v18.180_GPT: child clip commit also routes through the same transform authority.
+      if (typeof mcFrameBoneNativeRecordsForCommit_v093 === 'function') {
+        mcFrameBoneNativeRecordsForCommit_v093 = function(fb, data, fp, sc, exportBounds, pivot){
+          return rbNativeFrameBoneRecordsWysiwyg_v18180_GPT(fb, data, fp, sc, exportBounds, pivot || {x:0,y:0});
+        };
+      }
+
+      // FIX v18.180_GPT: save explicit origins after they have only ever been implicit defaults. This makes JSON reload deterministic.
+      function rbStampExplicitFrameBoneOrigins_v18180_GPT(state){
+        try {
+          var list = state && state.frameBones ? state.frameBones : null;
+          if (!list || !list.length) return state;
+          list.forEach(function(fb){
+            if (!fb) return;
+            var o = frameBoneOrigin_v18149 ? frameBoneOrigin_v18149(fb) : {x:0.5,y:0.5};
+            if (fb.originX === undefined || fb.originX === null || fb.originX === '') fb.originX = o.x;
+            if (fb.originY === undefined || fb.originY === null || fb.originY === '') fb.originY = o.y;
+          });
+        } catch(eStamp) {}
+        return state;
+      }
+
+      if (typeof buildRigProjectState === 'function') {
+        var buildRigProjectState_Base_v18180_GPT = buildRigProjectState;
+        buildRigProjectState = function(){
+          var state = buildRigProjectState_Base_v18180_GPT.apply(this, arguments);
+          return rbStampExplicitFrameBoneOrigins_v18180_GPT(state);
+        };
+      }
+
+      if (typeof mcBuildCharacterState === 'function') {
+        var mcBuildCharacterState_Base_v18180_GPT = mcBuildCharacterState;
+        mcBuildCharacterState = function(){
+          var data = mcBuildCharacterState_Base_v18180_GPT.apply(this, arguments);
+          try {
+            if (data && data.parts) {
+              data.parts.forEach(function(part){ if (part && part.state) rbStampExplicitFrameBoneOrigins_v18180_GPT(part.state); });
+            }
+          } catch(eCharStamp) {}
+          return data;
+        };
+      }
+
+      // FIX v18.180_GPT: after loading old JSONs such as MoutTest.json, immediately fill any implicit origins so later stages do not reinterpret them.
+      if (typeof loadRigProjectState === 'function') {
+        var loadRigProjectState_Base_v18180_GPT = loadRigProjectState;
+        loadRigProjectState = async function(state){
+          var fixedState = rbStampExplicitFrameBoneOrigins_v18180_GPT(state || {});
+          var result = await loadRigProjectState_Base_v18180_GPT.apply(this, [fixedState]);
+          try { rbStampExplicitFrameBoneOrigins_v18180_GPT(App || {}); } catch(eAppStamp) {}
+          try { updateFrameBoneUI(); } catch(eUI) {}
+          return result;
+        };
+      }
+
+      try { log('RotoBones GPT v18.180 WYSIWYG Frame_Bone transform authority active.'); } catch(eLog) {}
+    } catch(eInstall) {
+      try { console.error('[RotoBones GPT v18.180] WYSIWYG transform authority install failed', eInstall); } catch(eConsole) {}
+    }
   })();
 
 
