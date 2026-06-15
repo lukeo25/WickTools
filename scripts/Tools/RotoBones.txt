@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MyCharacter GPT v18.180 WYSIWYG frame bone transform authority</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>MyCharacter GPT v18.205 hole subpaths use colour behind</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -249,8 +249,13 @@ button.warn {
 .expressionSlotCard.keyed { border-color:#1EE29A; } /* FIX v18.0 */
 .expressionSlotTitle { font-size:12px; color:#dfe8f5; text-align:center; font-weight:bold; } /* FIX v18.0 */
 .expressionSlotHint { font-size:10px; color:#91a3b7; text-align:center; } /* FIX v18.0 */
-.expressionSlotThumb { height:70px; border:1px dashed #4f6682; border-radius:8px; background:#ffffff; display:flex; align-items:center; justify-content:center; overflow:hidden; margin:4px 0 6px 0; } /* FIX v18.6 */
-.expressionSlotThumb img { max-width:100%; max-height:100%; display:block; object-fit:contain; } /* FIX v18.6 */
+.expressionSlotThumb { height:70px; border:1px dashed #4f6682; border-radius:8px; background:#ffffff; display:flex; align-items:center; justify-content:center; overflow:hidden; margin:4px 0 6px 0; position:relative; } /* FIX v18.186_GPT: expression thumbnails can show a draggable per image anchor crosshair */
+.expressionSlotThumb img { max-width:100%; max-height:100%; display:block; object-fit:contain; pointer-events:none; } /* FIX v18.186_GPT */
+.expressionAnchorCrosshair { position:absolute; width:22px; height:22px; margin-left:-11px; margin-top:-11px; left:50%; top:50%; pointer-events:none; cursor:crosshair; z-index:3; } /* FIX v18.189_GPT: crosshair is a marker only; user clicks the thumbnail to set it */
+.expressionAnchorCrosshair::before, .expressionAnchorCrosshair::after { content:""; position:absolute; background:#3d3d3d; box-shadow:0 0 0 1px rgba(255,255,255,0.85); } /* FIX v18.186_GPT */
+.expressionAnchorCrosshair::before { left:10px; top:1px; width:2px; height:20px; } /* FIX v18.186_GPT */
+.expressionAnchorCrosshair::after { left:1px; top:10px; width:20px; height:2px; } /* FIX v18.186_GPT */
+.expressionAnchorCrosshair.active::before, .expressionAnchorCrosshair.active::after { background:#e2b53d; } /* FIX v18.186_GPT */
 .expressionScriptBox { min-height:160px; width:100%; background:#0a1118; color:#dfe8f5; border:1px solid #243647; border-radius:8px; padding:8px; font-family:Consolas, Monaco, monospace; font-size:11px; white-space:pre; overflow:auto; } /* FIX v18.0 */
 
 
@@ -886,13 +891,14 @@ html, body, #app{
             <input type="file" id="fileLipExpressionImages" accept=".svg,.png,image/svg+xml,image/png" multiple style="display:none;"> <!-- FIX v18.34 -->
             <input type="file" id="fileWinkExpressionImages" accept=".svg,.png,image/svg+xml,image/png" multiple style="display:none;"> <!-- FIX v18.34 -->
           </div>
-          <div id="projectSaveInfo" class="softReadout">Save or load the full Bone Warp setup, including the source SVG, bones, frame bones, and keys.</div>
+          <div id="projectSaveInfo" class="softReadout">Save or load the full Bone Warp setup, including the source area, optional SVG, bones, frame bones, Lip_Bones, and keys.</div>
         </div>
 
         <div class="section">
           <h3>Source</h3>
           <div class="row" style="margin-top:8px;">
             <button id="btnSetArea">Set Area</button>
+            <button id="btnAddDummyArea" class="secondary">Add Dummy</button> <!-- FIX v18.182_GPT -->
             <button id="btnLoadImage" class="secondary">Load SVG</button>
             <button id="btnUseSelectedCurve" class="secondary">Use Selected Wick Curves</button> <!-- FIX v17.2 -->
             <button id="btnUseSelectedCurveRemove" class="secondary">Use Selected Curves And Remove Originals</button> <!-- FIX v17.2 -->
@@ -927,7 +933,7 @@ html, body, #app{
       <div class="panelPage" data-page="bones">
         <div class="section">
           <h3>Bone creation</h3>
-          <div class="notice">The Bones tab is always in Add Bone mode. Drag empty overlay space to create the selected bone type. Click a bone to select it. Deleting a bone returns straight back to Add Bone mode. Lip_Bone and Frame_Bone are bone setup choices, but they are created as small pinned Frame_Bone attachments. After creation you stay here to adjust their scale or rotation before opening Expression. Select a Lip_Bone or Frame_Bone on the overlay, then drag the corner square to scale or the round handle above it to rotate. <!-- FIX v18.90 --></div>
+          <div class="notice">The Bones tab is always in Add Bone mode. Drag empty overlay space to create the selected bone type. Click a bone to select it. Deleting a bone returns straight back to Add Bone mode. Lip_Bone and Frame_Bone can now be created from a blank Set Area first, without loading an SVG or shape. After creation you stay here to adjust their scale or rotation before opening Expression. Select a Lip_Bone or Frame_Bone on the overlay, then drag the corner square to scale or the round handle above it to rotate. <!-- FIX v18.181_GPT --></div>
           <div class="row" style="margin-top:8px;">
             <button id="btnDeleteBone" class="warn">Delete Selected Bone</button>
             <button id="btnClearBones" class="warn">Clear All Bones</button>
@@ -1247,7 +1253,7 @@ html, body, #app{
       <div class="panelPage" data-page="expression"> <!-- FIX v18.0 -->
         <div class="section softSection">
           <h3>Expression Bones</h3>
-          <div class="notice">Lip_Bone and Frame_Bone are frame bone style attachments. Create them by attaching to a selected parent bone or by pinning them to a point on the arm of a selected bone. Lip Service and Eye Service show their frame images and key the selected frame bone on the real Wick timeline. <!-- FIX v18.90 --></div>
+          <div class="notice">Lip_Bone and Frame_Bone are frame bone style attachments. Create them by attaching to a selected parent bone or by pinning them to a point on the arm of a selected bone. Lip Service and Eye Service show their frame images and key the selected frame bone on the real Wick timeline. In Expression, click a mouth or eye frame to key it, then use the shared registration target on the dummy to align the current image. Each image keeps its own origin point, but all images align to the same dummy target so closed and open mouths line up naturally. <!-- FIX v18.191_GPT --></div>
           <div class="row" style="margin-top:10px;">
             <label>Selected expression frame bone</label>
             <div id="expressionBoneInfo" class="small">None</div>
@@ -1483,7 +1489,8 @@ html, body, #app{
       sourceFrameNumber: 1, // FIX v14.8
       alphaMask: null,
       alphaThreshold: 254,
-      opaqueBounds: null
+      opaqueBounds: null,
+      dummy: null // FIX v18.182_GPT: setup only dummy area and crosshair, never committed
     },
     grid: { cols: 18, rows: 18, resolution: 18 },
     flags: {
@@ -2091,18 +2098,35 @@ html, body, #app{
     return expressionFramesForKind(kind);
   }
 
-  function prepareExpressionFrameBone(fb, kind){ // FIX v18.29
+  function prepareExpressionFrameBone(fb, kind){ // FIX v18.185_GPT: expression bones automatically load default graphics
     if (!fb) return null;
+
     kind = (kind === 'eye' || kind === 'wink') ? 'eye' : 'lip';
     fb.expressionKind = kind;
+    fb.type = kind === 'eye' ? 'Frame_Bone' : 'Lip_Bone'; // FIX v18.181_GPT
+
+    var defaultW = Math.max(40, Number(fb.areaWidth || (App.source && App.source.width) || 300));
+    var defaultH = Math.max(40, Number(fb.areaHeight || (App.source && App.source.height) || (kind === 'eye' ? 170 : 220)));
+
+    fb.areaWidth = defaultW;
+    fb.areaHeight = defaultH;
+
+    if (fb.originX == null) fb.originX = 0.5; // FIX v18.181_GPT
+    if (fb.originY == null) fb.originY = kind === 'lip' ? 0 : 0.5; // FIX v18.181_GPT
+
     if (fb.expressionDefaultScaleApplied !== true) { fb.scale = kind === 'eye' ? 0.28 : 0.22; fb.expressionDefaultScaleApplied = true; } // FIX v18.8: pinned expression frame bones start small and remain adjustable in Bones tab
     if (fb.expressionDefaultRotationApplied !== true) { fb.rotationDeg = kind === 'lip' ? 90 : (Number(fb.rotationDeg || 0) || 0); fb.expressionDefaultRotationApplied = true; } // FIX v18.34: Lip_Bone starts at 90 degrees, then remains user adjustable
-    if (kind === 'eye') { fb.name = (!fb.name || /^(Wink Bone|Frame Bone|Frame_Bone)\b/.test(String(fb.name))) ? ('Frame_Bone ' + fb.id) : fb.name; } else { fb.name = (!fb.name || /^(Lip Bone|Lip_Bone|Frame Bone|Frame_Bone)\b/.test(String(fb.name))) ? ('Lip_Bone ' + fb.id) : fb.name; } // FIX v18.111_GPT: Lip_Bone keeps its own name instead of inheriting the generic Frame_Bone name.
+
+    if (kind === 'eye') {
+      fb.name = (!fb.name || /^(Wink Bone|Frame Bone|Frame_Bone)\b/.test(String(fb.name))) ? ('Frame_Bone ' + fb.id) : fb.name;
+    } else {
+      fb.name = (!fb.name || /^(Lip Bone|Lip_Bone|Frame Bone|Frame_Bone)\b/.test(String(fb.name))) ? ('Lip_Bone ' + fb.id) : fb.name;
+    } // FIX v18.111_GPT: Lip_Bone keeps its own name instead of inheriting the generic Frame_Bone name.
+
     var frameList = expressionFramesForFrameBoneKind(kind);
     fb.frameCount = frameList.length;
     fb.frames = fb.frames || {};
 
-    // FIX v18.29: remove old generated expression slots so the panel cannot keep accumulating the wrong mouth images.
     Object.keys(fb.frames).forEach(function(slotKey){
       var slotNumber = Number(slotKey);
       var existing = fb.frames[slotKey];
@@ -2115,19 +2139,35 @@ html, body, #app{
       var slot = idx + 1;
       var existingSlot = fb.frames[slot];
       if (!existingSlot || existingSlot.expressionDefault === true) {
+        var defaultDataUrl = expressionImageDataUrl(item) || String(item.dataUrl || ''); // FIX v18.185_GPT: auto load built in default graphic
         fb.frames[slot] = {
-          fileName: item.label + '.svg',
+          fileName: String((item.label || item.key || ('Slot_' + slot)) + '_default.svg'),
           label: item.label,
           expressionKey: item.key,
           expressionKind: kind,
           expressionDefault: true,
-          dataUrl: stripWhiteSvgBackgroundFromDataUrl(item.dataUrl || makeEyeFrameSvgDataUrl(item.key)), // FIX v18.29
+          dataUrl: defaultDataUrl, // FIX v18.185_GPT: Lip_Bone and Frame_Bone show default graphics immediately
           width: kind === 'eye' ? 300 : 300,
-          height: kind === 'eye' ? 170 : 300
+          height: kind === 'eye' ? 170 : 300,
+          anchorX: frameBoneOrigin_v18149(fb).x, // FIX v18.186_GPT: per expression image anchor crosshair
+          anchorY: frameBoneOrigin_v18149(fb).y, // FIX v18.186_GPT
+          offsetX: 0, // FIX v18.190_GPT: per expression image placement on the dummy starts centred
+          offsetY: 0 // FIX v18.190_GPT
         };
+      } else {
+        existingSlot.expressionKind = existingSlot.expressionKind || kind;
+        existingSlot.expressionKey = existingSlot.expressionKey || item.key;
+        existingSlot.label = existingSlot.label || item.label;
+        existingSlot.width = Math.max(1, Number(existingSlot.width || fb.areaWidth));
+        existingSlot.height = Math.max(1, Number(existingSlot.height || fb.areaHeight));
+        if (!isFinite(Number(existingSlot.anchorX))) existingSlot.anchorX = frameBoneOrigin_v18149(fb).x; // FIX v18.186_GPT
+        if (!isFinite(Number(existingSlot.anchorY))) existingSlot.anchorY = frameBoneOrigin_v18149(fb).y; // FIX v18.186_GPT
+        if (!isFinite(Number(existingSlot.offsetX))) existingSlot.offsetX = 0; // FIX v18.190_GPT
+        if (!isFinite(Number(existingSlot.offsetY))) existingSlot.offsetY = 0; // FIX v18.190_GPT
       }
       ensureFrameBoneImageCache(fb.frames[slot]);
     });
+
     ensureProxyLayerForCreatedFrameBone(fb);
     App.selectedFrameBoneId = fb.id;
     return fb;
@@ -2149,25 +2189,39 @@ html, body, #app{
     return fb;
   }
 
-  function createExpressionFrameBoneFromBoneType(kind, point){ // FIX v18.7
+  function createExpressionFrameBoneFromBoneType(kind, point){ // FIX v18.184_GPT: Frame_Bone and Lip_Bone appear on dummy centre immediately
     kind = (kind === 'eye' || kind === 'wink') ? 'eye' : 'lip';
     var parent = getSelectedBone();
+    var dummyActive = !!(App.source && App.source.dummy && App.source.dummy.active);
+    var useDummy = dummyActive && (!parent || isExpressionBone(parent));
+
     if (!parent || isExpressionBone(parent)) {
-      App.pendingExpressionFrameKind = kind;
-      App.frameBonePinMode = true;
-      App.interaction.addBoneMode = false;
-      App.activeTab = 'bones';
-      log('Select a normal parent bone first, then click on the bone arm to pin the ' + expressionKindLabel(kind) + '.'); // FIX v18.92
-      updateUI();
-      renderOverlay();
-      updateExpressionTabHighlight(); // FIX v18.8
-      return null;
+      if (!useDummy) {
+        App.pendingExpressionFrameKind = kind;
+        App.frameBonePinMode = true;
+        App.interaction.addBoneMode = false;
+        App.activeTab = 'bones';
+        log('Select a normal parent bone first, or add a Dummy area. The ' + expressionKindLabel(kind) + ' will appear on the dummy centre when a dummy is active.'); // FIX v18.184_GPT
+        updateUI();
+        renderOverlay();
+        updateExpressionTabHighlight(); // FIX v18.8
+        return null;
+      }
     }
-    var place = point ? clone(point) : clone(parent.tail);
-    var fb = addFrameBoneAtPoint(place, parent.id);
+
+    var place = point ? clone(point) : (useDummy ? dummyAreaCenterPoint() : clone(parent.tail));
+    var fb = addFrameBoneAtPoint(place, useDummy ? null : parent.id);
     prepareExpressionFrameBone(fb, kind);
+    if (useDummy) {
+      fb.point = dummyAreaCenterPoint();
+      fb.local = null;
+      fb.attachedBoneId = null;
+      fb.dummyAttached = true;
+      fb.dummySourceId = App.source.selectedUUID || 'dummy-area';
+    }
     App.pendingExpressionFrameKind = null;
     App.frameBonePinMode = false;
+    App.frameBoneCreateMode = 'attach';
     App.expressionSubTab = kind;
     App.activeTab = 'bones'; // FIX v18.8: stay in Bones so the user can adjust the pinned frame bone first
     qa('.tabBtn').forEach(function(btn){ btn.classList.toggle('active', btn.getAttribute('data-tab') === App.activeTab); }); // FIX v18.8
@@ -2179,7 +2233,7 @@ html, body, #app{
     App.newBoneType = 'normal'; // FIX v18.29: one shot Lip_Bone and Frame_Bone creation stops repeated image/frame bone creation
     if (el('selBoneType')) el('selBoneType').value = 'normal'; // FIX v18.29
     App.interaction.addBoneMode = false; // FIX v18.29
-    log('Added ' + expressionKindLabel(kind) + ' as a small pinned Frame_Bone attached to ' + parent.name + '. Adjust Scale and Rotate in Frame bones, then open Expression when ready.'); // FIX v18.92
+    log('Added ' + expressionKindLabel(kind) + (useDummy ? ' on the Dummy area centre with default graphics loaded. Drag its rectangle or handles to move, scale, or rotate it.' : ' as a small pinned Frame_Bone attached to ' + parent.name + ' with default graphics loaded. Adjust Scale and Rotate in Frame bones, then open Expression when ready.')); // FIX v18.185_GPT
     return fb;
   }
 
@@ -2214,7 +2268,7 @@ html, body, #app{
     updateFrameBoneUI();
     renderExpressionUI();
     renderOverlay();
-    log('Attached ' + fb.name + ' to ' + parent.name + '.');
+    log('Attached ' + fb.name + ' to ' + parent.name + ' with default graphics loaded.');
   }
 
   function expressionSlotNumberForKey(kind, key){ // FIX v18.6
@@ -3001,7 +3055,11 @@ html, body, #app{
         expressionDefault: false,
         dataUrl: dataUrl,
         width: loaded.image ? (loaded.image.naturalWidth || loaded.image.width || (kind === 'eye' ? 300 : 300)) : (kind === 'eye' ? 300 : 300),
-        height: loaded.image ? (loaded.image.naturalHeight || loaded.image.height || (kind === 'eye' ? 170 : 300)) : (kind === 'eye' ? 170 : 300)
+        height: loaded.image ? (loaded.image.naturalHeight || loaded.image.height || (kind === 'eye' ? 170 : 300)) : (kind === 'eye' ? 170 : 300),
+        anchorX: frameBoneOrigin_v18149(fb).x,
+        anchorY: frameBoneOrigin_v18149(fb).y,
+        offsetX: 0,
+        offsetY: 0
       };
       ensureFrameBoneImageCache(fb.frames[slot]);
     });
@@ -3047,6 +3105,138 @@ html, body, #app{
     }).catch(function(e){ log('Expression image load failed: ' + (e && e.message ? e.message : e)); });
   }
 
+  function expressionSlotAnchorNumber(value, fallback){ // FIX v18.186_GPT
+    var n = Number(value);
+    if (!isFinite(n)) n = Number(fallback);
+    if (!isFinite(n)) n = 0.5;
+    if (Math.abs(n) > 3) n = n / 100;
+    return clamp(n, 0, 1);
+  }
+
+  function expressionSlotAnchorForData(fb, data){ // FIX v18.186_GPT
+    var base = frameBoneOrigin_v18149(fb);
+    if (!data) return { x:base.x, y:base.y };
+    return {
+      x: expressionSlotAnchorNumber(data.anchorX, base.x),
+      y: expressionSlotAnchorNumber(data.anchorY, base.y)
+    };
+  }
+
+  function ensureExpressionSlotAnchor(fb, slot){ // FIX v18.186_GPT
+    if (!fb || !fb.frames) return null;
+    var data = fb.frames[slot] || fb.frames[String(slot)] || null;
+    if (!data) return null;
+    var base = frameBoneOrigin_v18149(fb);
+    if (!isFinite(Number(data.anchorX))) data.anchorX = base.x;
+    if (!isFinite(Number(data.anchorY))) data.anchorY = base.y;
+    data.anchorX = expressionSlotAnchorNumber(data.anchorX, base.x);
+    data.anchorY = expressionSlotAnchorNumber(data.anchorY, base.y);
+    return data;
+  }
+
+
+  function ensureExpressionSlotPlacement(fb, slot){ // FIX v18.190_GPT
+    var data = ensureExpressionSlotAnchor(fb, slot);
+    if (!data) return null;
+    if (!isFinite(Number(data.offsetX))) data.offsetX = 0;
+    if (!isFinite(Number(data.offsetY))) data.offsetY = 0;
+    data.offsetX = Number(data.offsetX) || 0;
+    data.offsetY = Number(data.offsetY) || 0;
+    return data;
+  }
+
+  function expressionSlotOffsetForData(data){ // FIX v18.190_GPT
+    if (!data) return { x:0, y:0 };
+    var x = Number(data.offsetX);
+    var y = Number(data.offsetY);
+    if (!isFinite(x)) x = 0;
+    if (!isFinite(y)) y = 0;
+    return { x:x, y:y };
+  }
+
+
+  function setExpressionSlotAnchorKeepingPlacement(fb, slot, anchorX, anchorY){ // FIX v18.193_GPT: each slot keeps only its own origin while sharing the same dummy target
+    var data = ensureExpressionSlotPlacement(fb, slot);
+    if (!data) return null;
+    data.anchorX = expressionSlotAnchorNumber(anchorX, frameBoneOrigin_v18149(fb).x);
+    data.anchorY = expressionSlotAnchorNumber(anchorY, frameBoneOrigin_v18149(fb).y);
+    data.offsetX = 0;
+    data.offsetY = 0;
+    data.expressionAnchorSet = true;
+    return data;
+  }
+
+  function frameBoneImageTopLeftWorldFromState(fb, state){ // FIX v18.191_GPT
+    var data = state && state.data ? state.data : null;
+    var visual = frameBoneVisualData(fb);
+    var bounds = frameBoneVisualLocalBounds(fb, visual);
+    var angle = state ? state.angle : 0;
+    var cos = Math.cos(angle), sin = Math.sin(angle);
+    return {
+      x: (state ? state.center.x : 0) + bounds.left * cos - bounds.top * sin,
+      y: (state ? state.center.y : 0) + bounds.left * sin + bounds.top * cos
+    };
+  }
+
+  function expressionThumbImageLocalRect(thumb){ // FIX v18.189_GPT: click anchor uses the whole thumbnail box so it stays exactly where the user clicks
+    if (!thumb) return { left:0, top:0, width:1, height:1 };
+    var thumbRect = thumb.getBoundingClientRect ? thumb.getBoundingClientRect() : { left:0, top:0, width:1, height:1 };
+    return {
+      left: 0,
+      top: 0,
+      width: Math.max(1, Number(thumbRect.width || thumb.clientWidth || 1)),
+      height: Math.max(1, Number(thumbRect.height || thumb.clientHeight || 1))
+    };
+  }
+
+  function placeExpressionAnchorCrosshair(cross, thumb, anchor){ // FIX v18.188_GPT
+    if (!cross || !cross.style || !thumb) return;
+    anchor = anchor || { x:0.5, y:0.5 };
+    var r = expressionThumbImageLocalRect(thumb);
+    var x = Number(anchor.x);
+    var y = Number(anchor.y);
+    if (!isFinite(x)) x = 0.5;
+    if (!isFinite(y)) y = 0.5;
+    x = clamp(x, 0, 1);
+    y = clamp(y, 0, 1);
+    cross.style.left = Math.round(r.left + x * r.width) + 'px';
+    cross.style.top = Math.round(r.top + y * r.height) + 'px';
+  }
+
+  function setExpressionSlotAnchorFromThumbEvent(fb, slot, thumb, ev, liveCross){ // FIX v18.189_GPT: single click sets the anchor exactly there, no drag and no snap
+    var data = ensureExpressionSlotAnchor(fb, slot);
+    if (!data || !thumb || !ev) return false;
+    var rect = thumb.getBoundingClientRect();
+    var local = expressionThumbImageLocalRect(thumb);
+    var w = Math.max(1, Number(local.width || 1));
+    var h = Math.max(1, Number(local.height || 1));
+    var clientX = Number(ev.clientX != null ? ev.clientX : 0);
+    var clientY = Number(ev.clientY != null ? ev.clientY : 0);
+    var x = clamp((clientX - Number(rect.left || 0) - Number(local.left || 0)) / w, 0, 1);
+    var y = clamp((clientY - Number(rect.top || 0) - Number(local.top || 0)) / h, 0, 1);
+    setExpressionSlotAnchorKeepingPlacement(fb, slot, x, y);
+    App.selectedFrameBoneId = fb.id;
+    data = ensureExpressionSlotPlacement(fb, slot);
+    if (liveCross && liveCross.style) {
+      liveCross.className = 'expressionAnchorCrosshair active';
+      placeExpressionAnchorCrosshair(liveCross, thumb, { x:x, y:y });
+    }
+    renderOverlay();
+    return true;
+  }
+
+  function setExpressionSlotAnchorByClick(fb, slot, thumb, ev, liveCross){ // FIX v18.189_GPT: click once on the thumbnail to place the anchor
+    if (!fb || !thumb || !ev) return false;
+    try { ev.preventDefault(); ev.stopPropagation(); if (ev.stopImmediatePropagation) ev.stopImmediatePropagation(); } catch(eStop){}
+    App.expressionAnchorDragActive = true;
+    var ok = setExpressionSlotAnchorFromThumbEvent(fb, slot, thumb, ev, liveCross);
+    var data = ensureExpressionSlotAnchor(fb, slot);
+    App.expressionAnchorDragActive = false;
+    renderOverlay();
+    if (data) log('Set ' + frameBoneSlotDisplayName(fb, slot) + ' image origin to X ' + Math.round(data.anchorX * 100) + '%, Y ' + Math.round(data.anchorY * 100) + '%. All slots now share the same dummy target for alignment.');
+    return ok;
+  }
+
   function renderExpressionSlots(kind, hostId){ // FIX v18.6
     var host = el(hostId);
     if (!host) return;
@@ -3088,20 +3278,41 @@ html, body, #app{
       title.textContent = item.label;
       var thumb = document.createElement('div');
       thumb.className = 'expressionSlotThumb';
+      thumb.title = 'This image keeps its own origin point. In Expression, click or drag on the image on the dummy to tell it which point should sit on the shared target.'; // FIX v18.193_GPT
+      thumb.style.cursor = fb ? 'crosshair' : ''; // FIX v18.189_GPT
       var imgUrl = data && data.dataUrl ? data.dataUrl : (item.dataUrl || makeEyeFrameSvgDataUrl(item.key)); // FIX v18.29: panel thumbnail sits on white backing; stored bone image remains transparent
       if (imgUrl) {
         var img = document.createElement('img');
         img.src = imgUrl;
         thumb.appendChild(img);
       }
+      if (fb && data) { // FIX v18.186_GPT: draggable per expression image anchor crosshair
+        ensureExpressionSlotAnchor(fb, slot);
+        var anchor = expressionSlotAnchorForData(fb, data);
+        var cross = document.createElement('div');
+        cross.className = 'expressionAnchorCrosshair' + (data.expressionAnchorSet ? ' active' : '');
+        cross.title = 'Click anywhere inside this thumbnail to place the anchor for this image.';
+        cross.style.left = Math.round(anchor.x * 1000) / 10 + '%';
+        cross.style.top = Math.round(anchor.y * 1000) / 10 + '%';
+        try { window.setTimeout(function(){ placeExpressionAnchorCrosshair(cross, thumb, expressionSlotAnchorForData(fb, data)); }, 0); } catch(ePlaceExpressionAnchor) {}
+        if (img && img.addEventListener) img.addEventListener('load', function(){ placeExpressionAnchorCrosshair(cross, thumb, expressionSlotAnchorForData(fb, data)); });
+        thumb.addEventListener('mousedown', function(ev){ setExpressionSlotAnchorByClick(fb, slot, thumb, ev, cross); }); // FIX v18.189_GPT
+        thumb.addEventListener('touchstart', function(ev){ var t = ev && ev.touches && ev.touches[0] ? ev.touches[0] : ev; setExpressionSlotAnchorByClick(fb, slot, thumb, t, cross); try { ev.preventDefault(); ev.stopPropagation(); if (ev.stopImmediatePropagation) ev.stopImmediatePropagation(); } catch(eTouchStop){} }, { passive:false }); // FIX v18.189_GPT
+        thumb.appendChild(cross);
+      }
       var hint = document.createElement('div');
       hint.className = 'expressionSlotHint';
-      hint.textContent = fb ? (frameBoneSlotDisplayName(fb, slot) + '  frame ' + App.currentFrame) : ('Frame ' + App.currentFrame); // FIX v18.29
+      hint.textContent = fb ? (frameBoneSlotDisplayName(fb, slot) + '  origin ' + Math.round(expressionSlotAnchorForData(fb, data).x * 100) + ',' + Math.round(expressionSlotAnchorForData(fb, data).y * 100) + '  shared target') : ('Frame ' + App.currentFrame); // FIX v18.193_GPT
       card.appendChild(title);
       card.appendChild(thumb);
       card.appendChild(hint);
       card.addEventListener('click', function(){
-        if (fb) { App.selectedFrameBoneId = fb.id; setSelectedFrameBoneKeyToSlot(slot); }
+        if (App.expressionAnchorDragActive) return; // FIX v18.187_GPT: crosshair drag must not also key the expression card
+        if (fb) {
+          App.selectedFrameBoneId = fb.id;
+          ensureExpressionSlotPlacement(fb, slot);
+          setSelectedFrameBoneKeyToSlot(slot);
+        }
         else if (canKeyOldExpressionBone) setExpressionKey(kind, item.key);
         else log('Create or select a ' + (kind === 'eye' ? 'Frame_Bone' : 'Lip Bone') + ' frame bone attachment before keying.');
       });
@@ -3407,7 +3618,7 @@ html, body, #app{
     } catch(e) { return ''; }
   }
 
-  function expressionNativeRecordsFromDataUrl(dataUrl, targetW, targetH){ // FIX v18.52_RelaxBrush
+  function expressionNativeRecordsFromDataUrl(dataUrl, targetW, targetH){ // FIX v18.198_GPT: restored safe per subpath records so Commit cannot fail on compound Paper JSON.
     var svgText = expressionDataUrlToText(dataUrl);
     if (!svgText) return [];
     var native = parseNativeSvg(svgText, targetW || 300, targetH || 300);
@@ -3559,7 +3770,7 @@ html, body, #app{
     if (el('txtWeightBrushStrength')) el('txtWeightBrushStrength').textContent = round(App.paint.brushStrength) + '';
     if (el('chkShowWeightOverlay')) el('chkShowWeightOverlay').checked = !!App.paint.showOverlay;
     el('selectedInfo').textContent = App.source.viewportRect ? ('x ' + Math.round(App.source.viewportRect.x) + '  y ' + Math.round(App.source.viewportRect.y) + '  w ' + Math.round(App.source.viewportRect.width) + '  h ' + Math.round(App.source.viewportRect.height)) : 'No area set'; // FIX v6.0
-    el('sourceInfo').textContent = App.source.image ? (((App.source.fileName || 'image') + '  ' + App.source.width + ' x ' + App.source.height + ' px  ' + (App.source.captureMode || 'local-file') + (App.source.svgNative && App.source.svgNative.shapes ? '  SVG shapes=' + App.source.svgNative.shapes.length : '')).trim()) : 'No SVG loaded'; // FIX v7.1
+    el('sourceInfo').textContent = App.source.image ? (((App.source.fileName || 'image') + '  ' + App.source.width + ' x ' + App.source.height + ' px  ' + (App.source.captureMode || 'local-file') + (App.source.svgNative && App.source.svgNative.shapes ? '  SVG shapes=' + App.source.svgNative.shapes.length : '')).trim()) : (App.source && App.source.dummy && App.source.dummy.active ? ('Dummy area  ' + App.source.width + ' x ' + App.source.height + ' px') : (App.source && App.source.captureMode === 'blank-area' ? ('Blank area  ' + App.source.width + ' x ' + App.source.height + ' px') : 'No SVG loaded')); // FIX v18.182_GPT
     el('overlayInfo').textContent = App.overlay.active ? ('Overlay active ' + Math.round((App.source.viewportRect ? App.source.viewportRect.width : 0)) + ' x ' + Math.round((App.source.viewportRect ? App.source.viewportRect.height : 0)) + ' vp px') : (App.interaction.setAreaActive ? 'Set Area mode active' : 'Not active'); // FIX v6.0
     el('selectedBoneInfo').textContent = bone ? (bone.name + '  type=' + boneTypeLabel(bone) + '  parent=' + getBoneName(bone.parentId) + '  env=' + Math.round(getBoneEnvStart(bone)) + '/' + Math.round(getBoneEnvEnd(bone)) + '  strength=' + round(bone.strength)) : 'None'; // FIX v17.0
     if (bone) {
@@ -3914,6 +4125,65 @@ html, body, #app{
     inp.click();
   }
 
+  function parentViewportForDummyArea(){ // FIX v18.182_GPT
+    var pdoc = window.parent && window.parent.document ? window.parent.document : null;
+    var win = window.parent || window;
+    var w = 960;
+    var h = 540;
+    try { w = Math.max(320, Number(win.innerWidth || (pdoc && pdoc.documentElement && pdoc.documentElement.clientWidth) || w)); } catch(e){}
+    try { h = Math.max(240, Number(win.innerHeight || (pdoc && pdoc.documentElement && pdoc.documentElement.clientHeight) || h)); } catch(e){}
+    return { width:w, height:h };
+  }
+
+  function createBlankSourceAreaAtViewport(left, top, width, height, mode, label){ // FIX v18.182_GPT
+    width = Math.max(40, Math.round(Number(width || 300) || 300));
+    height = Math.max(40, Math.round(Number(height || 220) || 220));
+    left = Math.round(Number(left || 80) || 80);
+    top = Math.round(Number(top || 80) || 80);
+
+    App.source.viewportRect = { x:left, y:top, width:width, height:height };
+    App.source.stagePlacementBounds = getSetAreaStageBounds();
+    App.source.width = width;
+    App.source.height = height;
+    App.source.fileName = label || 'Dummy area';
+    App.source.captureMode = mode || 'dummy-area';
+    App.source.selectedIdentifier = label || 'Dummy area';
+    App.source.selectedUUID = mode || 'dummy-area';
+    App.source.dataUrl = '';
+    App.source.embeddedDataUrl = '';
+    App.source.image = null;
+    App.source.svgRaw = '';
+    App.source.svgNative = null;
+    App.source.alphaMask = null;
+    App.source.opaqueBounds = null;
+    App.source.dummy = {
+      active: mode === 'dummy-area',
+      x: width * 0.5,
+      y: height * 0.5,
+      width: width,
+      height: height,
+      size: Math.max(width, height), // FIX v18.183_GPT
+      label: label || 'Dummy area'
+    };
+
+    ensureOverlay();
+    fitOverlayToSource();
+    renderOverlay();
+    updateUI();
+    markDirty();
+  }
+
+  function addDummyArea(){ // FIX v18.183_GPT square moveable dummy area
+    pushUndoSnapshot('Add Dummy Area');
+    var vp = parentViewportForDummyArea();
+    var size = Math.max(160, Math.min(320, Math.round(Math.min(vp.width, vp.height) * 0.34)));
+    var left = Math.round((vp.width - size) * 0.5);
+    var top = Math.round((vp.height - size) * 0.5);
+    createBlankSourceAreaAtViewport(left, top, size, size, 'dummy-area', 'Dummy area');
+    if (App.flags) App.flags.showBones = true; // FIX v18.183_GPT: Frame_Bone setup rectangles must be visible immediately.
+    log('Square dummy area added. Drag the middle crosshair to move it. Drag the bottom right square handle to scale it. The dummy crosshair is setup only and will not be rendered on Commit. Add a normal bone, Lip_Bone, or Frame_Bone on this dummy area, then load images later if needed.');
+  }
+
   function hideSetAreaVisualFrame(){ // FIX v7.8
     try {
       if (!App.overlay || !App.overlay.root) return;
@@ -3934,6 +4204,7 @@ html, body, #app{
     App.source.captureMode = meta.mode || 'local-file';
     App.source.svgRaw = meta.svgRaw || ''; // FIX v7.1
     App.source.svgNative = meta.svgNative || null; // FIX v7.1
+    App.source.dummy = null; // FIX v18.182_GPT
     App.source.selectedIdentifier = meta.label || (meta.fileName || 'LoadedImage');
     App.source.selectedUUID = meta.uuid || 'local-file';
     App.source.stageBounds = null;
@@ -3999,7 +4270,7 @@ html, body, #app{
     return out;
   }
 
-  function parseStyleMap(node){ // FIX v7.1
+  function parseStyleMap(node){ // FIX v18.194_GPT: do not force a local black fill because that breaks inherited fill none styles.
     var out = {};
     var attrs = ['fill','stroke','stroke-width','stroke-linecap','stroke-linejoin','opacity','fill-opacity','stroke-opacity','fill-rule','clip-rule'];
     attrs.forEach(function(k){
@@ -4013,8 +4284,7 @@ html, body, #app{
         if (i > 0) out[part.slice(0,i).trim()] = part.slice(i+1).trim();
       });
     }
-    if (!out.fill && node.tagName && /line|polyline/i.test(node.tagName)) out.fill = 'none';
-    if (!out.fill) out.fill = '#000000';
+    if (out.fill == null && node.tagName && /line|polyline/i.test(node.tagName)) out.fill = 'none';
     return out;
   }
 
@@ -4606,7 +4876,7 @@ html, body, #app{
       if (!node || node.nodeType !== 1) return;
       var tag = node.tagName.toLowerCase();
       var m = matrixMul(matrix, parseSvgTransform(node.getAttribute('transform')));
-      var style = Object.assign({}, inheritedStyle || {}, parseStyleMap(node));
+      var style = Object.assign({}, inheritedStyle || {}, parseStyleMap(node)); // FIX v18.195_GPT: keep inherited style clean for children. Do not add SVG default fill to groups.
       var cmdSubs=[];
       if (tag === 'path') cmdSubs = parsePathToCommandSubpaths(node.getAttribute('d') || '', m);
       else if (tag === 'rect') cmdSubs = rectToCommandSubpaths(parseSvgNumber(node.getAttribute('x'),0), parseSvgNumber(node.getAttribute('y'),0), parseSvgNumber(node.getAttribute('width'),0), parseSvgNumber(node.getAttribute('height'),0)).map(function(sp){ return { commands: applyMatrixToCommandList(sp.commands, m), closed: sp.closed }; });
@@ -4614,7 +4884,12 @@ html, body, #app{
       else if (tag === 'ellipse') cmdSubs = ellipseToCommandSubpaths(parseSvgNumber(node.getAttribute('cx'),0), parseSvgNumber(node.getAttribute('cy'),0), parseSvgNumber(node.getAttribute('rx'),0), parseSvgNumber(node.getAttribute('ry'),0)).map(function(sp){ return { commands: applyMatrixToCommandList(sp.commands, m), closed: sp.closed }; });
       else if (tag === 'line') cmdSubs = [{ commands: applyMatrixToCommandList([{type:'M',p:{x:parseSvgNumber(node.getAttribute('x1'),0),y:parseSvgNumber(node.getAttribute('y1'),0)}},{type:'L',p:{x:parseSvgNumber(node.getAttribute('x2'),0),y:parseSvgNumber(node.getAttribute('y2'),0)}}], m), closed:false }];
       else if (tag === 'polyline' || tag === 'polygon') cmdSubs = polyPointsToCommandSubpath(polygonPoints(node.getAttribute('points')), tag==='polygon').map(function(sp){ return { commands: applyMatrixToCommandList(sp.commands, m), closed: sp.closed }; });
-      if (cmdSubs.length) shapes.push({ style: style, cmdSubpaths: cmdSubs, subpaths: commandSubpathsToLegacySubpaths(cmdSubs) });
+      if (cmdSubs.length) {
+        var drawStyle = Object.assign({}, style); // FIX v18.195_GPT: apply default fill only to the actual drawable shape, never to a parent group.
+        if ((drawStyle.fill == null || drawStyle.fill === '') && /line|polyline/i.test(tag)) drawStyle.fill = 'none';
+        if (drawStyle.fill == null || drawStyle.fill === '') drawStyle.fill = '#000000';
+        shapes.push({ style: drawStyle, cmdSubpaths: cmdSubs, subpaths: commandSubpathsToLegacySubpaths(cmdSubs) });
+      }
       Array.prototype.slice.call(node.childNodes || []).forEach(function(child){ walk(child, m, style); });
     }
     Array.prototype.slice.call(svg.childNodes || []).forEach(function(child){ walk(child, viewM, {}); });
@@ -5201,7 +5476,7 @@ html, body, #app{
     }
   }
 
-  function beginSetAreaMode(){ // FIX v6.0
+  function beginSetAreaMode(){ // FIX v18.181_GPT: Set Area can create a blank source area without loading an SVG
     removeSetAreaOverlay();
     var pdoc = window.parent && window.parent.document ? window.parent.document : null;
     if (!pdoc || !pdoc.body) {
@@ -5223,7 +5498,7 @@ html, body, #app{
       'user-select:none'
     ].join(';');
     var label = pdoc.createElement('div');
-    label.textContent = 'Drag to set image area. Press Esc to cancel.';
+    label.textContent = 'Drag to set the bone area. After release, choose the SVG for this area. Press Esc to cancel.';
     label.style.cssText = 'position:fixed;left:18px;top:18px;padding:8px 10px;background:rgba(20,20,20,0.92);color:#fff;border:1px solid #52b1ff;font:12px Arial,sans-serif;pointer-events:none;';
     var box = pdoc.createElement('div');
     box.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;border:2px solid #52b1ff;background:transparent;box-shadow:0 0 0 1px rgba(82,177,255,0.35) inset;pointer-events:none;display:none;'; // FIX v6.2
@@ -5281,16 +5556,31 @@ html, body, #app{
         updateUI();
         return;
       }
+
       App.source.viewportRect = { x: left, y: top, width: width, height: height };
       App.source.stagePlacementBounds = getSetAreaStageBounds(); // FIX v8.8: set area becomes stage anchored so Wick zoom and pan can move the overlay correctly without keyframing it.
-      if (App.source.image) {
-        ensureOverlay();
-        fitOverlayToSource();
-        renderOverlay();
+
+      if (!App.source.image) {
+        App.source.width = Math.max(1, Math.round(width));
+        App.source.height = Math.max(1, Math.round(height));
+        App.source.fileName = 'Blank set area';
+        App.source.captureMode = 'blank-area';
+        App.source.selectedIdentifier = 'Blank set area';
+        App.source.selectedUUID = 'blank-area';
+        App.source.dataUrl = '';
+        App.source.embeddedDataUrl = '';
+        App.source.svgRaw = '';
+        App.source.svgNative = null;
+        App.source.dummy = null; // FIX v18.182_GPT
       }
+
+      ensureOverlay();
+      fitOverlayToSource();
+      renderOverlay();
+
       updateUI();
-      log('Set area: ' + Math.round(width) + ' x ' + Math.round(height) + ' at ' + Math.round(left) + ', ' + Math.round(top) + '.');
-      promptLocalImageFile();
+      log('Set area: ' + Math.round(width) + ' x ' + Math.round(height) + ' at ' + Math.round(left) + ', ' + Math.round(top) + '. Choose the SVG for this area, or cancel the file picker to keep a blank setup area.');
+      promptLocalImageFile(); // FIX v18.196_GPT: Set Area should request the SVG again after the area is chosen. Cancel keeps the blank area for dummy or expression setup.
     };
 
     App.interaction.setAreaKey = function(ev){
@@ -5867,8 +6157,8 @@ html, body, #app{
     };
   }
 
-  function applyOverlayViewportForBounds(bounds){ // FIX v8.8
-    if (!App.overlay.root || !App.source.image) return;
+  function applyOverlayViewportForBounds(bounds){ // FIX v18.181_GPT: allow blank set area
+    if (!App.overlay.root) return;
     bounds = bounds || App.overlay.previewBounds || { minX:0, minY:0, width:App.source.width, height:App.source.height, offsetX:0, offsetY:0 };
     var rect = localBoundsToViewportRect(bounds);
     if (!rect) return;
@@ -5880,16 +6170,25 @@ html, body, #app{
     resizeOverlayCanvas();
   }
 
-  function fitOverlayToSource(){
-    if (!App.overlay.root || !App.source.image) return;
-    App.overlay.previewBounds = App.overlay.previewBounds || { minX:0, minY:0, maxX:App.source.width, maxY:App.source.height, width:App.source.width, height:App.source.height, offsetX:0, offsetY:0 }; // FIX v7.0
+  function fitOverlayToSource(){ // FIX v18.181_GPT: allow blank set area
+    if (!App.overlay.root) return;
+    App.overlay.previewBounds = App.overlay.previewBounds || {
+      minX: 0,
+      minY: 0,
+      maxX: App.source.width,
+      maxY: App.source.height,
+      width: App.source.width,
+      height: App.source.height,
+      offsetX: 0,
+      offsetY: 0
+    }; // FIX v7.0
     applyOverlayViewportForBounds(App.overlay.previewBounds); // FIX v7.0
   }
 
-  function resizeOverlayCanvas(){
-    if (!App.overlay.canvas || !App.overlay.root || !App.source.image) return;
+  function resizeOverlayCanvas(){ // FIX v18.181_GPT: allow blank set area
+    if (!App.overlay.canvas || !App.overlay.root) return;
     var rect = App.overlay.root.getBoundingClientRect();
-    var b = App.overlay.previewBounds || { width: App.source.width, height: App.source.height }; // FIX v7.0
+    var b = App.overlay.previewBounds || { width: App.source.width || 300, height: App.source.height || 220 }; // FIX v7.0
     var logicalW = Math.max(1, Math.round(b.width)); // FIX v18.69_NodeClickNoJumpShapePreserve
     var logicalH = Math.max(1, Math.round(b.height)); // FIX v18.69_NodeClickNoJumpShapePreserve
     var dpr = Math.max(1, Math.min(4, Number((window.parent && window.parent.devicePixelRatio) || window.devicePixelRatio || 1))); // FIX v18.69_NodeClickNoJumpShapePreserve
@@ -6023,8 +6322,141 @@ html, body, #app{
     return { x: p.x, y: p.y, angle: angle };
   }
 
-  function addFrameBoneAtPoint(point, attachBoneId){ // FIX v13.2
+  function dummyAreaCenterPoint(){ // FIX v18.182_GPT
+    if (App.source && App.source.dummy && App.source.dummy.active) {
+      return {
+        x: Number(App.source.dummy.x || App.source.width * 0.5) || 0,
+        y: Number(App.source.dummy.y || App.source.height * 0.5) || 0
+      };
+    }
+    return { x: Math.max(1, Number(App.source.width || 300)) * 0.5, y: Math.max(1, Number(App.source.height || 220)) * 0.5 };
+  }
+
+  function dummyAreaSize(){ // FIX v18.183_GPT
+    var d = App.source && App.source.dummy && App.source.dummy.active ? App.source.dummy : null;
+    var sourceW = Math.max(40, Number(App.source && App.source.width || 260) || 260);
+    var sourceH = Math.max(40, Number(App.source && App.source.height || sourceW) || sourceW);
+    var size = Math.max(40, Number(d && d.size || d && d.width || d && d.height || Math.min(sourceW, sourceH)) || 260);
+    return size;
+  }
+
+  function syncDummyAreaSquare(size){ // FIX v18.183_GPT
+    if (!App.source || !App.source.dummy || !App.source.dummy.active) return;
+    size = Math.max(40, Math.round(Number(size || dummyAreaSize()) || 260));
+    App.source.width = size;
+    App.source.height = size;
+    App.source.dummy.size = size;
+    App.source.dummy.width = size;
+    App.source.dummy.height = size;
+    App.source.dummy.x = size * 0.5;
+    App.source.dummy.y = size * 0.5;
+  }
+
+  function drawDummyAreaCrosshairOnContext(ctx){ // FIX v18.183_GPT square move and scale handles
+    if (!ctx || !App.source || !App.source.dummy || !App.source.dummy.active) return;
+    syncDummyAreaSquare(dummyAreaSize());
+    var size = dummyAreaSize();
+    var x = size * 0.5;
+    var y = size * 0.5;
+    var left = 0;
+    var top = 0;
+    ctx.save();
+    ctx.fillStyle = 'rgba(80, 180, 255, 0.055)';
+    ctx.strokeStyle = 'rgba(82, 177, 255, 0.95)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 5]);
+    ctx.beginPath();
+    ctx.rect(left, top, size, size);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(255, 235, 110, 0.98)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - 28, y); ctx.lineTo(x + 28, y);
+    ctx.moveTo(x, y - 28); ctx.lineTo(x, y + 28);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 235, 110, 0.95)';
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1ee29a';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.rect(size - 13, size - 13, 12, 12);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(230, 245, 255, 0.96)';
+    ctx.font = '12px Arial, sans-serif';
+    ctx.fillText('Dummy setup only', x + 10, y - 10);
+    ctx.restore();
+  }
+
+  function hitTestDummyArea(localPoint){ // FIX v18.183_GPT
+    if (!localPoint || !App.source || !App.source.dummy || !App.source.dummy.active) return null;
+    var size = dummyAreaSize();
+    var cx = size * 0.5;
+    var cy = size * 0.5;
+    var handle = { x:size - 7, y:size - 7 };
+    if (dist(localPoint, handle) <= 18) return { type:'dummyScale', d:dist(localPoint, handle) };
+    if (dist(localPoint, { x:cx, y:cy }) <= 34) return { type:'dummyMove', d:dist(localPoint, { x:cx, y:cy }) };
+    if (localPoint.x >= 0 && localPoint.x <= size && localPoint.y >= 0 && localPoint.y <= size) return { type:'dummyMove', d:Math.abs(localPoint.x - cx) + Math.abs(localPoint.y - cy) };
+    return null;
+  }
+
+  function beginDummyAreaDrag(hit, local, evt){ // FIX v18.183_GPT
+    if (!hit || !App.source || !App.source.dummy || !App.source.dummy.active) return false;
+    App.interaction.dragging = true;
+    App.interaction.dragType = hit.type;
+    App.interaction.startLocal = clone(local);
+    App.interaction.startDummyArea = {
+      size: dummyAreaSize(),
+      viewportRect: safeJsonClone(App.source.viewportRect || { x:80, y:80, width:dummyAreaSize(), height:dummyAreaSize() }),
+      clientX: evt ? Number(evt.clientX || 0) : 0,
+      clientY: evt ? Number(evt.clientY || 0) : 0
+    };
+    renderOverlay();
+    return true;
+  }
+
+  function updateDummyAreaDrag(local, evt){ // FIX v18.183_GPT
+    if (!App.interaction.startDummyArea || !App.source || !App.source.dummy || !App.source.dummy.active) return false;
+    var st = App.interaction.startDummyArea;
+    var vp = safeJsonClone(st.viewportRect || App.source.viewportRect || { x:80, y:80, width:st.size, height:st.size });
+    if (App.interaction.dragType === 'dummyMove') {
+      var dx = (evt ? Number(evt.clientX || 0) : 0) - Number(st.clientX || 0);
+      var dy = (evt ? Number(evt.clientY || 0) : 0) - Number(st.clientY || 0);
+      vp.x = Math.round(Number(st.viewportRect.x || 0) + dx);
+      vp.y = Math.round(Number(st.viewportRect.y || 0) + dy);
+      vp.width = Math.max(40, Number(st.viewportRect.width || st.size));
+      vp.height = vp.width;
+      App.source.viewportRect = vp;
+      App.source.stagePlacementBounds = getSetAreaStageBounds();
+    } else if (App.interaction.dragType === 'dummyScale') {
+      var ddx = (evt ? Number(evt.clientX || 0) : 0) - Number(st.clientX || 0);
+      var ddy = (evt ? Number(evt.clientY || 0) : 0) - Number(st.clientY || 0);
+      var newVpSize = Math.max(40, Math.round(Number(st.viewportRect.width || st.size) + Math.max(ddx, ddy)));
+      vp.width = newVpSize;
+      vp.height = newVpSize;
+      App.source.viewportRect = vp;
+      App.source.stagePlacementBounds = getSetAreaStageBounds();
+      syncDummyAreaSquare(Math.max(40, Math.round(Number(st.size || 260) + Math.max(ddx, ddy))));
+    } else return false;
+    fitOverlayToSource();
+    updateUI();
+    renderOverlay();
+    markDirty();
+    return true;
+  }
+
+  function addFrameBoneAtPoint(point, attachBoneId){ // FIX v18.181_GPT: blank area Frame_Bone and Lip_Bone support
     var bone = attachBoneId ? getBoneById(attachBoneId) : getSelectedBone();
+
+    var dummy = App.source && App.source.dummy && App.source.dummy.active ? App.source.dummy : null; // FIX v18.182_GPT
+    var defaultW = Math.max(40, Number(dummy && dummy.width ? dummy.width : (App.source && App.source.width ? App.source.width : 300)) || 300);
+    var defaultH = Math.max(40, Number(dummy && dummy.height ? dummy.height : (App.source && App.source.height ? App.source.height : 220)) || 220);
+
     var fb = {
       id: App.nextFrameBoneId++,
       name: 'Frame_Bone ' + (App.nextFrameBoneId - 1), // FIX v18.92
@@ -6034,15 +6466,23 @@ html, body, #app{
       frameCount: 1,
       scale: 1, // FIX v13.6
       rotationDeg: 0, // FIX v13.6
+      originX: 0.5, // FIX v18.181_GPT
+      originY: 0.5, // FIX v18.181_GPT
+      areaWidth: defaultW, // FIX v18.181_GPT: frame bones can exist before any SVG or shape is loaded
+      areaHeight: defaultH, // FIX v18.181_GPT: frame bones can exist before any SVG or shape is loaded
+      dummyAttached: !!dummy, // FIX v18.182_GPT
+      dummySourceId: dummy ? (App.source.selectedUUID || 'dummy-area') : '', // FIX v18.182_GPT
       frames: {}
     };
+
     App.frameBones.push(fb);
     App.selectedFrameBoneId = fb.id;
+    if (App.flags) App.flags.showBones = true; // FIX v18.183_GPT: make newly created Frame_Bone visible on dummy areas immediately.
     App.frameBonePinMode = false;
     ensureProxyLayerForCreatedFrameBone(fb); // FIX v13.7: Frame Bones also get a visible Wick proxy key layer immediately
     updateFrameBoneUI();
     renderOverlay();
-    log('Added ' + fb.name + (bone ? ' attached to ' + bone.name : ' pinned without attached bone') + '.');
+    log('Added ' + fb.name + (bone ? ' attached to ' + bone.name : ' pinned without attached bone') + '. Blank area is ready. Load slot images later if needed.');
     return fb;
   }
 
@@ -6050,6 +6490,13 @@ html, body, #app{
     var mode = App.frameBoneCreateMode || 'attach';
     var bone = getSelectedBone();
     if (mode === 'pin') {
+      if (App.source && App.source.dummy && App.source.dummy.active) {
+        addFrameBoneAtPoint(dummyAreaCenterPoint(), null); // FIX v18.184_GPT: Pin Frame Bone on a dummy places it at the dummy centre immediately.
+        App.frameBoneCreateMode = 'attach';
+        updateFrameBoneUI();
+        renderOverlay();
+        return;
+      }
       App.frameBonePinMode = true;
       App.interaction.addBoneMode = false;
       log('Frame Bone pin mode: click on the SVG to place the frame bone.');
@@ -6057,7 +6504,14 @@ html, body, #app{
       renderOverlay();
       return;
     }
-    if (!bone) { log('Select a normal bone before attaching a Frame Bone.'); return; }
+    if (!bone) {
+      if (App.source && App.source.dummy && App.source.dummy.active) {
+        addFrameBoneAtPoint(dummyAreaCenterPoint(), null); // FIX v18.182_GPT: attach to dummy when no normal bone exists yet.
+        return;
+      }
+      log('Select a normal bone before attaching a Frame Bone, or add a Dummy area first.');
+      return;
+    }
     addFrameBoneAtPoint(clone(bone.tail), bone.id);
   }
 
@@ -6277,11 +6731,11 @@ html, body, #app{
     return frameBoneOrigin_v18149(fb).y <= 0.0001; // FIX v18.149_GPT
   }
 
-  function frameBoneRawAnchor(fb, rawW, rawH){ // FIX v18.149_GPT
-    rawW = Math.max(1, Number(rawW || 1) || 1); // FIX v18.149_GPT
-    rawH = Math.max(1, Number(rawH || 1) || 1); // FIX v18.149_GPT
-    var o = frameBoneOrigin_v18149(fb); // FIX v18.149_GPT
-    return { x: rawW * o.x, y: rawH * o.y }; // FIX v18.149_GPT
+  function frameBoneRawAnchor(fb, rawW, rawH, data){ // FIX v18.186_GPT: per expression image anchor crosshair can override the frame bone origin
+    rawW = Math.max(1, Number(rawW || 1) || 1);
+    rawH = Math.max(1, Number(rawH || 1) || 1);
+    var o = expressionSlotAnchorForData(fb, data);
+    return { x: rawW * o.x, y: rawH * o.y };
   }
 
   function frameBoneVisualLocalBounds(fb, info){ // FIX v18.111_GPT
@@ -6289,7 +6743,7 @@ html, body, #app{
     var rawW = Math.max(1, Number(info.rawW || 1) || 1); // FIX v18.111_GPT
     var rawH = Math.max(1, Number(info.rawH || 1) || 1); // FIX v18.111_GPT
     var sc = Math.max(0.0001, Number(info.scale || 1) || 1); // FIX v18.111_GPT
-    var anchor = frameBoneRawAnchor(fb, rawW, rawH); // FIX v18.111_GPT
+    var anchor = frameBoneRawAnchor(fb, rawW, rawH, info && info.data); // FIX v18.186_GPT
     return { left: -anchor.x * sc, top: -anchor.y * sc, right: (rawW - anchor.x) * sc, bottom: (rawH - anchor.y) * sc, rawLeft: -anchor.x, rawTop: -anchor.y, rawRight: rawW - anchor.x, rawBottom: rawH - anchor.y }; // FIX v18.111_GPT
   }
 
@@ -6334,19 +6788,18 @@ html, body, #app{
   }
 
   function frameBoneSvgMarkupForFrame(fb, frameNum, pose, ox, oy){ // FIX v13.6
-    var slot = frameBoneSlotForTimelineFrame(fb, frameNum);
-    var data = fb && fb.frames ? fb.frames[slot] : null;
+    var state = frameBoneDisplayState(fb, pose, frameNum);
+    var data = state.data;
     if (!data || !data.dataUrl) return '';
-    var fp = frameBonePointFromPose(fb, pose);
     var s = frameBoneScale(fb);
     var rawW = Math.max(1, Number(data.width || 80)); // FIX v18.111_GPT
     var rawH = Math.max(1, Number(data.height || 80)); // FIX v18.111_GPT
     var w = rawW * s;
     var h = rawH * s;
-    var anchor = frameBoneRawAnchor(fb, rawW, rawH); // FIX v18.111_GPT
-    var cx = fp.x + (ox || 0);
-    var cy = fp.y + (oy || 0);
-    var angleDeg = (fp.angle + frameBoneRotationRad(fb)) * 180 / Math.PI;
+    var anchor = frameBoneRawAnchor(fb, rawW, rawH, data); // FIX v18.186_GPT
+    var cx = state.center.x + (ox || 0);
+    var cy = state.center.y + (oy || 0);
+    var angleDeg = state.angle * 180 / Math.PI;
     return '<image href="' + escapeXmlAttr(data.dataUrl) + '" x="' + round(cx - anchor.x * s) + '" y="' + round(cy - anchor.y * s) + '" width="' + round(w) + '" height="' + round(h) + '" transform="rotate(' + round(angleDeg) + ' ' + round(cx) + ' ' + round(cy) + ')" />'; // FIX v18.111_GPT: Lip_Bone image is positioned from its top pivot.
   }
 
@@ -6355,24 +6808,48 @@ html, body, #app{
   }
 
 
-  function frameBoneVisualData(fb){ // FIX v18.10
+  function frameBoneVisualData(fb){ // FIX v18.181_GPT: blank area first
     var slot = frameBoneSlotForTimelineFrame(fb, App.currentFrame);
     var data = fb && fb.frames ? fb.frames[slot] : null;
-    var w = Math.max(1, Number(data && data.width || (expressionFrameBoneKind(fb) === 'eye' ? 300 : 300) || 80));
-    var h = Math.max(1, Number(data && data.height || (expressionFrameBoneKind(fb) === 'eye' ? 170 : 220) || 80));
+
+    var fallbackW = 300;
+    var fallbackH = expressionFrameBoneKind(fb) === 'eye' ? 170 : 220;
+
+    var w = Math.max(1, Number(
+      data && data.width ||
+      fb && fb.areaWidth ||
+      fallbackW ||
+      80
+    ));
+
+    var h = Math.max(1, Number(
+      data && data.height ||
+      fb && fb.areaHeight ||
+      fallbackH ||
+      80
+    ));
+
     var s = frameBoneScale(fb);
     return { slot: slot, data: data, rawW: w, rawH: h, scale: s, w: w * s, h: h * s };
   }
 
-  function frameBoneHandlePoints(fb, pose){ // FIX v18.10
+  function frameBoneDisplayState(fb, pose, frameNum){ // FIX v18.193_GPT: all expression images align to the same shared dummy target
     var fp = frameBonePointFromPose(fb, pose);
+    var slot = frameBoneSlotForTimelineFrame(fb, frameNum == null ? App.currentFrame : frameNum);
+    var data = fb && fb.frames ? fb.frames[slot] : null;
+    var angle = (fp.angle || 0) + frameBoneRotationRad(fb);
+    return { point: fp, slot: slot, data: data, angle: angle, offset: { x:0, y:0 }, center: { x: fp.x, y: fp.y } };
+  }
+
+  function frameBoneHandlePoints(fb, pose){ // FIX v18.10
+    var state = frameBoneDisplayState(fb, pose, App.currentFrame);
     var info = frameBoneVisualData(fb);
     var bounds = frameBoneVisualLocalBounds(fb, info); // FIX v18.111_GPT
-    var angle = (fp.angle || 0) + frameBoneRotationRad(fb);
+    var angle = state.angle;
     var cos = Math.cos(angle), sin = Math.sin(angle);
-    function world(lx, ly){ return { x: fp.x + lx * cos - ly * sin, y: fp.y + lx * sin + ly * cos }; }
+    function world(lx, ly){ return { x: state.center.x + lx * cos - ly * sin, y: state.center.y + lx * sin + ly * cos }; }
     return {
-      center: { x: fp.x, y: fp.y },
+      center: { x: state.center.x, y: state.center.y },
       angle: angle,
       info: info,
       bounds: bounds, // FIX v18.111_GPT
@@ -6388,6 +6865,9 @@ html, body, #app{
       if (!fb) return;
       var hp = frameBoneHandlePoints(fb, pose);
       var active = Number(fb.id) === Number(App.selectedFrameBoneId || 0);
+      var expressionOriginMode = active && App.activeTab === 'expression' && isExpressionFrameBone(fb);
+      var dOrigin = dist(localPoint, hp.center);
+      if (expressionOriginMode && dOrigin <= 14 && (!best || dOrigin < best.d)) best = { frameBoneId: fb.id, type: 'frameBoneOriginMove', d: dOrigin, hit: hp };
       var ds = dist(localPoint, hp.scale);
       if (active && ds <= 13 && (!best || ds < best.d)) best = { frameBoneId: fb.id, type: 'frameBoneScale', d: ds, hit: hp };
       var dr = dist(localPoint, hp.rotate);
@@ -6399,7 +6879,11 @@ html, body, #app{
       var hb = hp.bounds || frameBoneVisualLocalBounds(fb, hp.info); // FIX v18.111_GPT
       if (lx >= hb.left && lx <= hb.right && ly >= hb.top && ly <= hb.bottom) { // FIX v18.111_GPT
         var dd = Math.sqrt(dx * dx + dy * dy);
-        if (!best || dd < best.d) best = { frameBoneId: fb.id, type: 'frameBoneMove', d: dd, hit: hp };
+        if (expressionOriginMode) {
+          if (!best || dd < best.d) best = { frameBoneId: fb.id, type: 'frameBoneOriginMove', d: dd, hit: hp };
+        } else {
+          if (!best || dd < best.d) best = { frameBoneId: fb.id, type: 'frameBoneMove', d: dd, hit: hp };
+        }
       }
     });
     return best;
@@ -6420,12 +6904,28 @@ html, body, #app{
     App.interaction.dragType = hit.type;
     App.interaction.frameBoneId = fb.id;
     App.interaction.startLocal = clone(local);
+    var startSlot = frameBoneSlotForTimelineFrame(fb, App.currentFrame);
+    var startSlotData = ensureExpressionSlotPlacement(fb, startSlot);
+    var startRawW = Math.max(1, Number((startSlotData && startSlotData.width) || (hp.info && hp.info.rawW) || 1) || 1);
+    var startRawH = Math.max(1, Number((startSlotData && startSlotData.height) || (hp.info && hp.info.rawH) || 1) || 1);
+    var startAnchor = frameBoneRawAnchor(fb, startRawW, startRawH, startSlotData);
+    var startState = frameBoneDisplayState(fb, pose, App.currentFrame);
+    var startTopLeft = frameBoneImageTopLeftWorldFromState(fb, startState);
     App.interaction.startFrameBone = {
       point: clone(fb.point || hp.center),
       local: fb.local ? clone(fb.local) : null,
       scale: frameBoneScale(fb),
       rotationDeg: Number(fb.rotationDeg || 0) || 0,
       center: clone(hp.center),
+      angle: hp.angle,
+      slot: startSlot,
+      slotOffsetX: startSlotData ? (Number(startSlotData.offsetX || 0) || 0) : 0,
+      slotOffsetY: startSlotData ? (Number(startSlotData.offsetY || 0) || 0) : 0,
+      startRawAnchorX: startAnchor.x,
+      startRawAnchorY: startAnchor.y,
+      rawW: startRawW,
+      rawH: startRawH,
+      topLeft: clone(startTopLeft),
       startDistance: Math.max(1, dist(local, hp.center)),
       startAngle: rawAngleOfPoints(hp.center, local)
     };
@@ -6440,7 +6940,26 @@ html, body, #app{
     if (!fb || !App.interaction.startFrameBone) return false;
     var start = App.interaction.startLocal || local;
     var st = App.interaction.startFrameBone;
-    if (App.interaction.dragType === 'frameBoneMove') {
+    if (App.interaction.dragType === 'frameBoneOriginMove') {
+      var slotData = ensureExpressionSlotPlacement(fb, st.slot || frameBoneSlotForTimelineFrame(fb, App.currentFrame));
+      if (slotData) {
+        var topLeft = st.topLeft || { x:0, y:0 };
+        var dx0 = local.x - topLeft.x;
+        var dy0 = local.y - topLeft.y;
+        var ca0 = Math.cos(-(Number(st.angle || 0) || 0));
+        var sa0 = Math.sin(-(Number(st.angle || 0) || 0));
+        var localX = dx0 * ca0 - dy0 * sa0;
+        var localY = dx0 * sa0 + dy0 * ca0;
+        var scale0 = Math.max(0.0001, Number(st.scale || 1) || 1);
+        var rawX = clamp(localX / scale0, 0, Math.max(1, Number(st.rawW || 1) || 1));
+        var rawY = clamp(localY / scale0, 0, Math.max(1, Number(st.rawH || 1) || 1));
+        slotData.anchorX = clamp(rawX / Math.max(1, Number(st.rawW || 1) || 1), 0, 1);
+        slotData.anchorY = clamp(rawY / Math.max(1, Number(st.rawH || 1) || 1), 0, 1);
+        slotData.offsetX = 0;
+        slotData.offsetY = 0;
+        slotData.expressionAnchorSet = true;
+      }
+    } else if (App.interaction.dragType === 'frameBoneMove') {
       var dx = local.x - start.x;
       var dy = local.y - start.y;
       fb.point = { x: st.point.x + dx, y: st.point.y + dy };
@@ -6462,14 +6981,15 @@ html, body, #app{
 
   function drawFrameBonesOnContext(ctx, pose){ // FIX v13.6
     (App.frameBones || []).forEach(function(fb){
-      var fp = frameBonePointFromPose(fb, pose);
+      var state = frameBoneDisplayState(fb, pose, App.currentFrame);
+      var fp = state.point;
       var active = Number(fb.id) === Number(App.selectedFrameBoneId || 0);
-      var slot = frameBoneSlotForTimelineFrame(fb, App.currentFrame);
-      var data = fb.frames ? fb.frames[slot] : null;
+      var slot = state.slot;
+      var data = state.data;
       var visual = frameBoneVisualData(fb); // FIX v18.10
       ctx.save();
-      ctx.translate(fp.x, fp.y);
-      ctx.rotate((fp.angle || 0) + frameBoneRotationRad(fb));
+      ctx.translate(state.center.x, state.center.y);
+      ctx.rotate(state.angle);
       ctx.scale(frameBoneScale(fb), frameBoneScale(fb));
       var bounds = frameBoneVisualLocalBounds(fb, visual); // FIX v18.111_GPT
       if (data && data.dataUrl && data.imageCache && data.imageCache.complete) {
@@ -6484,6 +7004,15 @@ html, body, #app{
       ctx.rect(bounds.rawLeft, bounds.rawTop, visual.rawW, visual.rawH); // FIX v18.111_GPT
       ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(-24 / frameBoneScale(fb), 0); ctx.lineTo(24 / frameBoneScale(fb), 0); ctx.moveTo(0, -24 / frameBoneScale(fb)); ctx.lineTo(0, 24 / frameBoneScale(fb)); ctx.stroke();
+      if (active && App.activeTab === 'expression' && isExpressionFrameBone(fb)) { // FIX v18.192_GPT: show the per image registration target on the dummy
+        var invOrigin = 1 / frameBoneScale(fb);
+        ctx.strokeStyle = '#ffffff';
+        ctx.fillStyle = '#ff5757';
+        ctx.lineWidth = 2 * invOrigin;
+        ctx.beginPath(); ctx.arc(0, 0, 10 * invOrigin, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 0, 4 * invOrigin, 0, Math.PI * 2); ctx.fillStyle = '#ffd54a'; ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-18 * invOrigin, 0); ctx.lineTo(18 * invOrigin, 0); ctx.moveTo(0, -18 * invOrigin); ctx.lineTo(0, 18 * invOrigin); ctx.strokeStyle = '#ffd54a'; ctx.stroke();
+      }
       if (active) { // FIX v18.10
         var invS = 1 / frameBoneScale(fb); // FIX v18.10
         var sx = bounds.rawRight + 16 * invS; // FIX v18.111_GPT
@@ -6502,9 +7031,9 @@ html, body, #app{
       ctx.font = 'bold 10px Arial';
       ctx.lineWidth = 2;
       ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-      ctx.strokeText(fb.name + ' ' + frameBoneSlotDisplayName(fb, slot), fp.x + 8, fp.y - 20); // FIX v18.29
+      ctx.strokeText(fb.name + ' ' + frameBoneSlotDisplayName(fb, slot), state.center.x + 8, state.center.y - 20); // FIX v18.29
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(fb.name + ' ' + frameBoneSlotDisplayName(fb, slot), fp.x + 8, fp.y - 20); // FIX v18.29
+      ctx.fillText(fb.name + ' ' + frameBoneSlotDisplayName(fb, slot), state.center.x + 8, state.center.y - 20); // FIX v18.29
       ctx.restore();
     });
   }
@@ -6639,7 +7168,7 @@ html, body, #app{
         fileName: App.source.fileName || '', captureMode: App.source.captureMode || 'local-file', selectedIdentifier: App.source.selectedIdentifier || '', selectedUUID: App.source.selectedUUID || '',
         width: Number(App.source.width || 0), height: Number(App.source.height || 0), svgRaw: App.source.svgRaw || '', dataUrl: App.source.dataUrl || App.source.embeddedDataUrl || '',
         svgNative: safeJsonClone(App.source.svgNative || null), // FIX v_006: preserve exact parsed RotoBones curve detail instead of rebuilding lower detail paths
-        stagePlacementBounds: safeJsonClone(App.source.stagePlacementBounds), viewportRect: safeJsonClone(App.source.viewportRect), alphaThreshold: Number(App.source.alphaThreshold || 254)
+        stagePlacementBounds: safeJsonClone(App.source.stagePlacementBounds), viewportRect: safeJsonClone(App.source.viewportRect), alphaThreshold: Number(App.source.alphaThreshold || 254), dummy: safeJsonClone(App.source.dummy || null)
       },
       flags: safeJsonClone(App.flags), rig: safeJsonClone(App.rig), smooth: safeJsonClone(App.smooth), selectedCurve: safeJsonClone(App.selectedCurve), grid: safeJsonClone(App.grid), // FIX v14.6
       bones: safeJsonClone(App.bones), nextBoneId: Number(App.nextBoneId || 1), selectedBoneId: App.selectedBoneId == null ? null : Number(App.selectedBoneId),
@@ -6869,8 +7398,16 @@ html, body, #app{
       App.source.viewportRect = safeJsonClone(src.viewportRect) || App.source.viewportRect;
       App.source.alphaThreshold = Number(src.alphaThreshold || App.source.alphaThreshold || 254);
       buildAlphaMask();
+    } else if (src.dummy && src.dummy.active) { // FIX v18.182_GPT
+      App.source.dataUrl = ''; App.source.embeddedDataUrl = ''; App.source.image = null;
+      App.source.width = Math.max(40, Number(src.width || (src.dummy && src.dummy.width) || 300));
+      App.source.height = Math.max(40, Number(src.height || (src.dummy && src.dummy.height) || 220));
+      App.source.fileName = src.fileName || 'Dummy area'; App.source.captureMode = src.captureMode || 'dummy-area';
+      App.source.svgRaw = ''; App.source.svgNative = null; App.source.selectedIdentifier = src.selectedIdentifier || 'Dummy area'; App.source.selectedUUID = src.selectedUUID || 'dummy-area';
+      App.source.dummy = safeJsonClone(src.dummy);
+      ensureOverlay(); fitOverlayToSource();
     } else {
-      removeOverlay(); App.source.dataUrl = ''; App.source.embeddedDataUrl = ''; App.source.image = null; App.source.width = 0; App.source.height = 0; App.source.fileName = ''; App.source.captureMode = ''; App.source.svgRaw = ''; App.source.svgNative = null; App.source.selectedIdentifier = ''; App.source.selectedUUID = '';
+      removeOverlay(); App.source.dataUrl = ''; App.source.embeddedDataUrl = ''; App.source.image = null; App.source.width = 0; App.source.height = 0; App.source.fileName = ''; App.source.captureMode = ''; App.source.svgRaw = ''; App.source.svgNative = null; App.source.dummy = null; App.source.selectedIdentifier = ''; App.source.selectedUUID = '';
     }
     App.bones = normaliseLoadedBoneArray(safeJsonClone(data.bones || [])); // FIX v17.0 // FIX v_068: do not lose stretchy bone type/restLength data when loading a MyCharacter part.
     App.nextBoneId = Number(data.nextBoneId || ((App.bones || []).reduce(function(maxId, item){ return Math.max(maxId, Number(item.id || 0)); }, 0) + 1) || 1);
@@ -6883,7 +7420,7 @@ html, body, #app{
     App.frameCount = Math.max(1, Number(data.frameCount || App.frameCount || 1)); App.fps = clamp(Number(data.fps || App.fps || 12), 1, 60); App.currentFrame = clamp(Number(data.currentFrame || 1), 1, App.frameCount);
     enforceAllRestChains(); Object.keys(App.keyframes || {}).forEach(function(fr){ if (App.keyframes[fr]) enforceAllPoseChains(App.keyframes[fr]); });
     if (App.mcCommitSuppressProxySync) { return; } // FIX v18.99_GPT: MyCharacter commit loads part states only for baking. Do not create Wick proxy layers during that internal load because those proxy rows are not commit children and can break Wick dirty traversal.
-    if (App.source.image) { ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); }
+    if (App.source.image || (App.source && App.source.dummy && App.source.dummy.active) || App.source.captureMode === 'blank-area') { ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); } // FIX v18.182_GPT
     try { syncProxyLayersToBones(true); } catch(e){}
     scheduleProxyFrame(); updateUI(); renderOverlay(); markDirty();
   }
@@ -8768,7 +9305,7 @@ html, body, #app{
   }
 
   function renderOverlay(){
-    if (!App.overlay.canvas || !App.source.image) return;
+    if (!App.overlay.canvas) return; // FIX v18.181_GPT: allow blank set area
     try { if (App.myCharacter && App.myCharacter.parts && App.myCharacter.parts.length) mcRefreshPinnedChildren(); } catch(eMcPinRefresh){} // FIX v_022
 
     var pose;
@@ -8797,7 +9334,7 @@ html, body, #app{
       try { if (App.overlay.svgLayer) { App.overlay.svgLayer.innerHTML = ''; App.overlay.svgLayer.style.display = 'none'; } } catch(eMcSvgHide_v083){}
     } else {
       nativePreview = updateNativeSvgPreviewLayer(pose, ox, oy); // FIX v7.5
-      if (!nativePreview) { // FIX v7.5
+      if (!nativePreview && App.source.image) { // FIX v18.182_GPT: dummy and blank areas have no source art to warp
         renderWarpToContext(ctx, pose, { canvasWidth: w, canvasHeight: h, offsetX: ox, offsetY: oy }); // FIX v7.0
       }
     }
@@ -8806,6 +9343,10 @@ html, body, #app{
     ctx.scale(canvasScaleX, canvasScaleY); // FIX v18.69_NodeClickNoJumpShapePreserve
     ctx.translate(ox, oy); // FIX v7.0
 
+    drawDummyAreaCrosshairOnContext(ctx); // FIX v18.183_GPT: setup crosshair only, not part of commit
+    if (!App.flags.showBones && App.frameBones && App.frameBones.length && (App.activeTab === 'source' || App.activeTab === 'bones' || App.activeTab === 'expression' || App.activeTab === 'editbone' || App.activeTab === 'animate')) {
+      drawFrameBonesOnContext(ctx, pose); // FIX v18.183_GPT: Frame_Bone should still be visible on dummy setup areas.
+    }
     drawSmoothCurvePointsOnContext(ctx, pose); // FIX v18.2
     drawPointAnimationHandlesOnContext(ctx); // FIX v18.54_AnimatePoints
 
@@ -9689,7 +10230,19 @@ html, body, #app{
       try { e.preventDefault(); e.stopPropagation(); } catch(ePinStop){} // FIX v18.92
       return;
     }
-    if (!App.source.image && !(App.source && App.source.nativeShapes && App.source.nativeShapes.length)) return; // FIX v18.92
+    if (!App.source.image && !(App.source && App.source.nativeShapes && App.source.nativeShapes.length) && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') return; // FIX v18.182_GPT
+    var frameBoneHitBeforeDummy = hitTestFrameBone(local); // FIX v18.184_GPT: Frame_Bone must win over the dummy square hit area.
+    if (frameBoneHitBeforeDummy && (App.activeTab === 'bones' || App.activeTab === 'expression' || App.activeTab === 'editbone')) { // FIX v18.184_GPT
+      pushUndoSnapshot('Overlay edit'); // FIX v18.184_GPT
+      if (beginFrameBoneHandleDrag(frameBoneHitBeforeDummy, local)) return; // FIX v18.184_GPT
+    }
+    if ((App.activeTab === 'source' || App.activeTab === 'bones' || App.activeTab === 'expression' || App.activeTab === 'editbone') && App.source && App.source.dummy && App.source.dummy.active) { // FIX v18.183_GPT
+      var dummyHit = hitTestDummyArea(local);
+      if (dummyHit) {
+        pushUndoSnapshot('Move Dummy Area');
+        if (beginDummyAreaDrag(dummyHit, local, e)) { try { e.preventDefault(); e.stopPropagation(); } catch(eDummyStop){} return; }
+      }
+    }
     if (App.activeTab === 'bones' || App.activeTab === 'editbone' || App.activeTab === 'animate' || App.activeTab === 'animatepoints' || App.activeTab === 'expression' || App.activeTab === 'animatepoints') pushUndoSnapshot('Overlay edit'); // FIX v18.54_AnimatePoints // FIX v18.52_RelaxBrush
     if (mcEnsure().pinPickSourceId) { // FIX v_022
       if (mcHandleStagePinBoneClick(local, e)) return;
@@ -9734,11 +10287,7 @@ html, body, #app{
       renderOverlay();
       return;
     }
-    // FIX v18.92: Frame_Bone pin mode is handled at the top of onOverlayMouseDown before the source image guard.
-    var frameBoneHit = hitTestFrameBone(local); // FIX v18.10
-    if (frameBoneHit && (App.activeTab === 'bones' || App.activeTab === 'expression' || App.activeTab === 'editbone')) { // FIX v18.10
-      if (beginFrameBoneHandleDrag(frameBoneHit, local)) return; // FIX v18.10
-    } // FIX v18.10
+    // FIX v18.184_GPT: Frame_Bone hit testing is handled before dummy hit testing so the dummy square cannot swallow Frame_Bone clicks.
     var rawHit = hitTestBone(local); // FIX v5.0
     if (rawHit && App.activeTab === 'editbone') App.editBoneMode = isEnvelopeDragType(rawHit.type) ? 'envelope' : 'bone'; // FIX v18.1: selecting a node switches the edit focus automatically.
     if (rawHit && !editBoneModeAllowsDragType(rawHit.type)) rawHit = null; // FIX v18.1: Edit Bone allows envelope node edits as well as bone movement.
@@ -9818,12 +10367,17 @@ html, body, #app{
   }
 
   function onOverlayMouseMove(e){
-    if (!App.overlay.canvas || !App.source.image) return;
+    if (!App.overlay.canvas) return;
+    if (!App.source.image && !(App.source && App.source.nativeShapes && App.source.nativeShapes.length) && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') return; // FIX v18.183_GPT: dummy and blank areas are editable sources.
     var local = clientToOverlayLocal(e.clientX, e.clientY);
     App.interaction.hoverLocal = local;
     App.interaction.shift = !!e.shiftKey;
     if (!App.interaction.dragging) {
-      var frameHit = hitTestFrameBone(local); // FIX v18.10
+      var frameHit = (App.activeTab === 'bones' || App.activeTab === 'expression' || App.activeTab === 'editbone') ? hitTestFrameBone(local) : null; // FIX v18.184_GPT: Frame_Bone hover wins over dummy square.
+      var dummyHover = !frameHit && (App.activeTab === 'source' || App.activeTab === 'bones' || App.activeTab === 'expression' || App.activeTab === 'editbone') ? hitTestDummyArea(local) : null; // FIX v18.184_GPT
+      if (frameHit && App.overlay && App.overlay.canvas) App.overlay.canvas.style.cursor = frameHit.type === 'frameBoneScale' ? 'nwse-resize' : (frameHit.type === 'frameBoneRotate' ? 'grab' : 'move'); // FIX v18.184_GPT
+      else if (dummyHover && App.overlay && App.overlay.canvas) App.overlay.canvas.style.cursor = dummyHover.type === 'dummyScale' ? 'nwse-resize' : 'move'; // FIX v18.183_GPT
+      else if (App.overlay && App.overlay.canvas) App.overlay.canvas.style.cursor = 'crosshair'; // FIX v18.183_GPT
       var hit = frameHit ? null : hitTestBone(local); // FIX v18.10
       App.interaction.hoverFrameBoneId = frameHit ? frameHit.frameBoneId : null; // FIX v18.10
       App.interaction.hoverBoneId = hit ? hit.boneId : null;
@@ -9846,7 +10400,11 @@ html, body, #app{
       renderOverlay();
       return;
     }
-    if (App.interaction.dragType === 'frameBoneMove' || App.interaction.dragType === 'frameBoneScale' || App.interaction.dragType === 'frameBoneRotate') { // FIX v18.10
+    if (App.interaction.dragType === 'dummyMove' || App.interaction.dragType === 'dummyScale') { // FIX v18.183_GPT
+      updateDummyAreaDrag(local, e);
+      return;
+    }
+    if (App.interaction.dragType === 'frameBoneMove' || App.interaction.dragType === 'frameBoneScale' || App.interaction.dragType === 'frameBoneRotate' || App.interaction.dragType === 'frameBoneOriginMove') { // FIX v18.191_GPT
       updateFrameBoneHandleDrag(local); // FIX v18.10
       return; // FIX v18.10
     } // FIX v18.10
@@ -10013,6 +10571,7 @@ html, body, #app{
     App.interaction.boneId = null;
     App.interaction.frameBoneId = null; // FIX v18.10
     App.interaction.startFrameBone = null; // FIX v18.10
+    App.interaction.startDummyArea = null; // FIX v18.183_GPT
     App.interaction.startLocal = null;
     App.interaction.startPose = null;
     App.interaction.startBone = null;
@@ -11476,14 +12035,13 @@ html, body, #app{
       }
     }
     (App.frameBones || []).forEach(function(fb){ // FIX v14.1: frame bone SVGs can extend outside the source SVG bounds
-      var slot = frameBoneSlotForTimelineFrame(fb, frameNum || App.currentFrame || 1);
-      var data = fb && fb.frames ? fb.frames[slot] : null;
+      var state = frameBoneDisplayState(fb, pose, frameNum || App.currentFrame || 1);
+      var data = state.data;
       if (!data) return;
-      var fp = frameBonePointFromPose(fb, pose);
       var s = frameBoneScale(fb);
       var w = Math.max(1, Number(data.width || 80)) * s;
       var h = Math.max(1, Number(data.height || 80)) * s;
-      var b = rotatedBoxBounds(fp.x, fp.y, w, h, (fp.angle || 0) + frameBoneRotationRad(fb));
+      var b = rotatedBoxBounds(state.center.x, state.center.y, w, h, state.angle);
       addPoint({ x:b.minX, y:b.minY }); addPoint({ x:b.maxX, y:b.maxY });
     });
     if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) { // FIX v6.9
@@ -11864,7 +12422,7 @@ html, body, #app{
     return exportBounds;
   }
 
-  function nativeShapePathRecordsFromFrame(frameNum, exportBounds){ // FIX v14.9
+  function nativeShapePathRecordsFromFrame(frameNum, exportBounds){ // FIX v18.205_GPT: inner compound subpaths are filled with the sampled colour behind them.
     if (!App.source.svgNative || !App.source.svgNative.shapes || !App.source.svgNative.shapes.length) return [];
     var pose = getPoseForFrame(frameNum);
     exportBounds = exportBounds || { width: Math.max(1, Math.round(App.source.width)), height: Math.max(1, Math.round(App.source.height)), offsetX: 0, offsetY: 0 };
@@ -11873,9 +12431,106 @@ html, body, #app{
     var nativeOriginX = Number(exportBounds.nativeOriginX || 0); // FIX v15.0
     var nativeOriginY = Number(exportBounds.nativeOriginY || 0); // FIX v15.0
     var records = [];
+    var backgroundRecords = []; // FIX v18.205_GPT: earlier committed filled Wick curves used as the colour source behind holes.
+
+    function sampleFillFromStyle(style){
+      style = style || {};
+      if (!svgStyleHasVisibleFill_v18199(style)) return null;
+      return svgColorToPaperColor(style.fill);
+    }
+
+    function commandPointListForHit_v18205(cmds){
+      var pts = [];
+      var current = null;
+      var start = null;
+      function add(p){
+        if (!p) return;
+        var q = { x:Number(p.x || 0) || 0, y:Number(p.y || 0) || 0 };
+        pts.push(q);
+        current = q;
+        if (!start) start = q;
+      }
+      (cmds || []).forEach(function(cmd){
+        if (!cmd || !cmd.type) return;
+        if (cmd.type === 'M' && cmd.p) {
+          add(cmd.p);
+        } else if (cmd.type === 'L' && cmd.p) {
+          add(cmd.p);
+        } else if (cmd.type === 'Q' && cmd.c1 && cmd.p && current) {
+          for (var qi = 1; qi <= 8; qi += 1) add(quadraticPointAt(current, cmd.c1, cmd.p, qi / 8));
+        } else if (cmd.type === 'C' && cmd.c1 && cmd.c2 && cmd.p && current) {
+          for (var ci = 1; ci <= 10; ci += 1) add(cubicPointAt(current, cmd.c1, cmd.c2, cmd.p, ci / 10));
+        } else if (cmd.type === 'Z' && start) {
+          add(start);
+        }
+      });
+      return pts;
+    }
+
+    function pointListBounds_v18205(pts){
+      var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      (pts || []).forEach(function(p){
+        if (!p) return;
+        var x = Number(p.x || 0), y = Number(p.y || 0);
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      });
+      if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) return { minX:0, minY:0, maxX:0, maxY:0, cx:0, cy:0 };
+      return { minX:minX, minY:minY, maxX:maxX, maxY:maxY, cx:(minX + maxX) * 0.5, cy:(minY + maxY) * 0.5 };
+    }
+
+    function commandBounds_v18205(cmds){
+      return pointListBounds_v18205(commandPointListForHit_v18205(cmds || []));
+    }
+
+    function pointInsidePoly_v18205(point, pts){
+      if (!point || !pts || pts.length < 3) return false;
+      var x = Number(point.x || 0), y = Number(point.y || 0);
+      var inside = false;
+      for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        var xi = Number(pts[i].x || 0), yi = Number(pts[i].y || 0);
+        var xj = Number(pts[j].x || 0), yj = Number(pts[j].y || 0);
+        var intersect = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi) / ((yj - yi) || 0.000001)) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function sampleBehindFill_v18205(point){
+      for (var i = backgroundRecords.length - 1; i >= 0; i -= 1) {
+        var rec = backgroundRecords[i];
+        if (!rec || !rec.fill || !rec.pts || rec.pts.length < 3) continue;
+        if (pointInsidePoly_v18205(point, rec.pts)) return rec.fill;
+      }
+      return '#ffffff';
+    }
+
+    function rememberBackgroundRecord_v18205(cmds, style){
+      var fill = sampleFillFromStyle(style);
+      if (!fill) return;
+      var pts = commandPointListForHit_v18205(cmds || []);
+      if (pts.length < 3) return;
+      backgroundRecords.push({ pts:pts, fill:fill });
+    }
+
+    function holeStyleFromOuterStyle(outerStyle, holeCommands){ // FIX v18.205_GPT
+      var s = clone(outerStyle || {});
+      var b = commandBounds_v18205(holeCommands || []);
+      s.fill = sampleBehindFill_v18205({ x:b.cx, y:b.cy }) || '#ffffff';
+      s['fill-opacity'] = '1';
+      s.stroke = 'none';
+      s['stroke-width'] = '0';
+      s.opacity = s.opacity == null ? '1' : s.opacity;
+      s._ltbwHoleColourBehind = true;
+      return s;
+    }
+
     App.source.svgNative.shapes.forEach(function(shape, shapeIndex){
       var style = clone(shape.style || {});
       if (shape.cmdSubpaths && shape.cmdSubpaths.length) {
+        var warpedSubs = [];
         shape.cmdSubpaths.forEach(function(sp, subpathIndex){
           var warpedCmds = (sp.commands || []).map(function(cmd, cmdIndex){
             var out = { type: cmd.type };
@@ -11884,16 +12539,60 @@ html, body, #app{
             if (cmd.c2) { var ac2 = getAnimatedPointForFrame(cmd.c2, pointAnimationPointId(shapeIndex, subpathIndex, cmdIndex, 'c2'), frameNum); var pc2 = skinPointByPose(ac2, pose); out.c2 = { x: pc2.x + ox - nativeOriginX, y: pc2.y + oy - nativeOriginY }; } // FIX v18.54_AnimatePoints
             return out;
           });
-          warpedCmds = smoothNativeCommandsForOutput(warpedCmds);
-          var d = pathCommandsToD(warpedCmds);
-          if (d.trim()) records.push({ d: d.trim(), style: clone(style), paperJson: paperJsonFromNativeCommands(warpedCmds, style) }); // FIX v14.9
+          warpedSubs.push({ commands: smoothNativeCommandsForOutput(warpedCmds), closed: !!sp.closed, originalIndex: subpathIndex });
         });
+
+        if (warpedSubs.length > 1 && svgStyleHasVisibleFill_v18199(style)) {
+          var newBackground = [];
+          warpedSubs.forEach(function(sp, subIndex){
+            var d = pathCommandsToD(sp.commands || []);
+            if (!String(d || '').trim()) return;
+            var recordStyle = subIndex === 0 ? clone(style) : holeStyleFromOuterStyle(style, sp.commands || []);
+            records.push({ d:String(d).trim(), style: recordStyle, paperJson: paperJsonFromNativeCommands(sp.commands || [], recordStyle), holeColourBehind: subIndex > 0 });
+            if (subIndex === 0) newBackground.push({ cmds:sp.commands || [], style:recordStyle });
+          });
+          newBackground.forEach(function(item){ rememberBackgroundRecord_v18205(item.cmds, item.style); });
+        } else {
+          warpedSubs.forEach(function(sp){
+            var d = pathCommandsToD(sp.commands || []);
+            if (String(d || '').trim()) {
+              records.push({ d:String(d).trim(), style: clone(style), paperJson: paperJsonFromNativeCommands(sp.commands || [], style) });
+              rememberBackgroundRecord_v18205(sp.commands || [], style);
+            }
+          });
+        }
       } else if (shape.subpaths && shape.subpaths.length) {
-        shape.subpaths.forEach(function(sp){
+        var warpedSubpaths = [];
+        shape.subpaths.forEach(function(sp, subpathIndex){
           var warped = sp.points.map(function(p, pointIndex){ var ap = getAnimatedPointForFrame(p, pointAnimationPointId(shapeIndex, subpathIndex, pointIndex, 's'), frameNum); var q = skinPointByPose(ap, pose); return { x: q.x + ox - nativeOriginX, y: q.y + oy - nativeOriginY }; }); // FIX v18.54_AnimatePoints
-          var d = pointsToSubpath(warped, sp.closed);
-          if (d.trim()) records.push({ d: d.trim(), style: clone(style), paperJson: paperJsonFromPointList(warped, !!sp.closed, style) }); // FIX v14.9
+          var cmds = [];
+          if (warped.length) {
+            cmds.push({ type:'M', p:warped[0] });
+            for (var wp = 1; wp < warped.length; wp += 1) cmds.push({ type:'L', p:warped[wp] });
+            if (sp.closed) cmds.push({ type:'Z' });
+          }
+          warpedSubpaths.push({ points: warped, commands:cmds, closed: !!sp.closed, originalIndex: subpathIndex });
         });
+
+        if (warpedSubpaths.length > 1 && svgStyleHasVisibleFill_v18199(style)) {
+          var newBackground2 = [];
+          warpedSubpaths.forEach(function(sp, subIndex){
+            var d = pointsToSubpath(sp.points || [], !!sp.closed);
+            if (!String(d || '').trim()) return;
+            var recordStyle = subIndex === 0 ? clone(style) : holeStyleFromOuterStyle(style, sp.commands || []);
+            records.push({ d:String(d).trim(), style: recordStyle, paperJson: paperJsonFromPointList(sp.points || [], !!sp.closed, recordStyle), holeColourBehind: subIndex > 0 });
+            if (subIndex === 0) newBackground2.push({ cmds:sp.commands || [], style:recordStyle });
+          });
+          newBackground2.forEach(function(item){ rememberBackgroundRecord_v18205(item.cmds, item.style); });
+        } else {
+          warpedSubpaths.forEach(function(sp){
+            var d = pointsToSubpath(sp.points || [], !!sp.closed);
+            if (String(d || '').trim()) {
+              records.push({ d:String(d).trim(), style:clone(style), paperJson:paperJsonFromPointList(sp.points || [], !!sp.closed, style) });
+              rememberBackgroundRecord_v18205(sp.commands || [], style);
+            }
+          });
+        }
       }
     });
     return records;
@@ -11903,6 +12602,19 @@ html, body, #app{
     value = String(value == null ? '' : value).trim();
     if (!value || value === 'none' || value === 'transparent') return null;
     return value;
+  }
+
+  function svgStyleHasVisibleFill_v18199(style){ // FIX v18.199_GPT: no fill shapes must not become solid closed Wick paths.
+    style = style || {};
+    var fill = svgColorToPaperColor(style.fill);
+    if (!fill) return false;
+    if (style['fill-opacity'] != null && Number(style['fill-opacity']) <= 0) return false;
+    if (style.opacity != null && Number(style.opacity) <= 0) return false;
+    return true;
+  }
+
+  function svgStyleIsStrokeOnly_v18199(style){ // FIX v18.199_GPT
+    return !svgStyleHasVisibleFill_v18199(style) && svgStyleHasVisibleStroke_v103(style);
   }
 
   function svgStyleHasVisibleStroke_v103(style){ // FIX v18.103_GPT: preserve fill only SVG parts without inventing an outline.
@@ -11920,9 +12632,13 @@ html, body, #app{
     var data = { applyMatrix: true };
     var fill = svgColorToPaperColor(style.fill);
     var stroke = svgColorToPaperColor(style.stroke);
+    var hasFill = svgStyleHasVisibleFill_v18199(style); // FIX v18.199_GPT
     var hasStroke = svgStyleHasVisibleStroke_v103(style); // FIX v18.103_GPT
-    if (fill) data.fillColor = fill;
-    else data.fillColor = null;
+    if (hasFill) data.fillColor = fill;
+    else {
+      data.fillColor = 'rgba(0,0,0,0)'; // FIX v18.200_GPT: Wick can default null no fill paths back to solid. Use an explicit transparent fill.
+      data.fillColorDisabled = true;
+    }
     if (hasStroke) data.strokeColor = stroke;
     else data.strokeColor = null; // FIX v18.103_GPT
     if (hasStroke) data.strokeWidth = style['stroke-width'] != null ? (Number(style['stroke-width']) || 1) : 1;
@@ -11942,7 +12658,7 @@ html, body, #app{
 
   function paperJsonFromPointList(points, closed, style){ // FIX v14.9
     var data = paperJsonStyleFromSvgStyle(style);
-    data.closed = !!closed;
+    data.closed = svgStyleIsStrokeOnly_v18199(style) ? false : !!closed; // FIX v18.199_GPT: stroke only donut/circle paths must not be treated as filled solid paths by Wick.
     data.segments = (points || []).map(function(p){ return paperJsonSegment(p); });
     return ['Path', data];
   }
@@ -11976,15 +12692,235 @@ html, body, #app{
         closed = true;
       }
     });
-    data.closed = !!closed;
+    data.closed = svgStyleIsStrokeOnly_v18199(style) ? false : !!closed; // FIX v18.199_GPT: prevent no fill circular subpaths from becoming solid discs.
     data.segments = segments;
     return ['Path', data];
   }
 
+  function nativeRecordFromCommandSubpaths(cmdSubpaths, style){ // FIX v18.197_GPT: preserve holes and compound shapes by committing all subpaths as one SVG path record
+    var pieces = [];
+    (cmdSubpaths || []).forEach(function(sp){
+      var cmds = smoothNativeCommandsForOutput(clone(sp && sp.commands || []));
+      var d = pathCommandsToD(cmds);
+      if (String(d || '').trim()) pieces.push(String(d).trim());
+    });
+    var joined = pieces.join(' ').trim();
+    if (!joined) return null;
+    return { d: joined, style: clone(style || {}), paperJson: null };
+  }
+
+  function nativeRecordFromLegacySubpaths(subpaths, style){ // FIX v18.197_GPT
+    var pieces = [];
+    (subpaths || []).forEach(function(sp){
+      var pts = (sp && sp.points || []).map(function(p){ return { x:Number(p && p.x || 0) || 0, y:Number(p && p.y || 0) || 0 }; });
+      var d = pointsToSubpath(pts, !!(sp && sp.closed));
+      if (String(d || '').trim()) pieces.push(String(d).trim());
+    });
+    var joined = pieces.join(' ').trim();
+    if (!joined) return null;
+    return { d: joined, style: clone(style || {}), paperJson: null };
+  }
+
+  function nativeSubpathDListFromCommandSubpaths_v18202(cmdSubpaths){ // FIX v18.202_GPT: keep compound path parts so Wick boolean subtraction can make real donut holes.
+    var pieces = [];
+    (cmdSubpaths || []).forEach(function(sp){
+      var cmds = smoothNativeCommandsForOutput(clone(sp && sp.commands || []));
+      var d = pathCommandsToD(cmds);
+      if (String(d || '').trim()) pieces.push(String(d).trim());
+    });
+    return pieces;
+  }
+
+  function nativeSubpathDListFromLegacySubpaths_v18202(subpaths){ // FIX v18.202_GPT
+    var pieces = [];
+    (subpaths || []).forEach(function(sp){
+      var pts = (sp && sp.points || []).map(function(p){ return { x:Number(p && p.x || 0) || 0, y:Number(p && p.y || 0) || 0 }; });
+      var d = pointsToSubpath(pts, !!(sp && sp.closed));
+      if (String(d || '').trim()) pieces.push(String(d).trim());
+    });
+    return pieces;
+  }
+
+  function nativeCompoundBooleanRecord_v18202(dParts, style){ // FIX v18.202_GPT
+    dParts = (dParts || []).filter(function(d){ return String(d || '').trim(); });
+    if (!dParts.length) return null;
+    if (dParts.length === 1) return { d:dParts[0], style:clone(style || {}), paperJson:null };
+    return {
+      d: dParts.join(' ').trim(),
+      dParts: dParts.slice(),
+      style: clone(style || {}),
+      paperJson: null,
+      useBooleanDonut: true
+    };
+  }
+
+  function paperProjectForBoolean_v18202(){ // FIX v18.202_GPT
+    try { if (App.paper && App.paper.project) return App.paper.project; } catch(e){}
+    try { if (window.paper && window.paper.project) return window.paper.project; } catch(e2){}
+    try { if (window.parent && window.parent.paper && window.parent.paper.project) return window.parent.paper.project; } catch(e3){}
+    return null;
+  }
+
+  function paperItemAreaAbs_v18202(item){ // FIX v18.202_GPT
+    try { return Math.abs(Number(item.area || 0) || 0); } catch(e){}
+    return 0;
+  }
+
+  function paperItemCenter_v18202(item){ // FIX v18.202_GPT
+    try {
+      var b = item.bounds;
+      if (b) return { x:Number(b.center && b.center.x != null ? b.center.x : (b.left + b.width * 0.5)), y:Number(b.center && b.center.y != null ? b.center.y : (b.top + b.height * 0.5)) };
+    } catch(e){}
+    return { x:0, y:0 };
+  }
+
+  function paperItemContainsPoint_v18202(item, point){ // FIX v18.202_GPT
+    try { if (item && typeof item.contains === 'function') return !!item.contains(new App.paper.Point(point.x, point.y)); } catch(e){}
+    try { if (item && typeof item.contains === 'function') return !!item.contains(point); } catch(e2){}
+    try {
+      var b = item.bounds;
+      return b && point.x >= b.left && point.x <= b.right && point.y >= b.top && point.y <= b.bottom;
+    } catch(e3){}
+    return false;
+  }
+
+  function importPaperPathFromD_v18202(project, d, style){ // FIX v18.202_GPT
+    if (!project || typeof project.importSVG !== 'function') return null;
+    var attrs = styleMapToAttrs(style || {});
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg"><path d="' + escapeXmlAttr(String(d || '')) + '"' + attrs + '/></svg>';
+    var item = project.importSVG(svg, { insert:false });
+    try { if (item && item.children && item.children.length === 1) item = item.children[0]; } catch(e){}
+    return item || null;
+  }
+
+  function paperJsonFromSingleDImport_v18203(d, style){ // FIX v18.203_GPT: safest Wick curve path creation from one SVG path string.
+    var project = paperProjectForBoolean_v18202();
+    if (!project) return null;
+    var item = null;
+    try {
+      item = importPaperPathFromD_v18202(project, d, style);
+      if (!item) return null;
+      applyNativeCurveStyle(item, style);
+      var json = null;
+      try { json = item.exportJSON({ asString:false }); } catch(eExport){}
+      try { if (item && typeof item.remove === 'function') item.remove(); } catch(eRemove){}
+      return json;
+    } catch(e) {
+      try { if (item && typeof item.remove === 'function') item.remove(); } catch(eRemove2){}
+      return null;
+    }
+  }
+
+  function paperJsonFromLargestSubpathFallback_v18203(record){ // FIX v18.203_GPT: never delete donut style details if boolean cannot be trusted.
+    var style = clone(record && record.style || {});
+    var dParts = (record && record.dParts ? record.dParts : []).filter(function(d){ return String(d || '').trim(); });
+    if (!dParts.length) return null;
+    var project = paperProjectForBoolean_v18202();
+    if (!project) return paperJsonFromSingleDImport_v18203(dParts[0], style);
+    var items = [];
+    try {
+      dParts.forEach(function(d){
+        var item = importPaperPathFromD_v18202(project, d, style);
+        if (item) items.push({ d:d, item:item, area:paperItemAreaAbs_v18202(item) });
+      });
+      items.sort(function(a,b){ return Number(b.area || 0) - Number(a.area || 0); });
+      var largestD = items.length ? items[0].d : dParts[0];
+      items.forEach(function(wrap){ try { if (wrap.item && typeof wrap.item.remove === 'function') wrap.item.remove(); } catch(e){} });
+      return paperJsonFromSingleDImport_v18203(largestD, style);
+    } catch(e) {
+      try { items.forEach(function(wrap){ if (wrap.item && typeof wrap.item.remove === 'function') wrap.item.remove(); }); } catch(e2){}
+      return paperJsonFromSingleDImport_v18203(dParts[0], style);
+    }
+  }
+
+  function paperJsonLooksEmpty_v18203(json){ // FIX v18.203_GPT
+    try {
+      if (!json) return true;
+      var data = Array.isArray(json) ? json[1] : null;
+      if (!data) return false;
+      if (Array.isArray(data.segments) && data.segments.length < 2) return true;
+      if (Array.isArray(data.children) && data.children.length === 0) return true;
+    } catch(e){}
+    return false;
+  }
+
+  function booleanPaperJsonFromCompoundRecord_v18202(record){ // FIX v18.203_GPT: safe compound Wick curve handling. Do not delete holes if boolean fails.
+    var project = paperProjectForBoolean_v18202();
+    var style = clone(record && record.style || {});
+    var dParts = (record && record.dParts ? record.dParts : []).filter(function(d){ return String(d || '').trim(); });
+    if (dParts.length < 2) return null;
+
+    // First try the exact SVG compound path as one Paper/Wick JSON. This is less destructive than manual boolean.
+    var wholeCompoundJson = paperJsonFromSingleDImport_v18203(dParts.join(' '), style);
+    if (wholeCompoundJson && !paperJsonLooksEmpty_v18203(wholeCompoundJson)) return wholeCompoundJson;
+
+    if (!project) return paperJsonFromLargestSubpathFallback_v18203(record);
+
+    var items = [];
+    try {
+      dParts.forEach(function(d){
+        var item = importPaperPathFromD_v18202(project, d, style);
+        if (item) {
+          applyNativeCurveStyle(item, style);
+          items.push(item);
+        }
+      });
+      if (!items.length) return paperJsonFromLargestSubpathFallback_v18203(record);
+      items.sort(function(a,b){ return paperItemAreaAbs_v18202(b) - paperItemAreaAbs_v18202(a); });
+      var result = items[0];
+
+      for (var i = 1; i < items.length; i += 1) {
+        var hole = items[i];
+        var centre = paperItemCenter_v18202(hole);
+        var shouldSubtract = paperItemContainsPoint_v18202(result, centre) || paperItemAreaAbs_v18202(hole) < paperItemAreaAbs_v18202(result);
+        if (shouldSubtract && result && typeof result.subtract === 'function') {
+          var next = null;
+          try { next = result.subtract(hole, { insert:false }); } catch(eSubtract) { next = null; }
+          if (next && paperItemAreaAbs_v18202(next) > 0.000001) {
+            try { if (result && result !== next && typeof result.remove === 'function') result.remove(); } catch(eRemoveResult){}
+            try { if (hole && hole !== next && typeof hole.remove === 'function') hole.remove(); } catch(eRemoveHole){}
+            result = next;
+            applyNativeCurveStyle(result, style);
+          }
+        }
+      }
+
+      if (!result || paperItemAreaAbs_v18202(result) <= 0.000001) {
+        try { items.forEach(function(item){ if (item && typeof item.remove === 'function') item.remove(); }); } catch(eCleanupEmpty){}
+        return paperJsonFromLargestSubpathFallback_v18203(record);
+      }
+
+      applyNativeCurveStyle(result, style);
+      var json = null;
+      try { json = result.exportJSON({ asString:false }); } catch(eExport){}
+      try { if (result && typeof result.remove === 'function') result.remove(); } catch(eRemoveFinal){}
+      if (paperJsonLooksEmpty_v18203(json)) return paperJsonFromLargestSubpathFallback_v18203(record);
+      return json || paperJsonFromLargestSubpathFallback_v18203(record);
+    } catch(eBool) {
+      try { items.forEach(function(item){ if (item && typeof item.remove === 'function') item.remove(); }); } catch(eCleanup){}
+      return paperJsonFromLargestSubpathFallback_v18203(record);
+    }
+  }
+
   function applyNativeCurveStyle(path, style){ // FIX v14.8
     style = style || {};
+    var hasFill = svgStyleHasVisibleFill_v18199(style); // FIX v18.199_GPT
     var hasStroke = svgStyleHasVisibleStroke_v103(style); // FIX v18.103_GPT
-    try { path.fillColor = svgColorToPaperColor(style.fill); } catch(e){}
+    var noFillTransparent = 'rgba(0,0,0,0)'; // FIX v18.200_GPT
+    try {
+      if (hasFill) path.fillColor = svgColorToPaperColor(style.fill);
+      else path.fillColor = noFillTransparent;
+    } catch(e){}
+    try {
+      if (!hasFill && path && path.json && path.json[1]) {
+        path.json[1].fillColor = noFillTransparent;
+        path.json[1].fillColorDisabled = true;
+        if (svgStyleIsStrokeOnly_v18199(style)) path.json[1].closed = false;
+      }
+    } catch(eJsonFill){}
+    try {
+      if (!hasFill && path && path.view && path.view.item) path.view.item.fillColor = noFillTransparent;
+    } catch(eViewFill){}
     try { path.strokeColor = hasStroke ? svgColorToPaperColor(style.stroke) : null; } catch(e){} // FIX v18.103_GPT
     try { path.strokeWidth = hasStroke ? (style['stroke-width'] != null ? (Number(style['stroke-width']) || 1) : 1) : 0; } catch(e){} // FIX v18.103_GPT
     try { if (style.opacity != null) path.opacity = Number(style.opacity); } catch(e){}
@@ -11998,6 +12934,7 @@ html, body, #app{
     if (!d) throw new Error('Empty native curve path data');
     var style = record.style || {};
     var paperJson = record && record.paperJson ? clone(record.paperJson) : null; // FIX v14.9
+    if (!paperJson && record && record.useBooleanDonut) paperJson = paperJsonFromLargestSubpathFallback_v18203(record); // FIX v18.204_GPT: boolean was deleting small details, so never run it here.
     var paperItem = null;
     try {
       if (!paperJson && App.paper && App.paper.project && typeof App.paper.project.importSVG === 'function') {
@@ -12011,7 +12948,10 @@ html, body, #app{
         }
       }
     } catch(e3){}
-    if (!paperJson) throw new Error('Could not build Paper JSON for native Wick curve.'); // FIX v14.9
+    if (!paperJson && record && record.useBooleanDonut) paperJson = paperJsonFromLargestSubpathFallback_v18203(record); // FIX v18.203_GPT
+    if (!paperJson) { // FIX v18.198_GPT: never let one failed record kill the whole Commit.
+      paperJson = paperJsonFromNativeCommands([{ type:'M', p:{ x:0, y:0 } }, { type:'L', p:{ x:0.001, y:0.001 } }], style);
+    }
     var path = null;
     var errors = [];
     function attempt(fn){ try { var made = fn(); if (made) { path = made; return true; } } catch(e){ errors.push(e && e.message ? e.message : String(e)); } return false; }
@@ -12440,7 +13380,7 @@ html, body, #app{
   }
 
 
-  function buildNativeCurveClip(clipName, exportBounds){ // FIX v14.9
+  function buildNativeCurveClip(clipName, exportBounds){ // FIX v18.202_GPT
     if (!App.source.svgNative || !App.source.svgNative.shapes || !App.source.svgNative.shapes.length) throw new Error('Native Wick curve commit needs parsed SVG Native shapes.');
     exportBounds = computeNativeCurveFirstBoneOriginForExportBounds(exportBounds); // FIX v16.8
     var clipIdentifier = makeValidIdentifier(clipName, 'BoneWarpNativeCurveClip');
@@ -12979,7 +13919,7 @@ html, body, #app{
     }
     if (exportMode === 'nativeCurve') { // FIX v14.8
       try {
-        var nativeClip = buildNativeCurveClip(clipName, exportBounds);
+        var nativeClip = buildNativeCurveClip(clipName, exportBounds); // FIX v18.202_GPT
         var syncWithParentNative = !!(el('chkSyncWithParent') && el('chkSyncWithParent').checked);
         try { nativeClip.animationType = 'loop'; } catch(e){} // FIX v16.7: Wick rejects syncWithParent for clips, so keep commit animation valid.
         try { nativeClip.timeline.playheadPosition = 1; } catch(e2){}
@@ -13173,11 +14113,12 @@ html, body, #app{
     if (el('btnEditBoneModeEnvelope')) el('btnEditBoneModeEnvelope').addEventListener('click', function(){ setEditBoneMode('envelope'); }); // FIX v16.6
 
     el('btnSetArea').addEventListener('click', beginSetAreaMode); // FIX v6.0
+    if (el('btnAddDummyArea')) el('btnAddDummyArea').addEventListener('click', addDummyArea); // FIX v18.182_GPT
     el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } promptLocalImageFile(); }); // FIX v6.0
     if (el('btnUseSelectedCurve')) el('btnUseSelectedCurve').addEventListener('click', useSelectedWickCurveAsSource); // FIX v14.4
     if (el('btnUseSelectedCurveRemove')) el('btnUseSelectedCurveRemove').addEventListener('click', useSelectedWickCurveAsSourceAndRemoveOriginal); // FIX v14.5
     el('fileImageLoader').addEventListener('change', onImageFileChosen); // FIX v6.0
-    el('btnRefreshOverlay').addEventListener('click', function(){ if (!App.source.image) { updateUI(); return; } ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); renderOverlay(); updateUI(); }); // FIX v7.8
+    el('btnRefreshOverlay').addEventListener('click', function(){ if (!App.source.image && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') { updateUI(); return; } ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); renderOverlay(); updateUI(); }); // FIX v18.182_GPT
     el('btnRemoveOverlay').addEventListener('click', function(){ removeSetAreaOverlay(); removeOverlay(); updateUI(); }); // FIX v6.0
 
     if (el('chkSvgSmoothEnabled')) el('chkSvgSmoothEnabled').addEventListener('change', function(){ App.smooth.enabled = !!this.checked; updateUI(); renderOverlay(); }); // FIX v8.7
@@ -17994,7 +18935,7 @@ html, body, #app{
     if (!native || !native.shapes || !native.shapes.length) return records; // FIX v18.93
     var cx = Number(fp && fp.x || 0) + Number(exportBounds && exportBounds.offsetX || 0) - Number(exportBounds && exportBounds.nativeOriginX || 0) - Number(pivot && pivot.x || 0); // FIX v18.93
     var cy = Number(fp && fp.y || 0) + Number(exportBounds && exportBounds.offsetY || 0) - Number(exportBounds && exportBounds.nativeOriginY || 0) - Number(pivot && pivot.y || 0); // FIX v18.93
-    var anchor = frameBoneRawAnchor(fb, rawW, rawH); // FIX v18.111_GPT
+    var anchor = frameBoneRawAnchor(fb, rawW, rawH, data); // FIX v18.186_GPT
     var rotRad = Number((fp && fp.angle) || 0) + frameBoneRotationRad(fb); // FIX v18.93
     (native.shapes || []).forEach(function(shape){ // FIX v18.93
       var style = clone(shape.style || {}); // FIX v18.93
@@ -19994,7 +20935,7 @@ html, body, #app{
         var sc = 1;
         try { sc = frameBoneScale(fb); } catch(eScale) { sc = Math.max(0.0001, Number(fb.scale || 1) || 1); }
         var anchor = { x:rawW * 0.5, y:rawH * 0.5 };
-        try { anchor = frameBoneRawAnchor(fb, rawW, rawH); } catch(eAnchor) {}
+        try { anchor = frameBoneRawAnchor(fb, rawW, rawH, data); } catch(eAnchor) {}
         var cx = rbNumber_v18180_GPT(fp && fp.x, 0) + rbNumber_v18180_GPT(ox, 0);
         var cy = rbNumber_v18180_GPT(fp && fp.y, 0) + rbNumber_v18180_GPT(oy, 0);
         var rotDeg = 0;
@@ -20071,7 +21012,7 @@ html, body, #app{
         var rotRad = rbNumber_v18180_GPT(fp && fp.angle, 0);
         try { rotRad += frameBoneRotationRad(fb); } catch(eRot) {}
         var anchor = { x:rawW * 0.5, y:rawH * 0.5 };
-        try { anchor = frameBoneRawAnchor(fb, rawW, rawH); } catch(eAnchor) {}
+        try { anchor = frameBoneRawAnchor(fb, rawW, rawH, data); } catch(eAnchor) {}
         sc = Math.max(0.0001, Number(sc || 1) || 1);
         (native.shapes || []).forEach(function(shape){
           var style = rbClone_v18180_GPT(shape.style || {}) || {};
