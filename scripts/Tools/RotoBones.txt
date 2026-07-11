@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MyCharacter GPT v18.217 Curves alpha picker and opacity import</title> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>MyCharacter GPT v18.217 Curves alpha picker and opacity import</title> <!-- FIX Claude_10-07-2026_V1: Add To Character & Reset --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -991,6 +991,7 @@ html, body, #app{
             <button id="btnUseSelectedCurveRemove" class="secondary">Use Selected Curves And Remove Originals</button> <!-- FIX v17.2 -->
             <button id="btnRefreshOverlay" class="secondary">Refresh Overlay</button>
             <button id="btnRemoveOverlay" class="secondary">Remove Overlay</button>
+            <button id="btnMcAddPartAndReset_Claude" class="secondary">Add To Character &amp; Reset</button> <!-- FIX Claude_10-07-2026_V1 -->
             <input type="file" id="fileImageLoader" accept=".svg,image/svg+xml" style="display:none;">
           </div>
           <div class="row"><label>Curve point density</label><input type="range" id="rngSelectedCurvePointDensity" min="0" max="100" value="100"><span id="txtSelectedCurvePointDensity" class="small">50%</span></div> <!-- FIX v14.6 -->
@@ -21815,6 +21816,82 @@ html, body, #app{
     }
   })();
 
+
+  // FIX Claude_10-07-2026_V1: "Add To Character & Reset". Lets Luke finish a curve/part on the
+  // Build Parts tab, send it straight into MyCharacter as a brand-new part card (no manual
+  // Save Project / Load Bone Json round trip), then blanks the Build Parts workspace so the
+  // next curve can be started immediately. Reuses buildRigProjectState/mcAddPart/
+  // mcMakeIndependentRigState/loadRigProjectState exactly as the existing Save Project and
+  // Load Bone Json flows do; it does not change what those functions do for anyone else.
+  (function installAddToCharacterAndReset_Claude_20260710_V1(){
+    try {
+      function rbHasBuildableContent_Claude_V1(){
+        try {
+          if (App.source && (App.source.image || (App.source.dummy && App.source.dummy.active) || App.source.captureMode === 'blank-area')) return true;
+          if (App.bones && App.bones.length) return true;
+        } catch(e){}
+        return false;
+      }
+
+      async function rbAddPartToCharacterAndReset_Claude_20260710_V1(){
+        if (!rbHasBuildableContent_Claude_V1()) {
+          log('Add To Character: nothing to add yet. Set an area, load an SVG, or use a curve first.');
+          return;
+        }
+        var snapshot = null;
+        try { snapshot = buildRigProjectState(); } catch(eSnap) {
+          log('Add To Character failed: could not read the current build.');
+          return;
+        }
+        var mc = mcEnsure();
+        var beforeCount = mc.parts.length;
+        try { mcAddPart(); } catch(eAdd) {
+          log('Add To Character failed: could not create a new part card.');
+          return;
+        }
+        var target = mcSelectedPart();
+        if (!target || mc.parts.length <= beforeCount) {
+          log('Add To Character failed: new part card not found.');
+          return;
+        }
+        try {
+          target.state = mcMakeIndependentRigState(snapshot, target);
+          var t = mcReadTransform();
+          if (t) target.transform = t;
+          var rawName = (App.source && (App.source.fileName || App.source.selectedIdentifier)) || '';
+          rawName = String(rawName).replace(/\.[^.]+$/, '').replace(/__mc_part_.*$/, '');
+          if (rawName) target.name = rawName;
+        } catch(eFill) {
+          log('Add To Character: part created, but copying the build in failed: ' + (eFill && eFill.message ? eFill.message : eFill));
+        }
+        try { mcRenderPanel(); } catch(e){}
+        try {
+          await loadRigProjectState({}); // FIX Claude_10-07-2026_V1: same blank-project path Load Project already uses for an empty file.
+        } catch(eReset) {
+          log('Added to MyCharacter, but resetting Build Parts failed: ' + (eReset && eReset.message ? eReset.message : eReset));
+          return;
+        }
+        try { updateFrameBoneUI(); } catch(e){}
+        try { updateUI(); renderOverlay(); } catch(e){}
+        mcLog('Added "' + (target.name || ('Part ' + target.id)) + '" to MyCharacter. Build Parts reset for the next curve.');
+      }
+
+      function rbBindAddToCharacterButton_Claude_20260710_V1(){
+        var btn = el('btnMcAddPartAndReset_Claude');
+        if (!btn || btn.dataset.rbBoundClaudeV1) return;
+        btn.dataset.rbBoundClaudeV1 = '1';
+        btn.addEventListener('click', function(evt){
+          if (evt && evt.preventDefault) evt.preventDefault();
+          rbAddPartToCharacterAndReset_Claude_20260710_V1();
+        });
+      }
+
+      rbBindAddToCharacterButton_Claude_20260710_V1();
+      log('RotoBones Claude 10-07-2026 V1: Add To Character & Reset installed.');
+    } catch(eInstall) {
+      try { console.error('[RotoBones Claude 10-07-2026 V1] install failed', eInstall); } catch(econsole){}
+    }
+  })();
 
   function init(){
     try { forceToolPanelFill(); } catch(e){ console.error('[MyCharacter] forceToolPanelFill failed', e); } // FIX v_018
