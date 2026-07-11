@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MyCharacter GPT v18.217 Curves alpha picker and opacity import</title> <!-- FIX Claude_10-07-2026_V1: Add To Character & Reset --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>MyCharacter GPT V40 Curve drag mouse-follow fix</title> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -207,7 +207,13 @@ button.warn {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.softActionRow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.softActionRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; align-items: center; margin-bottom: 12px; } /* FIX Claude_10-07-2026_V9: tightened minmax so 3-across rows fit on one line */
+.rowButtonsSym_Claude { display: grid !important; gap: 6px !important; } /* FIX Claude_10-07-2026_V10: column count is now explicit per-row (see .cols2/.cols3/.cols4), not guessed via auto-fit */
+.rowButtonsSym_Claude.cols1 { grid-template-columns: minmax(0,1fr) !important; }
+.rowButtonsSym_Claude.cols2 { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+.rowButtonsSym_Claude.cols3 { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
+.rowButtonsSym_Claude.cols4 { grid-template-columns: repeat(4, minmax(0,1fr)) !important; }
+.rowButtonsSym_Claude button, .rowButtonsSym_Claude label { font-size: 11px !important; padding: 7px 4px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; min-width: 0 !important; } /* FIX Claude_10-07-2026_V10: never wraps; shrinks/ellipsis instead, same as .tabBtn */
 .softFieldRow { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
 .softFieldBlock { display: flex; flex-direction: column; gap: 6px; min-width: 110px; }
 .softFieldLabel { color: #c9d6e6; font-size: 12px; }
@@ -969,35 +975,39 @@ html, body, #app{
         <div class="section softSection"> <!-- FIX v13.6: project save/load is first visible item -->
           <h3>Project</h3>
           <div class="softActionRow">
-            <button id="btnSaveRigProject" class="softBtn softBtnAccent">Save Project</button>
-            <button id="btnLoadRigProject" class="softBtn softBtnSecondary">Load Project</button>
-            <button id="btnUndoRig" class="softBtn softBtnSecondary" disabled>Undo</button> <!-- FIX v18.29 -->
+            <button id="btnSaveRigProject" class="softBtn softBtnAccent">Save Part</button> <!-- FIX Claude_10-07-2026_V6: renamed from Save Project -->
+            <button id="btnLoadRigProject" class="softBtn softBtnSecondary">Load Part</button> <!-- FIX Claude_10-07-2026_V6: renamed from Load Project -->
             <input type="file" id="fileRigProjectLoader" accept=".json,.ltbw" style="display:none;">
             <input type="file" id="fileLipExpressionJson" accept="application/json,.json,.lipexpr" style="display:none;"> <!-- FIX v18.4 -->
             <input type="file" id="fileWinkExpressionJson" accept="application/json,.json,.winkexpr" style="display:none;"> <!-- FIX v18.4 -->
             <input type="file" id="fileLipExpressionImages" accept=".svg,.png,image/svg+xml,image/png" multiple style="display:none;"> <!-- FIX v18.34 -->
             <input type="file" id="fileWinkExpressionImages" accept=".svg,.png,image/svg+xml,image/png" multiple style="display:none;"> <!-- FIX v18.34 -->
           </div>
-          <div id="projectSaveInfo" class="softReadout">Save or load the full Bone Warp setup, including the source area, optional SVG, bones, frame bones, Lip_Bones, and keys.</div>
         </div>
 
         <div class="section">
           <h3>Source</h3>
-          <div class="row" style="margin-top:8px;">
+          <div class="row rowButtonsSym_Claude cols3" style="margin-top:8px;"> <!-- FIX Claude_10-07-2026_V8: symmetric grid, matches tabs/mcTopActions -->
             <button id="btnSetArea">Set Area</button>
-            <button id="btnAddDummyArea" class="secondary">Add Dummy</button> <!-- FIX v18.182_GPT -->
             <button id="btnLoadImage" class="secondary">Load SVG</button>
-            <button id="btnUseSelectedCurve" class="secondary">Use Selected Wick Curves</button> <!-- FIX v17.2 -->
-            <button id="btnUseSelectedCurveRemove" class="secondary">Use Selected Curves And Remove Originals</button> <!-- FIX v17.2 -->
-            <button id="btnRefreshOverlay" class="secondary">Refresh Overlay</button>
-            <button id="btnRemoveOverlay" class="secondary">Remove Overlay</button>
-            <button id="btnMcAddPartAndReset_Claude" class="secondary">Add To Character &amp; Reset</button> <!-- FIX Claude_10-07-2026_V1 -->
-            <input type="file" id="fileImageLoader" accept=".svg,image/svg+xml" style="display:none;">
+            <button id="btnAddDummyArea" class="secondary">Add Dummy</button> <!-- FIX v18.182_GPT -->
           </div>
-          <div class="row"><label>Curve point density</label><input type="range" id="rngSelectedCurvePointDensity" min="0" max="100" value="100"><span id="txtSelectedCurvePointDensity" class="small">50%</span></div> <!-- FIX v14.6 -->
-          <div class="row"><label>Selected curve import</label><input type="checkbox" id="chkSelectedCurveOriginalPointsOnly"><span class="small">Only original Wick points, no added points</span></div> <!-- FIX v18.206_GPT -->
-          <div class="row"><label>Change curve colour</label><input type="checkbox" id="chkSelectedCurveUseColour"><input type="color" id="inpSelectedCurveFillColour" value="#1a1a1a"><span class="small">Override fill on imported Wick curve</span></div> <!-- FIX v18.207_GPT -->
-          <div class="row"><label>Stroke colour</label><input type="checkbox" id="chkSelectedCurveUseStrokeColour"><input type="color" id="inpSelectedCurveStrokeColour" value="#000000"><span class="small">Override stroke on imported Wick curve</span></div> <!-- FIX v18.207_GPT -->
+          <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
+            <button id="btnUseSelectedCurve" class="secondary">Use Selected Curve</button> <!-- FIX Claude_10-07-2026_V6: relabeled, now paired with Remove Originals checkbox -->
+          </div>
+          <div class="row"><label class="small" style="display:flex;align-items:center;gap:4px;min-width:0;"><input type="checkbox" id="chkUseSelectedCurveRemoveOriginals_Claude"> Remove Originals</label></div> <!-- FIX Claude_10-07-2026_V6/V8 -->
+          <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
+            <button id="btnMcAddPartAndReset_Claude" class="secondary">Add To Character</button> <!-- FIX Claude_10-07-2026_V6: relabeled, no longer mentions Reset -->
+          </div>
+          <input type="file" id="fileImageLoader" accept=".svg,image/svg+xml" style="display:none;">
+          <div class="row"><label>Curve points</label></div>
+          <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
+            <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="curvePointMode_Claude" id="radCurvePointsSelected_Claude" value="selected" checked> Use selected curve points</label>
+          </div>
+          <div class="row rowButtonsSym_Claude cols2"> <!-- FIX Claude_10-07-2026_V8 -->
+            <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="curvePointMode_Claude" id="radCurvePointsUniform_Claude" value="uniform"> Use uniform</label>
+            <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="curvePointMode_Claude" id="radCurvePointsLimb_Claude" value="limb"> Limb</label>
+          </div>
           <div class="row"><label>Set area</label><div id="selectedInfo" class="small">No area set</div></div>
           <div class="row"><label>Loaded SVG</label><div id="sourceInfo" class="small">No SVG loaded</div></div>
           <div class="row"><label>Overlay</label><div id="overlayInfo" class="small">Not active</div></div>
@@ -1025,7 +1035,7 @@ html, body, #app{
         <div class="section">
           <h3>Bone creation</h3>
           <div class="notice">The Bones tab is always in Add Bone mode. Drag empty overlay space to create the selected bone type. Click a bone to select it. Deleting a bone returns straight back to Add Bone mode. Lip_Bone and Frame_Bone can now be created from a blank Set Area first, without loading an SVG or shape. After creation you stay here to adjust their scale or rotation before opening Expression. Select a Lip_Bone or Frame_Bone on the overlay, then drag the corner square to scale or the round handle above it to rotate. <!-- FIX v18.181_GPT --></div>
-          <div class="row" style="margin-top:8px;">
+          <div class="row rowButtonsSym_Claude cols2" style="margin-top:8px;"> <!-- FIX Claude_10-07-2026_V8 -->
             <button id="btnDeleteBone" class="warn">Delete Selected Bone</button>
             <button id="btnClearBones" class="warn">Clear All Bones</button>
           </div>
@@ -1133,7 +1143,7 @@ html, body, #app{
         <div class="section">
           <h3>Weight paint</h3>
           <div class="notice">Paint weights for the selected bone. Paint adds influence. Erase removes influence. The selected bone weight overlay can stay visible while animating.</div>
-          <div class="row" style="margin-top:8px;">
+          <div class="row rowButtonsSym_Claude cols2" style="margin-top:8px;"> <!-- FIX Claude_10-07-2026_V8 -->
             <button id="btnToggleWeightPaint" class="secondary">Weight Paint Off</button>
             <button id="btnClearWeightPaint" class="warn">Clear Selected Weight</button>
           </div>
@@ -1173,7 +1183,7 @@ html, body, #app{
             <label>Selected bone</label>
             <div id="editBoneInfo" class="small">None</div>
           </div>
-          <div class="row"> <!-- FIX v16.6 -->
+          <div class="row rowButtonsSym_Claude cols2"> <!-- FIX v16.6 --> <!-- FIX Claude_10-07-2026_V8 -->
             <button id="btnEditBoneModeBone" class="secondary">Edit Bone</button>
             <button id="btnEditBoneModeEnvelope" class="secondary">Edit Envelope</button>
           </div>
@@ -1213,7 +1223,7 @@ html, body, #app{
             <button id="btnEditFrameBoneOriginTop" class="secondary">Top Centre</button> <!-- FIX v18.149_GPT -->
             <button id="btnEditFrameBoneOriginCenter" class="secondary">Centre</button> <!-- FIX v18.149_GPT -->
           </div>
-          <div class="row" style="margin-top:8px;">
+          <div class="row rowButtonsSym_Claude cols2" style="margin-top:8px;"> <!-- FIX Claude_10-07-2026_V8 -->
             <button id="btnEditApplyBone">Apply Bone Values</button>
             <button id="btnEditRefreshBone" class="secondary">Refresh Values</button>
           </div>
@@ -1256,10 +1266,28 @@ html, body, #app{
             <input type="checkbox" id="chkFollowWick" checked>
           </div>
         </div>
+        <div class="section softSection"> <!-- FIX Claude_11-07-2026_V38_GPT -->
+          <h3>Curve animation</h3>
+          <div class="notice">Use <strong>Animate Curves</strong> to edit curve points as animation keys on the current Wick frame. This is separate from the normal Curves tab, which continues to edit the source shape. Wick timeline follow and Play Sync remain on the original V36 code path.</div>
+          <div class="softActionRow" style="margin-top:10px;">
+            <button id="btnAnimateCurvesFromAnimate" class="softBtn softBtnAccent">Animate Curves</button>
+            <button id="btnCaptureCurvePoseAtCurrent" class="softBtn softBtnSecondary">Capture Curve Pose</button>
+          </div>
+          <div class="row">
+            <label>Set Key includes curves</label>
+            <input type="checkbox" id="chkAnimateIncludeCurvePose" checked>
+            <span class="small">Set, clear, copy and reset actions also apply to curve-point keys.</span>
+          </div>
+          <div class="row">
+            <label>Curve key state</label>
+            <div id="animateCurveKeyInfo" class="small">No curve key on this frame</div>
+          </div>
+        </div>
+
         <div class="section">
           <h3>Keyframes</h3>
           <div class="notice">In the Animate tab, dragging a bone handle on the overlay creates or updates a keyframe on the current frame. The tool interpolates between keyframes.</div>
-          <div class="row" style="margin-top:8px;">
+          <div class="row rowButtonsSym_Claude cols4" style="margin-top:8px;"> <!-- FIX Claude_10-07-2026_V8 -->
             <button id="btnSetKey">Set Key At Current</button>
             <button id="btnClearKey" class="warn">Clear Current Key</button>
             <button id="btnCopyPrevPose" class="secondary">Copy Previous Pose</button>
@@ -1283,7 +1311,7 @@ html, body, #app{
         <div class="section">
           <h3>Proxy bone keyframe layers</h3>
           <div class="notice">Creates locked Wick timeline proxy layers for each BoneWarp bone and draws BoneWarp keyframe diamonds on the matching bone row. The proxy layers are visual timeline helpers only and do not animate the SVG by themselves.</div>
-          <div class="row" style="margin-top:8px;">
+          <div class="row rowButtonsSym_Claude cols4" style="margin-top:8px;"> <!-- FIX Claude_10-07-2026_V8 -->
             <button id="btnProxySetup" class="secondary">Create Proxy Bone Layers</button>
             <button id="btnProxyAddKey">Add Proxy Key</button>
             <button id="btnProxySync" class="secondary">Sync Proxy</button>
@@ -1299,22 +1327,31 @@ html, body, #app{
       <div class="panelPage" data-page="animatepoints"> <!-- FIX v18.212_GPT_CurvesSimplified -->
         <div class="section softSection">
           <h3>Curves</h3>
-          <div class="notice">Edit Wick curve points directly. Curves are editable shape data, not animation keys. Moving points, adding points, and changing fill or stroke updates the selected source curve. <!-- FIX v18.212_GPT_CurvesSimplified --></div>
+          <div class="notice">Edit Wick curve points directly. Curves are editable shape data, not animation keys. Click and drag any point on the stage to move it. Hold Ctrl and click on the curve to add a new point there instead, using the type selected below. <!-- FIX Claude_10-07-2026_V17 --></div>
+          <div class="row"> <!-- FIX Claude_11-07-2026_V38_GPT -->
+            <label>Curve mode</label>
+            <div id="curveAnimationModeInfo" class="notice" style="font-weight:bold;min-width:180px;">Source shape editing</div>
+          </div>
+          <div class="row rowButtonsSym_Claude cols2"> <!-- FIX Claude_11-07-2026_V38_GPT -->
+            <button id="btnReturnToAnimateFromCurves" class="secondary">Return To Animate</button>
+            <button id="btnCaptureCurvePoseFromCurves" class="secondary">Capture Current Curve Pose</button>
+          </div>
           <div class="row">
             <label>Show Curves</label>
             <input type="checkbox" id="chkAnimateBezierHandles" checked> <!-- FIX v18.212_GPT_CurvesSimplified -->
           </div>
           <div class="row">
-            <label>Point edit range</label>
-            <input type="range" id="rngAutoBezierRange" min="3" max="15" step="2" value="5"> <!-- FIX v18.212_GPT_CurvesSimplified -->
-            <span id="txtAutoBezierRange" class="small">5 points</span> <!-- FIX v18.212_GPT_CurvesSimplified -->
-          </div>
-          <div class="row">
             <label>Selected curve point</label>
             <div id="animatePointInfo" class="small">No curve point selected</div>
           </div>
-          <div class="row" style="margin-top:8px;">
-            <button id="btnAddBezierDetailInRange" class="secondary">Add Points In Range</button> <!-- FIX v18.212_GPT_CurvesSimplified -->
+          <div class="row"><label>New point type (Ctrl+click)</label>
+            <span class="small" style="display:flex;flex-wrap:wrap;gap:10px;"> <!-- FIX Claude_10-07-2026_V11 -->
+              <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="addCurvePointType_Claude" id="radAddCurvePointCorner_Claude" value="corner" checked> Corner</label>
+              <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="addCurvePointType_Claude" id="radAddCurvePointSmooth_Claude" value="smooth"> Smooth</label>
+              <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="addCurvePointType_Claude" id="radAddCurvePointLine_Claude" value="line"> Line</label>
+            </span>
+          </div>
+          <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V11 -->
             <button id="btnExportCurveSvg" class="secondary">Export Ingested SVG</button> <!-- FIX v18.213_GPT_CurvesSvgExport -->
           </div>
           <div class="row">
@@ -1481,7 +1518,7 @@ html, body, #app{
             <input type="number" id="numFrameBoneCommitStrokeWidth" min="0" max="50" step="0.1" value="1">
             <span class="small">Actual Wick stroke weight for Frame_Bone SVG lines. 0 removes stroked Frame_Bone lines. Fill only parts stay outline free.</span>
           </div>
-          <div class="row">
+          <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
             <button id="btnStampClip">Commit To Wick</button>
           </div>
         </div>
@@ -9784,9 +9821,23 @@ html, body, #app{
     return Object.keys(App.pointKeys || {}).map(function(v){ return Number(v); }).filter(function(fr){ return !isNaN(fr) && App.pointKeys[String(fr)] && App.pointKeys[String(fr)][pointId]; }).sort(function(a,b){ return a-b; });
   }
 
-  function getAnimatedPointForFrame(basePoint, pointId, frame){ // FIX v18.54_AnimatePoints
-    if (App.curveEdit && App.curveEdit.nonAnimated) return basePoint; // FIX v18.208_GPT: curve refinement edits the source curve directly and is not animated.
+  function getAnimatedPointForFrame(basePoint, pointId, frame){ // FIX v18.54_AnimatePoints // FIX Claude_11-07-2026_V36_GPT
+    // FIX Claude_11-07-2026_V39_GPT: nonAnimated means source-shape editing only while the ordinary Curves panel is open.
+    // V38 left this flag true after returning to Animate, which caused correctly stored point keys to be ignored
+    // during frame scrubbing, playback, preview and commit. Outside ordinary Curves source-edit mode, point keys
+    // must always evaluate.
+    if (App.curveEdit && App.curveEdit.nonAnimated &&
+        App.activeTab === 'animatepoints' &&
+        !(App.pointAnimation && App.pointAnimation.curveAnimationSession === true)) return basePoint; // FIX v18.208_GPT / V39
     if (!basePoint || !pointId) return basePoint;
+    function preservePointBinding_v36(result){
+      // FIX Claude_11-07-2026_V36_GPT: point keys only store x/y. The source point owns the stable
+      // bone-weight binding, so every interpolated/keyed temporary point must carry that binding into skinPointByPose.
+      if (result && basePoint && basePoint.__rbBoneBinding && typeof basePoint.__rbBoneBinding === 'object') {
+        result.__rbBoneBinding = basePoint.__rbBoneBinding;
+      }
+      return result;
+    }
     frame = clamp(Math.round(Number(frame || App.currentFrame || 1) || 1), 1, App.frameCount || 1);
     var frames = keyFramesForPointId(pointId);
     if (!frames.length) return basePoint;
@@ -9799,11 +9850,11 @@ html, body, #app{
       var a = App.pointKeys[String(prev)][pointId];
       var b = App.pointKeys[String(next)][pointId];
       var t = (frame - prev) / Math.max(1, next - prev);
-      return { x:lerp(Number(a.x), Number(b.x), t), y:lerp(Number(a.y), Number(b.y), t) };
+      return preservePointBinding_v36({ x:lerp(Number(a.x), Number(b.x), t), y:lerp(Number(a.y), Number(b.y), t) });
     }
     var keyFrame = prev !== null ? prev : next;
     var k = keyFrame != null && App.pointKeys[String(keyFrame)] ? App.pointKeys[String(keyFrame)][pointId] : null;
-    return k ? { x:Number(k.x), y:Number(k.y) } : basePoint;
+    return k ? preservePointBinding_v36({ x:Number(k.x), y:Number(k.y) }) : basePoint;
   }
 
   function setPointKeyAtCurrent(pointId, point){ // FIX v18.54_AnimatePoints
@@ -14794,8 +14845,8 @@ html, body, #app{
     if (el('btnUseSelectedCurve')) el('btnUseSelectedCurve').addEventListener('click', useSelectedWickCurveAsSource); // FIX v14.4
     if (el('btnUseSelectedCurveRemove')) el('btnUseSelectedCurveRemove').addEventListener('click', useSelectedWickCurveAsSourceAndRemoveOriginal); // FIX v14.5
     el('fileImageLoader').addEventListener('change', onImageFileChosen); // FIX v6.0
-    el('btnRefreshOverlay').addEventListener('click', function(){ if (!App.source.image && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') { updateUI(); return; } ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); renderOverlay(); updateUI(); }); // FIX v18.182_GPT
-    el('btnRemoveOverlay').addEventListener('click', function(){ removeSetAreaOverlay(); removeOverlay(); updateUI(); }); // FIX v6.0
+    if (el('btnRefreshOverlay')) el('btnRefreshOverlay').addEventListener('click', function(){ if (!App.source.image && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') { updateUI(); return; } ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); renderOverlay(); updateUI(); }); // FIX v18.182_GPT // FIX Claude_10-07-2026_V6: guarded, button removed from UI
+    if (el('btnRemoveOverlay')) el('btnRemoveOverlay').addEventListener('click', function(){ removeSetAreaOverlay(); removeOverlay(); updateUI(); }); // FIX v6.0 // FIX Claude_10-07-2026_V6: guarded, button removed from UI
 
     if (el('chkSvgSmoothEnabled')) el('chkSvgSmoothEnabled').addEventListener('change', function(){ App.smooth.enabled = !!this.checked; updateUI(); renderOverlay(); }); // FIX v8.7
     if (el('rngSvgSmoothAmount')) el('rngSvgSmoothAmount').addEventListener('input', function(){ App.smooth.amount = clamp((parseInt(this.value,10) || 0) / 100, 0, 1); updateUI(); renderOverlay(); }); // FIX v8.7
@@ -14925,10 +14976,22 @@ html, body, #app{
     });
     el('chkFollowWick').addEventListener('change', function(){ if (App.playing) stop(false); App.flags.followWick = !!this.checked; updateUI(); }); // FIX v8.2
 
-    el('btnSetKey').addEventListener('click', function(){ setCurrentKeyFromPose(getPoseForFrame(App.currentFrame)); });
-    el('btnClearKey').addEventListener('click', clearCurrentKey);
-    el('btnCopyPrevPose').addEventListener('click', copyPreviousPose);
-    el('btnResetCurrentToRest').addEventListener('click', resetCurrentToRest);
+    el('btnSetKey').addEventListener('click', function(){
+      setCurrentKeyFromPose(getPoseForFrame(App.currentFrame));
+      try { if (window.rbAnimateIncludeCurvePoseEnabled_V38 && window.rbAnimateIncludeCurvePoseEnabled_V38()) window.rbCaptureCurvePoseAtCurrentFrame_V38(App.currentFrame); } catch(eCurveSet38){}
+    }); // FIX Claude_11-07-2026_V38_GPT
+    el('btnClearKey').addEventListener('click', function(){
+      clearCurrentKey();
+      try { if (window.rbAnimateIncludeCurvePoseEnabled_V38 && window.rbAnimateIncludeCurvePoseEnabled_V38()) window.rbClearCurvePoseAtCurrentFrame_V38(App.currentFrame); } catch(eCurveClear38){}
+    }); // FIX Claude_11-07-2026_V38_GPT
+    el('btnCopyPrevPose').addEventListener('click', function(){
+      copyPreviousPose();
+      try { if (window.rbAnimateIncludeCurvePoseEnabled_V38 && window.rbAnimateIncludeCurvePoseEnabled_V38()) window.rbCopyPreviousCurvePoseToCurrent_V38(App.currentFrame); } catch(eCurveCopy38){}
+    }); // FIX Claude_11-07-2026_V38_GPT
+    el('btnResetCurrentToRest').addEventListener('click', function(){
+      resetCurrentToRest();
+      try { if (window.rbAnimateIncludeCurvePoseEnabled_V38 && window.rbAnimateIncludeCurvePoseEnabled_V38()) window.rbResetCurvePoseAtCurrentFrame_V38(App.currentFrame); } catch(eCurveReset38){}
+    }); // FIX Claude_11-07-2026_V38_GPT
     if (el('btnProxySetup')) el('btnProxySetup').addEventListener('click', setupProxyLayer); // FIX v10.9
     if (el('btnProxyAddKey')) el('btnProxyAddKey').addEventListener('click', function(){ setCurrentKeyFromPose(getPoseForFrame(App.currentFrame)); if (!App.proxy.active) setupProxyLayer(); else { syncProxyLayersToBones(); scheduleProxyFrame(); } }); // FIX v10.9
     if (el('btnProxySync')) el('btnProxySync').addEventListener('click', function(){ if (!App.proxy.active) setupProxyLayer(); else { syncFrameCountFromWickTimeline(); syncProxyLayersToBones(); renderProxyFrame(); updateUI(); } }); // FIX v10.9
@@ -21866,6 +21929,14 @@ html, body, #app{
         }
         try { mcRenderPanel(); } catch(e){}
         try {
+          mc.selectedId = null; // FIX Claude_10-07-2026_V2: mcRenderStageParts_v052 skips drawing whichever part.id === mc.selectedId
+          // (it assumes the selected part is being live-edited and shown via the edit overlay instead). A freshly
+          // committed part is not being live-edited, so it must be deselected or it stays invisible in the
+          // character composite until some other part later takes over the selection.
+        } catch(eDeselect){}
+        try { mcRenderPanel(); } catch(e){}
+        try { if (typeof mcRenderStageParts === 'function') mcRenderStageParts(); } catch(eStage){}
+        try {
           await loadRigProjectState({}); // FIX Claude_10-07-2026_V1: same blank-project path Load Project already uses for an empty file.
         } catch(eReset) {
           log('Added to MyCharacter, but resetting Build Parts failed: ' + (eReset && eReset.message ? eReset.message : eReset));
@@ -21873,7 +21944,25 @@ html, body, #app{
         }
         try { updateFrameBoneUI(); } catch(e){}
         try { updateUI(); renderOverlay(); } catch(e){}
+        try { if (typeof mcRenderStageParts === 'function') mcRenderStageParts(); } catch(eStage2){}
         mcLog('Added "' + (target.name || ('Part ' + target.id)) + '" to MyCharacter. Build Parts reset for the next curve.');
+        // FIX Claude_10-07-2026_V4: naming prompt runs LAST, after the part is fully committed, transformed,
+        // deselected, drawn in the stage composite, and the Build Parts rig has already been reset. Nothing
+        // above this point depends on the prompt or runs after it, so the blocking dialog cannot interfere
+        // with state capture, transform, or the composite render (which is what V3 risked by prompting
+        // in the middle of that sequence).
+        try {
+          var defaultName_V4 = target.name || ('Part ' + target.id);
+          var chosenName_V4 = null;
+          try { chosenName_V4 = window.prompt('Name this part:', defaultName_V4); } catch(ePrompt4){ chosenName_V4 = null; }
+          if (chosenName_V4 !== null) {
+            chosenName_V4 = String(chosenName_V4).trim();
+            if (chosenName_V4) target.name = chosenName_V4;
+          }
+          mcRenderPanel(); // only refreshes the card list text; does not touch state, transform, or the stage composite.
+        } catch(eName4){
+          log('Add To Character: naming step failed, part name unchanged: ' + (eName4 && eName4.message ? eName4.message : eName4));
+        }
       }
 
       function rbBindAddToCharacterButton_Claude_20260710_V1(){
@@ -21890,6 +21979,1540 @@ html, body, #app{
       log('RotoBones Claude 10-07-2026 V1: Add To Character & Reset installed.');
     } catch(eInstall) {
       try { console.error('[RotoBones Claude 10-07-2026 V1] install failed', eInstall); } catch(econsole){}
+    }
+  })();
+
+  // FIX Claude_10-07-2026_V5: "Use Selected Wick Curves" silently falls back to drawing a plain bounding-box
+  // rectangle (no fill, no shape) whenever it can't find a Paper.js path on the selection — which is exactly
+  // what happens if a Clip is selected instead of a curve/path. This wraps selectedCurveObjectToSvgPart to
+  // detect that case up front and throw a clear, specific error instead of silently substituting a rectangle.
+  // Reuses the same Clip-detection check already used by addToFrame() elsewhere in this file.
+  (function installClipVsCurveDetection_Claude_20260710_V5(){
+    try {
+      function rbIsWickClip_Claude_V5(obj){
+        return !!(obj && (
+          (App.Wick && App.Wick.Clip && obj instanceof App.Wick.Clip) ||
+          obj.classname === 'Clip' ||
+          (obj.timeline && obj.transformation && !obj.json)
+        ));
+      }
+
+      if (typeof selectedCurveObjectToSvgPart === 'function') {
+        var selectedCurveObjectToSvgPart_Base_Claude_V5 = selectedCurveObjectToSvgPart;
+        selectedCurveObjectToSvgPart = function(obj, index){
+          if (rbIsWickClip_Claude_V5(obj)) {
+            var clipName = String((obj && (obj.identifier || obj.name)) || ('selected object ' + (index + 1)));
+            throw new Error('"' + clipName + '" is a Clip, not a curve. Select the curve/path itself (double-click into the clip and select its artwork), not the clip container.');
+          }
+          return selectedCurveObjectToSvgPart_Base_Claude_V5.apply(this, arguments);
+        };
+      }
+
+      log('RotoBones Claude 10-07-2026 V5: clip vs curve detection installed for Use Selected Wick Curves.');
+    } catch(eInstall5) {
+      try { console.error('[RotoBones Claude 10-07-2026 V5] install failed', eInstall5); } catch(econsole5){}
+    }
+  })();
+
+  // FIX Claude_10-07-2026_V6: UI/UX pass.
+  //  - "Use Selected Curve" is now one button; a "Remove Originals" checkbox decides which existing
+  //    internal function it calls (useSelectedWickCurveAsSource vs ...AndRemoveOriginal). No HTML rewiring
+  //    of the button's own click handler was needed: useSelectedWickCurveAsSource is a function declaration,
+  //    so reassigning it here (before init() runs bindEvents()) is picked up by the existing click binding.
+  //  - Curve point density slider + "original points only" checkbox are replaced by three radio buttons:
+  //    "Use selected curve points" (default; same as the old original-points-only path), "Use uniform"
+  //    (same corner-preserving evenly-spaced insertion as before, now a fixed step instead of a slider),
+  //    and "Limb" (new: 4 bounding-box corners plus a joint point-pair on the long axis, matching the
+  //    reference drawing). All three set flags/branch before delegating to the existing, already-clip-safe
+  //    selectedCurveObjectToSvgPart (installed by the V5 patch above) rather than duplicating its fallback chain.
+  //  - Ctrl+Z already worked inside this tool's own iframe (see installUndoHandlers at FIX v18.29). This adds
+  //    the same shortcut on the parent (Wick) document too, since the Undo button is being removed and Luke
+  //    wants Ctrl+Z to always work regardless of which window currently has focus.
+  (function installUiUxPass_Claude_20260710_V6(){
+    try {
+      // --- Use Selected Curve + Remove Originals checkbox ---
+      if (typeof useSelectedWickCurveAsSource === 'function' && typeof useSelectedWickCurveAsSourceAndRemoveOriginal === 'function') {
+        var useSelectedWickCurveAsSource_Base_Claude_V6 = useSelectedWickCurveAsSource;
+        useSelectedWickCurveAsSource = async function(){
+          var chk = el('chkUseSelectedCurveRemoveOriginals_Claude');
+          if (chk && chk.checked) return useSelectedWickCurveAsSourceAndRemoveOriginal();
+          return useSelectedWickCurveAsSource_Base_Claude_V6.apply(this, arguments);
+        };
+      }
+
+      // --- Curve point mode: selected / uniform / limb ---
+      var RB_UNIFORM_POINT_DENSITY_V6 = 55; // fixed replacement for the removed slider; ~18-20px max gap via selectedCurveDensityToMaxStep
+
+      function rbLimbPathFromPaperItem_Claude_V6(item){
+        var b = selectedCurvePaperBounds(item);
+        if (!b) return '';
+        var x0 = b.x, y0 = b.y, x1 = b.x + b.w, y1 = b.y + b.h;
+        var vertical = b.h >= b.w; // joint runs along the longer axis
+        var jointFrac = 0.55; // slightly past the midpoint, roughly matching the reference limb drawing
+        var pts;
+        if (vertical) {
+          var gapY = Math.max(2, b.h * 0.035);
+          var midY = y0 + b.h * jointFrac;
+          pts = [
+            { x:x0, y:y0 }, { x:x1, y:y0 },
+            { x:x1, y:midY - gapY * 0.5 }, { x:x1, y:midY + gapY * 0.5 },
+            { x:x1, y:y1 }, { x:x0, y:y1 },
+            { x:x0, y:midY }
+          ];
+        } else {
+          var gapX = Math.max(2, b.w * 0.035);
+          var midX = x0 + b.w * jointFrac;
+          pts = [
+            { x:x0, y:y0 }, { x:x0, y:y1 },
+            { x:midX - gapX * 0.5, y:y1 }, { x:midX + gapX * 0.5, y:y1 },
+            { x:x1, y:y1 }, { x:x1, y:y0 },
+            { x:midX, y:y0 }
+          ];
+        }
+        var d = ['M ' + round(pts[0].x) + ' ' + round(pts[0].y)];
+        for (var i = 1; i < pts.length; i++) d.push('L ' + round(pts[i].x) + ' ' + round(pts[i].y));
+        d.push('Z');
+        return '<path d="' + selectedCurveSvgEscape(d.join(' ')) + '"' + selectedCurveStyleAttributesFromPaperItem(item) + ' data-luketools-limb-points="7"/>';
+      }
+
+      if (typeof selectedCurveObjectToSvgPart === 'function') {
+        var selectedCurveObjectToSvgPart_Base_Claude_V6 = selectedCurveObjectToSvgPart; // already clip-safe (V5)
+        selectedCurveObjectToSvgPart = function(obj, index){
+          var mode = (App.selectedCurve && App.selectedCurve.pointMode) || 'selected';
+          if (mode === 'limb') {
+            App.selectedCurve.originalPointsOnly = true; // limb path is built directly below, not by Base's density/original branches
+            try {
+              var item = selectedCurveFindPaperItem(obj);
+              var isClipCheck = !!(obj && ((App.Wick && App.Wick.Clip && obj instanceof App.Wick.Clip) || obj.classname === 'Clip' || (obj.timeline && obj.transformation && !obj.json)));
+              if (!isClipCheck) {
+                var limbInner = rbLimbPathFromPaperItem_Claude_V6(item);
+                if (limbInner) {
+                  var bounds = selectedCurvePaperBounds(item) || getObjectStageBounds(obj) || selectedCurveGetBounds(obj);
+                  if (bounds && bounds.w > 0 && bounds.h > 0) {
+                    var name = String((obj && (obj.identifier || obj.name)) || ('Selected_Wick_Curve_' + (index + 1)));
+                    return { inner:'<g data-luketools-selected-curve-index="' + selectedCurveSvgEscape(index + 1) + '" data-luketools-selected-curve-name="' + selectedCurveSvgEscape(name) + '">\n' + limbInner + '\n</g>', bounds:bounds, name:name };
+                  }
+                }
+              }
+            } catch(eLimbBuild) { /* fall through to Base below on any failure */ }
+            return selectedCurveObjectToSvgPart_Base_Claude_V6.apply(this, arguments);
+          }
+          if (mode === 'uniform') {
+            App.selectedCurve.originalPointsOnly = false; // must be false here so Base's density branch (the one we want) actually runs
+            App.selectedCurve.pointDensity = RB_UNIFORM_POINT_DENSITY_V6;
+          } else {
+            App.selectedCurve.originalPointsOnly = true; // 'selected' (default): the curve's own Wick points, unchanged
+          }
+          return selectedCurveObjectToSvgPart_Base_Claude_V6.apply(this, arguments);
+        };
+      }
+
+      if (typeof selectedCurveObjectsToSvg === 'function') {
+        var selectedCurveObjectsToSvg_Base_Claude_V14 = selectedCurveObjectsToSvg;
+        selectedCurveObjectsToSvg = function(objects){
+          var result = selectedCurveObjectsToSvg_Base_Claude_V14.apply(this, arguments);
+          // FIX Claude_10-07-2026_V14: per-object conversion (density/limb/original) is done and baked into result.svgRaw
+          // by this point. Force this flag true so the SEPARATE legacy auto-densify pass in loadSvgTextAsSource
+          // (a step that runs after this and rebuilds the whole commands array again) never re-processes points
+          // that Selected/Uniform/Limb already placed deliberately - that double-processing was scattering them.
+          if (App.selectedCurve) App.selectedCurve.originalPointsOnly = true;
+          return result;
+        };
+      }
+
+      function rbBindCurvePointModeRadios_Claude_V6(){
+        ['radCurvePointsSelected_Claude','radCurvePointsUniform_Claude','radCurvePointsLimb_Claude'].forEach(function(id){
+          var input = el(id);
+          if (!input || input.dataset.rbBoundV6) return;
+          input.dataset.rbBoundV6 = '1';
+          input.addEventListener('change', function(){
+            if (!this.checked) return;
+            App.selectedCurve = App.selectedCurve || {};
+            App.selectedCurve.pointMode = this.value;
+          });
+        });
+        if (App.selectedCurve && !App.selectedCurve.pointMode) App.selectedCurve.pointMode = 'selected';
+      }
+      rbBindCurvePointModeRadios_Claude_V6();
+
+      // --- Ctrl+Z on the parent (Wick) document too, since the Undo button is gone ---
+      try {
+        var pdocV6 = window.parent && window.parent.document ? window.parent.document : null;
+        if (pdocV6) {
+          pdocV6.addEventListener('keydown', function(ev){
+            var key = String(ev.key || '').toLowerCase();
+            if ((ev.ctrlKey || ev.metaKey) && key === 'z' && !ev.shiftKey) {
+              ev.preventDefault();
+              if (typeof undoLastChange === 'function') undoLastChange();
+            }
+          }, true);
+        }
+      } catch(ePdocKeyV6){}
+
+      log('RotoBones Claude 10-07-2026 V6: UI/UX pass installed (merged curve button, curve point modes, parent Ctrl+Z).');
+    } catch(eInstall6) {
+      try { console.error('[RotoBones Claude 10-07-2026 V6] install failed', eInstall6); } catch(econsole6){}
+    }
+  })();
+
+  // FIX Claude_10-07-2026_V11: Curves tab rebuild.
+  //  - Removed the "Point edit range" slider and "Add Points In Range" button (blind resolution increase).
+  //  - Removed Source tab's redundant fill/stroke override rows; the Curves tab's own fill/stroke editor
+  //    (already present) is now the one place for curve colour.
+  //  - New: an "Add Point" toggle + Corner/Smooth/Line radios. While the toggle is on, clicking directly on
+  //    a curve segment on the stage (not on an existing point/handle) inserts a new point there:
+  //      Corner - sits exactly where you clicked, both new segments become straight lines (sharp corner).
+  //      Smooth - exact De Casteljau split of the original curve at that position, so the curve's shape is
+  //               unchanged and the new point has continuous tangent handles on both sides.
+  //      Line   - sits on the straight chord between the segment's two original endpoints (not on the curve
+  //               itself if the segment was curved), both new segments straight - a deliberate flattening tool.
+  //    Clicks that land on an existing point/handle still go through the normal select/drag path untouched.
+  (function installAddCurvePoint_Claude_20260710_V11(){
+    try {
+      App.curveEdit = App.curveEdit || {};
+      if (App.curveEdit.addPointMode == null) App.curveEdit.addPointMode = false;
+      if (!App.curveEdit.addPointType) App.curveEdit.addPointType = 'corner';
+      App.curveEdit.shapeAnglePointsOnly = false; // FIX Claude_10-07-2026_V13: show every real point (e.g. Limb joint points on a straight run), not just sharp-angle ones
+
+      function rbLerpPt_Claude_V11(a, b, t){ return { x:Number(a.x) + (Number(b.x) - Number(a.x)) * t, y:Number(a.y) + (Number(b.y) - Number(a.y)) * t }; }
+
+      function rbNearestOnSegment_Claude_V11(a, b, p){
+        var dx = Number(b.x) - Number(a.x), dy = Number(b.y) - Number(a.y);
+        var lenSq = dx * dx + dy * dy;
+        var t = lenSq > 0.0001 ? clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq, 0, 1) : 0;
+        var pt = { x:Number(a.x) + dx * t, y:Number(a.y) + dy * t };
+        return { t:t, point:pt, dist:dist(p, pt) };
+      }
+
+      function rbNearestOnCubic_Claude_V11(p0, p1, p2, p3, target){
+        var best = null;
+        var STEPS = 24;
+        for (var i = 0; i <= STEPS; i += 1) {
+          var t = i / STEPS;
+          var pt = cubicPoint(p0, p1, p2, p3, t);
+          var d = dist(target, pt);
+          if (!best || d < best.dist) best = { t:t, point:pt, dist:d };
+        }
+        return best;
+      }
+
+      function rbCurveHitTestSegment_Claude_V11(local){
+        if (!local || !App.source || !App.source.svgNative || !App.source.svgNative.shapes) return null;
+        var best = null;
+        var frame = App.currentFrame;
+        var pose = currentPointAnimationPose(frame); // FIX Claude_10-07-2026_V12: hit-test must match the warped/displayed curve, not raw base points
+        function displayAnchor(cmd, si, spi, ci){
+          var id = pointAnimationPointId(si, spi, ci, 'p');
+          var base = getAnimatedPointForFrame(cmd.p, id, frame);
+          return pointAnimationCurrentDisplayPoint(base, pose);
+        }
+        function displayHandle(cmd, si, spi, ci, kind){
+          var pt = kind === 'c1' ? cmd.c1 : cmd.c2;
+          if (!pt) return pt;
+          var id = pointAnimationPointId(si, spi, ci, kind);
+          var base = getAnimatedPointForFrame(pt, id, frame);
+          return pointAnimationCurrentDisplayPoint(base, pose);
+        }
+        (App.source.svgNative.shapes || []).forEach(function(shape, si){
+          (shape.cmdSubpaths || []).forEach(function(sp, spi){
+            var commands = sp.commands || [];
+            for (var i = 1; i < commands.length; i += 1) {
+              var cmd = commands[i];
+              var prevCmd = commands[i - 1];
+              if (!cmd || !cmd.p || !prevCmd || !prevCmd.p || cmd.type === 'Z') continue;
+              var start = displayAnchor(prevCmd, si, spi, i - 1);
+              var end = displayAnchor(cmd, si, spi, i);
+              var isCurve = cmd.type === 'C' && cmd.c1 && cmd.c2;
+              var c1 = isCurve ? displayHandle(cmd, si, spi, i, 'c1') : null;
+              var c2 = isCurve ? displayHandle(cmd, si, spi, i, 'c2') : null;
+              var res = isCurve ? rbNearestOnCubic_Claude_V11(start, c1, c2, end, local) : rbNearestOnSegment_Claude_V11(start, end, local);
+              if (res && (!best || res.dist < best.dist)) best = { shapeIndex:si, subpathIndex:spi, commandIndex:i, isCurve:isCurve, start:start, end:end, c1:c1, c2:c2, t:res.t, point:res.point, dist:res.dist, commands:commands, shape:shape };
+            }
+          });
+        });
+        return (best && best.dist <= 14) ? best : null;
+      }
+
+      function rbInsertCurvePoint_Claude_V11(hit, mode, displayClickTarget){
+        if (!hit) return false;
+        var commands = hit.commands;
+        var start = hit.start, end = hit.end, t = hit.t;
+        var newCmd, nextC1 = null, nextC2 = null;
+        if (mode === 'smooth' && hit.isCurve) {
+          var p0 = start, p1 = hit.c1, p2 = hit.c2, p3 = end;
+          var q0 = rbLerpPt_Claude_V11(p0, p1, t);
+          var q1 = rbLerpPt_Claude_V11(p1, p2, t);
+          var q2 = rbLerpPt_Claude_V11(p2, p3, t);
+          var r0 = rbLerpPt_Claude_V11(q0, q1, t);
+          var r1 = rbLerpPt_Claude_V11(q1, q2, t);
+          var s = rbLerpPt_Claude_V11(r0, r1, t);
+          newCmd = { type:'C', c1:{ x:round(q0.x), y:round(q0.y) }, c2:{ x:round(r0.x), y:round(r0.y) }, p:{ x:round(s.x), y:round(s.y) } };
+          nextC1 = { x:round(r1.x), y:round(r1.y) };
+          nextC2 = { x:round(q2.x), y:round(q2.y) };
+        } else if (mode === 'line') {
+          var chordPt = rbLerpPt_Claude_V11(start, end, t);
+          newCmd = { type:'L', p:{ x:round(chordPt.x), y:round(chordPt.y) } };
+        } else {
+          newCmd = { type:'L', p:{ x:round(hit.point.x), y:round(hit.point.y) } };
+        }
+        commands.splice(hit.commandIndex, 0, newCmd);
+        var nextCmd = commands[hit.commandIndex + 1]; // the original command ending this segment, now one slot later
+        if (mode === 'smooth' && hit.isCurve && nextCmd) {
+          nextCmd.type = 'C';
+          nextCmd.c1 = nextC1;
+          nextCmd.c2 = nextC2;
+        } else if (nextCmd) {
+          nextCmd.type = 'L';
+          delete nextCmd.c1;
+          delete nextCmd.c2;
+        }
+        try { if (hit.shape) hit.shape.subpaths = commandSubpathsToLegacySubpaths(hit.shape.cmdSubpaths || []); } catch(eLegacy){}
+        try { curveEditClearOldPointKeys_v18208(); } catch(eClear){}
+        try {
+          var poseBindAdd36 = currentPointAnimationPose(App.currentFrame);
+          if (typeof rbEnsurePointBinding_Claude_V36 === 'function') {
+            rbEnsurePointBinding_Claude_V36(newCmd.p, poseBindAdd36);
+            if (newCmd.c1) rbEnsurePointBinding_Claude_V36(newCmd.c1, poseBindAdd36);
+            if (newCmd.c2) rbEnsurePointBinding_Claude_V36(newCmd.c2, poseBindAdd36);
+            if (nextCmd && nextCmd.c1) rbEnsurePointBinding_Claude_V36(nextCmd.c1, poseBindAdd36);
+            if (nextCmd && nextCmd.c2) rbEnsurePointBinding_Claude_V36(nextCmd.c2, poseBindAdd36);
+          }
+        } catch(eBindAdd36){}
+        try { rbWarnIfPointUncovered_Claude_V34(newCmd.p); } catch(eCoverage18){}
+        try {
+          // FIX Claude_11-07-2026_V36_GPT: solve with the new point's fixed binding, then copy the binding
+          // onto the replacement x/y object so the point remains owned by the same bones after insertion.
+          if (displayClickTarget) {
+            var poseFinalAdd = currentPointAnimationPose(App.currentFrame);
+            var addBinding36 = newCmd.p && newCmd.p.__rbBoneBinding ? newCmd.p.__rbBoneBinding : null;
+            var finalRestAdd = rbInverseSkinPoint_Claude_V19(displayClickTarget, poseFinalAdd, addBinding36);
+            var replacementAdd36 = { x:round(finalRestAdd.x), y:round(finalRestAdd.y) };
+            if (typeof rbCopyPointBinding_Claude_V36 === 'function') rbCopyPointBinding_Claude_V36(newCmd.p, replacementAdd36);
+            newCmd.p = replacementAdd36;
+            if (hit.shape) hit.shape.subpaths = commandSubpathsToLegacySubpaths(hit.shape.cmdSubpaths || []);
+          }
+        } catch(eResolveAdd25){}
+        App.pointAnimation.selectedBezier = { shapeIndex:hit.shapeIndex, subpathIndex:hit.subpathIndex, commandIndex:hit.commandIndex };
+        App.pointAnimation.selectedPointId = pointAnimationPointId(hit.shapeIndex, hit.subpathIndex, hit.commandIndex, 'p');
+        return true;
+      }
+
+      function rbAutoSizeAfterPointEdit_Claude_V33(){
+        // FIX Claude_10-07-2026_V33: replaces the custom neighbor-based coverage heuristic with the app's own
+        // tested Auto Size measurement, run automatically after every point add/move. Auto Size correctly
+        // measures every bone against every current point (so a moved/added point is included automatically,
+        // no neighbor-guessing needed) - but it only ever writes to the LIVE bone, never to a keyframe's own
+        // stored envelope snapshot, which silently overrides the live bone at any frame that keyframe covers.
+        // That gap is exactly why a manual Auto Size after moving a point still left it frozen. This runs Auto
+        // Size, then syncs every existing keyframe up to at least the newly measured size, and never lets
+        // anything shrink below what it was before (Auto Size can reduce a bone's size if the point distribution
+        // changed, which could cost some OTHER point its existing coverage - a floor avoids that regression).
+        try {
+          var bones = (App.bones || []).filter(function(b){ return !isExpressionBone(b); });
+          if (!bones.length) return;
+          var before = {};
+          bones.forEach(function(b){ before[b.id] = { s:getBoneEnvStart(b), e:getBoneEnvEnd(b) }; });
+          autoSizeEnvelopeForBoneSet(bones);
+          bones.forEach(function(b){
+            var pre = before[b.id];
+            var newS = Math.max(getBoneEnvStart(b), pre.s);
+            var newE = Math.max(getBoneEnvEnd(b), pre.e);
+            b.envStart = newS;
+            b.envEnd = newE;
+            b.radius = Math.max(newS, newE);
+            if (newS > pre.s || newE > pre.e) {
+              keyFramesForBoneId(b.id).forEach(function(f){
+                var kb = App.keyframes[f] && App.keyframes[f][b.id];
+                if (kb && (kb.envStart != null || kb.envEnd != null)) {
+                  kb.envStart = Math.max(getBoneEnvStart(kb), newS);
+                  kb.envEnd = Math.max(getBoneEnvEnd(kb), newE);
+                }
+              });
+            }
+          });
+        } catch(eAutoSize33){}
+      }
+
+      function rbWarnIfPointUncovered_Claude_V34(point){
+        // FIX Claude_11-07-2026_V36_GPT: preserve the point's current owners directly on the point. Do not
+        // create a shared weight map, because a newly-created map starts at 255 everywhere and can accidentally
+        // bind unrelated outside-envelope points to the same bone.
+        if (!point || !App.bones || !App.bones.length) return;
+        try {
+          var hadBinding = !!(point.__rbBoneBinding && Object.keys(point.__rbBoneBinding).length);
+          var binding = (typeof rbEnsurePointBinding_Claude_V36 === 'function')
+            ? rbEnsurePointBinding_Claude_V36(point, currentPointAnimationPose(App.currentFrame))
+            : null;
+          if (!hadBinding && binding && Object.keys(binding).length) {
+            log('Curve point bone control preserved with a point-specific binding.');
+          }
+        } catch(eBind36){}
+      }
+
+      function rbLogPointBoneWeights_Claude_V32(point, label){
+        // FIX Claude_10-07-2026_V32: after many rounds of theorizing, log the actual numbers instead of guessing
+        // again. Reports, for the given point, every bone's distance/t, the envelope radius actually in effect at
+        // frame 1 (rest) and at every frame that has its own keyframe, and whether that gives zero or nonzero
+        // weight - this tells us definitively whether "frozen" is an envelope/coverage problem at all, or
+        // something else entirely (in which case every bone will report nonzero weight and the freeze is
+        // happening somewhere later in the pipeline, not in coverage).
+        if (!App.bones || !App.bones.length || !point) { log('[Diag] ' + label + ': no bones or no point.'); return; }
+        var lines = [];
+        var restPose = getRestPose();
+        var framesToCheck = [1];
+        App.bones.forEach(function(b){ keyFramesForBoneId(b.id).forEach(function(f){ if (framesToCheck.indexOf(f) === -1) framesToCheck.push(f); }); });
+        framesToCheck.sort(function(a,b){ return a - b; });
+        App.bones.forEach(function(b){
+          var rest = { head:b.head, tail:b.tail };
+          var d = pointToSegmentDistance(point, rest.head, rest.tail);
+          framesToCheck.forEach(function(f){
+            var pose = f === 1 ? restPose : getPoseForFrame(f);
+            var cur = poseHasBone(pose, b.id) ? pose[b.id] : rest;
+            var es = getBoneEnvStart(cur), ee = getBoneEnvEnd(cur);
+            var radius = Math.max(1, lerp(es, ee, d.t));
+            var covered = d.d <= radius;
+            lines.push('Bone ' + b.id + ' @frame ' + f + ': dist=' + round(d.d) + ' t=' + round(d.t) + ' radius=' + round(radius) + ' (env ' + round(es) + '/' + round(ee) + ') -> ' + (covered ? 'COVERED' : 'ZERO WEIGHT'));
+          });
+        });
+        log('[Diag] ' + label + ' at (' + round(point.x) + ',' + round(point.y) + '):\n' + lines.join('\n'));
+      }
+
+      function rbEnsureNewPointBoneCoverage_Claude_V18(newPoint, neighborPoint){
+        // FIX Claude_10-07-2026_V18/V21: bone influence is computed from each point's position against a bone's
+        // envelope radius (see skinPointByPose). Distance/t is always measured against the bone's REST position,
+        // but the envelope RADIUS used can come from either the live bone or, if this bone has keyframes, a
+        // radius value stored INSIDE a specific keyframe - which silently overrides the live bone's value at any
+        // frame that keyframe affects. V18 only patched the live bone, so an existing keyframe's own stored
+        // (too-small) envelope kept overriding it. This now checks coverage using whatever is actually in effect
+        // at the current frame, and if a bump is needed, applies it to the live bone AND every existing keyframe
+        // for this bone that carries its own envelope snapshot.
+        if (!App.bones || !App.bones.length || !newPoint || !neighborPoint) return;
+        var frame = App.currentFrame;
+        var pose = currentPointAnimationPose(frame);
+        App.bones.forEach(function(b){
+          var rest = { head:b.head, tail:b.tail };
+          var distNew = pointToSegmentDistance(newPoint, rest.head, rest.tail);
+          var distNeighbor = pointToSegmentDistance(neighborPoint, rest.head, rest.tail);
+          var cur = poseHasBone(pose, b.id) ? pose[b.id] : rest;
+          var curEnvStart = getBoneEnvStart(cur);
+          var curEnvEnd = getBoneEnvEnd(cur);
+          var radiusAtNew = Math.max(1, lerp(curEnvStart, curEnvEnd, distNew.t));
+          // FIX Claude_10-07-2026_V31: reverted the V27 threshold. Bone influence is a hard cutoff - a point
+          // outside the radius by any amount gets exactly zero weight, there's no "a little bit outside, still
+          // mostly fine". Only stepping in for "wildly" out-of-range points meant a lot of genuinely-needed small
+          // corrections got skipped, and the point just lost influence outright - that's the "freshly moved point
+          // gets lost" report. The actual, correctly-targeted fix for over-expansion is the proportional scaling
+          // (V26) and the 20%-per-edit growth cap (V29) below, which bound the SIZE of any correction - so this
+          // can safely trigger on any under-coverage again, however small.
+          if (distNew.d <= radiusAtNew) return; // already covered, nothing to do
+          var radiusAtNeighbor = Math.max(1, lerp(curEnvStart, curEnvEnd, distNeighbor.t));
+          if (distNeighbor.d > radiusAtNeighbor) return; // this bone doesn't influence the neighbor here either - leave it alone
+          var needed = distNew.d + 2;
+          function bump(target){
+            // FIX Claude_10-07-2026_V26: the radius at any point is a straight-line interpolation between envStart
+            // and envEnd. Pushing only ONE end out to reach a point near the middle of the bone requires that end
+            // to blow out to roughly double what's actually needed there - a lopsided, oversized envelope. Scaling
+            // both ends by the same ratio instead reaches the point with a much smaller, proportionate change.
+            // FIX Claude_10-07-2026_V29: influence is always measured in REST space, but a point can be dragged
+            // while the bone is heavily posed/rotated - and the rest-space position needed to land at a given
+            // posed location can legitimately be very far from the bone under a big rotation. That's not a bug to
+            // "solve" so much as a mismatch between where influence is measured and where the edit happens, and
+            // trying to fully compensate for it is what produced the huge circles in extreme poses. Capping how
+            // much any single edit can grow the envelope keeps that mismatch from ever showing up as one dramatic
+            // jump - a genuinely large adjustment now takes a few edits instead of one.
+            var es = Math.max(1, getBoneEnvStart(target)), ee = Math.max(1, getBoneEnvEnd(target));
+            var currentRadius = Math.max(1, lerp(es, ee, distNew.t));
+            var k = Math.min(needed / currentRadius, 1.2); // never grow more than 20% from a single edit
+            if (k > 1) {
+              target.envStart = es * k;
+              target.envEnd = ee * k;
+            }
+          }
+          bump(b);
+          try {
+            // FIX Claude_10-07-2026_V30: back to checking every keyframe this bone has, across the whole timeline
+            // - not just the exact frame being edited (that was V28, and it was solving the wrong problem: the
+            // real over-expansion cause was uncapped growth at extreme poses, fixed by V29's per-edit cap, not the
+            // multi-keyframe sweep itself). "needed" is frame-independent (distance is always measured against
+            // the bone's REST position, never its posed position), so a point that needs more coverage needs it
+            // at every frame, not just the one you happened to be on. bump() already computes its own ratio
+            // independently per target and V29 already caps how much any single one can grow per edit, so sweeping
+            // every keyframe here is safe and is what actually keeps a point covered while scrubbing the timeline.
+            keyFramesForBoneId(b.id).forEach(function(f){
+              var kb = App.keyframes[f] && App.keyframes[f][b.id];
+              if (kb && (kb.envStart != null || kb.envEnd != null)) bump(kb);
+            });
+          } catch(eKeyBump21){}
+        });
+      }
+
+      function rbHitTestRealPoint_Claude_V17(local, maxDist){
+        maxDist = maxDist || 10;
+        if (!local || !App.source || !App.source.svgNative || !App.source.svgNative.shapes) return null;
+        var frame = App.currentFrame;
+        var pose = currentPointAnimationPose(frame);
+        var best = null;
+        (App.source.svgNative.shapes || []).forEach(function(shape, si){
+          (shape.cmdSubpaths || []).forEach(function(sp, spi){
+            var commands = sp.commands || [];
+            for (var i = 0; i < commands.length; i += 1) {
+              var cmd = commands[i];
+              if (!cmd || !cmd.p) continue;
+              var id = pointAnimationPointId(si, spi, i, 'p');
+              var base = getAnimatedPointForFrame(cmd.p, id, frame);
+              var pt = pointAnimationCurrentDisplayPoint(base, pose);
+              if (!pt) continue;
+              var d = dist(local, pt);
+              if (d <= maxDist && (!best || d < best.d)) best = { d:d, shapeIndex:si, subpathIndex:spi, commandIndex:i, id:id, point:pt, shape:shape, commands:commands };
+            }
+          });
+        });
+        return best;
+      }
+
+      if (typeof onOverlayMouseDown === 'function') {
+        var onOverlayMouseDown_Base_Claude_V11 = onOverlayMouseDown;
+        onOverlayMouseDown = function(e){
+          try {
+            if (App.activeTab === 'animatepoints' && App.source && App.source.svgNative && App.source.svgNative.shapes && App.source.svgNative.shapes.length) {
+              var local = clientToOverlayLocal(e.clientX, e.clientY);
+              if (e.ctrlKey) {
+                // FIX Claude_10-07-2026_V17: Ctrl+click = add a point. Clicking an existing point with Ctrl held just selects it.
+                var existingHit = rbHitTestRealPoint_Claude_V17(local);
+                if (existingHit) {
+                  App.pointAnimation.selectedBezier = { shapeIndex:existingHit.shapeIndex, subpathIndex:existingHit.subpathIndex, commandIndex:existingHit.commandIndex };
+                  App.pointAnimation.selectedPointId = existingHit.id;
+                  updateAnimatePointUI(); renderOverlay();
+                  try { e.preventDefault(); e.stopPropagation(); } catch(eStopA17){}
+                  return;
+                }
+                var segHit = rbCurveHitTestSegment_Claude_V11(local);
+                if (segHit) {
+                  pushUndoSnapshot('Add curve point');
+                  var mode = App.curveEdit.addPointType || 'corner';
+                  var poseForAdd = currentPointAnimationPose(App.currentFrame); // FIX Claude_10-07-2026_V19
+                  var displayClickTarget_Claude25 = { x:segHit.point.x, y:segHit.point.y }; // FIX Claude_10-07-2026_V25: keep the original display click, to re-solve after coverage settles
+                  segHit.start = rbInverseSkinPoint_Claude_V19(segHit.start, poseForAdd);
+                  segHit.end = rbInverseSkinPoint_Claude_V19(segHit.end, poseForAdd);
+                  segHit.point = rbInverseSkinPoint_Claude_V19(segHit.point, poseForAdd);
+                  if (segHit.c1) segHit.c1 = rbInverseSkinPoint_Claude_V19(segHit.c1, poseForAdd);
+                  if (segHit.c2) segHit.c2 = rbInverseSkinPoint_Claude_V19(segHit.c2, poseForAdd);
+                  rbInsertCurvePoint_Claude_V11(segHit, mode, displayClickTarget_Claude25);
+                  updateAnimatePointUI(); renderOverlay();
+                  try { rbLogPointBoneWeights_Claude_V32({ x:segHit.point.x, y:segHit.point.y }, 'Added point'); } catch(eDiag32b){} // FIX Claude_10-07-2026_V32
+                } else if (App.source.svgNative.shapes.length) {
+                  log('Add Point (Ctrl+click): no curve segment found close enough to that click.');
+                }
+                try { e.preventDefault(); e.stopPropagation(); } catch(eStopB17){}
+                return;
+              }
+              // FIX Claude_10-07-2026_V17: plain click (no Ctrl) = move point, on all the time. Direct, one point at a time - no windowing.
+              var moveHit = rbHitTestRealPoint_Claude_V17(local);
+              if (moveHit) {
+                pushUndoSnapshot('Move curve point');
+                App.pointAnimation.selectedBezier = { shapeIndex:moveHit.shapeIndex, subpathIndex:moveHit.subpathIndex, commandIndex:moveHit.commandIndex };
+                App.pointAnimation.selectedPointId = moveHit.id;
+                App.interaction.dragging = true;
+                App.interaction.dragType = 'rbMoveRealPoint_Claude';
+                var origCmd = moveHit.commands[moveHit.commandIndex];
+                try {
+                  // FIX Claude_11-07-2026_V36_GPT: freeze the point's current bone weights before its rest-space
+                  // coordinates change. This is the ownership the point must retain throughout and after the drag.
+                  if (origCmd && origCmd.p && typeof rbEnsurePointBinding_Claude_V36 === 'function') {
+                    rbEnsurePointBinding_Claude_V36(origCmd.p, currentPointAnimationPose(App.currentFrame));
+                  }
+                } catch(eBindMoveStart36){}
+                App.interaction.rbMovePointRef_Claude = { shapeIndex:moveHit.shapeIndex, subpathIndex:moveHit.subpathIndex, commandIndex:moveHit.commandIndex, pointId:moveHit.id, commands:moveHit.commands, shape:moveHit.shape, origPoint:{ x:origCmd.p.x, y:origCmd.p.y } }; // FIX Claude_11-07-2026_V36_GPT
+                updateAnimatePointUI(); renderOverlay();
+                try { e.preventDefault(); e.stopPropagation(); } catch(eStopC17){}
+                return;
+              }
+              // FIX Claude_10-07-2026_V20: clicked empty space, not near any point - deselect instead of leaving the old selection stuck.
+              if (App.pointAnimation.selectedPointId || App.pointAnimation.selectedBezier) {
+                App.pointAnimation.selectedBezier = null;
+                App.pointAnimation.selectedPointId = null;
+                updateAnimatePointUI(); renderOverlay();
+              }
+              return;
+            }
+          } catch(eMouse17) {
+            try { log('Curve point interaction failed: ' + (eMouse17 && eMouse17.message ? eMouse17.message : eMouse17)); } catch(eLog17){}
+          }
+          return onOverlayMouseDown_Base_Claude_V11.apply(this, arguments);
+        };
+      }
+
+      function rbInverseSkinPoint_Claude_V19(targetDisplay, pose, fixedBinding){
+        // FIX Claude_11-07-2026_V36_GPT: invert using the same point-specific weights that the forward skinning
+        // pass will use. Without this, moving a point in a posed frame can solve against one set of envelope
+        // weights, then render against a different set after the rest coordinate changes.
+        if (!App.bones || !App.bones.length) return { x:targetDisplay.x, y:targetDisplay.y };
+        var binding = fixedBinding && typeof fixedBinding === 'object' ? fixedBinding : null;
+        function taggedGuess_v36(x, y){
+          var point = { x:x, y:y };
+          if (binding && Object.keys(binding).length) {
+            point.__rbBoneBinding = (typeof rbClonePointBinding_Claude_V36 === 'function')
+              ? rbClonePointBinding_Claude_V36(binding)
+              : binding;
+          }
+          return point;
+        }
+        var guess = taggedGuess_v36(targetDisplay.x, targetDisplay.y);
+        var bestGuess = taggedGuess_v36(guess.x, guess.y);
+        var bestErr = Infinity;
+        var damping = 0.25;
+        for (var i = 0; i < 40; i += 1) {
+          var projected = skinPointByPose(guess, pose);
+          var dx = targetDisplay.x - projected.x;
+          var dy = targetDisplay.y - projected.y;
+          var err = Math.sqrt(dx * dx + dy * dy);
+          if (err < bestErr) { bestErr = err; bestGuess = taggedGuess_v36(guess.x, guess.y); }
+          if (err < 0.01) return guess;
+          guess = taggedGuess_v36(guess.x + dx * damping, guess.y + dy * damping);
+        }
+        return bestGuess;
+      }
+
+      if (typeof onOverlayMouseMove === 'function') {
+        var onOverlayMouseMove_Base_Claude_V17 = onOverlayMouseMove;
+        onOverlayMouseMove = function(e){
+          if (App.interaction.dragging && App.interaction.dragType === 'rbMoveRealPoint_Claude') {
+            try {
+              var local = clientToOverlayLocal(e.clientX, e.clientY);
+              var ref = App.interaction.rbMovePointRef_Claude;
+              var cmd = ref && ref.commands && ref.commands[ref.commandIndex];
+              if (cmd) {
+                var pose = currentPointAnimationPose(App.currentFrame);
+                var moveBinding36 = cmd.p && cmd.p.__rbBoneBinding ? cmd.p.__rbBoneBinding : null;
+                var restPoint = rbInverseSkinPoint_Claude_V19(local, pose, moveBinding36);
+                var replacementMove36 = { x:round(restPoint.x), y:round(restPoint.y) };
+                if (typeof rbCopyPointBinding_Claude_V36 === 'function') rbCopyPointBinding_Claude_V36(cmd.p, replacementMove36);
+                cmd.p = replacementMove36;
+                ref.lastTargetDisplay_Claude = { x:local.x, y:local.y }; // FIX Claude_10-07-2026_V25: remember exactly where the cursor was, so it can be re-solved after coverage settles
+                // FIX Claude_10-07-2026_V22: envelope coverage is NOT touched here anymore. Expanding a bone's
+                // envelope mid-drag changes what skinPointByPose does with the very point being dragged, so the
+                // inverse-skin solve above suddenly needs a different answer for the same cursor position on the
+                // next frame - that produced the jump/instability. Coverage is now only settled once, on mouseup,
+                // after the position has already stopped changing.
+                try { if (ref.shape) ref.shape.subpaths = commandSubpathsToLegacySubpaths(ref.shape.cmdSubpaths || []); } catch(eLegacy17){}
+                updateAnimatePointUI();
+                renderOverlay();
+              }
+            } catch(eMove17) {
+              try { log('Move curve point failed: ' + (eMove17 && eMove17.message ? eMove17.message : eMove17)); } catch(eLog17b){}
+            }
+            return;
+          }
+          return onOverlayMouseMove_Base_Claude_V17.apply(this, arguments);
+        };
+      }
+
+      if (typeof onOverlayMouseUp === 'function') {
+        var onOverlayMouseUp_Base_Claude_V20 = onOverlayMouseUp;
+        onOverlayMouseUp = function(e){
+          var wasMovingPoint = (App.interaction.dragType === 'rbMoveRealPoint_Claude'); // FIX Claude_10-07-2026_V20
+          var moveRef = App.interaction.rbMovePointRef_Claude; // FIX Claude_10-07-2026_V22
+          var result = onOverlayMouseUp_Base_Claude_V20.apply(this, arguments);
+          if (wasMovingPoint) {
+            try {
+              if (moveRef && moveRef.commands && moveRef.commands[moveRef.commandIndex] && moveRef.origPoint) {
+                var movedCmd = moveRef.commands[moveRef.commandIndex];
+                // FIX Claude_11-07-2026_V36_GPT: the moved point already owns a stable binding captured at
+                // mouse-down. Reconfirm it without changing any envelope or shared weight map, then do one final
+                // inverse solve against the exact release position using those same weights.
+                try { rbWarnIfPointUncovered_Claude_V34(movedCmd.p); } catch(eWarn34){}
+                if (moveRef.lastTargetDisplay_Claude) {
+                  try {
+                    var poseFinal36 = currentPointAnimationPose(App.currentFrame);
+                    var finalBinding36 = movedCmd.p && movedCmd.p.__rbBoneBinding ? movedCmd.p.__rbBoneBinding : null;
+                    var finalRest36 = rbInverseSkinPoint_Claude_V19(moveRef.lastTargetDisplay_Claude, poseFinal36, finalBinding36);
+                    var replacementFinal36 = { x:round(finalRest36.x), y:round(finalRest36.y) };
+                    if (typeof rbCopyPointBinding_Claude_V36 === 'function') rbCopyPointBinding_Claude_V36(movedCmd.p, replacementFinal36);
+                    movedCmd.p = replacementFinal36;
+                  } catch(eResolveMove36){}
+                }
+                try { if (moveRef.shape) moveRef.shape.subpaths = commandSubpathsToLegacySubpaths(moveRef.shape.cmdSubpaths || []); } catch(eLegacyUp25){}
+                try { rbLogPointBoneWeights_Claude_V32(movedCmd.p, 'Moved point'); } catch(eDiag32){} // FIX Claude_10-07-2026_V32: report actual numbers instead of guessing further
+              }
+            } catch(eCoverageUp22){}
+            App.pointAnimation.selectedBezier = null;
+            App.pointAnimation.selectedPointId = null;
+            try { updateAnimatePointUI(); renderOverlay(); } catch(eDeselect20){}
+          }
+          return result;
+        };
+      }
+
+      function rbBindAddCurvePointUi_Claude_V11(){
+        ['radAddCurvePointCorner_Claude','radAddCurvePointSmooth_Claude','radAddCurvePointLine_Claude'].forEach(function(id){
+          var input = el(id);
+          if (!input || input.dataset.rbBoundV11) return;
+          input.dataset.rbBoundV11 = '1';
+          input.addEventListener('change', function(){
+            if (!this.checked) return;
+            App.curveEdit.addPointType = this.value;
+          });
+        });
+      }
+      rbBindAddCurvePointUi_Claude_V11();
+
+      log('RotoBones Claude 11-07-2026 V36 GPT: direct point movement keeps stable bone ownership; Ctrl+click adds a point.');
+    } catch(eInstall11) {
+      try { console.error('[RotoBones Claude 10-07-2026 V17] install failed', eInstall11); } catch(econsole11){}
+    }
+  })();
+
+  // FIX Claude_10-07-2026_V15: the pre-existing point-drawing system (drawPointAnimationHandlesOnContext) only
+  // draws a sparse, windowed subset of anchors (roughly one node per ~4-anchor window) - it was built for
+  // smoothly group-editing dense curves from the old density feature, not for showing every individual point.
+  // That's why points looked like they were "on the shape but not in the positions they should be" - most of
+  // the real anchors (including Limb's joint pair) were never drawn at all. This adds a supplementary pass
+  // that draws every real anchor point at its true position, on top of whatever the old system already shows.
+  (function installShowAllCurvePoints_Claude_20260710_V15(){
+    try {
+      if (typeof drawPointAnimationHandlesOnContext === 'function') {
+        drawPointAnimationHandlesOnContext = function(ctx){
+          // FIX Claude_10-07-2026_V16: no longer calls the old Base implementation at all. That system drew
+          // synthetic "handle" dots computed for smoothly group-editing a window of anchors (a leftover of the
+          // removed density feature) - for straight-edged shapes like Limb those synthetic handles land wherever
+          // the formula puts them, which can be inside the shape rather than on it. Real anchor points always
+          // sit exactly on the path, so only those get drawn now.
+          try { rbDrawAllRealCurvePoints_Claude_V15(ctx); } catch(eDrawAll15){}
+        };
+      }
+
+      function rbDrawAllRealCurvePoints_Claude_V15(ctx){
+        if (App.activeTab !== 'animatepoints') return;
+        if (!App.pointAnimation || App.pointAnimation.showBezierHandles === false) return;
+        if (!App.source || !App.source.svgNative || !App.source.svgNative.shapes) return;
+        var frame = App.currentFrame;
+        var pose = currentPointAnimationPose(frame);
+        var selectedId = App.pointAnimation.selectedPointId || '';
+        ctx.save();
+        (App.source.svgNative.shapes || []).forEach(function(shape, si){
+          (shape.cmdSubpaths || []).forEach(function(sp, spi){
+            var commands = sp.commands || [];
+            for (var i = 0; i < commands.length; i += 1) {
+              var cmd = commands[i];
+              if (!cmd || !cmd.p) continue;
+              var id = pointAnimationPointId(si, spi, i, 'p');
+              var base = getAnimatedPointForFrame(cmd.p, id, frame);
+              var pt = pointAnimationCurrentDisplayPoint(base, pose);
+              if (!pt) continue;
+              var isSmooth = curveEditCommandHasRealBezierHandle_v18210(cmd);
+              var isSelected = (id === selectedId);
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, isSelected ? 5.5 : 4, 0, Math.PI * 2);
+              ctx.fillStyle = isSelected ? 'rgba(255,214,0,0.98)' : (isSmooth ? 'rgba(120,200,255,0.9)' : 'rgba(255,255,255,0.9)');
+              ctx.fill();
+              ctx.strokeStyle = isSelected ? 'rgba(140,100,0,0.95)' : 'rgba(60,60,60,0.85)';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+          });
+        });
+        ctx.restore();
+      }
+
+      log('RotoBones Claude 10-07-2026 V15: every real curve point now draws at its true position.');
+    } catch(eInstall15) {
+      try { console.error('[RotoBones Claude 10-07-2026 V15] install failed', eInstall15); } catch(econsole15){}
+    }
+  })();
+
+  // FIX Claude_11-07-2026_V36_GPT: stable per-point bone binding after curve edits in a posed frame.
+  //
+  // V35 attempted to keep a moved point attached by creating a bone weight map and treating any full-strength
+  // pixel outside the envelope as an explicit bind. Weight maps are initialised to 255 everywhere, however, so
+  // creating one map for one point accidentally made every outside-envelope point eligible for that bone. The
+  // resulting multi-bone blend is why bones appeared to lose control after a point was moved.
+  //
+  // V36 stores the point's actual bone weights directly on that curve point as __rbBoneBinding. The binding is
+  // captured before the point moves, survives save/load because it is plain JSON data, follows the point when its
+  // x/y values are replaced, and is copied through point-key interpolation. The point can therefore be reshaped in
+  // any posed frame without changing which bones own it. Existing unedited points continue to use the original
+  // envelope and weight-paint calculation.
+  (function installStableCurvePointBinding_Claude_20260711_V36_GPT(){
+    try {
+      function rbClonePointBinding_Claude_V36(binding){
+        var out = {};
+        if (!binding || typeof binding !== 'object') return out;
+        Object.keys(binding).forEach(function(key){
+          var value = Number(binding[key]);
+          if (isFinite(value) && value > 0.0000001) out[String(key)] = value;
+        });
+        return out;
+      }
+
+      function rbBindingHasWeights_Claude_V36(binding){
+        if (!binding || typeof binding !== 'object') return false;
+        return Object.keys(binding).some(function(key){
+          var value = Number(binding[key]);
+          return isFinite(value) && value > 0.0000001;
+        });
+      }
+
+      function rbNearestNormalBone_Claude_V36(point){
+        var best = null;
+        var bestDistance = Infinity;
+        (App.bones || []).forEach(function(bone){
+          if (!bone || isExpressionBone(bone)) return;
+          var info = pointToSegmentDistance(point, bone.head, bone.tail);
+          if (info.d < bestDistance) {
+            bestDistance = info.d;
+            best = bone;
+          }
+        });
+        return best;
+      }
+
+      function rbComputePointBinding_Claude_V36(point, pose){
+        var binding = {};
+        if (!point || !App.bones || !App.bones.length) return binding;
+        pose = pose || currentPointAnimationPose(App.currentFrame);
+        (App.bones || []).forEach(function(bone){
+          if (!bone) return;
+          var rest = { head:bone.head, tail:bone.tail };
+          var cur = poseHasBone(pose, bone.id) ? pose[bone.id] : rest;
+          var info = pointToSegmentDistance(point, rest.head, rest.tail);
+          var radius = Math.max(1, lerp(getBoneEnvStart(cur), getBoneEnvEnd(cur), info.t));
+          if (info.d > radius) return;
+          var weight = 1 - (info.d / radius);
+          weight = weight * weight * (bone.strength || 1);
+          weight *= sampleWeightMap(bone, point.x, point.y);
+          if (isFinite(weight) && weight > 0.0000001) binding[String(bone.id)] = weight;
+        });
+        return binding;
+      }
+
+      function rbEnsurePointBinding_Claude_V36(point, pose){
+        if (!point) return {};
+        if (rbBindingHasWeights_Claude_V36(point.__rbBoneBinding)) {
+          point.__rbBoneBinding = rbClonePointBinding_Claude_V36(point.__rbBoneBinding);
+          return point.__rbBoneBinding;
+        }
+        var binding = rbComputePointBinding_Claude_V36(point, pose);
+        if (!rbBindingHasWeights_Claude_V36(binding)) {
+          // A point that was already outside every envelope still needs one stable owner. Bind only this point to
+          // the nearest normal bone; do not create/resize a shared weight map and do not alter unrelated geometry.
+          var nearest = rbNearestNormalBone_Claude_V36(point);
+          if (nearest) binding[String(nearest.id)] = Math.max(0.0001, Number(nearest.strength || 1));
+        }
+        point.__rbBoneBinding = rbClonePointBinding_Claude_V36(binding);
+        return point.__rbBoneBinding;
+      }
+
+      function rbCopyPointBinding_Claude_V36(sourcePoint, targetPoint){
+        if (!targetPoint) return targetPoint;
+        if (sourcePoint && rbBindingHasWeights_Claude_V36(sourcePoint.__rbBoneBinding)) {
+          targetPoint.__rbBoneBinding = rbClonePointBinding_Claude_V36(sourcePoint.__rbBoneBinding);
+        }
+        return targetPoint;
+      }
+
+      function rbPointWithBinding_Claude_V36(x, y, binding){
+        var point = { x:x, y:y };
+        if (rbBindingHasWeights_Claude_V36(binding)) point.__rbBoneBinding = rbClonePointBinding_Claude_V36(binding);
+        return point;
+      }
+
+      skinPointByPose = function(p, pose){
+        if (!p || !App.bones.length) return p ? { x:p.x, y:p.y } : p;
+        var fixedBinding = rbBindingHasWeights_Claude_V36(p.__rbBoneBinding) ? p.__rbBoneBinding : null;
+        var sumW = 0;
+        var sumX = 0;
+        var sumY = 0;
+        App.bones.forEach(function(b){
+          if (!b) return;
+          var rest = { head:b.head, tail:b.tail };
+          var cur = poseHasBone(pose, b.id) ? pose[b.id] : rest;
+          var w = 0;
+          if (fixedBinding) {
+            w = Number(fixedBinding[String(b.id)] || 0);
+            if (!isFinite(w) || w <= 0.0000001) return;
+          } else {
+            var distInfoDynamic = pointToSegmentDistance(p, rest.head, rest.tail);
+            var radiusDynamic = Math.max(1, lerp(getBoneEnvStart(cur), getBoneEnvEnd(cur), distInfoDynamic.t));
+            if (distInfoDynamic.d > radiusDynamic) return;
+            w = 1 - (distInfoDynamic.d / radiusDynamic);
+            w = w * w * (b.strength || 1);
+            w *= sampleWeightMap(b, p.x, p.y);
+            if (!isFinite(w) || w <= 0.0000001) return;
+          }
+
+          var restDirV = { x:rest.tail.x - rest.head.x, y:rest.tail.y - rest.head.y };
+          var curDirV = { x:cur.tail.x - cur.head.x, y:cur.tail.y - cur.head.y };
+          var restDir = normalize(restDirV);
+          var curDir = normalize(curDirV);
+          var restPerp = { x:-restDir.y, y:restDir.x };
+          var curPerp = { x:-curDir.y, y:curDir.x };
+          var rel = { x:p.x - rest.head.x, y:p.y - rest.head.y };
+          var u = rel.x * restDir.x + rel.y * restDir.y;
+          var v = rel.x * restPerp.x + rel.y * restPerp.y;
+          var restLen = Math.max(0.0001, Math.sqrt(restDirV.x * restDirV.x + restDirV.y * restDirV.y));
+          var curLen = Math.max(0.0001, Math.sqrt(curDirV.x * curDirV.x + curDirV.y * curDirV.y));
+          var scaleU = isStretchyBone(b) ? (curLen / restLen) : 1;
+          var tx = cur.head.x + curDir.x * u * scaleU + curPerp.x * v;
+          var ty = cur.head.y + curDir.y * u * scaleU + curPerp.y * v;
+          sumX += tx * w;
+          sumY += ty * w;
+          sumW += w;
+        });
+        if (sumW <= 0.00001) return { x:p.x, y:p.y };
+        return { x:sumX / sumW, y:sumY / sumW };
+      };
+
+      window.rbClonePointBinding_Claude_V36 = rbClonePointBinding_Claude_V36;
+      window.rbBindingHasWeights_Claude_V36 = rbBindingHasWeights_Claude_V36;
+      window.rbComputePointBinding_Claude_V36 = rbComputePointBinding_Claude_V36;
+      window.rbEnsurePointBinding_Claude_V36 = rbEnsurePointBinding_Claude_V36;
+      window.rbCopyPointBinding_Claude_V36 = rbCopyPointBinding_Claude_V36;
+      window.rbPointWithBinding_Claude_V36 = rbPointWithBinding_Claude_V36;
+      window.rbNearestBone_Claude_V35 = rbNearestNormalBone_Claude_V36; // compatibility with the earlier inner point-edit code
+
+      log('RotoBones Claude 11-07-2026 V36 GPT: moved curve points now retain point-specific bone control in posed frames.');
+    } catch(eInstall36) {
+      try { console.error('[RotoBones Claude 11-07-2026 V36 GPT] install failed', eInstall36); } catch(econsole36){}
+    }
+  })();
+
+
+
+  // FIX Claude_11-07-2026_V39_GPT: V38 stored pointKeys correctly but then suppressed their evaluation
+  // whenever Animate Curves was closed. This version limits source-only evaluation to the ordinary Curves panel
+  // and guarantees the selected point's final release position is written into the current frame key.
+
+  // FIX Claude_11-07-2026_V38_GPT: explicit curve-animation workflow with original Wick sync preserved.
+  //
+  // V37 globally changed Curves into animated mode and replaced several core keyframe functions. That made the
+  // curve control hard to find and risked interfering with the established Wick playhead/proxy synchronisation.
+  // V38 starts again from V36. It leaves syncFromWickTimeline, setCurrentFrame, setWickTimelineFrame, play,
+  // setCurrentKeyFromPose and all proxy sync functions untouched. Curve animation is entered only through the
+  // visible Animate Curves button. Normal Curves remains source-shape editing.
+  (function installExplicitCurveAnimation_Claude_20260711_V38_GPT(){
+    try {
+      function rbCurveFrameString_V38(frame){
+        return String(Math.max(1, Math.round(Number(frame || App.currentFrame || 1) || 1)));
+      }
+
+      function rbEnsureCurveAnimationState_V38(){
+        if (!App.pointAnimation) App.pointAnimation = {};
+        if (!App.curveEdit) App.curveEdit = {};
+        if (App.pointAnimation.includeWithAnimateKey == null) App.pointAnimation.includeWithAnimateKey = true;
+        if (App.pointAnimation.curveAnimationSession == null) App.pointAnimation.curveAnimationSession = false;
+      }
+
+      function rbAnimateIncludeCurvePoseEnabled_V38(){
+        rbEnsureCurveAnimationState_V38();
+        return App.pointAnimation.includeWithAnimateKey !== false;
+      }
+
+      function rbCurveAnimationSessionActive_V38(){
+        rbEnsureCurveAnimationState_V38();
+        return App.pointAnimation.curveAnimationSession === true;
+      }
+
+      function rbSetCurveAnimationSession_V38(active){
+        rbEnsureCurveAnimationState_V38();
+        App.pointAnimation.curveAnimationSession = !!active;
+        App.curveEdit.nonAnimated = !active;
+        rbUpdateCurveAnimationUi_V38();
+      }
+
+      function rbCurvePointKeyCount_V38(frame){
+        var row = App.pointKeys && App.pointKeys[rbCurveFrameString_V38(frame)];
+        return row ? Object.keys(row).length : 0;
+      }
+
+      function rbCloneCurvePointRow_V38(row){
+        var out = {};
+        Object.keys(row || {}).forEach(function(id){
+          var p = row[id];
+          if (!p) return;
+          out[id] = { x:round(Number(p.x) || 0), y:round(Number(p.y) || 0) };
+        });
+        return out;
+      }
+
+      function rbPersistCurveKeys_V38(){
+        try { mcPersistActivePartKeys(); } catch(ePersist38){}
+        try { mcShowSelectedPartKeyRows(); } catch(eRows38){}
+      }
+
+      function rbCaptureCurvePoseAtCurrentFrame_V38(frame){
+        rbEnsureCurveAnimationState_V38();
+        if (!App.source || !App.source.svgNative || !App.source.svgNative.shapes || !App.source.svgNative.shapes.length) {
+          log('No editable curve points are loaded.');
+          return 0;
+        }
+        frame = Math.max(1, Math.round(Number(frame || App.currentFrame || 1) || 1));
+        ensureFirstFramePointKeysAlways();
+        var oldNonAnimated38 = App.curveEdit.nonAnimated;
+        App.curveEdit.nonAnimated = false;
+        var refs = [];
+        try { refs = listPointAnimationRefs(frame); }
+        finally { App.curveEdit.nonAnimated = oldNonAnimated38; }
+        var snapshot = {};
+        refs.forEach(function(ref){
+          if (!ref || !ref.id) return;
+          var p = ref.sourcePoint || getAnimatedPointForFrame(ref.base, ref.id, frame) || ref.base;
+          if (!p) return;
+          snapshot[ref.id] = { x:round(Number(p.x) || 0), y:round(Number(p.y) || 0) };
+        });
+        if (!App.pointKeys) App.pointKeys = {};
+        App.pointKeys[rbCurveFrameString_V38(frame)] = snapshot;
+        rbPersistCurveKeys_V38();
+        rbUpdateCurveAnimationUi_V38();
+        updateAnimatePointUI();
+        renderOverlay();
+        log('Captured ' + Object.keys(snapshot).length + ' curve point' + (Object.keys(snapshot).length === 1 ? '' : 's') + ' on frame ' + frame + '.');
+        return Object.keys(snapshot).length;
+      }
+
+      function rbClearCurvePoseAtCurrentFrame_V38(frame){
+        var fr = rbCurveFrameString_V38(frame);
+        if (!App.pointKeys || !App.pointKeys[fr]) {
+          rbUpdateCurveAnimationUi_V38();
+          return false;
+        }
+        delete App.pointKeys[fr];
+        rbPersistCurveKeys_V38();
+        rbUpdateCurveAnimationUi_V38();
+        updateAnimatePointUI();
+        renderOverlay();
+        log('Cleared curve-point keys on frame ' + fr + '.');
+        return true;
+      }
+
+      function rbPreviousCurveKeyFrame_V38(frame){
+        frame = Math.max(1, Math.round(Number(frame || App.currentFrame || 1) || 1));
+        var frames = Object.keys(App.pointKeys || {}).map(Number).filter(function(f){
+          return isFinite(f) && f < frame && App.pointKeys[String(f)];
+        }).sort(function(a,b){ return a-b; });
+        return frames.length ? frames[frames.length - 1] : null;
+      }
+
+      function rbCopyPreviousCurvePoseToCurrent_V38(frame){
+        frame = Math.max(1, Math.round(Number(frame || App.currentFrame || 1) || 1));
+        ensureFirstFramePointKeysAlways();
+        var prev = rbPreviousCurveKeyFrame_V38(frame);
+        if (prev == null || !App.pointKeys[String(prev)]) {
+          log('No previous curve-point keyframe found.');
+          rbUpdateCurveAnimationUi_V38();
+          return false;
+        }
+        App.pointKeys[rbCurveFrameString_V38(frame)] = rbCloneCurvePointRow_V38(App.pointKeys[String(prev)]);
+        rbPersistCurveKeys_V38();
+        rbUpdateCurveAnimationUi_V38();
+        updateAnimatePointUI();
+        renderOverlay();
+        log('Copied curve-point pose from frame ' + prev + ' to frame ' + frame + '.');
+        return true;
+      }
+
+      function rbResetCurvePoseAtCurrentFrame_V38(frame){
+        rbEnsureCurveAnimationState_V38();
+        if (!App.source || !App.source.svgNative || !App.source.svgNative.shapes) return 0;
+        frame = Math.max(1, Math.round(Number(frame || App.currentFrame || 1) || 1));
+        var snapshot = {};
+        var oldMode = App.curveEdit.nonAnimated;
+        App.curveEdit.nonAnimated = true;
+        try {
+          listPointAnimationRefs(1).forEach(function(ref){
+            if (!ref || !ref.id || !ref.base) return;
+            snapshot[ref.id] = { x:round(Number(ref.base.x) || 0), y:round(Number(ref.base.y) || 0) };
+          });
+        } finally {
+          App.curveEdit.nonAnimated = oldMode;
+        }
+        if (!App.pointKeys) App.pointKeys = {};
+        App.pointKeys[rbCurveFrameString_V38(frame)] = snapshot;
+        rbPersistCurveKeys_V38();
+        rbUpdateCurveAnimationUi_V38();
+        updateAnimatePointUI();
+        renderOverlay();
+        log('Reset curve-point pose to the source shape on frame ' + frame + '.');
+        return Object.keys(snapshot).length;
+      }
+
+      function rbTaggedInversePoint_V38(x, y, binding){
+        var p = { x:x, y:y };
+        if (binding && typeof binding === 'object' && Object.keys(binding).length) {
+          p.__rbBoneBinding = window.rbClonePointBinding_Claude_V36
+            ? window.rbClonePointBinding_Claude_V36(binding)
+            : binding;
+        }
+        return p;
+      }
+
+      function rbInverseSkinPoint_V38(targetDisplay, pose, binding){
+        if (!targetDisplay || !App.bones || !App.bones.length) {
+          return targetDisplay ? { x:targetDisplay.x, y:targetDisplay.y } : targetDisplay;
+        }
+        var guess = rbTaggedInversePoint_V38(targetDisplay.x, targetDisplay.y, binding);
+        var best = rbTaggedInversePoint_V38(guess.x, guess.y, binding);
+        var bestError = Infinity;
+        for (var i = 0; i < 50; i += 1) {
+          var projected = skinPointByPose(guess, pose);
+          var dx = Number(targetDisplay.x) - Number(projected.x);
+          var dy = Number(targetDisplay.y) - Number(projected.y);
+          var error = Math.sqrt(dx * dx + dy * dy);
+          if (error < bestError) {
+            bestError = error;
+            best = rbTaggedInversePoint_V38(guess.x, guess.y, binding);
+          }
+          if (error < 0.005) return guess;
+          guess = rbTaggedInversePoint_V38(guess.x + dx * 0.3, guess.y + dy * 0.3, binding);
+        }
+        return best;
+      }
+
+      function rbUpdateCurveAnimationUi_V38(){
+        rbEnsureCurveAnimationState_V38();
+        var include = el('chkAnimateIncludeCurvePose');
+        if (include) include.checked = rbAnimateIncludeCurvePoseEnabled_V38();
+        var count = rbCurvePointKeyCount_V38(App.currentFrame);
+        var keyInfo = el('animateCurveKeyInfo');
+        if (keyInfo) keyInfo.textContent = count ? ('Curve point keys on frame ' + App.currentFrame + ': ' + count) : ('No curve key on frame ' + App.currentFrame);
+        var modeInfo = el('curveAnimationModeInfo');
+        if (modeInfo) {
+          if (rbCurveAnimationSessionActive_V38()) {
+            modeInfo.textContent = 'ANIMATION KEYS — frame ' + App.currentFrame;
+            modeInfo.style.borderColor = '#e2b53d';
+            modeInfo.style.color = '#f8f1c8';
+          } else {
+            modeInfo.textContent = 'SOURCE SHAPE EDITING';
+            modeInfo.style.borderColor = '#506c8b';
+            modeInfo.style.color = '#bfd1e4';
+          }
+        }
+        var captureFromCurves = el('btnCaptureCurvePoseFromCurves');
+        if (captureFromCurves) captureFromCurves.disabled = !rbCurveAnimationSessionActive_V38();
+      }
+
+      var updateUI_Base_V38 = updateUI;
+      updateUI = function(){
+        var result = updateUI_Base_V38.apply(this, arguments);
+        try { rbUpdateCurveAnimationUi_V38(); } catch(eUi38){}
+        return result;
+      };
+
+      var onOverlayMouseDown_Base_V38 = onOverlayMouseDown;
+      onOverlayMouseDown = function(e){
+        if (rbCurveAnimationSessionActive_V38() && App.activeTab === 'animatepoints' && e && e.ctrlKey) {
+          try { e.preventDefault(); e.stopPropagation(); } catch(eStop38){}
+          log('Adding or removing curve points changes topology and is only available in normal Curves source-edit mode.');
+          return;
+        }
+        var result = onOverlayMouseDown_Base_V38.apply(this, arguments);
+        try {
+          if (rbCurveAnimationSessionActive_V38() && App.activeTab === 'animatepoints' &&
+              App.interaction.dragging && App.interaction.dragType === 'rbMoveRealPoint_Claude') {
+            var ref = App.interaction.rbMovePointRef_Claude;
+            var basePoint = ref && basePointForPointId(ref.pointId);
+            if (basePoint && window.rbEnsurePointBinding_Claude_V36) {
+              window.rbEnsurePointBinding_Claude_V36(basePoint, currentPointAnimationPose(App.currentFrame));
+            }
+            ensureFirstFramePointKeysAlways();
+            App.interaction.rbCurveKeyDrag_V38 = {
+              pointId:ref && ref.pointId,
+              binding:basePoint && basePoint.__rbBoneBinding ? basePoint.__rbBoneBinding : null,
+              lastSourcePoint:null,
+              lastDisplayPoint:null,
+              keyWritten:false
+            };
+          }
+        } catch(eDown38){}
+        return result;
+      };
+
+      var onOverlayMouseMove_Base_V38 = onOverlayMouseMove;
+      onOverlayMouseMove = function(e){
+        var drag = App.interaction && App.interaction.rbCurveKeyDrag_V38;
+        if (drag && rbCurveAnimationSessionActive_V38() && App.interaction.dragging && App.interaction.dragType === 'rbMoveRealPoint_Claude') {
+          try {
+            var local = clientToOverlayLocal(e.clientX, e.clientY);
+            var sourcePoint = rbInverseSkinPoint_V38(local, currentPointAnimationPose(App.currentFrame), drag.binding);
+            if (setPointKeyAtCurrent(drag.pointId, sourcePoint)) {
+              drag.lastSourcePoint = { x:Number(sourcePoint.x), y:Number(sourcePoint.y) };
+              drag.lastDisplayPoint = { x:Number(local.x), y:Number(local.y) };
+              drag.keyWritten = true;
+            }
+            updateAnimatePointUI();
+            rbUpdateCurveAnimationUi_V38();
+            renderOverlay();
+          } catch(eMove38) {
+            log('Curve animation move failed: ' + (eMove38 && eMove38.message ? eMove38.message : eMove38));
+          }
+          return;
+        }
+        return onOverlayMouseMove_Base_V38.apply(this, arguments);
+      };
+
+      var onOverlayMouseUp_Base_V38 = onOverlayMouseUp;
+      onOverlayMouseUp = function(e){
+        var drag = App.interaction && App.interaction.rbCurveKeyDrag_V38;
+        if (drag && App.interaction.dragType === 'rbMoveRealPoint_Claude') {
+          // FIX Claude_11-07-2026_V39_GPT: perform a final point-key write at mouseup. V38 relied only on
+          // mousemove events, so a final cursor position could be missed and the key row could retain the old
+          // coordinate. The source curve is still protected by renaming the drag before the V36 finaliser runs.
+          try {
+            var releaseDisplay = null;
+            if (e && isFinite(Number(e.clientX)) && isFinite(Number(e.clientY))) {
+              releaseDisplay = clientToOverlayLocal(Number(e.clientX), Number(e.clientY));
+            }
+            if (!releaseDisplay && drag.lastDisplayPoint) releaseDisplay = drag.lastDisplayPoint;
+            var releaseSource = releaseDisplay
+              ? rbInverseSkinPoint_V38(releaseDisplay, currentPointAnimationPose(App.currentFrame), drag.binding)
+              : drag.lastSourcePoint;
+            if (releaseSource && setPointKeyAtCurrent(drag.pointId, releaseSource)) {
+              drag.lastSourcePoint = { x:Number(releaseSource.x), y:Number(releaseSource.y) };
+              drag.keyWritten = true;
+            }
+          } catch(eFinalWrite39) {
+            try { log('Final curve-point key write failed: ' + (eFinalWrite39 && eFinalWrite39.message ? eFinalWrite39.message : eFinalWrite39)); } catch(eLogFinal39){}
+          }
+          App.interaction.dragType = 'rbMoveRealPointAnimation_V38';
+        }
+        var result = onOverlayMouseUp_Base_V38.apply(this, arguments);
+        if (drag) {
+          try {
+            App.interaction.rbCurveKeyDrag_V38 = null;
+            rbPersistCurveKeys_V38();
+            rbUpdateCurveAnimationUi_V38();
+            updateAnimatePointUI();
+            renderOverlay();
+            log(drag.keyWritten ? ('Recorded curve-point position on frame ' + App.currentFrame + '.') : ('No curve-point movement was recorded on frame ' + App.currentFrame + '.'));
+          } catch(eUp38){}
+        }
+        return result;
+      };
+
+      var animateCurvesButton = el('btnAnimateCurvesFromAnimate');
+      if (animateCurvesButton) animateCurvesButton.addEventListener('click', function(){
+        rbSetCurveAnimationSession_V38(true);
+        ensureFirstFramePointKeysAlways();
+        setActiveTab('animatepoints');
+        updateAnimatePointUI();
+        updateUI();
+        renderOverlay();
+        log('Curve animation mode active. Moving a curve point now creates a key on Wick frame ' + App.currentFrame + '.');
+      });
+
+      var captureCurveButton = el('btnCaptureCurvePoseAtCurrent');
+      if (captureCurveButton) captureCurveButton.addEventListener('click', function(){ rbCaptureCurvePoseAtCurrentFrame_V38(App.currentFrame); });
+
+      var returnButton = el('btnReturnToAnimateFromCurves');
+      if (returnButton) returnButton.addEventListener('click', function(){
+        rbSetCurveAnimationSession_V38(false);
+        setActiveTab('animate');
+        updateUI();
+        renderOverlay();
+      });
+
+      var captureFromCurvesButton = el('btnCaptureCurvePoseFromCurves');
+      if (captureFromCurvesButton) captureFromCurvesButton.addEventListener('click', function(){
+        if (!rbCurveAnimationSessionActive_V38()) {
+          log('Open Animate and choose Animate Curves first.');
+          return;
+        }
+        rbCaptureCurvePoseAtCurrentFrame_V38(App.currentFrame);
+      });
+
+      var includeCurveBox = el('chkAnimateIncludeCurvePose');
+      if (includeCurveBox) includeCurveBox.addEventListener('change', function(){
+        rbEnsureCurveAnimationState_V38();
+        App.pointAnimation.includeWithAnimateKey = !!this.checked;
+        try { mcCaptureActivePart(); } catch(eCaptureSetting38){}
+        rbUpdateCurveAnimationUi_V38();
+        log(this.checked ? 'Animate Set Key will include the current curve pose.' : 'Animate Set Key will capture bones only.');
+      });
+
+      // Clicking the ordinary top Curves tab always means source-shape editing. This listener is installed before
+      // bindEvents adds the normal tab switch, so the mode is established before setActiveTab('animatepoints').
+      var normalCurvesTab = q('.tabBtn[data-tab="animatepoints"]');
+      if (normalCurvesTab) normalCurvesTab.addEventListener('click', function(){
+        rbSetCurveAnimationSession_V38(false);
+      });
+      qa('.tabBtn').forEach(function(tabButton){
+        if (!tabButton || tabButton.getAttribute('data-tab') === 'animatepoints') return;
+        tabButton.addEventListener('click', function(){
+          if (rbCurveAnimationSessionActive_V38()) rbSetCurveAnimationSession_V38(false);
+        });
+      });
+
+      window.rbAnimateIncludeCurvePoseEnabled_V38 = rbAnimateIncludeCurvePoseEnabled_V38;
+      window.rbCaptureCurvePoseAtCurrentFrame_V38 = rbCaptureCurvePoseAtCurrentFrame_V38;
+      window.rbClearCurvePoseAtCurrentFrame_V38 = rbClearCurvePoseAtCurrentFrame_V38;
+      window.rbCopyPreviousCurvePoseToCurrent_V38 = rbCopyPreviousCurvePoseToCurrent_V38;
+      window.rbResetCurvePoseAtCurrentFrame_V38 = rbResetCurvePoseAtCurrentFrame_V38;
+      window.rbSetCurveAnimationSession_V38 = rbSetCurveAnimationSession_V38;
+
+      rbEnsureCurveAnimationState_V38();
+      rbSetCurveAnimationSession_V38(false);
+      rbUpdateCurveAnimationUi_V38();
+      log('RotoBones Claude 11-07-2026 V39 GPT: curve-point positions record on drag release and remain active during Animate playback, scrubbing, preview and commit.');
+    } catch(eInstall38) {
+      try { console.error('[RotoBones Claude 11-07-2026 V38 GPT] install failed', eInstall38); } catch(eConsole38){}
+    }
+  })();
+
+
+  // FIX Claude_11-07-2026_V40_GPT: stable repeated curve-point dragging in animation mode.
+  //
+  // V39 correctly stored curve keys, but its live drag recomputed the cursor in whatever overlay rectangle and
+  // Wick frame happened to be current on each mousemove. Once the first point key existed, the 120 ms Wick-follow
+  // refresh or a preview viewport recalculation could repaint the curve using a different frame/mapping before the
+  // next mousemove. The newly keyed point then appeared to lag, resist the mouse, or stop following it on the next
+  // positioning pass.
+  //
+  // V40 gives each animation drag a fixed transaction:
+  //   * the Wick frame is captured on mousedown and cannot change until mouseup;
+  //   * the evaluated bone pose is cloned once and used for every inverse-skin solve in that drag;
+  //   * the overlay client rectangle and logical preview bounds are captured once;
+  //   * the exact mouse-to-point pickup offset is preserved, so the point does not jump to the cursor centre;
+  //   * live point keys keep sub-pixel values and are rounded only when the drag is committed;
+  //   * Wick timeline following is paused only while that curve point is actively being dragged.
+  // All V36 point-specific bone bindings, V38 Animate Curves UI and V39 playback/commit evaluation remain in use.
+  (function installStableAnimatedCurveDrag_Claude_20260711_V40_GPT(){
+    try {
+      function rbCurveAnimationDragActive_V40(){
+        return !!(App && App.interaction && App.interaction.rbCurveKeyDrag_V40 &&
+          App.interaction.dragging && App.interaction.dragType === 'rbMoveRealPoint_Claude');
+      }
+
+      function rbClonePoseForCurveDrag_V40(pose){
+        var out = {};
+        Object.keys(pose || {}).forEach(function(id){
+          var item = pose[id];
+          if (!item) return;
+          out[id] = {
+            head:{ x:Number(item.head && item.head.x || 0), y:Number(item.head && item.head.y || 0) },
+            tail:{ x:Number(item.tail && item.tail.x || 0), y:Number(item.tail && item.tail.y || 0) }
+          };
+          ['envStart','envEnd','radius','strength','angle','localAngle','length','type'].forEach(function(key){
+            if (item[key] != null) out[id][key] = (typeof item[key] === 'number') ? Number(item[key]) : item[key];
+          });
+        });
+        return out;
+      }
+
+      function rbCaptureOverlayMap_V40(){
+        var rect = null;
+        try { rect = App.overlay && App.overlay.root ? App.overlay.root.getBoundingClientRect() : null; } catch(eRect40){}
+        var bounds = App.overlay && App.overlay.previewBounds ? App.overlay.previewBounds : null;
+        return {
+          left:rect ? Number(rect.left || 0) : 0,
+          top:rect ? Number(rect.top || 0) : 0,
+          width:rect ? Math.max(0.0001, Number(rect.width || 1)) : 1,
+          height:rect ? Math.max(0.0001, Number(rect.height || 1)) : 1,
+          logicalWidth:Math.max(0.0001, Number(bounds && bounds.width || (App.source && App.source.width) || 1)),
+          logicalHeight:Math.max(0.0001, Number(bounds && bounds.height || (App.source && App.source.height) || 1)),
+          offsetX:Number(bounds && bounds.offsetX || 0),
+          offsetY:Number(bounds && bounds.offsetY || 0)
+        };
+      }
+
+      function rbClientToFrozenCurveLocal_V40(clientX, clientY, map){
+        if (!map) return clientToOverlayLocal(clientX, clientY);
+        return {
+          x:(Number(clientX) - map.left) / map.width * map.logicalWidth - map.offsetX,
+          y:(Number(clientY) - map.top) / map.height * map.logicalHeight - map.offsetY
+        };
+      }
+
+      function rbCloneBindingForCurveDrag_V40(binding){
+        if (window.rbClonePointBinding_Claude_V36) return window.rbClonePointBinding_Claude_V36(binding || {});
+        var out = {};
+        Object.keys(binding || {}).forEach(function(id){
+          var value = Number(binding[id]);
+          if (isFinite(value) && value > 0.0000001) out[String(id)] = value;
+        });
+        return out;
+      }
+
+      function rbTaggedCurveDragPoint_V40(x, y, binding){
+        var p = { x:Number(x), y:Number(y) };
+        if (binding && Object.keys(binding).length) p.__rbBoneBinding = rbCloneBindingForCurveDrag_V40(binding);
+        return p;
+      }
+
+      function rbInverseCurveDragPoint_V40(targetDisplay, pose, binding, seed){
+        if (!targetDisplay) return null;
+        if (!App.bones || !App.bones.length) return { x:Number(targetDisplay.x), y:Number(targetDisplay.y) };
+        var guess = rbTaggedCurveDragPoint_V40(
+          seed && isFinite(Number(seed.x)) ? Number(seed.x) : Number(targetDisplay.x),
+          seed && isFinite(Number(seed.y)) ? Number(seed.y) : Number(targetDisplay.y),
+          binding
+        );
+        var best = rbTaggedCurveDragPoint_V40(guess.x, guess.y, binding);
+        var bestError = Infinity;
+        for (var i = 0; i < 60; i += 1) {
+          var projected = skinPointByPose(guess, pose);
+          var dx = Number(targetDisplay.x) - Number(projected.x);
+          var dy = Number(targetDisplay.y) - Number(projected.y);
+          var error = Math.sqrt(dx * dx + dy * dy);
+          if (error < bestError) {
+            bestError = error;
+            best = rbTaggedCurveDragPoint_V40(guess.x, guess.y, binding);
+          }
+          if (error < 0.001) return guess;
+          var damping = error > 20 ? 0.42 : (error > 4 ? 0.34 : 0.26);
+          guess = rbTaggedCurveDragPoint_V40(guess.x + dx * damping, guess.y + dy * damping, binding);
+        }
+        return best;
+      }
+
+      function rbWriteLiveCurveKey_V40(drag, sourcePoint, finalWrite){
+        if (!drag || !drag.pointId || !sourcePoint) return false;
+        if (!App.pointKeys) App.pointKeys = {};
+        var frameKey = String(drag.frame);
+        if (!App.pointKeys[frameKey]) App.pointKeys[frameKey] = {};
+        App.pointKeys[frameKey][drag.pointId] = {
+          x:finalWrite ? round(Number(sourcePoint.x) || 0) : Number(sourcePoint.x),
+          y:finalWrite ? round(Number(sourcePoint.y) || 0) : Number(sourcePoint.y)
+        };
+        drag.lastSourcePoint = { x:Number(sourcePoint.x), y:Number(sourcePoint.y) };
+        drag.keyWritten = true;
+        return true;
+      }
+
+      function rbCurveTargetFromEvent_V40(drag, e){
+        if (!drag || !e || !isFinite(Number(e.clientX)) || !isFinite(Number(e.clientY))) {
+          return drag && drag.lastDisplayPoint ? { x:Number(drag.lastDisplayPoint.x), y:Number(drag.lastDisplayPoint.y) } : null;
+        }
+        var mouseLocal = rbClientToFrozenCurveLocal_V40(Number(e.clientX), Number(e.clientY), drag.overlayMap);
+        var target = {
+          x:Number(mouseLocal.x) + Number(drag.pickOffset && drag.pickOffset.x || 0),
+          y:Number(mouseLocal.y) + Number(drag.pickOffset && drag.pickOffset.y || 0)
+        };
+        drag.lastMouseLocal = { x:Number(mouseLocal.x), y:Number(mouseLocal.y) };
+        drag.lastDisplayPoint = { x:Number(target.x), y:Number(target.y) };
+        return target;
+      }
+
+      var syncFromWickTimeline_Base_V40 = syncFromWickTimeline;
+      syncFromWickTimeline = function(){
+        // Keep the user's chosen frame stable only for the few moments that an animated curve point is held.
+        // Normal timeline following resumes immediately after mouseup.
+        if (rbCurveAnimationDragActive_V40()) return;
+        return syncFromWickTimeline_Base_V40.apply(this, arguments);
+      };
+
+      var onOverlayMouseDown_Base_V40 = onOverlayMouseDown;
+      onOverlayMouseDown = function(e){
+        var result = onOverlayMouseDown_Base_V40.apply(this, arguments);
+        try {
+          var sessionActive = !!(App.pointAnimation && App.pointAnimation.curveAnimationSession === true);
+          if (!sessionActive || App.activeTab !== 'animatepoints' ||
+              !App.interaction.dragging || App.interaction.dragType !== 'rbMoveRealPoint_Claude') return result;
+
+          var ref = App.interaction.rbMovePointRef_Claude;
+          var pointId = ref && ref.pointId;
+          var basePoint = pointId ? basePointForPointId(pointId) : null;
+          if (!pointId || !basePoint) return result;
+
+          var frame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
+          var pose = rbClonePoseForCurveDrag_V40(currentPointAnimationPose(frame));
+          var sourceAtDown = getAnimatedPointForFrame(basePoint, pointId, frame) || basePoint;
+          var displayAtDown = pointAnimationCurrentDisplayPoint(sourceAtDown, pose) || sourceAtDown;
+          var overlayMap = rbCaptureOverlayMap_V40();
+          var mouseAtDown = rbClientToFrozenCurveLocal_V40(Number(e.clientX), Number(e.clientY), overlayMap);
+          var binding = rbCloneBindingForCurveDrag_V40(basePoint.__rbBoneBinding || sourceAtDown.__rbBoneBinding || {});
+
+          App.interaction.rbCurveKeyDrag_V40 = {
+            frame:frame,
+            pointId:pointId,
+            binding:binding,
+            pose:pose,
+            overlayMap:overlayMap,
+            pickOffset:{
+              x:Number(displayAtDown.x) - Number(mouseAtDown.x),
+              y:Number(displayAtDown.y) - Number(mouseAtDown.y)
+            },
+            startSourcePoint:{ x:Number(sourceAtDown.x), y:Number(sourceAtDown.y) },
+            lastSourcePoint:{ x:Number(sourceAtDown.x), y:Number(sourceAtDown.y) },
+            lastDisplayPoint:{ x:Number(displayAtDown.x), y:Number(displayAtDown.y) },
+            lastMouseLocal:{ x:Number(mouseAtDown.x), y:Number(mouseAtDown.y) },
+            keyWritten:false
+          };
+
+          // V40 owns the live animation drag from this point onward. Prevent the older V38/V39 move wrapper from
+          // doing a second inverse solve against a changing frame or overlay rectangle.
+          App.interaction.rbCurveKeyDrag_V38 = null;
+          App.currentFrame = frame;
+          try { e.preventDefault(); e.stopPropagation(); } catch(eStop40){}
+        } catch(eDown40) {
+          try { log('Curve drag start failed: ' + (eDown40 && eDown40.message ? eDown40.message : eDown40)); } catch(eLogDown40){}
+        }
+        return result;
+      };
+
+      var onOverlayMouseMove_Base_V40 = onOverlayMouseMove;
+      onOverlayMouseMove = function(e){
+        var drag = App.interaction && App.interaction.rbCurveKeyDrag_V40;
+        if (drag && App.interaction.dragging && App.interaction.dragType === 'rbMoveRealPoint_Claude') {
+          try {
+            App.currentFrame = drag.frame;
+            var targetDisplay = rbCurveTargetFromEvent_V40(drag, e);
+            if (!targetDisplay) return;
+            var sourcePoint = rbInverseCurveDragPoint_V40(targetDisplay, drag.pose, drag.binding, drag.lastSourcePoint);
+            if (sourcePoint && rbWriteLiveCurveKey_V40(drag, sourcePoint, false)) {
+              App.pointAnimation.selectedPointId = drag.pointId;
+              updateAnimatePointUI();
+              renderOverlay();
+            }
+            try { e.preventDefault(); e.stopPropagation(); } catch(eStopMove40){}
+          } catch(eMove40) {
+            try { log('Curve animation mouse-follow failed: ' + (eMove40 && eMove40.message ? eMove40.message : eMove40)); } catch(eLogMove40){}
+          }
+          return;
+        }
+        return onOverlayMouseMove_Base_V40.apply(this, arguments);
+      };
+
+      var onOverlayMouseUp_Base_V40 = onOverlayMouseUp;
+      onOverlayMouseUp = function(e){
+        var drag = App.interaction && App.interaction.rbCurveKeyDrag_V40;
+        if (!drag || !App.interaction.dragging || App.interaction.dragType !== 'rbMoveRealPoint_Claude') {
+          return onOverlayMouseUp_Base_V40.apply(this, arguments);
+        }
+
+        try {
+          App.currentFrame = drag.frame;
+          var targetDisplay = rbCurveTargetFromEvent_V40(drag, e) || drag.lastDisplayPoint;
+          var sourcePoint = targetDisplay
+            ? rbInverseCurveDragPoint_V40(targetDisplay, drag.pose, drag.binding, drag.lastSourcePoint)
+            : drag.lastSourcePoint;
+          if (sourcePoint) rbWriteLiveCurveKey_V40(drag, sourcePoint, true);
+        } catch(eFinal40) {
+          try { log('Final curve animation position failed: ' + (eFinal40 && eFinal40.message ? eFinal40.message : eFinal40)); } catch(eLogFinal40){}
+        }
+
+        // Hide the V38/V39 drag object and rename the drag before passing through the older mouseup chain. That
+        // allows the original generic cleanup to run, while preventing the source curve from being rewritten.
+        App.interaction.rbCurveKeyDrag_V38 = null;
+        App.interaction.rbCurveKeyDrag_V40 = null;
+        App.interaction.dragType = 'rbMoveRealPointAnimation_V40';
+        var result = onOverlayMouseUp_Base_V40.apply(this, arguments);
+
+        try {
+          markDirty();
+          mcPersistActivePartKeys();
+          mcShowSelectedPartKeyRows();
+          updateAnimatePointUI();
+          updateUI();
+          renderOverlay();
+          log(drag.keyWritten
+            ? ('Recorded curve-point position on frame ' + drag.frame + '. The point remained locked to the mouse throughout the drag.')
+            : ('No curve-point movement was recorded on frame ' + drag.frame + '.'));
+        } catch(eAfter40){}
+        return result;
+      };
+
+      log('RotoBones Claude 11-07-2026 V40 GPT: repeated animated curve-point positioning now locks frame, pose, overlay mapping and mouse offset for stable cursor following.');
+    } catch(eInstall40) {
+      try { console.error('[RotoBones Claude 11-07-2026 V40 GPT] install failed', eInstall40); } catch(eConsole40){}
     }
   })();
 
