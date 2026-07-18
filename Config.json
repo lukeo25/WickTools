@@ -207,7 +207,7 @@
         {
           "id": "Stick Rig",
           "label": "Stick Rig",
-          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/PStick.svg",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Stick.svg",
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/StickRig.txt",
           "action": "tool",
           "F_Screen": 0
