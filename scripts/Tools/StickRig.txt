@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Luke Tools StickRig GPT v42.0</title>
+<title>Luke Tools StickRig GPT v59.0</title>
 <style>
 :root {
   color-scheme: dark;
@@ -128,7 +128,7 @@ input[type="range"] {
 }
 #toolbar {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 8px;
   margin-top: 10px;
 }
@@ -411,6 +411,37 @@ input[type="range"] {
   width: 100% !important;
   text-align: center;
 }
+.rotatePathRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 17, 26, 0.55);
+}
+.rotatePathOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #e8f3ff;
+  font-size: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+}
+.rotatePathOption input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: #8fd14f;
+}
+.rotatePathHint {
+  color: var(--muted);
+  font-size: 9px;
+  text-align: right;
+}
 .transitionSelect {
   width: 100%;
   min-width: 0;
@@ -498,6 +529,7 @@ input[type="range"] {
 
     <div id="toolbar">
       <button id="readBtn" class="primary" type="button">Load</button>
+      <button id="reanimateBtn" type="button">Reanimate</button>
       <button id="saveBtn" type="button" disabled>Save</button>
       <button id="jsonBtn" type="button" disabled>Rig JSON</button>
       <button id="commitBtn" class="good" type="button" disabled>Commit</button>
@@ -518,11 +550,13 @@ input[type="range"] {
 (function(){
   "use strict";
 
-  var VERSION = "42.0";
+  var VERSION = "59.0";
   var BLOCK_START = "// LukeTools Native Clip Stack Commit GPT v4 BEGIN";
   var BLOCK_END = "// LukeTools Native Clip Stack Commit GPT v4 END";
   var DATA_BEGIN = "/* LT_NCSA_DATA_BEGIN */";
   var DATA_END = "/* LT_NCSA_DATA_END */";
+  var COMMITTED_DATA_BEGIN = "/* LT_STICKRIG_COMMITTED_DATA_BEGIN */";
+  var COMMITTED_DATA_END = "/* LT_STICKRIG_COMMITTED_DATA_END */";
 
 
   var CHANNELS = ["move", "scale", "rotate"];
@@ -560,9 +594,25 @@ input[type="range"] {
     framePollTimer: null,
     cleanupObserver: null,
     cleanupDone: false,
+    lifecycleWatchTimer: null,
+    lifecycleSeenVisible: false,
+    lifecycleHiddenChecks: 0,
     parentCleanupKey: "__LukeToolsStickRigCleanup",
     reading: false,
     committing: false,
+    keyClipboard: null,
+    reanimate: {
+      active: false,
+      wrapper: null,
+      root: null,
+      manifest: null,
+      duration: 0
+    },
+    liveNative: {
+      active: false,
+      frames: {},
+      syncTimers: {}
+    },
     proxy: {
       active: false,
       timeline: null,
@@ -596,7 +646,15 @@ input[type="range"] {
       pointerUpHandler: null,
       pointerCancelHandler: null,
       contextMenuHandler: null,
+      mouseDownHandler: null,
+      mouseUpHandler: null,
+      clickHandler: null,
+      doubleClickHandler: null,
+      auxClickHandler: null,
       keyDownHandler: null,
+      contextMenuElement: null,
+      contextMenuDismissHandler: null,
+      barrierPointerId: null,
       lastTimelineGUI: null,
       TimelineClass: null,
       prototype: null,
@@ -1092,6 +1150,104 @@ input[type="range"] {
     state.nodeMap = nodeMap;
   }
 
+  function getUpdateScriptForObject(obj){
+    if (!obj || !state.bridge) return "";
+    var info = getObjectInfo(obj);
+    try {
+      if (typeof state.bridge.getUpdateScriptByInfo === "function") return s(state.bridge.getUpdateScriptByInfo(info));
+    } catch(eByInfo) {}
+    return "";
+  }
+
+  function setUpdateScriptForObject(obj, source){
+    if (!obj || !state.bridge) return { ok: false, reason: "object or bridge missing" };
+    var info = getObjectInfo(obj);
+    try {
+      if (typeof state.bridge.setUpdateScriptByInfo === "function") return state.bridge.setUpdateScriptByInfo(info, s(source));
+    } catch(eByInfo) {
+      return { ok: false, reason: eByInfo && eByInfo.message ? eByInfo.message : String(eByInfo) };
+    }
+    return { ok: false, reason: "LukeToolsBridge has no object update script writer" };
+  }
+
+  function stripCommittedDataBlock(source){
+    var text = s(source);
+    var start = text.indexOf(COMMITTED_DATA_BEGIN);
+    while (start !== -1) {
+      var end = text.indexOf(COMMITTED_DATA_END, start);
+      if (end === -1) text = text.substring(0, start);
+      else text = text.substring(0, start) + text.substring(end + COMMITTED_DATA_END.length);
+      start = text.indexOf(COMMITTED_DATA_BEGIN);
+    }
+    return text.trim();
+  }
+
+  function parseCommittedData(source){
+    var text = s(source);
+    var start = text.indexOf(COMMITTED_DATA_BEGIN);
+    if (start === -1) return null;
+    var end = text.indexOf(COMMITTED_DATA_END, start);
+    if (end === -1) return null;
+    var body = text.substring(start + COMMITTED_DATA_BEGIN.length, end);
+    var assign = body.indexOf("var LT_STICKRIG_COMMITTED_DATA =");
+    if (assign === -1) return null;
+    assign += "var LT_STICKRIG_COMMITTED_DATA =".length;
+    var semicolon = body.lastIndexOf(";");
+    if (semicolon === -1 || semicolon <= assign) return null;
+    try { return JSON.parse(body.substring(assign, semicolon).trim()); } catch(e) { return null; }
+  }
+
+  function buildCommittedDataBlock(data){
+    return [
+      COMMITTED_DATA_BEGIN,
+      "var LT_STICKRIG_COMMITTED_DATA = " + JSON.stringify(data) + ";",
+      COMMITTED_DATA_END
+    ].join("\n");
+  }
+
+  function writeCommittedDataToObject(obj, data){
+    var existing = getUpdateScriptForObject(obj);
+    var clean = stripCommittedDataBlock(existing);
+    var block = buildCommittedDataBlock(data);
+    return setUpdateScriptForObject(obj, clean ? clean + "\n\n" + block : block);
+  }
+
+  function committedWriteFailed(result){
+    return !!(result && result.ok === false);
+  }
+
+  function writeCommittedDataToObjectRobust(obj, data){
+    var result = writeCommittedDataToObject(obj, data);
+    if (!committedWriteFailed(result)) return result || { ok: true };
+
+    /* A newly inserted Wick clip can exist in the model before the LukeTools
+       bridge has refreshed its lookup table. Force a model refresh and retry
+       before falling back to selection-based script writing. */
+    try { markProjectChanged(); } catch(eMark) {}
+    try { refreshRefs(); } catch(eRefresh) {}
+    result = writeCommittedDataToObject(obj, data);
+    if (!committedWriteFailed(result)) return result || { ok: true };
+
+    var info = getObjectInfo(obj);
+    var existing = getUpdateScriptForObject(obj);
+    var clean = stripCommittedDataBlock(existing);
+    var source = clean ? clean + "\n\n" + buildCommittedDataBlock(data) : buildCommittedDataBlock(data);
+    try {
+      if (state.bridge && typeof state.bridge.selectObjectByInfo === "function") {
+        state.bridge.selectObjectByInfo(info);
+      }
+      if (state.bridge && typeof state.bridge.setUpdateScriptOnSelection === "function") {
+        var selectionResult = state.bridge.setUpdateScriptOnSelection(source);
+        if (!committedWriteFailed(selectionResult)) return selectionResult || { ok: true };
+        result = selectionResult;
+      }
+    } catch(eSelectionWrite) {
+      result = { ok: false, reason: eSelectionWrite && eSelectionWrite.message ? eSelectionWrite.message : String(eSelectionWrite) };
+    }
+
+    return result || { ok: false, reason: "target not found" };
+  }
+
   function getExistingUpdateScript(){
     if (!state.rootInfo) return "";
     try {
@@ -1195,6 +1351,8 @@ input[type="range"] {
         signX: node.base.signX,
         signY: node.base.signY
       };
+      var previousKeyChannels = previous && previous.keyChannels ? previous.keyChannels : null;
+      var hasAnyExplicitChannelMaps = !!(previousKeyChannels && Object.keys(previousKeyChannels).length);
       var record = {
         id: node.id,
         name: node.name,
@@ -1204,12 +1362,13 @@ input[type="range"] {
         base: previous && previous.base ? previous.base : base,
         rotateMin: previous && isFinite(Number(previous.rotateMin)) ? Number(previous.rotateMin) : -359,
         rotateMax: previous && isFinite(Number(previous.rotateMax)) ? Number(previous.rotateMax) : 360,
+        rotateLongestWay: !!(previous && previous.rotateLongestWay === true),
         keys: previous && previous.keys ? previous.keys : {},
         keyTypes: previous && previous.keyTypes ? previous.keyTypes : {},
-        keyChannels: previous && previous.keyChannels ? previous.keyChannels : {},
-        channelTypes: previous && previous.channelTypes ? previous.channelTypes : {},
-        channelEasing: previous && previous.channelEasing ? previous.channelEasing : {},
-        channelDefaults: previous && previous.channelDefaults ? previous.channelDefaults : {
+        keyChannels: previousKeyChannels ? JSON.parse(JSON.stringify(previousKeyChannels)) : {},
+        channelTypes: previous && previous.channelTypes ? JSON.parse(JSON.stringify(previous.channelTypes)) : {},
+        channelEasing: previous && previous.channelEasing ? JSON.parse(JSON.stringify(previous.channelEasing)) : {},
+        channelDefaults: previous && previous.channelDefaults ? JSON.parse(JSON.stringify(previous.channelDefaults)) : {
           move: "none",
           scale: "none",
           rotate: "none"
@@ -1228,13 +1387,32 @@ input[type="range"] {
       });
 
       Object.keys(record.keys || {}).forEach(function(frame){
+        var hadExplicitFrameMap = !!(
+          hasAnyExplicitChannelMaps &&
+          previousKeyChannels &&
+          Object.prototype.hasOwnProperty.call(previousKeyChannels, frame)
+        );
+
         if (!record.keyChannels[frame]) {
-          record.keyChannels[frame] = { move: true, scale: true, rotate: true };
+          /* Legacy StickRig data had no per-channel map, so its old combined
+             transform key represented all three channels. New/Reanimate data
+             supplies an explicit sparse map; missing channels must remain off. */
+          record.keyChannels[frame] = hadExplicitFrameMap
+            ? {}
+            : (hasAnyExplicitChannelMaps ? {} : { move: true, scale: true, rotate: true });
         }
         if (!record.channelTypes[frame]) record.channelTypes[frame] = {};
         if (!record.channelEasing[frame]) record.channelEasing[frame] = {};
+
         CHANNELS.forEach(function(channel){
-          if (record.keyChannels[frame][channel] === undefined) record.keyChannels[frame][channel] = true;
+          if (record.keyChannels[frame][channel] === undefined) {
+            record.keyChannels[frame][channel] = hasAnyExplicitChannelMaps ? false : true;
+          }
+          if (!record.keyChannels[frame][channel]) {
+            delete record.channelTypes[frame][channel];
+            delete record.channelEasing[frame][channel];
+            return;
+          }
           if (!record.channelTypes[frame][channel]) {
             record.channelTypes[frame][channel] = record.keyTypes[frame] === "hold" ? "hold" : "auto";
           }
@@ -1242,6 +1420,14 @@ input[type="range"] {
             record.channelEasing[frame][channel] = record.channelDefaults[channel];
           }
         });
+
+        if (!CHANNELS.some(function(channel){ return !!record.keyChannels[frame][channel]; })) {
+          delete record.keys[frame];
+          delete record.keyTypes[frame];
+          delete record.keyChannels[frame];
+          delete record.channelTypes[frame];
+          delete record.channelEasing[frame];
+        }
       });
 
       fresh.nodes[node.id] = record;
@@ -1404,8 +1590,71 @@ input[type="range"] {
     return value;
   }
 
+  function canonicalRotationAngle(value){
+    var angle = n(value, 0);
+    angle = ((angle + 180) % 360 + 360) % 360 - 180;
+    return round3(angle);
+  }
+
+  function shortestRotationDelta(fromValue, toValue){
+    var from = canonicalRotationAngle(fromValue);
+    var to = canonicalRotationAngle(toValue);
+    var delta = ((to - from + 180) % 360 + 360) % 360 - 180;
+
+    /* At exactly 180 degrees both directions are equally short. Preserve the
+       direction implied by the user's entered values rather than arbitrarily
+       reversing it. */
+    if (Math.abs(Math.abs(delta) - 180) < 0.0001) {
+      delta = n(toValue, 0) - n(fromValue, 0) < 0 ? -180 : 180;
+    }
+    return round3(delta);
+  }
+
+  function nextRotationPathValue(currentEffective, rawTarget, longestWay){
+    var shortDelta = shortestRotationDelta(currentEffective, rawTarget);
+    if (!longestWay) return round3(currentEffective + shortDelta);
+
+    /* Longest Way deliberately takes the opposite route around the dial. A
+       zero-degree visual change becomes one complete turn, with the direction
+       taken from the user's entered target when possible. */
+    var longDelta;
+    if (Math.abs(shortDelta) < 0.0001) {
+      longDelta = n(rawTarget, 0) - n(currentEffective, 0) < 0 ? -360 : 360;
+    } else {
+      longDelta = shortDelta > 0 ? shortDelta - 360 : shortDelta + 360;
+    }
+    return round3(currentEffective + longDelta);
+  }
+
+  function rotationPathValues(record){
+    var frames = channelKeyFrames(record, "rotate");
+    var longestWay = !!(record && record.rotateLongestWay === true);
+    var baseRaw = n(record && record.base && record.base.rotation, 0);
+    var effectiveBase = longestWay ? round3(baseRaw) : canonicalRotationAngle(baseRaw);
+    var values = { base: effectiveBase, keys: {} };
+    var current = effectiveBase;
+
+    frames.forEach(function(frameNumber){
+      var rawPose = record.keys && record.keys[String(frameNumber)] ? record.keys[String(frameNumber)] : null;
+      var rawTarget = n(rawPose && rawPose.rotation, current);
+
+      /* A key at frame 1 defines the starting visual orientation. In shortest
+         mode 360 is therefore stored to Wick as 0. In longest mode its entered
+         numeric value is retained so 360 to 15 becomes a deliberate -345 turn. */
+      if (frameNumber === 1) {
+        current = longestWay ? round3(rawTarget) : canonicalRotationAngle(rawTarget);
+      } else {
+        current = nextRotationPathValue(current, rawTarget, longestWay);
+      }
+      values.keys[String(frameNumber)] = current;
+    });
+
+    return values;
+  }
+
   function channelPoseAtFrame(record, frame, channel){
     var base = copyPose(record.base || {});
+    var rotationPath = channel === "rotate" ? rotationPathValues(record) : null;
     var frames = channelKeyFrames(record, channel);
     var previousFrame = null;
     var nextFrame = null;
@@ -1418,30 +1667,34 @@ input[type="range"] {
       if (frames[i] > frame) { nextFrame = frames[i]; break; }
     }
 
-    function pick(pose){
+    function pick(pose, frameNumber, isBase){
       var source = pose || base;
       if (channel === "move") return { x: n(source.x, base.x), y: n(source.y, base.y) };
       if (channel === "scale") return { scale: n(source.scale, base.scale) };
+      if (isBase) return { rotation: n(rotationPath && rotationPath.base, base.rotation) };
+      if (rotationPath && frameNumber !== null && rotationPath.keys[String(frameNumber)] !== undefined) {
+        return { rotation: n(rotationPath.keys[String(frameNumber)], source.rotation) };
+      }
       return { rotation: n(source.rotation, base.rotation) };
     }
 
-    if (exact !== null) return pick(record.keys[String(exact)]);
-    if (!frames.length) return pick(base);
+    if (exact !== null) return pick(record.keys[String(exact)], exact, false);
+    if (!frames.length) return pick(base, null, true);
     if (previousFrame === null && nextFrame !== null) {
       previousFrame = 1;
-      var startPose = pick(base);
-      var endPose = pick(record.keys[String(nextFrame)]);
+      var startPose = pick(base, null, true);
+      var endPose = pick(record.keys[String(nextFrame)], nextFrame, false);
       if (frame <= previousFrame || nextFrame <= previousFrame) return startPose;
       var earlyT = easeValue((frame - previousFrame) / (nextFrame - previousFrame), "none");
       if (channel === "move") return { x: round3(startPose.x + (endPose.x - startPose.x) * earlyT), y: round3(startPose.y + (endPose.y - startPose.y) * earlyT) };
       if (channel === "scale") return { scale: round3(startPose.scale + (endPose.scale - startPose.scale) * earlyT) };
       return { rotation: round3(startPose.rotation + (endPose.rotation - startPose.rotation) * earlyT) };
     }
-    if (previousFrame !== null && nextFrame === null) return pick(record.keys[String(previousFrame)]);
-    if (previousFrame === null || nextFrame === null) return pick(base);
+    if (previousFrame !== null && nextFrame === null) return pick(record.keys[String(previousFrame)], previousFrame, false);
+    if (previousFrame === null || nextFrame === null) return pick(base, null, true);
 
-    var from = pick(record.keys[String(previousFrame)]);
-    var to = pick(record.keys[String(nextFrame)]);
+    var from = pick(record.keys[String(previousFrame)], previousFrame, false);
+    var to = pick(record.keys[String(nextFrame)], nextFrame, false);
     var type = channelType(record, previousFrame, channel);
     var easing = type === "hold" ? "hold" : channelEasing(record, previousFrame, channel);
     var rawT = clamp((frame - previousFrame) / (nextFrame - previousFrame), 0, 1);
@@ -1702,18 +1955,76 @@ input[type="range"] {
     }
   }
 
-  function setRotationFromDial(id, rawValue, commit, area){
+  function normaliseDialAngle(value){
+    var angle = n(value, 0);
+    angle = ((angle + 180) % 360 + 360) % 360 - 180;
+    return round3(angle);
+  }
+
+  function nearestEquivalentDialAngle(target, reference, limits, preserveExplicitTurn){
+    var rawTarget = n(target, 0);
+    var current = n(reference, 0);
+    var min = n(limits && limits.min, -359);
+    var max = n(limits && limits.max, 360);
+
+    /* A labelled endpoint such as 360 or -359 is an intentional absolute
+       turn request. Normal quick-set points and donut clicks use the nearest
+       equivalent angle so they cannot accidentally create a full spin. */
+    if (preserveExplicitTurn && Math.abs(rawTarget) > 180) {
+      return round3(clamp(rawTarget, min, max));
+    }
+
+    var base = normaliseDialAngle(rawTarget);
+    var firstK = Math.floor((min - base) / 360) - 1;
+    var lastK = Math.ceil((max - base) / 360) + 1;
+    var best = null;
+    var bestDistance = Infinity;
+    var bestTargetDistance = Infinity;
+
+    for (var k = firstK; k <= lastK; k += 1) {
+      var candidate = base + k * 360;
+      if (candidate < min - 0.0001 || candidate > max + 0.0001) continue;
+      var distance = Math.abs(candidate - current);
+      var targetDistance = Math.abs(candidate - rawTarget);
+      if (distance < bestDistance - 0.0001 ||
+          (Math.abs(distance - bestDistance) <= 0.0001 && targetDistance < bestTargetDistance)) {
+        best = candidate;
+        bestDistance = distance;
+        bestTargetDistance = targetDistance;
+      }
+    }
+
+    if (best === null) {
+      var nearestUnclamped = base + Math.round((current - base) / 360) * 360;
+      best = clamp(nearestUnclamped, min, max);
+    }
+
+    return round3(best);
+  }
+
+  function setRotationFromDial(id, rawValue, commit, area, sourceMode){
     var node = state.nodeMap[id];
     var record = getNodeRecord(id);
     if (!node || !record) return;
     state.activeId = id;
     state.frame = currentProjectFrame();
-    var key = ensureKeyAtFrame(node, state.frame, 'auto');
+
+    var existingKey = record.keys && record.keys[String(state.frame)];
+    var referencePose = existingKey ? copyPose(existingKey) : interpolatePose(record, state.frame);
     var limits = rotationLimits(record);
-    var nextValue = clamp(round3(n(rawValue, 0)), limits.min, limits.max);
+    var preserveExplicitTurn = sourceMode === 'quick' && Math.abs(n(rawValue, 0)) > 180;
+    var nextValue = nearestEquivalentDialAngle(
+      rawValue,
+      n(referencePose.rotation, record.base && record.base.rotation),
+      limits,
+      preserveExplicitTurn
+    );
+
+    var key = ensureKeyAtFrame(node, state.frame, 'auto');
     key.rotation = nextValue;
     setChannelKeyMeta(record, state.frame, 'rotate', 'auto');
     applyTransformToObject(node, key, commit);
+    queueNodeNativeTweenSync(node, record, commit);
     if (area) updateRotateDialVisual(area, record, nextValue);
     if (commit) {
       renderAll();
@@ -1754,6 +2065,13 @@ input[type="range"] {
           '<input class="rotateCurrentValue" type="number" data-action="number" data-id="' + htmlEscape(node.id) + '" data-property="rotation" min="' + htmlEscape(limits.min) + '" max="' + htmlEscape(limits.max) + '" step="' + limits.step + '" value="' + htmlEscape(value) + '"' + disabled + '>' +
           '<input class="rotateLimit rotateMax" type="number" data-action="rotate-max" data-id="' + htmlEscape(node.id) + '" step="0.5" value="' + htmlEscape(limits.max) + '" title="Maximum rotation"' + disabled + '>' +
         '</div>' +
+        '<div class="rotatePathRow">' +
+          '<label class="rotatePathOption">' +
+            '<input type="checkbox" data-action="rotate-longest" data-id="' + htmlEscape(node.id) + '"' + (record && record.rotateLongestWay ? ' checked' : '') + disabled + '>' +
+            '<span>Longest Way</span>' +
+          '</label>' +
+          '<span class="rotatePathHint">Unchecked uses shortest path</span>' +
+        '</div>' +
       '</div>';
   }
 
@@ -1790,7 +2108,7 @@ input[type="range"] {
       if (action === "deleteChannelKey") { deleteCurrentChannelKey(id, channel); return; }
       if (action === "resetBase") { resetCurrentKeyToBase(id); return; }
       if (action === "rotate-quick") {
-        setRotationFromDial(id, n(target.getAttribute("data-angle"), 0), true, target.closest('.rotateDialArea'));
+        setRotationFromDial(id, n(target.getAttribute("data-angle"), 0), true, target.closest('.rotateDialArea'), 'quick');
         return;
       }
     };
@@ -1871,6 +2189,10 @@ input[type="range"] {
         updateRotationLimit(id, action === "rotate-min" ? "min" : "max", target.value, true);
         return;
       }
+      if (action === "rotate-longest") {
+        updateRotateLongestWay(id, !!target.checked);
+        return;
+      }
       if ((action !== "range" && action !== "number") || !property) return;
       syncPairedControl(target, action);
       updateKeyFromControl(id, property, target.value, true);
@@ -1936,6 +2258,7 @@ input[type="range"] {
       applyTransformToObject(node, key, commit);
     }
 
+    queueNodeNativeTweenSync(node, record, commit);
     renderAll();
     if (commit) {
       saveStagingData(false);
@@ -1944,6 +2267,25 @@ input[type="range"] {
       queueSave();
       queueProxySync();
     }
+  }
+
+  function updateRotateLongestWay(id, checked){
+    var record = getNodeRecord(id);
+    var node = state.nodeMap[id];
+    if (!record || !node) return;
+    record.rotateLongestWay = !!checked;
+    state.activeId = id;
+    state.frame = currentProjectFrame();
+    applyTransformToObject(node, interpolatePose(record, state.frame), true);
+    queueNodeNativeTweenSync(node, record, true);
+    renderAll();
+    saveStagingData(false);
+    syncStickRigProxyLayers();
+    setStatus(
+      (record.rotateLongestWay ? "Longest" : "Shortest") +
+      " rotation path selected for " + node.name + ".",
+      "good"
+    );
   }
 
   function armNode(id){
@@ -1970,6 +2312,7 @@ input[type="range"] {
     applyHeldChannelValues(key, previousChannelValues(record, state.frame, channel), channel);
     setChannelKeyMeta(record, state.frame, channel, "hold");
     applyTransformToObject(node, key, true);
+    queueNodeNativeTweenSync(node, record, true);
     renderAll();
     saveStagingData(false);
     syncStickRigProxyLayers();
@@ -2011,6 +2354,7 @@ input[type="range"] {
       }) ? "hold" : "auto";
     }
 
+    if (hasKey) queueNodeNativeTweenSync(state.nodeMap[id], record, commit);
     renderAll();
     if (commit) {
       saveStagingData(false);
@@ -2038,6 +2382,7 @@ input[type="range"] {
     key[property] = round3(nextValue);
     setChannelKeyMeta(record, state.frame, channel, "auto");
     applyTransformToObject(node, key, commit);
+    queueNodeNativeTweenSync(node, record, commit);
     if (property === "rotation") refreshRotationControl(id, record, key.rotation);
     renderAll();
     if (commit) {
@@ -2058,10 +2403,32 @@ input[type="range"] {
     removeChannelKeyMeta(record, state.frame, channel);
     var pose = interpolatePose(record, state.frame);
     applyTransformToObject(node, pose, true);
+
+    /* Remove the deleted channel data from the real clip immediately. */
+    var nativeSync = syncNodeNativeTweensInstantly(node, record);
+
     renderAll();
-    saveStagingData(false);
+    var stagingSaved = saveStagingData(false);
     syncStickRigProxyLayers();
-    setStatus("Deleted " + channel + " key for " + node.name + " at frame " + state.frame + ".", "good");
+
+    if (!nativeSync.ok) {
+      setStatus(
+        "The " + channel + " key was removed from StickRig, but the stage clip could not be refreshed: " +
+        nativeSync.reason + ".",
+        "warn"
+      );
+    } else if (stagingSaved === false) {
+      setStatus(
+        "The " + channel + " key and native tween were deleted, but editable Reanimate data could not be saved.",
+        "warn"
+      );
+    } else {
+      setStatus(
+        "Deleted " + channel + " key for " + node.name + " at frame " + state.frame +
+        (nativeSync.skipped ? "." : " and removed its native stage tween data immediately."),
+        "good"
+      );
+    }
   }
 
   function resetCurrentKeyToBase(id){
@@ -2072,6 +2439,7 @@ input[type="range"] {
     record.keys[String(state.frame)] = copyPose(record.base);
     CHANNELS.forEach(function(channel){ setChannelKeyMeta(record, state.frame, channel, "auto"); });
     applyTransformToObject(node, record.keys[String(state.frame)], true);
+    queueNodeNativeTweenSync(node, record, true);
     renderAll();
     saveStagingData(false);
     syncStickRigProxyLayers();
@@ -2093,9 +2461,13 @@ input[type="range"] {
       state.anim.nodes[id].channelEasing = {};
     });
 
+    var nativeSyncFailures = [];
     state.nodes.forEach(function(node){
       var record = getNodeRecord(node.id);
-      if (record) applyTransformToObject(node, record.base, false);
+      if (!record) return;
+      applyTransformToObject(node, record.base, false);
+      var nativeSync = syncNodeNativeTweensInstantly(node, record);
+      if (!nativeSync.ok) nativeSyncFailures.push(node.name + ": " + nativeSync.reason);
     });
 
     removeTimelineOverlay();
@@ -2106,7 +2478,17 @@ input[type="range"] {
     state.openChannels = {};
     markProjectChanged();
     renderAll();
-    setStatus("Cleared all StickRig keys, saved staging data and timeline indicators.", "good");
+    if (nativeSyncFailures.length) {
+      setStatus(
+        "Cleared all StickRig channel keys, but some stage clips could not be refreshed: " + nativeSyncFailures.join("; "),
+        "warn"
+      );
+    } else {
+      setStatus(
+        "Cleared all StickRig keys and removed all corresponding native tweens from the stage clips immediately.",
+        "good"
+      );
+    }
   }
 
   function serializableAnimation(){
@@ -2127,6 +2509,7 @@ input[type="range"] {
         isRoot: !!record.isRoot,
         rotateMin: rotationLimits(record).min,
         rotateMax: rotationLimits(record).max,
+        rotateLongestWay: !!record.rotateLongestWay,
         base: {
           x: round3(record.base.x),
           y: round3(record.base.y),
@@ -2146,6 +2529,54 @@ input[type="range"] {
       Object.keys(record.keyTypes || {}).forEach(function(frame){ output.nodes[id].keyTypes[String(frame)] = record.keyTypes[frame] === "hold" ? "hold" : "auto"; });
     });
     return output;
+  }
+
+  function cloneAnimationData(animation){
+    return JSON.parse(JSON.stringify(animation || { version: 1, nodes: {} }));
+  }
+
+  function committedAnimationAtPreservedOrigin(preservedBase, rootCopy){
+    var animation = cloneAnimationData(serializableAnimation());
+    animation.root = getObjectInfo(rootCopy);
+    var rootRecord = null;
+    Object.keys(animation.nodes || {}).some(function(id){
+      if (animation.nodes[id] && animation.nodes[id].isRoot) {
+        rootRecord = animation.nodes[id];
+        return true;
+      }
+      return false;
+    });
+    if (!rootRecord) return animation;
+
+    rootRecord.base = rootPoseRelativeToPreservedOrigin(rootRecord.base, preservedBase);
+    rootRecord.base.signX = n(preservedBase.signX, 1) < 0 ? -1 : 1;
+    rootRecord.base.signY = n(preservedBase.signY, 1) < 0 ? -1 : 1;
+    Object.keys(rootRecord.keys || {}).forEach(function(frame){
+      rootRecord.keys[frame] = rootPoseRelativeToPreservedOrigin(rootRecord.keys[frame], preservedBase);
+    });
+    return animation;
+  }
+
+  function buildCommittedManifest(wrapper, committedRoot, duration, animation, preservedOrigin){
+    return {
+      format: "LukeTools.StickRig.Committed",
+      formatVersion: 1,
+      toolVersion: VERSION,
+      committedAt: new Date().toISOString(),
+      duration: Math.max(1, Math.round(n(duration, 1))),
+      rootName: state.rootName,
+      wrapper: getObjectInfo(wrapper),
+      committedRoot: getObjectInfo(committedRoot),
+      preservedOrigin: preservedOrigin ? {
+        x: round3(preservedOrigin.x),
+        y: round3(preservedOrigin.y),
+        scale: round3(preservedOrigin.scale),
+        rotation: round3(preservedOrigin.rotation),
+        signX: n(preservedOrigin.signX, 1) < 0 ? -1 : 1,
+        signY: n(preservedOrigin.signY, 1) < 0 ? -1 : 1
+      } : null,
+      animation: cloneAnimationData(animation)
+    };
   }
 
   function safeFileName(value){
@@ -2319,16 +2750,414 @@ input[type="range"] {
     state.saveTimer = setTimeout(function(){ saveStagingData(false); }, 220);
   }
 
+  function resetReanimateState(){
+    if (!state.reanimate) {
+      state.reanimate = { active: false, wrapper: null, root: null, manifest: null, duration: 0 };
+    }
+    state.reanimate.active = false;
+    state.reanimate.wrapper = null;
+    state.reanimate.root = null;
+    state.reanimate.manifest = null;
+    state.reanimate.duration = 0;
+    try { $("commitBtn").textContent = "Commit"; } catch(eButton) {}
+  }
+
+  function resetLiveNativeState(){
+    var live = state.liveNative || {};
+    Object.keys(live.syncTimers || {}).forEach(function(id){
+      try { clearTimeout(live.syncTimers[id]); } catch(eTimer) {}
+    });
+    state.liveNative = { active: false, frames: {}, syncTimers: {} };
+  }
+
+  function parentLayerOfFrame(frame){
+    return safeGet(frame, "parentLayer") || safeGet(frame, "_parentLayer") || safeGet(frame, "parent") || safeGet(frame, "_parent") || null;
+  }
+
+  function parentTimelineOfLayer(layer){
+    return safeGet(layer, "parentTimeline") || safeGet(layer, "_parentTimeline") || safeGet(layer, "parent") || safeGet(layer, "_parent") || null;
+  }
+
+  function parentClipOfTimeline(timeline){
+    var candidates = [
+      safeGet(timeline, "parentClip"), safeGet(timeline, "_parentClip"),
+      safeGet(timeline, "clip"), safeGet(timeline, "_clip"),
+      safeGet(timeline, "parent"), safeGet(timeline, "_parent")
+    ];
+    for (var i = 0; i < candidates.length; i += 1) if (looksLikeClip(candidates[i])) return candidates[i];
+    return null;
+  }
+
+  function parentClipOfObject(obj){
+    var frame = getParentFrame(obj);
+    if (!frame) return null;
+    var layer = parentLayerOfFrame(frame);
+    if (!layer) return null;
+    return parentClipOfTimeline(parentTimelineOfLayer(layer));
+  }
+
+  function clipHierarchyHasNativeTweens(clip, depth){
+    if (!clip || !looksLikeClip(clip) || depth > 24) return false;
+    var timeline = getTimeline(clip);
+    if (timeline) {
+      var layers = getTimelineLayers(timeline);
+      for (var i = 0; i < layers.length; i += 1) {
+        var frames = getLayerFrames(layers[i]);
+        for (var j = 0; j < frames.length; j += 1) {
+          if (getFrameTweens(frames[j]).length) return true;
+        }
+      }
+    }
+    var children = getTimelineChildClips(clip);
+    for (var k = 0; k < children.length; k += 1) {
+      if (clipHierarchyHasNativeTweens(children[k], depth + 1)) return true;
+    }
+    return false;
+  }
+
+  function clipHasOwnNativeTweens(clip){
+    if (!clip || !looksLikeClip(clip)) return false;
+    return getFrameTweens(getParentFrame(clip)).length > 0;
+  }
+
+  function isCommittedWrapperCandidate(clip){
+    if (!clip || !looksLikeClip(clip)) return false;
+    if (parseCommittedData(getUpdateScriptForObject(clip))) return true;
+
+    /* v54 direct-root commits and v55 internal-timeline commits are both
+       readable. v55 exact commits are primarily identified by their saved
+       committed-data marker. */
+    if (clipHasOwnNativeTweens(clip)) return true;
+
+    var info = getObjectInfo(clip);
+    var label = (info.identifier + " " + info.name + " " + getObjectName(clip, "")).toLowerCase();
+    if (label.indexOf("committed_") !== -1 && label.indexOf("wrapper") !== -1) return true;
+
+    var children = getTimelineChildClips(clip);
+    return children.length === 1 && clipHierarchyHasNativeTweens(clip, 0);
+  }
+
+  function findCommittedWrapper(selected){
+    var current = selected;
+    var guard = 0;
+    var outermostDirectAnimatedClip = null;
+    var outermostStructuralMatch = null;
+    var explicitLegacyWrapper = null;
+
+    while (current && guard < 12) {
+      var manifest = parseCommittedData(getUpdateScriptForObject(current));
+      if (manifest && manifest.directRoot === true) outermostDirectAnimatedClip = current;
+
+      if (clipHasOwnNativeTweens(current)) outermostDirectAnimatedClip = current;
+
+      var info = getObjectInfo(current);
+      var label = (info.identifier + " " + info.name + " " + getObjectName(current, "")).toLowerCase();
+      if (label.indexOf("committed_") !== -1 && label.indexOf("wrapper") !== -1) explicitLegacyWrapper = current;
+
+      if (isCommittedWrapperCandidate(current)) outermostStructuralMatch = current;
+      current = parentClipOfObject(current);
+      guard += 1;
+    }
+
+    /* Prefer the outermost clip whose own containing frame has native tweens.
+       That is the actual committed root in v54 and prevents a same-named
+       legacy wrapper from being ingested as an extra TopLeg level. */
+    return outermostDirectAnimatedClip || explicitLegacyWrapper || outermostStructuralMatch;
+  }
+
+  function findCommittedRoot(container, manifest){
+    /* Backward compatibility for v54 direct-root commits. */
+    if (clipHasOwnNativeTweens(container) || (manifest && manifest.directRoot === true)) return container;
+
+    /* Backward compatibility for v43-v53 wrapper commits. */
+    var children = getTimelineChildClips(container);
+    if (!children.length) return null;
+    var target = manifest && manifest.committedRoot ? manifest.committedRoot : null;
+    if (target) {
+      for (var i = 0; i < children.length; i += 1) {
+        var info = getObjectInfo(children[i]);
+        if (target.uuid && info.uuid === target.uuid) return children[i];
+        if (target.identifier && info.identifier === target.identifier) return children[i];
+        if (target.name && info.name === target.name) return children[i];
+      }
+    }
+    return children[0];
+  }
+
+  function readTweenPose(tween, fallback){
+    var base = fallback || { x: 0, y: 0, scale: 1, rotation: 0, signX: 1, signY: 1 };
+    var tr = safeGet(tween, "transformation") || safeGet(tween, "_transformation") || {};
+    var scaleX = n(safeGet(tr, "scaleX"), n(base.scale, 1) * (n(base.signX, 1) < 0 ? -1 : 1));
+    var scaleY = n(safeGet(tr, "scaleY"), n(base.scale, 1) * (n(base.signY, 1) < 0 ? -1 : 1));
+    var scale = (Math.abs(scaleX) + Math.abs(scaleY)) * 0.5;
+    return {
+      x: round3(n(safeGet(tr, "x"), base.x)),
+      y: round3(n(safeGet(tr, "y"), base.y)),
+      scale: round3(scale > 0 ? scale : n(base.scale, 1)),
+      rotation: round3(n(safeGet(tr, "rotation"), base.rotation)),
+      signX: scaleX < 0 ? -1 : 1,
+      signY: scaleY < 0 ? -1 : 1
+    };
+  }
+
+  function channelPoseDiffers(a, b, channel){
+    var left = a || {};
+    var right = b || {};
+    var epsilon = 0.0005;
+    if (channel === "move") {
+      return Math.abs(n(left.x, 0) - n(right.x, 0)) > epsilon ||
+        Math.abs(n(left.y, 0) - n(right.y, 0)) > epsilon;
+    }
+    if (channel === "scale") return Math.abs(n(left.scale, 1) - n(right.scale, 1)) > epsilon;
+    return Math.abs(n(left.rotation, 0) - n(right.rotation, 0)) > epsilon;
+  }
+
+  function nativeAnimationFallback(){
+    var output = { version: 1, toolVersion: VERSION, root: state.rootInfo, nodes: {} };
+    state.nodes.forEach(function(node){
+      var frame = getParentFrame(node.obj);
+      var tweens = getFrameTweens(frame).slice().sort(function(a, b){
+        return n(getTweenFrameNumber(a), 1) - n(getTweenFrameNumber(b), 1);
+      });
+      var base = readTransform(node.obj);
+      var entries = [];
+
+      tweens.forEach(function(tween){
+        var frameNumber = getTweenFrameNumber(tween);
+        if (frameNumber === null) return;
+        var easing = s(safeGet(tween, "easingType") || "none");
+        if (!TRANSITIONS[easing] || easing === "hold") easing = "none";
+        entries.push({
+          frame: frameNumber,
+          pose: readTweenPose(tween, base),
+          easing: easing
+        });
+      });
+
+      /* Keep only actual Wick tween positions. A channel receives a key only
+         when that property changes into or out of this tween. Constant X/Y,
+         scale or rotation values are not converted into false channel keys. */
+      var record = {
+        id: node.id,
+        name: node.name,
+        path: node.path,
+        pathKey: JSON.stringify(node.path || []),
+        isRoot: !!node.isRoot,
+        rotateMin: -359,
+        rotateMax: 360,
+        rotateLongestWay: false,
+        base: base,
+        keys: {},
+        keyTypes: {},
+        keyChannels: {},
+        channelTypes: {},
+        channelEasing: {},
+        channelDefaults: { move: "none", scale: "none", rotate: "none" }
+      };
+
+      var previousRotationForPath = n(base.rotation, 0);
+      entries.forEach(function(entry){
+        if (Math.abs(n(entry.pose && entry.pose.rotation, previousRotationForPath) - previousRotationForPath) > 180.0001) {
+          record.rotateLongestWay = true;
+        }
+        previousRotationForPath = n(entry.pose && entry.pose.rotation, previousRotationForPath);
+      });
+
+      entries.forEach(function(entry, index){
+        var previousPose = index > 0 ? entries[index - 1].pose : base;
+        var nextPose = index + 1 < entries.length ? entries[index + 1].pose : entry.pose;
+        var activeChannels = {};
+
+        CHANNELS.forEach(function(channel){
+          var changesFromPrevious = channelPoseDiffers(entry.pose, previousPose, channel);
+          var changesToNext = channelPoseDiffers(entry.pose, nextPose, channel);
+          if (changesFromPrevious || changesToNext) activeChannels[channel] = true;
+        });
+
+        if (!CHANNELS.some(function(channel){ return !!activeChannels[channel]; })) return;
+        var key = String(entry.frame);
+        record.keys[key] = copyPose(entry.pose);
+        record.keyTypes[key] = "auto";
+        record.keyChannels[key] = activeChannels;
+        record.channelTypes[key] = {};
+        record.channelEasing[key] = {};
+        CHANNELS.forEach(function(channel){
+          if (!activeChannels[channel]) return;
+          record.channelTypes[key][channel] = "auto";
+          record.channelEasing[key][channel] = entry.easing;
+        });
+      });
+
+      output.nodes[node.id] = record;
+    });
+    return output;
+  }
+
+  function alignExactAnimationToNativeTweens(exactAnimation, nativeAnimation){
+    if (!exactAnimation || !exactAnimation.nodes) return nativeAnimation;
+    var result = cloneAnimationData(nativeAnimation);
+    var exactNodes = exactAnimation.nodes || {};
+    var exactByPath = {};
+    Object.keys(exactNodes).forEach(function(id){
+      var item = exactNodes[id];
+      if (item && item.pathKey) exactByPath[item.pathKey] = item;
+    });
+
+    Object.keys(result.nodes || {}).forEach(function(id){
+      var nativeRecord = result.nodes[id];
+      var exactRecord = exactNodes[id] || exactByPath[nativeRecord.pathKey] || null;
+      if (!exactRecord) return;
+
+      nativeRecord.rotateMin = isFinite(Number(exactRecord.rotateMin)) ? Number(exactRecord.rotateMin) : nativeRecord.rotateMin;
+      nativeRecord.rotateMax = isFinite(Number(exactRecord.rotateMax)) ? Number(exactRecord.rotateMax) : nativeRecord.rotateMax;
+      nativeRecord.rotateLongestWay = exactRecord.rotateLongestWay === true;
+      nativeRecord.base = exactRecord.base ? copyPose(exactRecord.base) : nativeRecord.base;
+      nativeRecord.base.signX = exactRecord.base && n(exactRecord.base.signX, 1) < 0 ? -1 : 1;
+      nativeRecord.base.signY = exactRecord.base && n(exactRecord.base.signY, 1) < 0 ? -1 : 1;
+      nativeRecord.channelDefaults = exactRecord.channelDefaults
+        ? JSON.parse(JSON.stringify(exactRecord.channelDefaults))
+        : nativeRecord.channelDefaults;
+
+      /* Native tween frames are authoritative. Exact v43+ metadata is used
+         only to restore the separate channel identity, Hold state and easing
+         at those real tween positions. Metadata-only frames are not invented. */
+      Object.keys(nativeRecord.keys || {}).forEach(function(frame){
+        if (exactRecord.keys && exactRecord.keys[frame]) nativeRecord.keys[frame] = copyPose(exactRecord.keys[frame]);
+        if (!(exactRecord.keyChannels && exactRecord.keyChannels[frame])) return;
+
+        var explicitMap = exactRecord.keyChannels[frame];
+        var sparseMap = {};
+        CHANNELS.forEach(function(channel){
+          if (explicitMap[channel]) sparseMap[channel] = true;
+        });
+        if (!CHANNELS.some(function(channel){ return !!sparseMap[channel]; })) return;
+
+        nativeRecord.keyChannels[frame] = sparseMap;
+        nativeRecord.keyTypes[frame] = exactRecord.keyTypes && exactRecord.keyTypes[frame] === "hold" ? "hold" : "auto";
+        nativeRecord.channelTypes[frame] = {};
+        nativeRecord.channelEasing[frame] = {};
+        CHANNELS.forEach(function(channel){
+          if (!sparseMap[channel]) return;
+          var exactType = exactRecord.channelTypes && exactRecord.channelTypes[frame]
+            ? exactRecord.channelTypes[frame][channel]
+            : null;
+          var exactEasing = exactRecord.channelEasing && exactRecord.channelEasing[frame]
+            ? exactRecord.channelEasing[frame][channel]
+            : null;
+          nativeRecord.channelTypes[frame][channel] = exactType === "hold" ? "hold" : "auto";
+          nativeRecord.channelEasing[frame][channel] = TRANSITIONS[exactEasing] && exactEasing !== "hold"
+            ? exactEasing
+            : "none";
+        });
+      });
+    });
+
+    result.root = exactAnimation.root || result.root;
+    return result;
+  }
+
+  function committedRigDuration(container, manifest){
+    if (manifest && isFinite(Number(manifest.duration))) return Math.max(1, Math.round(Number(manifest.duration)));
+    if (clipHasOwnNativeTweens(container)) {
+      var ownFrame = getParentFrame(container);
+      if (ownFrame) return Math.max(1, getFrameEnd(ownFrame));
+    }
+    var children = getTimelineChildClips(container);
+    var frame = children.length ? getParentFrame(children[0]) : null;
+    if (frame) return Math.max(1, getFrameEnd(frame));
+    return getProjectDuration();
+  }
+
+  function reanimateSelectedRig(){
+    if (state.reading || state.committing) return;
+    state.reading = true;
+    setStatus("Reading committed StickRig animation…", "");
+    try {
+      removeStickRigProxyLayers();
+      resetReanimateState();
+      resetLiveNativeState();
+      if (!refreshRefs()) { setStatus("LukeToolsBridge or Wick project could not be found.", "bad"); return; }
+      var selected = getSelectedObject();
+      if (!selected || !looksLikeClip(selected)) { setStatus("Select a committed StickRig clip first.", "warn"); return; }
+      var wrapper = findCommittedWrapper(selected);
+      if (!wrapper) { setStatus("The selected clip is not a committed StickRig rig.", "warn"); return; }
+      var manifest = parseCommittedData(getUpdateScriptForObject(wrapper));
+      var committedRoot = findCommittedRoot(wrapper, manifest);
+      if (!committedRoot) { setStatus("The committed StickRig root clip could not be found.", "bad"); return; }
+
+      state.reanimate.active = true;
+      state.reanimate.wrapper = wrapper;
+      state.reanimate.root = committedRoot;
+      state.reanimate.manifest = manifest || null;
+      state.reanimate.duration = committedRigDuration(wrapper, manifest);
+
+      state.root = committedRoot;
+      state.rootInfo = getObjectInfo(committedRoot);
+      state.rootName = manifest && manifest.rootName ? manifest.rootName : getObjectName(committedRoot, "Committed Rig");
+      state.frame = currentProjectFrame();
+      state.lastPolledFrame = state.frame;
+      state.activeId = "";
+      state.openIds = {};
+      state.openChannels = {};
+      buildHierarchy(committedRoot);
+      if (!state.nodes.length) { setStatus("The committed rig hierarchy could not be read.", "bad"); return; }
+
+      var staged = parseSavedData(getUpdateScriptForObject(committedRoot));
+      var exactAnimation = staged || (manifest && manifest.animation ? manifest.animation : null);
+      var nativeAnimation = nativeAnimationFallback();
+      var reanimatedAnimation = exactAnimation
+        ? alignExactAnimationToNativeTweens(exactAnimation, nativeAnimation)
+        : nativeAnimation;
+      mergeSavedAnimation(reanimatedAnimation);
+
+      state.openIds[state.nodes[0].id] = true;
+      renderAll();
+      $("saveBtn").disabled = false;
+      $("jsonBtn").disabled = false;
+      $("commitBtn").disabled = false;
+      $("commitBtn").textContent = "Commit";
+      $("clearAllBtn").disabled = false;
+      setupStickRigProxyLayers();
+      setStatus(
+        exactAnimation
+          ? "Committed StickRig loaded from its actual native tween positions with the original separate channel metadata restored."
+          : "Older committed StickRig loaded from its actual native tween positions. Constant channels were left unkeyed.",
+        exactAnimation ? "good" : "warn"
+      );
+    } catch(error) {
+      console.error(error);
+      resetReanimateState();
+      setStatus("Reanimate failed: " + (error && error.message ? error.message : String(error)), "bad");
+    } finally {
+      state.reading = false;
+    }
+  }
+
   function readSelectedClip(){
     if (state.reading) return;
     state.reading = true;
     setStatus("Loading…", "");
     try {
       removeStickRigProxyLayers();
+      resetReanimateState();
+      resetLiveNativeState();
       if (!refreshRefs()) { setStatus("LukeToolsBridge or Wick project could not be found.", "bad"); return; }
       var root = getSelectedObject();
       if (!root) { setStatus("Select a clip first.", "warn"); return; }
       if (!looksLikeClip(root)) { setStatus("Selection is not a clip.", "warn"); return; }
+
+      /* A committed parent contains its root animation on an internal frame.
+         Loading that outer parent as an ordinary hierarchy would display the
+         parent name twice and a later Commit would create another container.
+         Route exact StickRig committed parents through the same ingest used by
+         Reanimate while leaving the normal Commit button unchanged. */
+      var committedMarker = parseCommittedData(getUpdateScriptForObject(root));
+      if (committedMarker && committedMarker.format === "LukeTools.StickRig.Committed") {
+        state.reading = false;
+        reanimateSelectedRig();
+        return;
+      }
+
       state.root = root;
       state.rootInfo = getObjectInfo(root);
       state.rootName = getObjectName(root, "Selected Root Clip");
@@ -2339,7 +3168,9 @@ input[type="range"] {
       state.openChannels = {};
       buildHierarchy(root);
       if (!state.nodes.length) { setStatus("The selected clip could not be read.", "bad"); return; }
-      mergeSavedAnimation(null);
+      var stagedAnimation = parseSavedData(getUpdateScriptForObject(root));
+      mergeSavedAnimation(stagedAnimation);
+      state.liveNative.active = !!stagedAnimation;
       state.openIds[state.nodes[0].id] = true;
       renderAll();
       $("saveBtn").disabled = false;
@@ -2347,7 +3178,11 @@ input[type="range"] {
       $("commitBtn").disabled = false;
       $("clearAllBtn").disabled = false;
       setupStickRigProxyLayers();
-      setStatus("Read " + state.nodes.length + " clip" + (state.nodes.length === 1 ? "" : "s") + " from " + state.rootName + ".", "good");
+      setStatus(
+        "Read " + state.nodes.length + " clip" + (state.nodes.length === 1 ? "" : "s") + " from " + state.rootName + "." +
+        (stagedAnimation ? " Existing live StickRig keys were restored." : " Native tween data will now be written as each key is edited."),
+        "good"
+      );
     } catch(error) {
       console.error(error);
       setStatus("Read failed: " + (error && error.message ? error.message : String(error)), "bad");
@@ -2769,7 +3604,13 @@ input[type="range"] {
         ".sr-compact-key{position:absolute;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);background:transparent;border:0;box-shadow:none;z-index:8;pointer-events:auto;cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none;}",
         ".sr-compact-key::before{content:'';position:absolute;left:50%;top:50%;width:7px;height:7px;transform:translate(-50%,-50%) rotate(45deg);background:var(--sr-channel);border:1px solid var(--sr-transition);box-shadow:0 0 0 1px rgba(0,0,0,.35);}",
         ".sr-compact-key.sr-selected::before{outline:1px solid #fff;outline-offset:2px;filter:brightness(1.25);}",
-        ".sr-compact-key.sr-dragging::before{opacity:.72;filter:brightness(1.35);}"
+        ".sr-compact-key.sr-dragging::before{opacity:.72;filter:brightness(1.35);}",
+        ".sr-native-barrier{position:fixed!important;pointer-events:auto!important;background:transparent!important;touch-action:none!important;user-select:none!important;-webkit-user-select:none!important;z-index:2147482100!important;cursor:default!important;}",
+        ".sr-native-marker-hit{position:absolute!important;width:22px!important;height:22px!important;transform:translate(-50%,-50%)!important;background:transparent!important;pointer-events:auto!important;cursor:ew-resize!important;touch-action:none!important;}",
+        ".sr-timeline-context-menu{position:fixed!important;min-width:118px!important;padding:5px!important;border:1px solid #4d6479!important;border-radius:7px!important;background:#101a24!important;box-shadow:0 8px 24px rgba(0,0,0,.55)!important;pointer-events:auto!important;z-index:2147483646!important;font:12px Arial,sans-serif!important;}",
+        ".sr-timeline-context-menu button{display:block!important;width:100%!important;padding:7px 12px!important;border:0!important;border-radius:4px!important;background:transparent!important;color:#eaf4ff!important;text-align:left!important;cursor:pointer!important;}",
+        ".sr-timeline-context-menu button:hover{background:#1f3a50!important;}",
+        ".sr-timeline-context-menu button.sr-danger:hover{background:#5a2630!important;}"
       ].join("\n");
       (doc.head || doc.body).appendChild(style);
       overlay.style = style;
@@ -3434,6 +4275,79 @@ input[type="range"] {
     return false;
   }
 
+  function removeAllStickRigTimelineDom(){
+    var documents = [];
+    function addDocument(doc){
+      if (!doc || documents.indexOf(doc) !== -1) return;
+      documents.push(doc);
+    }
+    addDocument(state.timelineOverlay.parentDocument);
+    addDocument(state.nativeTimeline.document);
+    try { addDocument(getParentEditorDocument()); } catch(eParentDoc) {}
+
+    documents.forEach(function(doc){
+      try {
+        var nodes = doc.querySelectorAll(
+          '#stickrig-compact-timeline-root,#stickrig-compact-timeline-style,.sr-timeline-context-menu'
+        );
+        for (var i = 0; i < nodes.length; i += 1) {
+          if (nodes[i].parentNode) nodes[i].parentNode.removeChild(nodes[i]);
+        }
+      } catch(eRemove) {}
+    });
+  }
+
+  function forceNativeTimelineRestore(gui, originalDraw){
+    var targets = [];
+    function addTarget(target){
+      if (!target || targets.indexOf(target) !== -1) return;
+      targets.push(target);
+    }
+    addTarget(gui);
+    addTarget(state.nativeTimeline.lastTimelineGUI);
+    try {
+      var W = getWickNamespace();
+      if (W && W.GUIElement && W.GUIElement.Timeline) {
+        addTarget(W.GUIElement.Timeline.__stickRigLastTimelineGUI);
+      }
+    } catch(eLast) {}
+
+    function redraw(){
+      targets.forEach(function(target){
+        try {
+          if (target.canvas && target.ctx) {
+            target.ctx.save();
+            if (typeof target.ctx.setTransform === "function") target.ctx.setTransform(1, 0, 0, 1, 0, 0);
+            target.ctx.clearRect(0, 0, target.canvas.width, target.canvas.height);
+            target.ctx.restore();
+          }
+        } catch(eClear) {}
+        try {
+          if (typeof originalDraw === "function") originalDraw.call(target);
+          else if (typeof target.draw === "function") target.draw();
+        } catch(eDraw) {
+          try { if (typeof target.draw === "function") target.draw(); } catch(eFallback) {}
+        }
+      });
+    }
+
+    redraw();
+    try {
+      var ownerWindow = targets[0] && targets[0].canvas && targets[0].canvas.ownerDocument
+        ? targets[0].canvas.ownerDocument.defaultView
+        : null;
+      if (ownerWindow && typeof ownerWindow.requestAnimationFrame === "function") {
+        ownerWindow.requestAnimationFrame(function(){
+          redraw();
+          ownerWindow.requestAnimationFrame(redraw);
+        });
+      } else if (ownerWindow && typeof ownerWindow.setTimeout === "function") {
+        ownerWindow.setTimeout(redraw, 0);
+        ownerWindow.setTimeout(redraw, 80);
+      }
+    } catch(eSchedule) {}
+  }
+
   function nativeCanvasPoint(canvas, event){
     var rect = canvas.getBoundingClientRect();
     var scaleX = rect.width ? canvas.width / rect.width : 1;
@@ -3477,28 +4391,342 @@ input[type="range"] {
     return best;
   }
 
+  function stopTimelineMouseEvent(event){
+    if (!event) return;
+    try { event.preventDefault(); } catch(e1) {}
+    try { event.stopPropagation(); } catch(e2) {}
+    try { if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation(); } catch(e3) {}
+  }
+
+  function copyTimelineKey(marker){
+    if (!marker) return false;
+    var record = getNodeRecord(marker.nodeId);
+    var node = state.nodeMap[marker.nodeId];
+    if (!record || !channelKeyExists(record, marker.frame, marker.channel)) return false;
+    var sourcePose = copyPose((record.keys && record.keys[String(marker.frame)]) || interpolatePose(record, marker.frame));
+    state.keyClipboard = {
+      channel: marker.channel,
+      pose: sourcePose,
+      type: channelType(record, marker.frame, marker.channel),
+      easing: channelEasing(record, marker.frame, marker.channel),
+      sourceNodeId: marker.nodeId,
+      sourceFrame: marker.frame
+    };
+    setStatus('Copied ' + marker.channel + ' key ' + marker.frame + ' from ' + (node ? node.name : 'part') + '.', 'good');
+    return true;
+  }
+
+  function pasteTimelineKey(nodeId, channel, frameNumber){
+    var clipboard = state.keyClipboard;
+    var record = getNodeRecord(nodeId);
+    var node = state.nodeMap[nodeId];
+    if (!clipboard || !record || !node) return false;
+    if (clipboard.channel !== channel) {
+      setStatus('A ' + clipboard.channel + ' key can only be pasted into the ' + clipboard.channel + ' channel.', 'warn');
+      return false;
+    }
+
+    var frame = clamp(Math.round(n(frameNumber, currentProjectFrame())), 1, Math.max(1, getProjectDuration()));
+    var key = String(frame);
+    ensureChannelMaps(record);
+    if (!record.keys) record.keys = {};
+    var targetPose = copyPose(record.keys[key] || interpolatePose(record, frame));
+    copyChannelToPose(targetPose, clipboard.pose, channel);
+    record.keys[key] = targetPose;
+    if (!record.keyChannels[key]) record.keyChannels[key] = {};
+    if (!record.channelTypes[key]) record.channelTypes[key] = {};
+    if (!record.channelEasing[key]) record.channelEasing[key] = {};
+    record.keyChannels[key][channel] = true;
+    record.channelTypes[key][channel] = clipboard.type === 'hold' ? 'hold' : 'auto';
+    record.channelEasing[key][channel] = clipboard.easing || 'none';
+    var active = CHANNELS.filter(function(name){ return record.keyChannels[key] && record.keyChannels[key][name]; });
+    record.keyTypes[key] = active.length && active.every(function(name){ return record.channelTypes[key][name] === 'hold'; }) ? 'hold' : 'auto';
+
+    state.timelineOverlay.selected = { nodeId: nodeId, channel: channel, frame: frame };
+    setMainTimelineFrame(frame);
+    applyTransformToObject(node, interpolatePose(record, frame), false);
+    queueNodeNativeTweenSync(node, record, true);
+    markProjectChanged();
+    renderAll();
+    saveStagingData(false);
+    queueProxySync();
+    requestNativeTimelineDraw();
+    setStatus('Pasted ' + channel + ' key at frame ' + frame + ' for ' + node.name + '.', 'good');
+    return true;
+  }
+
+  function cutTimelineKey(marker){
+    if (!copyTimelineKey(marker)) return false;
+    deleteTimelineMarker(marker);
+    return true;
+  }
+
+  function hideTimelineContextMenu(){
+    var nativeState = state.nativeTimeline;
+    var menu = nativeState.contextMenuElement;
+    var doc = nativeState.document || (menu ? menu.ownerDocument : null);
+    try { if (menu && menu.parentNode) menu.parentNode.removeChild(menu); } catch(eRemove) {}
+    if (doc && nativeState.contextMenuDismissHandler) {
+      try { doc.removeEventListener('pointerdown', nativeState.contextMenuDismissHandler, true); } catch(e1) {}
+      try { doc.removeEventListener('contextmenu', nativeState.contextMenuDismissHandler, true); } catch(e2) {}
+      try { doc.removeEventListener('keydown', nativeState.contextMenuDismissHandler, true); } catch(e3) {}
+      try { doc.defaultView.removeEventListener('blur', nativeState.contextMenuDismissHandler, true); } catch(e4) {}
+    }
+    nativeState.contextMenuElement = null;
+    nativeState.contextMenuDismissHandler = null;
+  }
+
+  function showTimelineContextMenu(event, marker, channelGeometry, frameNumber){
+    stopTimelineMouseEvent(event);
+    hideTimelineContextMenu();
+    var nativeState = state.nativeTimeline;
+    var doc = nativeState.document || (event && event.target ? event.target.ownerDocument : null) || getParentEditorDocument();
+    if (!doc || !doc.body) return;
+    nativeState.document = doc;
+
+    var root = ensureTimelineOverlay();
+    if (!root) return;
+    var menu = doc.createElement('div');
+    menu.className = 'sr-timeline-context-menu';
+    menu.setAttribute('role', 'menu');
+
+    function addItem(label, className, action){
+      var button = doc.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      if (className) button.className = className;
+      button.addEventListener('pointerdown', stopTimelineMouseEvent, true);
+      button.addEventListener('mousedown', stopTimelineMouseEvent, true);
+      button.addEventListener('mouseup', stopTimelineMouseEvent, true);
+      button.addEventListener('click', function(clickEvent){
+        stopTimelineMouseEvent(clickEvent);
+        hideTimelineContextMenu();
+        action();
+      }, true);
+      menu.appendChild(button);
+    }
+
+    if (marker) {
+      state.timelineOverlay.selected = { nodeId: marker.nodeId, channel: marker.channel, frame: marker.frame };
+      setMainTimelineFrame(marker.frame);
+      addItem('Copy', '', function(){ copyTimelineKey(marker); });
+      addItem('Cut', '', function(){ cutTimelineKey(marker); });
+      addItem('Delete', 'sr-danger', function(){ deleteTimelineMarker(marker); });
+    } else if (channelGeometry && state.keyClipboard && state.keyClipboard.channel === channelGeometry.channel) {
+      var pasteFrame = clamp(Math.round(n(frameNumber, currentProjectFrame())), 1, Math.max(1, channelGeometry.duration || getProjectDuration()));
+      addItem('Paste', '', function(){ pasteTimelineKey(channelGeometry.nodeId, channelGeometry.channel, pasteFrame); });
+    } else {
+      return;
+    }
+
+    root.appendChild(menu);
+    nativeState.contextMenuElement = menu;
+    var viewportWidth = Math.max(doc.documentElement ? doc.documentElement.clientWidth : 0, doc.defaultView ? doc.defaultView.innerWidth : 0);
+    var viewportHeight = Math.max(doc.documentElement ? doc.documentElement.clientHeight : 0, doc.defaultView ? doc.defaultView.innerHeight : 0);
+    var left = n(event.clientX, 0);
+    var top = n(event.clientY, 0);
+    try {
+      var rect = menu.getBoundingClientRect();
+      if (left + rect.width > viewportWidth - 6) left = Math.max(6, viewportWidth - rect.width - 6);
+      if (top + rect.height > viewportHeight - 6) top = Math.max(6, viewportHeight - rect.height - 6);
+    } catch(eRect) {}
+    menu.style.left = Math.round(left) + 'px';
+    menu.style.top = Math.round(top) + 'px';
+
+    nativeState.contextMenuDismissHandler = function(dismissEvent){
+      if (dismissEvent && dismissEvent.type === 'keydown' && dismissEvent.key !== 'Escape') return;
+      if (dismissEvent && menu.contains && menu.contains(dismissEvent.target)) return;
+      hideTimelineContextMenu();
+    };
+    setTimeout(function(){
+      if (!nativeState.contextMenuElement) return;
+      doc.addEventListener('pointerdown', nativeState.contextMenuDismissHandler, true);
+      doc.addEventListener('contextmenu', nativeState.contextMenuDismissHandler, true);
+      doc.addEventListener('keydown', nativeState.contextMenuDismissHandler, true);
+      try { doc.defaultView.addEventListener('blur', nativeState.contextMenuDismissHandler, true); } catch(eBlur) {}
+    }, 0);
+  }
+
+  function beginNativeMarkerDrag(event, canvas, marker){
+    if (!marker) return;
+    stopTimelineMouseEvent(event);
+    hideTimelineContextMenu();
+    var nativeState = state.nativeTimeline;
+    var doc = canvas.ownerDocument || nativeState.document;
+    state.timelineOverlay.selected = { nodeId: marker.nodeId, channel: marker.channel, frame: marker.frame };
+    setMainTimelineFrame(marker.frame);
+    var startPoint = nativeCanvasPoint(canvas, event);
+    var drag = {
+      active: true,
+      pointerId: event.pointerId,
+      nodeId: marker.nodeId,
+      channel: marker.channel,
+      oldFrame: marker.frame,
+      previewFrame: marker.frame,
+      geometry: marker.geometry,
+      moved: false,
+      startX: startPoint.x,
+      cleanup: null
+    };
+    nativeState.drag = drag;
+    state.timelineOverlay.drag = drag;
+
+    function moveDrag(moveEvent){
+      if (!drag.active || moveEvent.pointerId !== drag.pointerId) return;
+      stopTimelineMouseEvent(moveEvent);
+      var point = nativeCanvasPoint(canvas, moveEvent);
+      if (Math.abs(point.x - drag.startX) > 2) drag.moved = true;
+      drag.previewFrame = nativeFrameFromX(point.x, drag.geometry);
+      requestNativeTimelineDraw();
+    }
+
+    function finishDrag(upEvent, cancelled){
+      if (!drag.active) return;
+      if (upEvent && upEvent.pointerId !== drag.pointerId) return;
+      if (upEvent) stopTimelineMouseEvent(upEvent);
+      drag.active = false;
+      try { doc.removeEventListener('pointermove', moveDrag, true); } catch(e1) {}
+      try { doc.removeEventListener('pointerup', finishPointer, true); } catch(e2) {}
+      try { doc.removeEventListener('pointercancel', cancelPointer, true); } catch(e3) {}
+      nativeState.drag = null;
+      state.timelineOverlay.drag = null;
+      if (!cancelled && drag.moved && drag.previewFrame !== drag.oldFrame) {
+        moveTimelineMarker(drag.nodeId, drag.channel, drag.oldFrame, drag.previewFrame);
+      } else {
+        requestNativeTimelineDraw();
+      }
+    }
+
+    function finishPointer(upEvent){ finishDrag(upEvent, false); }
+    function cancelPointer(cancelEvent){ finishDrag(cancelEvent, true); }
+    drag.cleanup = function(cancelled){ finishDrag(null, cancelled !== false); };
+    doc.addEventListener('pointermove', moveDrag, true);
+    doc.addEventListener('pointerup', finishPointer, true);
+    doc.addEventListener('pointercancel', cancelPointer, true);
+  }
+
+  function renderNativeInteractionBarriers(canvas, geometry){
+    if (!canvas || !geometry || !geometry.length) return;
+    if (state.nativeTimeline.drag && state.nativeTimeline.drag.active) return;
+    var root = ensureTimelineOverlay();
+    var doc = canvas.ownerDocument || state.nativeTimeline.document;
+    if (!root || !doc) return;
+    state.nativeTimeline.document = doc;
+
+    try {
+      var old = root.querySelectorAll('.sr-native-barrier');
+      for (var i = 0; i < old.length; i += 1) if (old[i].parentNode) old[i].parentNode.removeChild(old[i]);
+    } catch(eClear) {}
+
+    var canvasRect = canvas.getBoundingClientRect();
+    var scaleX = canvasRect.width ? canvas.width / canvasRect.width : 1;
+    var scaleY = canvasRect.height ? canvas.height / canvasRect.height : 1;
+
+    geometry.forEach(function(item){
+      var leftCanvas = Math.max(item.visibleLeft, item.baseX);
+      var rightCanvas = Math.min(item.visibleRight, item.baseX + item.duration * item.cellWidth);
+      if (rightCanvas <= leftCanvas || item.trackBottom <= item.trackTop) return;
+      var barrier = doc.createElement('div');
+      barrier.className = 'sr-native-barrier';
+      barrier.dataset.nodeId = item.nodeId;
+      barrier.dataset.channel = item.channel;
+      barrier.style.left = Math.round(canvasRect.left + leftCanvas / scaleX) + 'px';
+      barrier.style.top = Math.round(canvasRect.top + item.trackTop / scaleY) + 'px';
+      barrier.style.width = Math.max(1, Math.round((rightCanvas - leftCanvas) / scaleX)) + 'px';
+      barrier.style.height = Math.max(1, Math.round((item.trackBottom - item.trackTop) / scaleY)) + 'px';
+
+      ['mousedown','mouseup','click','dblclick','auxclick','dragstart'].forEach(function(type){
+        barrier.addEventListener(type, stopTimelineMouseEvent, true);
+      });
+
+      barrier.addEventListener('pointerdown', function(pointerEvent){
+        if (pointerEvent.target && pointerEvent.target.closest && pointerEvent.target.closest('.sr-native-marker-hit')) return;
+        stopTimelineMouseEvent(pointerEvent);
+        hideTimelineContextMenu();
+        var point = nativeCanvasPoint(canvas, pointerEvent);
+        setMainTimelineFrame(nativeFrameFromX(point.x, item));
+        requestNativeTimelineDraw();
+      }, true);
+      barrier.addEventListener('pointerup', stopTimelineMouseEvent, true);
+      barrier.addEventListener('pointercancel', stopTimelineMouseEvent, true);
+      barrier.addEventListener('contextmenu', function(menuEvent){
+        if (menuEvent.target && menuEvent.target.closest && menuEvent.target.closest('.sr-native-marker-hit')) return;
+        stopTimelineMouseEvent(menuEvent);
+        var point = nativeCanvasPoint(canvas, menuEvent);
+        showTimelineContextMenu(menuEvent, null, item, nativeFrameFromX(point.x, item));
+      }, true);
+
+      (item.markers || []).forEach(function(marker){
+        if (marker.x < leftCanvas - 11 || marker.x > rightCanvas + 11) return;
+        var hit = doc.createElement('div');
+        hit.className = 'sr-native-marker-hit';
+        hit.dataset.nodeId = marker.nodeId;
+        hit.dataset.channel = marker.channel;
+        hit.dataset.frame = String(marker.frame);
+        hit.style.left = ((marker.x - leftCanvas) / scaleX) + 'px';
+        hit.style.top = ((marker.y - item.trackTop) / scaleY) + 'px';
+        ['mousedown','mouseup','click','dblclick','auxclick','dragstart'].forEach(function(type){
+          hit.addEventListener(type, stopTimelineMouseEvent, true);
+        });
+        hit.addEventListener('pointerdown', function(pointerEvent){
+          beginNativeMarkerDrag(pointerEvent, canvas, marker);
+        }, true);
+        hit.addEventListener('pointerup', stopTimelineMouseEvent, true);
+        hit.addEventListener('contextmenu', function(menuEvent){
+          showTimelineContextMenu(menuEvent, marker, item, marker.frame);
+        }, true);
+        barrier.appendChild(hit);
+      });
+
+      root.appendChild(barrier);
+    });
+  }
+
   function detachNativeTimelineEvents(){
     var nativeState = state.nativeTimeline;
     var canvas = nativeState.canvas;
     var doc = nativeState.document;
+    hideTimelineContextMenu();
+    if (nativeState.drag && typeof nativeState.drag.cleanup === 'function') {
+      try { nativeState.drag.cleanup(true); } catch(eDrag) {}
+    }
     if (canvas) {
       try { canvas.removeEventListener('pointerdown', nativeState.pointerDownHandler, true); } catch(e1) {}
       try { canvas.removeEventListener('pointermove', nativeState.pointerMoveHandler, true); } catch(e2) {}
       try { canvas.removeEventListener('pointerup', nativeState.pointerUpHandler, true); } catch(e3) {}
       try { canvas.removeEventListener('pointercancel', nativeState.pointerCancelHandler, true); } catch(e4) {}
       try { canvas.removeEventListener('contextmenu', nativeState.contextMenuHandler, true); } catch(e5) {}
+      try { canvas.removeEventListener('mousedown', nativeState.mouseDownHandler, true); } catch(e6) {}
+      try { canvas.removeEventListener('mouseup', nativeState.mouseUpHandler, true); } catch(e7) {}
+      try { canvas.removeEventListener('click', nativeState.clickHandler, true); } catch(e8) {}
+      try { canvas.removeEventListener('dblclick', nativeState.doubleClickHandler, true); } catch(e9) {}
+      try { canvas.removeEventListener('auxclick', nativeState.auxClickHandler, true); } catch(e10) {}
     }
     if (doc) {
-      try { doc.removeEventListener('keydown', nativeState.keyDownHandler, true); } catch(e6) {}
+      try { doc.removeEventListener('keydown', nativeState.keyDownHandler, true); } catch(e11) {}
+      try { if (doc.defaultView) doc.defaultView.removeEventListener('keydown', nativeState.keyDownHandler, true); } catch(e12) {}
     }
+    try {
+      var root = state.timelineOverlay.root;
+      if (root) {
+        var barriers = root.querySelectorAll('.sr-native-barrier');
+        for (var i = 0; i < barriers.length; i += 1) if (barriers[i].parentNode) barriers[i].parentNode.removeChild(barriers[i]);
+      }
+    } catch(eBarrier) {}
     nativeState.canvas = null;
     nativeState.document = null;
     nativeState.drag = null;
+    nativeState.barrierPointerId = null;
     nativeState.pointerDownHandler = null;
     nativeState.pointerMoveHandler = null;
     nativeState.pointerUpHandler = null;
     nativeState.pointerCancelHandler = null;
     nativeState.contextMenuHandler = null;
+    nativeState.mouseDownHandler = null;
+    nativeState.mouseUpHandler = null;
+    nativeState.clickHandler = null;
+    nativeState.doubleClickHandler = null;
+    nativeState.auxClickHandler = null;
     nativeState.keyDownHandler = null;
   }
 
@@ -3511,103 +4739,94 @@ input[type="range"] {
     nativeState.canvas = canvas;
     nativeState.document = canvas.ownerDocument || null;
 
-    nativeState.pointerDownHandler = function(event){
-      if (!state.proxy.active || event.button !== 0) return;
+    function channelAtEvent(event){
       var point = nativeCanvasPoint(canvas, event);
       var marker = findNativeMarkerAtPoint(point.x, point.y);
-      var channelGeometry = marker ? marker.geometry : findNativeChannelAtPoint(point.x, point.y);
-      if (!channelGeometry) return;
+      return {
+        point: point,
+        marker: marker,
+        channel: marker ? marker.geometry : findNativeChannelAtPoint(point.x, point.y)
+      };
+    }
 
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-
-      if (marker) {
-        state.timelineOverlay.selected = {
-          nodeId: marker.nodeId,
-          channel: marker.channel,
-          frame: marker.frame
-        };
-        nativeState.drag = {
-          active: true,
-          pointerId: event.pointerId,
-          nodeId: marker.nodeId,
-          channel: marker.channel,
-          oldFrame: marker.frame,
-          previewFrame: marker.frame,
-          geometry: marker.geometry,
-          moved: false,
-          startX: point.x
-        };
-        state.timelineOverlay.drag = nativeState.drag;
-        try { canvas.setPointerCapture(event.pointerId); } catch(eCapture) {}
+    nativeState.pointerDownHandler = function(event){
+      if (!state.proxy.active || event.button !== 0) return;
+      var hit = channelAtEvent(event);
+      if (!hit.channel) return;
+      stopTimelineMouseEvent(event);
+      nativeState.barrierPointerId = event.pointerId;
+      hideTimelineContextMenu();
+      if (hit.marker) {
+        beginNativeMarkerDrag(event, canvas, hit.marker);
+      } else {
+        setMainTimelineFrame(nativeFrameFromX(hit.point.x, hit.channel));
         requestNativeTimelineDraw();
-        return;
       }
-
-      var clickedFrame = nativeFrameFromX(point.x, channelGeometry);
-      setMainTimelineFrame(clickedFrame);
-      requestNativeTimelineDraw();
     };
 
     nativeState.pointerMoveHandler = function(event){
-      var drag = nativeState.drag;
-      if (!drag || !drag.active || drag.pointerId !== event.pointerId) return;
-      var point = nativeCanvasPoint(canvas, event);
-      if (Math.abs(point.x - drag.startX) > 2) drag.moved = true;
-      drag.previewFrame = nativeFrameFromX(point.x, drag.geometry);
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-      requestNativeTimelineDraw();
+      if (!state.proxy.active) return;
+      if (nativeState.barrierPointerId === event.pointerId) stopTimelineMouseEvent(event);
     };
 
     nativeState.pointerUpHandler = function(event){
-      var drag = nativeState.drag;
-      if (!drag || !drag.active || drag.pointerId !== event.pointerId) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-      drag.active = false;
-      try { canvas.releasePointerCapture(event.pointerId); } catch(eRelease) {}
-      nativeState.drag = null;
-      state.timelineOverlay.drag = null;
-      if (drag.moved && drag.previewFrame !== drag.oldFrame) {
-        moveTimelineMarker(drag.nodeId, drag.channel, drag.oldFrame, drag.previewFrame);
-      } else {
-        requestNativeTimelineDraw();
-      }
+      if (nativeState.barrierPointerId !== event.pointerId) return;
+      stopTimelineMouseEvent(event);
+      nativeState.barrierPointerId = null;
     };
 
     nativeState.pointerCancelHandler = function(event){
-      var drag = nativeState.drag;
-      if (!drag || drag.pointerId !== event.pointerId) return;
-      drag.active = false;
-      nativeState.drag = null;
-      state.timelineOverlay.drag = null;
-      requestNativeTimelineDraw();
+      if (nativeState.barrierPointerId !== event.pointerId) return;
+      stopTimelineMouseEvent(event);
+      nativeState.barrierPointerId = null;
     };
 
     nativeState.contextMenuHandler = function(event){
       if (!state.proxy.active) return;
-      var point = nativeCanvasPoint(canvas, event);
-      var marker = findNativeMarkerAtPoint(point.x, point.y);
-      if (!marker) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-      deleteTimelineMarker({ nodeId: marker.nodeId, channel: marker.channel, frame: marker.frame });
+      var hit = channelAtEvent(event);
+      if (!hit.channel) return;
+      showTimelineContextMenu(event, hit.marker, hit.channel, nativeFrameFromX(hit.point.x, hit.channel));
     };
 
+    function blockMouseEvent(event){
+      if (!state.proxy.active) return;
+      var hit = channelAtEvent(event);
+      if (hit.channel) stopTimelineMouseEvent(event);
+    }
+    nativeState.mouseDownHandler = blockMouseEvent;
+    nativeState.mouseUpHandler = blockMouseEvent;
+    nativeState.clickHandler = blockMouseEvent;
+    nativeState.doubleClickHandler = blockMouseEvent;
+    nativeState.auxClickHandler = blockMouseEvent;
+
     nativeState.keyDownHandler = function(event){
-      if (!state.proxy.active || !state.timelineOverlay.selected) return;
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      if (!state.proxy.active) return;
       var target = event.target;
       var tag = target && target.tagName ? target.tagName.toLowerCase() : '';
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-      event.preventDefault();
-      event.stopPropagation();
-      deleteTimelineMarker(state.timelineOverlay.selected);
+      var selected = state.timelineOverlay.selected;
+      var command = !!(event.ctrlKey || event.metaKey);
+      var key = s(event.key).toLowerCase();
+
+      if (command && key === 'c' && selected) {
+        stopTimelineMouseEvent(event);
+        copyTimelineKey(selected);
+        return;
+      }
+      if (command && key === 'x' && selected) {
+        stopTimelineMouseEvent(event);
+        cutTimelineKey(selected);
+        return;
+      }
+      if (command && key === 'v' && selected && state.keyClipboard) {
+        stopTimelineMouseEvent(event);
+        pasteTimelineKey(selected.nodeId, selected.channel, currentProjectFrame());
+        return;
+      }
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selected) {
+        stopTimelineMouseEvent(event);
+        deleteTimelineMarker(selected);
+      }
     };
 
     canvas.addEventListener('pointerdown', nativeState.pointerDownHandler, true);
@@ -3615,7 +4834,19 @@ input[type="range"] {
     canvas.addEventListener('pointerup', nativeState.pointerUpHandler, true);
     canvas.addEventListener('pointercancel', nativeState.pointerCancelHandler, true);
     canvas.addEventListener('contextmenu', nativeState.contextMenuHandler, true);
-    if (nativeState.document) nativeState.document.addEventListener('keydown', nativeState.keyDownHandler, true);
+    canvas.addEventListener('mousedown', nativeState.mouseDownHandler, true);
+    canvas.addEventListener('mouseup', nativeState.mouseUpHandler, true);
+    canvas.addEventListener('click', nativeState.clickHandler, true);
+    canvas.addEventListener('dblclick', nativeState.doubleClickHandler, true);
+    canvas.addEventListener('auxclick', nativeState.auxClickHandler, true);
+    if (nativeState.document) {
+      try {
+        if (nativeState.document.defaultView) nativeState.document.defaultView.addEventListener('keydown', nativeState.keyDownHandler, true);
+        else nativeState.document.addEventListener('keydown', nativeState.keyDownHandler, true);
+      } catch(eKeyBind) {
+        try { nativeState.document.addEventListener('keydown', nativeState.keyDownHandler, true); } catch(eKeyFallback) {}
+      }
+    }
   }
 
   function drawNativeKeyShape(ctx, x, y, colour, transitionColour, shape, selected){
@@ -3771,6 +5002,7 @@ input[type="range"] {
     ctx.restore();
     state.nativeTimeline.geometry = geometry;
     state.timelineOverlay.attachedCount = state.proxy.layers.length;
+    renderNativeInteractionBarriers(canvas, geometry);
   }
 
   function installNativeTimelineRenderer(){
@@ -4089,12 +5321,38 @@ input[type="range"] {
     if (!record || !channelKeyExists(record, marker.frame, marker.channel)) return;
     removeChannelKeyMeta(record, marker.frame, marker.channel);
     if (node) applyTransformToObject(node, interpolatePose(record, currentProjectFrame()), false);
+
+    /* Right-click Delete, keyboard Delete and Cut all pass through this
+       function, so every deletion path updates the real clip immediately. */
+    var nativeSync = node
+      ? syncNodeNativeTweensInstantly(node, record)
+      : { ok: false, skipped: false, reason: "the animated clip could not be found" };
+
     state.timelineOverlay.selected = null;
     markProjectChanged();
     renderAll();
-    saveStagingData(false);
+    var stagingSaved = saveStagingData(false);
     queueProxySync();
-    setStatus("Deleted " + marker.channel + " key " + marker.frame + " for " + (node ? node.name : "part") + ".", "good");
+    requestNativeTimelineDraw();
+
+    if (!nativeSync.ok) {
+      setStatus(
+        "Deleted the " + marker.channel + " channel key in StickRig, but the stage clip could not be refreshed: " +
+        nativeSync.reason + ".",
+        "warn"
+      );
+    } else if (stagingSaved === false) {
+      setStatus(
+        "Deleted the " + marker.channel + " key and its native tween data, but editable Reanimate data could not be saved.",
+        "warn"
+      );
+    } else {
+      setStatus(
+        "Deleted " + marker.channel + " key " + marker.frame + " for " + (node ? node.name : "part") +
+        (nativeSync.skipped ? "." : " and removed its native stage tween data immediately."),
+        "good"
+      );
+    }
   }
 
   function handleTimelineOverlayKeydown(event){
@@ -4147,11 +5405,32 @@ input[type="range"] {
     record.keyTypes[newKey] = active.length && active.every(function(name){ return record.channelTypes[newKey][name] === "hold"; }) ? "hold" : "auto";
 
     if (node) applyTransformToObject(node, interpolatePose(record, currentProjectFrame()), false);
+    var nativeSync = node
+      ? syncNodeNativeTweensInstantly(node, record)
+      : { ok: false, skipped: false, reason: "the animated clip could not be found" };
     markProjectChanged();
     renderAll();
-    saveStagingData(false);
+    var stagingSaved = saveStagingData(false);
     queueProxySync();
-    setStatus("Moved " + channel + " key from " + oldFrame + " to " + newFrame + ".", "good");
+    requestNativeTimelineDraw();
+
+    if (!nativeSync.ok) {
+      setStatus(
+        "Moved the " + channel + " key in StickRig, but the stage clip could not be refreshed: " + nativeSync.reason + ".",
+        "warn"
+      );
+    } else if (stagingSaved === false) {
+      setStatus(
+        "Moved the " + channel + " key and updated the native tween, but editable Reanimate data could not be saved.",
+        "warn"
+      );
+    } else {
+      setStatus(
+        "Moved " + channel + " key from " + oldFrame + " to " + newFrame +
+        (nativeSync.skipped ? "." : " and updated the native stage tween immediately."),
+        "good"
+      );
+    }
   }
 
   function bindTimelineMarkerEvents(element, marker, groupRect, duration){
@@ -4241,10 +5520,15 @@ input[type="range"] {
     });
 
     element.addEventListener("contextmenu", function(event){
-      event.preventDefault();
-      event.stopPropagation();
+      stopTimelineMouseEvent(event);
       selectTimelineMarker(marker, element);
-      deleteTimelineMarker(marker);
+      showTimelineContextMenu(event, marker, {
+        nodeId: marker.nodeId,
+        channel: marker.channel,
+        duration: duration,
+        baseX: groupRect.left,
+        cellWidth: groupRect.width / Math.max(1, duration)
+      }, marker.frame);
     });
   }
 
@@ -4720,12 +6004,34 @@ input[type="range"] {
     return copy;
   }
 
+
+  function preserveIngestedClipIdentity(sourceClip, copiedClip){
+    if (!sourceClip || !copiedClip) return;
+    var sourceInfo = getObjectInfo(sourceClip);
+    var exactName = safeGet(sourceClip, "name");
+    if (exactName === undefined || exactName === null || exactName === "") exactName = safeGet(sourceClip, "_name");
+
+    /* Preserve the exact identifier and visible name from ingest. StickRig
+       must never prepend Committed_, append _Wrapper, or otherwise rename the
+       selected parent or any copied child clip. */
+    if (sourceInfo.identifier) {
+      try { copiedClip.identifier = sourceInfo.identifier; } catch(eIdentifier) {}
+    }
+    if (exactName !== undefined && exactName !== null && s(exactName) !== "") {
+      try { copiedClip.name = exactName; } catch(eName) {}
+      try { copiedClip._name = exactName; } catch(ePrivateName) {}
+    } else if (sourceInfo.name) {
+      try { copiedClip.name = sourceInfo.name; } catch(eFallbackName) {}
+      try { copiedClip._name = sourceInfo.name; } catch(eFallbackPrivateName) {}
+    }
+  }
+
   /*
    * Parent-origin rule:
-   * The committed wrapper must inherit the original root clip's loaded X/Y
-   * origin. The copied root is then placed at local 0,0 inside that wrapper.
-   * Child positions and child artwork bounds are never used to calculate the
-   * wrapper origin, and no recentering operation is performed.
+   * The surviving committed parent inherits the original root clip's loaded
+   * X/Y origin. The copied root hierarchy is placed at local 0,0 inside that
+   * parent so its native root tweens live in the parent's own timeline. Child
+   * positions and artwork bounds never calculate the parent origin.
    */
   function setExactClipTransform(clip, values){
     if (!clip || !values) return;
@@ -4770,16 +6076,20 @@ input[type="range"] {
     if (!sourceParentFrame) throw new Error("Could not find the selected root clip's containing stage frame");
 
     var origin = preservedBase || rootBaseForPreservedOrigin(sourceRoot, null);
+    var sourceInfo = getObjectInfo(sourceRoot);
     var rootName = getObjectName(sourceRoot, "RootClip");
-    var wrapper = createClip("Committed_" + rootName + "_Wrapper");
+    var wrapper = createClip(sourceInfo.identifier || sourceInfo.name || rootName);
+    preserveIngestedClipIdentity(sourceRoot, wrapper);
+    preserveIngestedClipIdentity(sourceRoot, rootCopy);
+
     var wrapperTimeline = getTimeline(wrapper);
     var wrapperLayer = getTimelineLayers(wrapperTimeline)[0];
     var wrapperFrame = wrapperLayer && getLayerFrames(wrapperLayer)[0];
-    if (!wrapperLayer || !wrapperFrame) throw new Error("The new wrapper clip did not contain its default layer and frame");
+    if (!wrapperLayer || !wrapperFrame) throw new Error("The new parent clip did not contain its default layer and frame");
     wrapperFrame.end = duration;
 
-    /* The wrapper owns the original parent origin. It remains otherwise
-       unrotated and unscaled, so root X/Y keys can be represented as simple
+    /* The replacement parent owns the original parent origin. It remains
+       otherwise unrotated and unscaled, so root X/Y keys can be represented as
        offsets from the preserved origin without changing their stage result. */
     setExactClipTransform(wrapper, {
       x: origin.x,
@@ -4789,9 +6099,9 @@ input[type="range"] {
       scaleY: 1
     });
 
-    /* The copied parent clip is centred on the wrapper's origin. Its original
-       rotation, scale and sign are retained. Internal child transforms are not
-       touched, so every child remains in exactly the same parent-local place. */
+    /* The copied ingested parent is centred on that preserved origin. Its
+       original rotation, scale, signs, exact name and exact identifier are
+       retained. Every copied child also keeps its ingested identity. */
     setExactClipTransform(rootCopy, {
       x: 0,
       y: 0,
@@ -4803,15 +6113,114 @@ input[type="range"] {
     sourceParentFrame.addClip(wrapper);
     wrapperFrame.addClip(rootCopy);
 
-    try { rootCopy.identifier = validIdentifier("Committed_" + (getObjectInfo(sourceRoot).identifier || rootName), "CommittedRoot"); } catch(e1) {}
-    try { rootCopy.name = "Committed " + rootName; } catch(e2) {}
-
     return {
       wrapper: wrapper,
       frame: wrapperFrame,
       sourceParentFrame: sourceParentFrame,
       preservedBase: origin
     };
+  }
+
+  function directFrameObjectList(frame){
+    var objects = [];
+    var seen = {};
+    collectFrameObjects(frame, objects, seen);
+    return objects;
+  }
+
+  function directFrameClipList(frame){
+    return directFrameObjectList(frame).filter(function(object){ return looksLikeClip(object); });
+  }
+
+  function prepareDirectRootCommitFrame(sourceRoot, rootCopy, duration){
+    var sourceParentFrame = getParentFrame(sourceRoot);
+    if (!sourceParentFrame) throw new Error("Could not find the selected root clip's containing frame");
+
+    var sourceLayer = parentLayerOfFrame(sourceParentFrame);
+    var sourceTimeline = sourceLayer ? parentTimelineOfLayer(sourceLayer) : null;
+    if (!sourceTimeline) throw new Error("Could not find the selected root clip's containing timeline");
+
+    var directObjects = directFrameObjectList(sourceParentFrame);
+    var canReuseSourceFrame = directObjects.length === 1 && directObjects[0] === sourceRoot;
+    var result = {
+      frame: null,
+      sourceParentFrame: sourceParentFrame,
+      sourceLayer: sourceLayer,
+      sourceTimeline: sourceTimeline,
+      createdLayer: null,
+      createdFrame: null,
+      reusedSourceFrame: canReuseSourceFrame,
+      originalFrameStart: getFrameStart(sourceParentFrame),
+      originalFrameEnd: getFrameEnd(sourceParentFrame),
+      originalTweens: getFrameTweens(sourceParentFrame).slice(),
+      rootCopyAttached: false
+    };
+
+    if (canReuseSourceFrame) {
+      /* Remove the old root immediately before inserting its replacement in
+         the same frame. This keeps one TopLeg clip, one identity and one
+         timeline location. The caller restores the old clip on any failure. */
+      removeChildFromFrame(sourceParentFrame, sourceRoot);
+      setFrameSpan(sourceParentFrame, 1, duration);
+      clearTweensOnFrame(sourceParentFrame);
+      addChildToFrame(sourceParentFrame, rootCopy);
+      result.frame = sourceParentFrame;
+      result.rootCopyAttached = true;
+      result.sourceRemovedDuringPrepare = true;
+      return result;
+    }
+
+    /* If the source frame contains other clips, use a dedicated sibling layer
+       so root tweens cannot modify those unrelated objects. This is a layer,
+       not another wrapper clip, and the source root is deleted after success. */
+    var layer = createLayer(getObjectName(sourceRoot, "RootClip"));
+    addLayerToTimeline(sourceTimeline, layer);
+    var frame = createFrame(1, duration);
+    addFrameToLayer(layer, frame);
+
+    /* Remove the source before attaching its same-named replacement. This
+       prevents Wick from ever containing two clips with the ingested identity,
+       even briefly during Commit. */
+    removeChildFromFrame(sourceParentFrame, sourceRoot);
+    addChildToFrame(frame, rootCopy);
+    result.createdLayer = layer;
+    result.createdFrame = frame;
+    result.frame = frame;
+    result.rootCopyAttached = true;
+    result.sourceRemovedDuringPrepare = true;
+    return result;
+  }
+
+  function rollbackDirectRootCommit(prepared, sourceRoot, rootCopy){
+    if (!prepared) return;
+    try {
+      if (prepared.rootCopyAttached && prepared.frame && rootCopy) {
+        removeChildFromFrame(prepared.frame, rootCopy);
+      }
+    } catch(eRemoveCopy) {}
+
+    try {
+      if (prepared.createdLayer && prepared.sourceTimeline) {
+        removeLayerFromTimeline(prepared.sourceTimeline, prepared.createdLayer);
+      }
+    } catch(eRemoveLayer) {}
+
+    try {
+      if (prepared.reusedSourceFrame && prepared.sourceParentFrame) {
+        clearTweensOnFrame(prepared.sourceParentFrame);
+        (prepared.originalTweens || []).forEach(function(tween){
+          try { addTweenToFrame(prepared.sourceParentFrame, tween); } catch(eTween) {}
+        });
+        setFrameSpan(prepared.sourceParentFrame, prepared.originalFrameStart, prepared.originalFrameEnd);
+      }
+    } catch(eRestoreFrame) {}
+
+    try {
+      if (prepared.sourceParentFrame && sourceRoot) {
+        var restoredClips = directFrameClipList(prepared.sourceParentFrame);
+        if (restoredClips.indexOf(sourceRoot) === -1) addChildToFrame(prepared.sourceParentFrame, sourceRoot);
+      }
+    } catch(eRestoreSource) {}
   }
 
   function preflightNativeCommit(){
@@ -4900,7 +6309,243 @@ input[type="range"] {
     try { clip._isSynced = !!synced; } catch(e2) {}
   }
 
-  function commitNativeKeys(){
+  /*
+   * StickRig now writes native Wick tween data while the user is editing.
+   * Reanimate uses the already-isolated committed frames. A normal Load keeps
+   * the user's clip objects and hierarchy, and only moves a clip to a sibling
+   * layer when its current frame also contains unrelated objects. No wrapper,
+   * copied clip or renamed clip is created.
+   */
+  function mappedLiveNativeFrame(node){
+    if (!node || !state.liveNative || !state.liveNative.frames) return null;
+    var frame = state.liveNative.frames[node.id] || null;
+    if (!frame) return null;
+    try {
+      if (getParentFrame(node.obj) === frame) return frame;
+    } catch(eParent) {}
+    delete state.liveNative.frames[node.id];
+    return null;
+  }
+
+  function prepareInstantNativeFrame(node, duration){
+    if (!node || !node.obj) throw new Error("the animated clip is missing");
+    var mapped = mappedLiveNativeFrame(node);
+    if (mapped) {
+      setFrameSpan(mapped, 1, duration);
+      return mapped;
+    }
+
+    var currentFrame = getParentFrame(node.obj);
+    if (!currentFrame) throw new Error("the clip's containing frame could not be found");
+    var directObjects = directFrameObjectList(currentFrame);
+    var canReuse = directObjects.length === 1 && directObjects[0] === node.obj;
+    var targetFrame = currentFrame;
+
+    if (!canReuse) {
+      var oldLayer = parentLayerOfFrame(currentFrame);
+      var parentTimeline = oldLayer ? parentTimelineOfLayer(oldLayer) : null;
+      if (!parentTimeline) throw new Error("the clip's containing timeline could not be found");
+
+      var liveLayer = createLayer(node.name || getObjectName(node.obj, "Animated Clip"));
+      addLayerToTimeline(parentTimeline, liveLayer);
+      targetFrame = createFrame(1, duration);
+      addFrameToLayer(liveLayer, targetFrame);
+      removeChildFromFrame(currentFrame, node.obj);
+      addChildToFrame(targetFrame, node.obj);
+    }
+
+    setFrameSpan(targetFrame, 1, duration);
+    state.liveNative.active = true;
+    state.liveNative.frames[node.id] = targetFrame;
+    node.committedFrame = targetFrame;
+    return targetFrame;
+  }
+
+  function syncNodeNativeTweensInstantly(node, record){
+    if (!node || !node.obj || !record) {
+      return { ok: false, skipped: false, reason: "animated node or animation record is missing", count: 0 };
+    }
+
+    try {
+      var frame = null;
+      var duration = Math.max(
+        1,
+        Math.round(n(getProjectDuration(), state.reanimate && state.reanimate.active ? state.reanimate.duration || 1 : 1))
+      );
+
+      if (state.reanimate && state.reanimate.active) {
+        frame = getParentFrame(node.obj);
+        if (!frame) throw new Error("the existing native animation frame could not be found");
+      } else {
+        var mapped = mappedLiveNativeFrame(node);
+        var currentFrame = getParentFrame(node.obj);
+        var currentTweenCount = currentFrame ? getFrameTweens(currentFrame).length : 0;
+        var hasKeys = sortedKeyFrames(record).length > 0;
+
+        /* Do not restructure an untouched clip merely because another limb in
+           the rig is already live. A frame is prepared only when this node has
+           keys, has already been prepared, or already contains native tweens
+           that now need to be changed or cleared. */
+        if (!hasKeys && !mapped && currentTweenCount === 0) {
+          return { ok: true, skipped: true, count: 0 };
+        }
+        frame = mapped || prepareInstantNativeFrame(node, duration);
+      }
+
+      setFrameSpan(frame, 1, duration);
+      var count = addNativeTweensForNode(frame, record);
+      setClipSynced(node.obj, count > 0);
+
+      var timeline = getTimeline(node.obj);
+      if (timeline) {
+        getTimelineLayers(timeline).forEach(function(layer){
+          getLayerFrames(layer).forEach(function(childFrame){
+            if (getFrameEnd(childFrame) < duration) {
+              setFrameSpan(childFrame, getFrameStart(childFrame), duration);
+            }
+          });
+        });
+      }
+
+      try {
+        if (frame.view && typeof frame.view.render === "function") frame.view.render();
+      } catch(eFrameRender) {}
+
+      markProjectChanged();
+      return { ok: true, skipped: false, count: count, frame: frame };
+    } catch(error) {
+      return {
+        ok: false,
+        skipped: false,
+        reason: error && error.message ? error.message : String(error),
+        count: 0
+      };
+    }
+  }
+
+  function queueNodeNativeTweenSync(node, record, immediate){
+    if (!state.liveNative) resetLiveNativeState();
+    var id = node && node.id ? node.id : "";
+    if (id && state.liveNative.syncTimers[id]) {
+      clearTimeout(state.liveNative.syncTimers[id]);
+      delete state.liveNative.syncTimers[id];
+    }
+    if (immediate !== false) return syncNodeNativeTweensInstantly(node, record);
+
+    if (!id) return { ok: false, skipped: false, reason: "animated node id is missing", count: 0 };
+    state.liveNative.syncTimers[id] = setTimeout(function(){
+      delete state.liveNative.syncTimers[id];
+      var currentNode = state.nodeMap[id];
+      var currentRecord = getNodeRecord(id);
+      if (!currentNode || !currentRecord) return;
+      var result = syncNodeNativeTweensInstantly(currentNode, currentRecord);
+      if (!result.ok) {
+        setStatus("The live native tween could not be refreshed: " + result.reason + ".", "warn");
+      }
+      requestNativeTimelineDraw();
+    }, 35);
+    return { ok: true, skipped: false, pending: true, count: 0 };
+  }
+
+  function replaceReanimatedAnimationInPlace(){
+    if (state.committing) return;
+    if (!state.reanimate || !state.reanimate.active || !state.reanimate.wrapper || !state.reanimate.root) {
+      setStatus("Reanimate the committed rig before replacing its animation.", "warn");
+      return;
+    }
+    if (state.root !== state.reanimate.root) {
+      setStatus("The loaded rig no longer matches the reanimated committed rig.", "bad");
+      return;
+    }
+    if (!state.nodes.length) {
+      setStatus("The reanimated rig hierarchy is empty.", "warn");
+      return;
+    }
+
+    state.committing = true;
+    setStatus("Replacing the committed rig's native animation in place…", "");
+
+    try {
+      refreshRefs();
+      var duration = Math.max(1, Math.round(n(getProjectDuration(), state.reanimate.duration || 1)));
+      var currentFrame = currentProjectFrame();
+      var entries = [];
+
+      state.nodes.forEach(function(node){
+        var record = getNodeRecord(node.id);
+        var frame = getParentFrame(node.obj);
+        if (!record) throw new Error("Animation data is missing for " + node.name);
+        if (!frame) throw new Error("The existing committed frame could not be found for " + node.name);
+        entries.push({ node: node, record: record, frame: frame });
+      });
+
+      /* Validate the existing hierarchy before changing anything. No clips,
+         wrappers, layers or dedicated frames are created in this path. */
+      if (!entries.length || entries[0].node.obj !== state.reanimate.root) {
+        throw new Error("The existing committed root could not be matched");
+      }
+
+      entries.forEach(function(entry){
+        setFrameSpan(entry.frame, 1, duration);
+        clearTweensOnFrame(entry.frame);
+      });
+
+      var totalTweens = 0;
+      entries.forEach(function(entry){
+        totalTweens += addNativeTweensForNode(entry.frame, entry.record);
+        setClipSynced(entry.node.obj, true);
+
+        /* Keep the existing clip timelines long enough for synced playback,
+           but never move or duplicate any clip. */
+        var timeline = getTimeline(entry.node.obj);
+        if (timeline) {
+          getTimelineLayers(timeline).forEach(function(layer){
+            var frames = getLayerFrames(layer);
+            frames.forEach(function(frame){
+              if (getFrameEnd(frame) < duration) setFrameSpan(frame, getFrameStart(frame), duration);
+            });
+          });
+        }
+      });
+
+      /* Preserve the editable separate-channel data on the existing committed
+         root so a later Reanimate reads exactly these replacement keys. */
+      saveStagingData(false);
+
+      try {
+        var mainTimeline = getMainTimeline();
+        if (mainTimeline) mainTimeline.playheadPosition = currentFrame;
+      } catch(ePlayhead) {}
+
+      removeStickRigProxyLayers();
+      markProjectChanged();
+
+      try {
+        var wrapperTimeline = getTimeline(state.reanimate.wrapper);
+        if (wrapperTimeline && wrapperTimeline.activeFrames) {
+          wrapperTimeline.activeFrames.forEach(function(frame){
+            if (frame && frame.view && typeof frame.view.render === "function") frame.view.render();
+          });
+        }
+      } catch(eRender) {}
+
+      setupStickRigProxyLayers();
+      renderAll();
+      setStatus(
+        "Reanimated rig updated in place. All previous native tweens were cleared and replaced with " +
+        totalTweens + " tween" + (totalTweens === 1 ? "" : "s") + ". No clips were added.",
+        "good"
+      );
+    } catch(error) {
+      console.error(error);
+      markProjectChanged();
+      setStatus("Reanimated rig replacement failed: " + (error && error.message ? error.message : String(error)), "bad");
+    } finally {
+      state.committing = false;
+    }
+  }
+
+  function finaliseLiveNativeCommit(){
     if (state.committing) return;
     if (!state.root || !state.nodes.length) {
       setStatus("Read a selected clip before committing.", "warn");
@@ -4908,114 +6553,145 @@ input[type="range"] {
     }
 
     state.committing = true;
-    setStatus("Creating a safe copied hierarchy and writing native Wick tweens…", "");
+    setStatus("Finalising the native animation already written to the selected clips…", "");
+    var metadataWarning = "";
 
-    var wrapper = null;
     try {
       refreshRefs();
-      preflightNativeCommit();
-      saveStagingData(false);
-
-      var duration = getProjectDuration();
-      var currentFrame = currentProjectFrame();
-      var rootCopy = copyRootHierarchy(state.root);
-      var copyNodeMap = {};
+      var duration = Math.max(1, getProjectDuration());
+      var totalTweens = 0;
+      var failed = [];
 
       state.nodes.forEach(function(node){
-        var copiedObject = node.isRoot ? rootCopy : resolveCopiedPath(rootCopy, node.path || []);
-        if (!copiedObject) throw new Error("Could not match copied clip: " + node.name);
-        copyNodeMap[node.id] = copiedObject;
+        var record = getNodeRecord(node.id);
+        if (!record) return;
+        var result = syncNodeNativeTweensInstantly(node, record);
+        if (!result.ok) failed.push(node.name + ": " + result.reason);
+        else totalTweens += n(result.count, 0);
       });
+      if (failed.length) throw new Error(failed.join("; "));
 
-      Object.keys(copyNodeMap).forEach(function(id){
-        ensureClipTimelineDuration(copyNodeMap[id], duration);
-      });
-
+      var committedAnimation = cloneAnimationData(serializableAnimation());
+      committedAnimation.root = getObjectInfo(state.root);
       var rootRecord = getNodeRecord(state.nodes[0].id);
       var preservedRootBase = rootBaseForPreservedOrigin(state.root, rootRecord);
-      var wrap = createCommittedWrapper(state.root, rootCopy, duration, preservedRootBase);
-      wrapper = wrap.wrapper;
-      var totalTweens = 0;
+      var committedManifest = buildCommittedManifest(
+        state.root,
+        state.root,
+        duration,
+        committedAnimation,
+        preservedRootBase
+      );
+      committedManifest.directRoot = true;
+      committedManifest.internalTimelineRoot = false;
+      committedManifest.noWrapper = true;
+      committedManifest.liveNative = true;
 
-      if (rootRecord) {
-        totalTweens += addNativeTweensForRootAtPreservedOrigin(
-          wrap.frame,
-          rootRecord,
-          preservedRootBase
-        );
+      /* Save the exact separate channel maps first, then attach committed
+         metadata to the same surviving parent. Animation is never copied,
+         wrapped or recreated during Commit. */
+      saveStagingData(false);
+      var committedWrite = writeCommittedDataToObjectRobust(state.root, committedManifest);
+      if (committedWriteFailed(committedWrite)) {
+        metadataWarning =
+          "The native animation was kept. Exact Reanimate metadata could not be attached (" +
+          (committedWrite.reason || "target not found") +
+          "), so Reanimate will reconstruct keys from the native tweens.";
+      } else {
+        clearStagingBlockOnObject(state.root);
       }
-      setClipSynced(rootCopy, true);
 
-      var nonRootNodes = state.nodes.slice(1).sort(function(a, b){ return a.depth - b.depth; });
-      nonRootNodes.forEach(function(node){
-        var record = getNodeRecord(node.id);
-        var copiedChild = copyNodeMap[node.id];
-        var copiedParent = copyNodeMap[node.parentId];
-        if (!record || !copiedChild || !copiedParent) return;
-        ensureClipTimelineDuration(copiedParent, duration);
-        ensureClipTimelineDuration(copiedChild, duration);
-        var frame = createDedicatedLayerFrame(copiedParent, copiedChild, duration, node.name + "_Animated");
-        totalTweens += addNativeTweensForNode(frame, record);
-        setClipSynced(copiedChild, true);
-      });
-
-      try {
-        var mainTimeline = getMainTimeline();
-        if (mainTimeline) mainTimeline.playheadPosition = currentFrame;
-      } catch(ePlayhead) {}
-
-      clearStagingBlockOnObject(rootCopy);
-      clearStagingBlock();
       removeStickRigProxyLayers();
       markProjectChanged();
 
-      try {
-        if (wrapper && wrapper.timeline && wrapper.timeline.activeFrames) {
-          wrapper.timeline.activeFrames.forEach(function(frame){
-            if (frame && frame.view && typeof frame.view.render === "function") frame.view.render();
-          });
-        }
-      } catch(eRender) {}
+      $("commitBtn").disabled = true;
+      $("saveBtn").disabled = true;
+      $("jsonBtn").disabled = true;
+      $("clearAllBtn").disabled = true;
+
+      state.root = null;
+      state.rootInfo = null;
+      state.rootName = "";
+      state.nodes = [];
+      state.nodeMap = {};
+      state.anim = { version: 1, root: null, nodes: {} };
+      state.activeId = "";
+      state.openIds = {};
+      state.openChannels = {};
+      resetReanimateState();
+      resetLiveNativeState();
 
       renderAll();
       setStatus(
-        "Commit complete. The original clip was left untouched. The committed wrapper uses the original parent origin, the copied parent is local 0,0, and " +
-        totalTweens + " native tween" + (totalTweens === 1 ? "" : "s") + " were written across " + state.nodes.length + " clip level" +
-        (state.nodes.length === 1 ? "" : "s") + ".",
-        "good"
+        "Commit complete. The animation was already written directly to the original clips while editing. " +
+        "No clip was copied, deleted, wrapped or renamed. " + totalTweens + " native tween" +
+        (totalTweens === 1 ? "" : "s") + " remain in place." +
+        (metadataWarning ? " " + metadataWarning : ""),
+        metadataWarning ? "warn" : "good"
       );
     } catch(error) {
       console.error(error);
-      try {
-        if (wrapper && wrapper.parentFrame && typeof wrapper.parentFrame.removeClip === "function") wrapper.parentFrame.removeClip(wrapper);
-      } catch(eRollback) {}
       markProjectChanged();
-      setStatus("Commit failed safely; the original clip was not removed. " + (error && error.message ? error.message : String(error)), "bad");
+      setStatus(
+        "Commit could not finalise the metadata, but the native animation already written to the clips was not removed. " +
+        (error && error.message ? error.message : String(error)),
+        "bad"
+      );
     } finally {
       state.committing = false;
     }
+  }
+
+  function commitNativeKeys(){
+    if (state.committing) return;
+    if (!state.root || !state.nodes.length) {
+      setStatus("Read a selected clip before committing.", "warn");
+      return;
+    }
+
+    if (state.reanimate && state.reanimate.active) {
+      replaceReanimatedAnimationInPlace();
+      return;
+    }
+
+    finaliseLiveNativeCommit();
   }
 
   function cleanupStickRigRuntime(){
     if (state.cleanupDone) return;
     state.cleanupDone = true;
 
+    var nativeGui = state.nativeTimeline.lastTimelineGUI;
+    var nativeOriginalDraw = state.nativeTimeline.originalDraw;
+
     try { clearTimeout(state.saveTimer); } catch(eSaveTimer) {}
     try { clearTimeout(state.proxySyncTimer); } catch(eProxyTimer) {}
     try { clearTimeout(state.timelineOverlay.retryTimer); } catch(eRetryTimer) {}
+    try {
+      Object.keys((state.liveNative && state.liveNative.syncTimers) || {}).forEach(function(id){
+        clearTimeout(state.liveNative.syncTimers[id]);
+      });
+    } catch(eLiveTimers) {}
     try { if (state.framePollTimer) clearInterval(state.framePollTimer); } catch(eFrameTimer) {}
     try { if (state.proxyWatchTimer) clearInterval(state.proxyWatchTimer); } catch(eWatchTimer) {}
+    try { if (state.lifecycleWatchTimer) clearInterval(state.lifecycleWatchTimer); } catch(eLifeTimer) {}
     state.saveTimer = null;
     state.proxySyncTimer = null;
     state.timelineOverlay.retryTimer = null;
     state.framePollTimer = null;
     state.proxyWatchTimer = null;
+    state.lifecycleWatchTimer = null;
 
+    /* Disable drawing and hit interception before removing the temporary Wick
+       layers. This prevents one final StickRig renderer pass during close. */
+    state.proxy.active = false;
+    state.nativeTimeline.geometry = [];
     try { uninstallNativeTimelineRenderer(true); } catch(eRendererCleanup) {}
     try { removeStickRigProxyLayers(); } catch(eLayerCleanup) {}
-    try { removeTimelineOverlay(); } catch(eOverlayCleanup) {}
-    try { restoreTimelineRowStyles(); } catch(eRowCleanup) {}
     try { removeStaleStickRigProxyLayers(getMainTimeline()); } catch(eStaleCleanup) {}
+    try { removeTimelineOverlay(); } catch(eOverlayCleanup) {}
+    try { removeAllStickRigTimelineDom(); } catch(eDomCleanup) {}
+    try { restoreTimelineRowStyles(); } catch(eRowCleanup) {}
 
     try {
       if (state.cleanupObserver) state.cleanupObserver.disconnect();
@@ -5029,11 +6705,31 @@ input[type="range"] {
       }
     } catch(eParentKey) {}
 
-    /* The custom renderer drew directly into Wick's timeline canvas. Clear
-       that canvas once and call Wick's restored original renderer so no blue
-       frame strip, channel line, selection outline or hit area survives. */
-    try { requestNativeTimelineDraw(true); } catch(eFinalDraw) {}
+    /* StickRig draws the coloured S/M/R strips directly into Wick's canvas.
+       Clear that bitmap and invoke the original native renderer immediately,
+       then again on the next two parent animation frames. */
     try { markProjectChanged(); } catch(eMark) {}
+    try { forceNativeTimelineRestore(nativeGui, nativeOriginalDraw); } catch(eRestoreCanvas) {}
+  }
+
+  function stickRigFrameIsVisible(frame){
+    if (!frame || !frame.isConnected) return false;
+    var doc = frame.ownerDocument;
+    var view = doc ? doc.defaultView : null;
+    var current = frame;
+    while (current && current.nodeType === 1) {
+      try {
+        var style = view && typeof view.getComputedStyle === "function" ? view.getComputedStyle(current) : null;
+        if (style && (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse")) return false;
+      } catch(eStyle) {}
+      current = current.parentElement;
+    }
+    try {
+      var rect = frame.getBoundingClientRect();
+      return rect.width > 1 && rect.height > 1 && frame.getClientRects().length > 0;
+    } catch(eRect) {
+      return true;
+    }
   }
 
   function installStickRigLifecycleGuard(){
@@ -5057,12 +6753,37 @@ input[type="range"] {
             if (!frame.isConnected || !parentDocument.documentElement.contains(frame)) cleanupStickRigRuntime();
           } catch(eCheck) {}
         });
-        state.cleanupObserver.observe(parentDocument.documentElement, { childList: true, subtree: true });
+        state.cleanupObserver.observe(parentDocument.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class", "hidden"] });
+      }
+
+      /* Luke Tools can close a tool by hiding its iframe rather than removing
+         it, so unload and MutationObserver alone are not sufficient. Once the
+         panel has been visibly open, two consecutive hidden checks mean Close
+         was used and cleanup must run immediately. */
+      if (frame) {
+        state.lifecycleWatchTimer = setInterval(function(){
+          if (state.cleanupDone) return;
+          var visible = stickRigFrameIsVisible(frame);
+          if (visible) {
+            state.lifecycleSeenVisible = true;
+            state.lifecycleHiddenChecks = 0;
+            return;
+          }
+          if (!frame.isConnected) {
+            cleanupStickRigRuntime();
+            return;
+          }
+          if (state.lifecycleSeenVisible) {
+            state.lifecycleHiddenChecks += 1;
+            if (state.lifecycleHiddenChecks >= 2) cleanupStickRigRuntime();
+          }
+        }, 180);
       }
     } catch(eMutation) {}
   }
 
   $("readBtn").addEventListener("click", readSelectedClip);
+  $("reanimateBtn").addEventListener("click", reanimateSelectedRig);
   $("saveBtn").addEventListener("click", function(){ saveStagingData(true); });
   $("jsonBtn").addEventListener("click", saveRigJson);
   $("commitBtn").addEventListener("click", commitNativeKeys);
