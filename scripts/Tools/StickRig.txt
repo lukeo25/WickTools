@@ -1,0 +1,4992 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Luke Tools StickRig GPT v41.0</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #111822;
+  --panel: #152334;
+  --panel2: #0d1722;
+  --line: #2d435d;
+  --line2: #3d5877;
+  --text: #e3edf8;
+  --muted: #9fb2c8;
+  --blue: #4da8ff;
+  --blue2: #173f6b;
+  --gold: #e2b53d;
+  --green: #1ee29a;
+  --red: #d57979;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+button,
+input {
+  font: inherit;
+}
+button {
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: #1d3044;
+  color: var(--text);
+  padding: 8px 10px;
+  cursor: pointer;
+}
+button:hover {
+  background: #27435e;
+}
+button.primary {
+  border-color: var(--blue);
+  background: var(--blue2);
+}
+button.primary:hover {
+  background: #20558d;
+}
+button.active {
+  border-color: var(--gold);
+  color: #fff4c6;
+  box-shadow: inset 0 0 0 1px rgba(226,181,61,0.22);
+}
+button.danger {
+  border-color: #8a4d57;
+  background: #4b2730;
+  color: #ffd7de;
+}
+button.good {
+  border-color: #2b8b65;
+  background: #174837;
+  color: #d4ffe7;
+}
+button:disabled,
+input:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+input[type="number"] {
+  width: 82px;
+  min-width: 0;
+  border: 1px solid var(--line2);
+  border-radius: 7px;
+  background: #08111a;
+  color: var(--text);
+  padding: 7px 8px;
+}
+input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--blue);
+}
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#header {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--line);
+  background: #111b28;
+  padding: 10px;
+}
+#titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#title {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+#title strong {
+  display: block;
+  font-size: 15px;
+  color: #bfe7ff;
+}
+#title span {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+#toolbar {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+#toolbar button {
+  width: 100%;
+  min-width: 0;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+#framePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  background: #0a121b;
+  color: #cfe3f5;
+  font-size: 12px;
+}
+#frameValue {
+  color: var(--green);
+  font-weight: bold;
+}
+#main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 10px 120px;
+}
+#empty {
+  padding: 18px;
+  border: 1px dashed var(--line2);
+  border-radius: 10px;
+  background: #0d1722;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+#cards {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.partCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #172637 0%, #101b29 100%);
+  overflow: hidden;
+}
+.partCard.active {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 1px rgba(226,181,61,0.18);
+}
+.partCard.hasKey {
+  border-left: 4px solid var(--green);
+}
+.partHead {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 9px;
+  background: rgba(7,15,23,0.28);
+}
+.depthPad {
+  flex: 0 0 auto;
+  width: 0;
+}
+.expandBtn {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.partIdentity {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.partName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #e8f3ff;
+  font-size: 13px;
+  font-weight: bold;
+}
+.animateBtn.active {
+  border-color: var(--gold);
+  color: #fff4c6;
+}
+.keyBadge {
+  flex: 0 0 auto;
+  min-width: 58px;
+  text-align: center;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.keyBadge.keyed {
+  border-color: var(--green);
+  color: #baffdf;
+}
+.partBody {
+  display: none;
+  padding: 9px;
+  border-top: 1px solid var(--line);
+}
+.partCard.open .partBody {
+  display: block;
+}
+.channelGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.channelPanel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(5, 12, 19, 0.34);
+  overflow: hidden;
+}
+.channelPanel.move {
+  border-left: 3px solid #24c7a5;
+}
+.channelPanel.scale {
+  border-left: 3px solid #4da8ff;
+}
+.channelPanel.rotate {
+  border-left: 3px solid #c084fc;
+}
+.channelHead {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto auto;
+  gap: 6px;
+  align-items: center;
+  padding: 7px;
+  background: rgba(12, 25, 37, 0.7);
+  cursor: pointer;
+}
+.channelToggleBtn {
+  width: 30px;
+  height: 28px;
+  min-width: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.channelTitle {
+  min-width: 0;
+  font-size: 11px;
+  font-weight: bold;
+  color: #e8f3ff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.channelSetBtn {
+  min-width: 58px;
+  padding: 5px 6px;
+  font-size: 10px;
+}
+.channelBody,
+.channelFooter {
+  display: none;
+}
+.channelPanel.open .channelBody {
+  display: block;
+  padding: 8px;
+  border-top: 1px solid var(--line);
+}
+.channelPanel.open .channelFooter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 7px;
+  padding: 8px;
+  border-top: 1px solid var(--line);
+  background: rgba(8, 17, 26, 0.55);
+}
+.controlRow {
+  display: grid;
+  grid-template-columns: 22px minmax(70px, 1fr) 64px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.controlRow:last-child {
+  margin-bottom: 0;
+}
+.controlLabel {
+  color: #bed0e2;
+  font-size: 10px;
+  text-align: center;
+}
+.controlRow input[type="number"] {
+  width: 64px;
+}
+.rotateControl {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rotateDialArea {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0 2px;
+  touch-action: none;
+  user-select: none;
+}
+.rotateDialArea.disabled {
+  opacity: 0.55;
+}
+.rotateDialSvg {
+  width: 176px;
+  height: 176px;
+  display: block;
+  overflow: visible;
+}
+.rotateDialOuter {
+  fill: rgba(255,255,255,0.24);
+  stroke: #b8d8ff;
+  stroke-width: 2;
+}
+.rotateDialInner {
+  fill: #31343a;
+  stroke: #b8d8ff;
+  stroke-width: 2;
+}
+.rotateDialHandle {
+  stroke: #f2f2f2;
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+.rotateDialQuickDot {
+  fill: #8fd14f;
+  stroke: #072038;
+  stroke-width: 2;
+  cursor: pointer;
+}
+.rotateDialQuickLabel {
+  fill: #dfefff;
+  font-size: 8px;
+  font-weight: bold;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+.rotateDialHint {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(7,17,28,0.72);
+  border: 1px solid var(--line2);
+  color: #bdd4e9;
+  font-size: 9px;
+  pointer-events: none;
+}
+.rotateValueRow {
+  display: grid;
+  grid-template-columns: 56px minmax(78px, 1fr) 56px;
+  gap: 8px;
+  align-items: center;
+}
+.rotateCurrentValue {
+  width: 100% !important;
+  text-align: center;
+}
+.rotateLimit {
+  width: 100% !important;
+  text-align: center;
+}
+.transitionSelect {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line2);
+  border-radius: 7px;
+  background: #08111a;
+  color: var(--text);
+  padding: 6px;
+  font-size: 10px;
+}
+.transitionSelect.linear { border-color: #2bb5a8; }
+.transitionSelect.ease-in { border-color: #4da8ff; }
+.transitionSelect.ease-out { border-color: #f2a65a; }
+.transitionSelect.ease-in-out { border-color: #a78bfa; }
+.channelDeleteBtn {
+  width: 100%;
+  min-width: 0;
+  padding: 6px;
+  font-size: 10px;
+}
+.cardActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 9px;
+}
+.cardActions button {
+  width: 100%;
+  min-width: 0;
+}
+#status {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  max-height: 84px;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(6,12,18,0.96);
+  color: #c7d7e7;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 10px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  z-index: 20;
+}
+#status.good {
+  border-color: #277d61;
+}
+#status.bad {
+  border-color: #914f59;
+  color: #ffd8df;
+}
+#status.warn {
+  border-color: #8b7432;
+  color: #fff0b5;
+}
+@media (max-width: 620px) {
+  #toolbar {
+    grid-template-columns: repeat(6, minmax(72px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .controlRow {
+    grid-template-columns: 24px minmax(80px, 1fr) 72px;
+  }
+  .controlRow input[type="number"] {
+    width: 72px;
+  }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="titleRow">
+      <div id="title">
+        <strong>StickRig</strong>
+        <span>Move • Scale • Rotate</span>
+      </div>
+      <div id="framePill">Frame <span id="frameValue">1</span></div>
+    </div>
+
+    <div id="toolbar">
+      <button id="readBtn" class="primary" type="button">Load</button>
+      <button id="saveBtn" type="button" disabled>Save</button>
+      <button id="jsonBtn" type="button" disabled>Rig JSON</button>
+      <button id="commitBtn" class="good" type="button" disabled>Commit</button>
+      <button id="refreshFrameBtn" type="button">Refresh</button>
+      <button id="clearAllBtn" class="danger" type="button" disabled>Clear</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="empty">Select a clip, then Load.</div>
+    <div id="cards"></div>
+  </div>
+</div>
+
+<div id="status">Ready.</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var VERSION = "41.0";
+  var BLOCK_START = "// LukeTools Native Clip Stack Commit GPT v4 BEGIN";
+  var BLOCK_END = "// LukeTools Native Clip Stack Commit GPT v4 END";
+  var DATA_BEGIN = "/* LT_NCSA_DATA_BEGIN */";
+  var DATA_END = "/* LT_NCSA_DATA_END */";
+
+
+  var CHANNELS = ["move", "scale", "rotate"];
+  var TRANSITIONS = {
+    "none": { label: "Linear", colour: "#2bb5a8", css: "linear" },
+    "in": { label: "Ease In", colour: "#4da8ff", css: "ease-in" },
+    "out": { label: "Ease Out", colour: "#f2a65a", css: "ease-out" },
+    "in-out": { label: "Ease In/Out", colour: "#a78bfa", css: "ease-in-out" },
+    "hold": { label: "Hold", colour: "#e2b53d", css: "hold" }
+  };
+
+  var state = {
+    bridge: null,
+    editor: null,
+    project: null,
+    root: null,
+    rootInfo: null,
+    rootName: "",
+    nodes: [],
+    nodeMap: {},
+    anim: {
+      version: 1,
+      root: null,
+      nodes: {}
+    },
+    activeId: "",
+    openIds: {},
+    openChannels: {},
+    frame: 1,
+    lastPolledFrame: 1,
+    saveTimer: null,
+    proxySyncTimer: null,
+    proxyWatchTimer: null,
+    proxyWatchBusy: false,
+    framePollTimer: null,
+    cleanupObserver: null,
+    cleanupDone: false,
+    parentCleanupKey: "__LukeToolsStickRigCleanup",
+    reading: false,
+    committing: false,
+    proxy: {
+      active: false,
+      timeline: null,
+      layers: [],
+      previousActiveLayer: null,
+      syncing: false,
+      ignoreChangesUntil: 0
+    },
+    timelineOverlay: {
+      root: null,
+      style: null,
+      selected: null,
+      drag: null,
+      keyboardBound: false,
+      parentDocument: null,
+      modifiedRows: [],
+      attachedCount: 0,
+      attachAttempts: 0,
+      warningShown: false,
+      retryTimer: null,
+      rulerGrid: null
+    },
+    nativeTimeline: {
+      installed: false,
+      canvas: null,
+      document: null,
+      geometry: [],
+      drag: null,
+      pointerDownHandler: null,
+      pointerMoveHandler: null,
+      pointerUpHandler: null,
+      pointerCancelHandler: null,
+      contextMenuHandler: null,
+      keyDownHandler: null,
+      lastTimelineGUI: null,
+      TimelineClass: null,
+      prototype: null,
+      originalDraw: null
+    }
+  };
+
+  function $(id){
+    return document.getElementById(id);
+  }
+
+  function s(value){
+    return value === null || value === undefined ? "" : String(value);
+  }
+
+  function n(value, fallback){
+    var num = Number(value);
+    return isFinite(num) ? num : fallback;
+  }
+
+  function round3(value){
+    return Math.round(n(value, 0) * 1000) / 1000;
+  }
+
+  function clamp(value, min, max){
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function htmlEscape(value){
+    return s(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function setStatus(message, type){
+    var el = $("status");
+    el.textContent = s(message);
+    el.className = type || "";
+  }
+
+  function getBridge(){
+    try {
+      if (window.LukeToolsBridge) return window.LukeToolsBridge;
+    } catch(e1) {}
+    try {
+      if (window.parent && window.parent.LukeToolsBridge) return window.parent.LukeToolsBridge;
+    } catch(e2) {}
+    try {
+      if (window.top && window.top.LukeToolsBridge) return window.top.LukeToolsBridge;
+    } catch(e3) {}
+    return null;
+  }
+
+  function getEditor(bridge){
+    try {
+      if (bridge && typeof bridge.getEditor === "function") return bridge.getEditor();
+    } catch(e1) {}
+    try {
+      if (window.parent && window.parent.wickEditor && window.parent.wickEditor.editor) return window.parent.wickEditor.editor;
+    } catch(e2) {}
+    try {
+      if (window.parent && window.parent.editor) return window.parent.editor;
+    } catch(e3) {}
+    return null;
+  }
+
+  function getProject(bridge, editor){
+    try {
+      if (bridge && typeof bridge.getProject === "function") return bridge.getProject();
+    } catch(e1) {}
+    try {
+      if (editor && editor.project) return editor.project;
+    } catch(e2) {}
+    return null;
+  }
+
+  function refreshRefs(){
+    state.bridge = getBridge();
+    state.editor = getEditor(state.bridge);
+    state.project = getProject(state.bridge, state.editor);
+    return !!state.project;
+  }
+
+  function safeGet(obj, key){
+    try {
+      return obj ? obj[key] : undefined;
+    } catch(e) {
+      return undefined;
+    }
+  }
+
+  function getWickNamespace(){
+    try {
+      if (window.Wick) return window.Wick;
+    } catch(e1) {}
+    try {
+      if (window.parent && window.parent.Wick) return window.parent.Wick;
+    } catch(e2) {}
+    try {
+      if (window.top && window.top.Wick) return window.top.Wick;
+    } catch(e3) {}
+    return null;
+  }
+
+  function getObjectName(obj, fallback){
+    var value = safeGet(obj, "identifier");
+    if (typeof value === "string" && value.trim()) return value.trim();
+    value = safeGet(obj, "name");
+    if (typeof value === "string" && value.trim()) return value.trim();
+    value = safeGet(obj, "_name");
+    if (typeof value === "string" && value.trim()) return value.trim();
+    return fallback || "Unnamed Clip";
+  }
+
+  function getObjectInfo(obj){
+    return {
+      uuid: s(safeGet(obj, "uuid") || safeGet(obj, "_uuid")),
+      identifier: s(safeGet(obj, "identifier")),
+      name: s(safeGet(obj, "name") || safeGet(obj, "_name"))
+    };
+  }
+
+  function infoKey(info){
+    if (!info) return "";
+    if (info.uuid) return "uuid:" + info.uuid;
+    if (info.identifier) return "identifier:" + info.identifier;
+    if (info.name) return "name:" + info.name;
+    return "";
+  }
+
+  function objectIdentity(obj){
+    var info = getObjectInfo(obj);
+    var key = infoKey(info);
+    if (key) return key;
+    try {
+      if (!obj.__ltClipStackTempIdentity) obj.__ltClipStackTempIdentity = "temp:" + Math.random().toString(36).slice(2) + Date.now();
+      return obj.__ltClipStackTempIdentity;
+    } catch(e) {
+      return "temp:" + Math.random().toString(36).slice(2) + Date.now();
+    }
+  }
+
+  function looksLikeClip(obj){
+    if (!obj || typeof obj !== "object") return false;
+    var className = s(safeGet(obj, "className")).toLowerCase();
+    var type = s(safeGet(obj, "type")).toLowerCase();
+    if (className.indexOf("clip") !== -1) return true;
+    if (type.indexOf("clip") !== -1) return true;
+    if (safeGet(obj, "isClip") === true) return true;
+    if (safeGet(obj, "timeline") || safeGet(obj, "_timeline")) return true;
+    return false;
+  }
+
+  function looksLikeFrame(obj){
+    if (!obj || typeof obj !== "object") return false;
+    var className = s(safeGet(obj, "className")).toLowerCase();
+    var type = s(safeGet(obj, "type")).toLowerCase();
+    if (className.indexOf("frame") !== -1) return true;
+    if (type.indexOf("frame") !== -1) return true;
+    if (safeGet(obj, "start") !== undefined && safeGet(obj, "end") !== undefined) return true;
+    return false;
+  }
+
+  function looksLikeLayer(obj){
+    if (!obj || typeof obj !== "object") return false;
+    var className = s(safeGet(obj, "className")).toLowerCase();
+    var type = s(safeGet(obj, "type")).toLowerCase();
+    if (className.indexOf("layer") !== -1) return true;
+    if (type.indexOf("layer") !== -1) return true;
+    if (safeGet(obj, "frames") || safeGet(obj, "_frames")) return true;
+    return false;
+  }
+
+  function addUniqueObject(out, seen, obj){
+    if (!obj || typeof obj !== "object") return;
+    var key = objectIdentity(obj);
+    if (seen[key]) return;
+    seen[key] = true;
+    out.push(obj);
+  }
+
+  function collectFrameObjects(frame, out, seen){
+    if (!frame) return;
+    var props = ["clips", "objects", "wickObjects", "children", "_children", "items"];
+    var i;
+    var j;
+    var list;
+
+    for (i = 0; i < props.length; i += 1) {
+      list = safeGet(frame, props[i]);
+      if (list && typeof list.length === "number") {
+        for (j = 0; j < list.length; j += 1) addUniqueObject(out, seen, list[j]);
+      }
+    }
+
+    try {
+      if (typeof frame.getChildren === "function") {
+        list = frame.getChildren();
+        if (list && typeof list.length === "number") {
+          for (j = 0; j < list.length; j += 1) addUniqueObject(out, seen, list[j]);
+        }
+      }
+    } catch(eChildren) {}
+  }
+
+  function getTimeline(obj){
+    return safeGet(obj, "timeline") || safeGet(obj, "_timeline") || null;
+  }
+
+  function getTimelineLayers(timeline){
+    var layers = safeGet(timeline, "layers") || safeGet(timeline, "_layers") || null;
+    try {
+      if (!layers && timeline && typeof timeline.getChildren === "function") layers = timeline.getChildren();
+    } catch(e) {}
+    return layers && typeof layers.length === "number" ? layers : [];
+  }
+
+  function getLayerFrames(layer){
+    var frames = safeGet(layer, "frames") || safeGet(layer, "_frames") || null;
+    try {
+      if (!frames && layer && typeof layer.getChildren === "function") frames = layer.getChildren();
+    } catch(e) {}
+    return frames && typeof frames.length === "number" ? frames : [];
+  }
+
+  function getTimelineChildClips(parentClip){
+    var out = [];
+    var seen = {};
+    var timeline = getTimeline(parentClip);
+    var layers;
+    var frames;
+    var i;
+    var j;
+
+    try {
+      if (typeof parentClip.getChildren === "function") {
+        var direct = parentClip.getChildren();
+        if (direct && typeof direct.length === "number") {
+          for (i = 0; i < direct.length; i += 1) if (looksLikeClip(direct[i])) addUniqueObject(out, seen, direct[i]);
+        }
+      }
+    } catch(eDirect) {}
+
+    if (!timeline) return out;
+
+    try {
+      var activeFrame = safeGet(timeline, "activeFrame");
+      if (activeFrame) collectFrameObjects(activeFrame, out, seen);
+    } catch(eActiveFrame) {}
+
+    layers = getTimelineLayers(timeline);
+    for (i = 0; i < layers.length; i += 1) {
+      frames = getLayerFrames(layers[i]);
+      for (j = 0; j < frames.length; j += 1) collectFrameObjects(frames[j], out, seen);
+    }
+
+    return out.filter(function(obj){ return looksLikeClip(obj); });
+  }
+
+  function readNumericProperty(obj, keys, fallback){
+    var i;
+    var value;
+    for (i = 0; i < keys.length; i += 1) {
+      value = safeGet(obj, keys[i]);
+      if (value !== undefined && value !== null && isFinite(Number(value))) return Number(value);
+    }
+    return fallback;
+  }
+
+  function readTransform(obj){
+    var transformation = safeGet(obj, "transformation");
+    var x = readNumericProperty(obj, ["x", "_x"], NaN);
+    var y = readNumericProperty(obj, ["y", "_y"], NaN);
+    var rotation = readNumericProperty(obj, ["rotation", "_rotation"], NaN);
+    var scaleX = readNumericProperty(obj, ["scaleX", "_scaleX"], NaN);
+    var scaleY = readNumericProperty(obj, ["scaleY", "_scaleY"], NaN);
+
+    if (transformation) {
+      if (!isFinite(x)) x = n(safeGet(transformation, "x"), 0);
+      if (!isFinite(y)) y = n(safeGet(transformation, "y"), 0);
+      if (!isFinite(rotation)) rotation = n(safeGet(transformation, "rotation"), 0);
+      if (!isFinite(scaleX)) scaleX = n(safeGet(transformation, "scaleX"), 1);
+      if (!isFinite(scaleY)) scaleY = n(safeGet(transformation, "scaleY"), 1);
+    }
+
+    if (!isFinite(x)) x = 0;
+    if (!isFinite(y)) y = 0;
+    if (!isFinite(rotation)) rotation = 0;
+    if (!isFinite(scaleX)) scaleX = 1;
+    if (!isFinite(scaleY)) scaleY = 1;
+
+    var absScale = (Math.abs(scaleX) + Math.abs(scaleY)) * 0.5;
+    if (!isFinite(absScale) || absScale <= 0) absScale = 1;
+
+    return {
+      x: round3(x),
+      y: round3(y),
+      scale: round3(absScale),
+      rotation: round3(rotation),
+      signX: scaleX < 0 ? -1 : 1,
+      signY: scaleY < 0 ? -1 : 1
+    };
+  }
+
+  function cloneTransformation(current){
+    var W = getWickNamespace();
+    if (W && W.Transformation) {
+      try { return new W.Transformation(current || {}); } catch(e1) {}
+      try { return new W.Transformation(); } catch(e2) {}
+    }
+    var copy = {};
+    var keys = ["x", "y", "scaleX", "scaleY", "rotation", "opacity"];
+    var i;
+    for (i = 0; i < keys.length; i += 1) copy[keys[i]] = n(current && current[keys[i]], keys[i].indexOf("scale") === 0 ? 1 : 0);
+    return copy;
+  }
+
+  function setOneProperty(obj, key, value){
+    var success = false;
+    try { obj[key] = value; success = true; } catch(e1) {}
+    try { if (obj.transformation && key in obj.transformation) { obj.transformation[key] = value; success = true; } } catch(e2) {}
+    try { var under = "_" + key; if (under in obj) { obj[under] = value; success = true; } } catch(e3) {}
+    return success;
+  }
+
+  function applyTransformToObject(node, pose, mark){
+    if (!node || !node.obj || !pose) return false;
+    var base = node.base || { signX: 1, signY: 1 };
+    var signX = n(base.signX, 1) < 0 ? -1 : 1;
+    var signY = n(base.signY, 1) < 0 ? -1 : 1;
+    var uniformScale = Math.max(0.01, n(pose.scale, 1));
+    var current = null;
+
+    try { current = node.obj.transformation; } catch(eCurrent) {}
+
+    if (current) {
+      var tr = cloneTransformation(current);
+      tr.x = n(pose.x, 0);
+      tr.y = n(pose.y, 0);
+      tr.rotation = n(pose.rotation, 0);
+      tr.scaleX = uniformScale * signX;
+      tr.scaleY = uniformScale * signY;
+      try { node.obj.transformation = tr; } catch(eAssign) {}
+    }
+
+    setOneProperty(node.obj, "x", n(pose.x, 0));
+    setOneProperty(node.obj, "y", n(pose.y, 0));
+    setOneProperty(node.obj, "rotation", n(pose.rotation, 0));
+    setOneProperty(node.obj, "scaleX", uniformScale * signX);
+    setOneProperty(node.obj, "scaleY", uniformScale * signY);
+
+    if (mark) markProjectChanged();
+    return true;
+  }
+
+  function markProjectChanged(){
+    var editor = state.editor;
+    var project = state.project;
+    try { if (project && typeof project.markAsModified === "function") project.markAsModified(); } catch(e1) {}
+    try { if (project) project._needsAutosave = true; } catch(e2) {}
+    try { if (editor && typeof editor.projectDidChange === "function") editor.projectDidChange(); } catch(e3) {}
+    try { if (editor && typeof editor.forceUpdate === "function") editor.forceUpdate(); } catch(e4) {}
+    try { if (project && project.view && typeof project.view.render === "function") project.view.render(); } catch(e5) {}
+  }
+
+  function getMainTimeline(){
+    refreshRefs();
+    var project = state.project;
+    try {
+      if (project && project.root && project.root.timeline) return project.root.timeline;
+    } catch(e1) {}
+    try {
+      if (project && project.timeline) return project.timeline;
+    } catch(e2) {}
+    try {
+      if (project && project.activeTimeline) return project.activeTimeline;
+    } catch(e3) {}
+    return null;
+  }
+
+  function currentProjectFrame(){
+    var timeline = getMainTimeline();
+    var value;
+    try {
+      value = safeGet(timeline, "playheadPosition");
+      if (isFinite(Number(value))) return Math.max(1, Math.round(Number(value)));
+    } catch(e1) {}
+    try {
+      value = safeGet(state.project, "currentFrameNumber");
+      if (isFinite(Number(value))) return Math.max(1, Math.round(Number(value)));
+    } catch(e2) {}
+    return Math.max(1, state.frame || 1);
+  }
+
+  function getProjectDuration(){
+    var timeline = getMainTimeline();
+    var length = 1;
+    var layers = getTimelineLayers(timeline);
+    var hasNonProxyLayer = false;
+    var i;
+    var j;
+
+    for (i = 0; i < layers.length; i += 1) {
+      if (isStickRigProxyLayer(layers[i])) continue;
+      hasNonProxyLayer = true;
+      var frames = getLayerFrames(layers[i]);
+      for (j = 0; j < frames.length; j += 1) length = Math.max(length, getFrameEnd(frames[j]));
+    }
+
+    if (!hasNonProxyLayer) {
+      try {
+        if (timeline && isFinite(Number(timeline.length))) length = Math.max(length, Math.round(Number(timeline.length)));
+      } catch(e1) {}
+    }
+
+    return Math.max(1, length);
+  }
+
+  function getSelectedObject(){
+    refreshRefs();
+    try { if (state.bridge && typeof state.bridge.captureSelectionNow === "function") state.bridge.captureSelectionNow(); } catch(eCapture) {}
+    try { if (state.bridge && typeof state.bridge.getSelectedObject === "function") return state.bridge.getSelectedObject(); } catch(eSelected) {}
+    try {
+      var selection = safeGet(state.project, "selection");
+      if (selection && typeof selection.length === "number" && selection.length) return selection[0];
+    } catch(eProjectSelection) {}
+    return null;
+  }
+
+  function makeNodeId(obj, parentId, index){
+    var info = getObjectInfo(obj);
+    if (info.uuid) return "uuid:" + info.uuid;
+    var label = info.identifier || info.name || "clip";
+    return parentId + "/" + index + ":" + label.replace(/[^\w.-]+/g, "_");
+  }
+
+  function buildHierarchy(root){
+    var nodes = [];
+    var nodeMap = {};
+    var visited = {};
+    var maxDepth = 40;
+
+    function walk(obj, parentNode, depth, path, siblingIndex){
+      if (!obj || depth > maxDepth) return;
+      var identity = objectIdentity(obj);
+      if (visited[identity]) return;
+      visited[identity] = true;
+
+      var info = getObjectInfo(obj);
+      var id = parentNode ? makeNodeId(obj, parentNode.id, siblingIndex) : makeNodeId(obj, "root", 0);
+      var base = readTransform(obj);
+      var node = {
+        id: id,
+        obj: obj,
+        info: info,
+        name: getObjectName(obj, parentNode ? "Child Clip" : "Root Clip"),
+        depth: depth,
+        parentId: parentNode ? parentNode.id : "",
+        path: path.slice(),
+        base: base,
+        isRoot: !parentNode,
+        childCount: 0,
+        committedFrame: null
+      };
+
+      nodes.push(node);
+      nodeMap[id] = node;
+
+      var children = getTimelineChildClips(obj);
+      node.childCount = children.length;
+      var occurrenceByLookup = {};
+
+      children.forEach(function(child, index){
+        var childInfo = getObjectInfo(child);
+        var lookup = childInfo.identifier || childInfo.name || childInfo.uuid || ("Child_" + (index + 1));
+        var count = occurrenceByLookup[lookup] || 0;
+        occurrenceByLookup[lookup] = count + 1;
+        var segment = {
+          uuid: childInfo.uuid,
+          identifier: childInfo.identifier,
+          name: childInfo.name,
+          occurrence: count
+        };
+        walk(child, node, depth + 1, path.concat([segment]), index);
+      });
+    }
+
+    walk(root, null, 0, [], 0);
+    state.nodes = nodes;
+    state.nodeMap = nodeMap;
+  }
+
+  function getExistingUpdateScript(){
+    if (!state.rootInfo) return "";
+    try {
+      if (state.bridge && typeof state.bridge.getUpdateScriptByInfo === "function") return s(state.bridge.getUpdateScriptByInfo(state.rootInfo));
+    } catch(eByInfo) {}
+    try {
+      if (state.bridge && typeof state.bridge.getUpdateScriptOnSelection === "function") return s(state.bridge.getUpdateScriptOnSelection());
+    } catch(eSelection) {}
+    return "";
+  }
+
+  function setUpdateScript(source){
+    if (!state.rootInfo) return { ok: false, reason: "root information missing" };
+    try {
+      if (state.bridge && typeof state.bridge.setUpdateScriptByInfo === "function") return state.bridge.setUpdateScriptByInfo(state.rootInfo, source);
+    } catch(eByInfo) {}
+    try {
+      if (state.bridge && typeof state.bridge.selectObjectByInfo === "function") state.bridge.selectObjectByInfo(state.rootInfo);
+    } catch(eSelect) {}
+    try {
+      if (state.bridge && typeof state.bridge.setUpdateScriptOnSelection === "function") return state.bridge.setUpdateScriptOnSelection(source);
+    } catch(eSelection) {
+      return { ok: false, reason: eSelection && eSelection.message ? eSelection.message : String(eSelection) };
+    }
+    return { ok: false, reason: "LukeToolsBridge has no update script writer" };
+  }
+
+  function stripExistingBlock(source){
+    var text = s(source);
+    var markerPairs = [
+      { start: BLOCK_START, end: BLOCK_END },
+      { start: "// LukeTools Native Clip Stack Commit GPT v3 BEGIN", end: "// LukeTools Native Clip Stack Commit GPT v3 END" },
+      { start: "// LukeTools Native Clip Stack Commit GPT v4 BEGIN", end: "// LukeTools Native Clip Stack Commit GPT v4 END" }
+    ];
+    var changed = true;
+    while (changed) {
+      changed = false;
+      markerPairs.forEach(function(pair){
+        var start = text.indexOf(pair.start);
+        if (start === -1) return;
+        var end = text.indexOf(pair.end, start);
+        if (end === -1) {
+          text = text.substring(0, start);
+        } else {
+          text = text.substring(0, start) + text.substring(end + pair.end.length);
+        }
+        changed = true;
+      });
+    }
+    return text.trim();
+  }
+
+  function parseSavedData(source){
+    var text = s(source);
+    var start = text.indexOf(DATA_BEGIN);
+    var end;
+    var body;
+    var assignStart;
+    var assignEnd;
+    var jsonText;
+
+    if (start === -1) return null;
+    end = text.indexOf(DATA_END, start);
+    if (end === -1) return null;
+    body = text.substring(start + DATA_BEGIN.length, end);
+    assignStart = body.indexOf("var LT_NCSA_DATA =");
+    if (assignStart === -1) return null;
+    assignStart += "var LT_NCSA_DATA =".length;
+    assignEnd = body.lastIndexOf(";");
+    if (assignEnd === -1 || assignEnd <= assignStart) return null;
+    jsonText = body.substring(assignStart, assignEnd).trim();
+    try {
+      return JSON.parse(jsonText);
+    } catch(e) {
+      setStatus("The clip contains Native Commit staging data, but the saved JSON could not be read.", "warn");
+      return null;
+    }
+  }
+
+  function mergeSavedAnimation(saved){
+    var fresh = {
+      version: 1,
+      root: state.rootInfo,
+      nodes: {}
+    };
+    var savedNodes = saved && saved.nodes ? saved.nodes : {};
+    var savedByPath = {};
+    Object.keys(savedNodes).forEach(function(id){
+      var record = savedNodes[id];
+      if (record && record.pathKey) savedByPath[record.pathKey] = record;
+    });
+
+    state.nodes.forEach(function(node){
+      var pathKey = JSON.stringify(node.path || []);
+      var previous = savedNodes[node.id] || savedByPath[pathKey] || null;
+      var base = {
+        x: node.base.x,
+        y: node.base.y,
+        scale: node.base.scale,
+        rotation: node.base.rotation,
+        signX: node.base.signX,
+        signY: node.base.signY
+      };
+      var record = {
+        id: node.id,
+        name: node.name,
+        path: node.path,
+        pathKey: pathKey,
+        isRoot: node.isRoot,
+        base: previous && previous.base ? previous.base : base,
+        rotateMin: previous && isFinite(Number(previous.rotateMin)) ? Number(previous.rotateMin) : -359,
+        rotateMax: previous && isFinite(Number(previous.rotateMax)) ? Number(previous.rotateMax) : 360,
+        keys: previous && previous.keys ? previous.keys : {},
+        keyTypes: previous && previous.keyTypes ? previous.keyTypes : {},
+        keyChannels: previous && previous.keyChannels ? previous.keyChannels : {},
+        channelTypes: previous && previous.channelTypes ? previous.channelTypes : {},
+        channelEasing: previous && previous.channelEasing ? previous.channelEasing : {},
+        channelDefaults: previous && previous.channelDefaults ? previous.channelDefaults : {
+          move: "none",
+          scale: "none",
+          rotate: "none"
+        }
+      };
+
+      if (record.rotateMin >= record.rotateMax) {
+        record.rotateMin = -359;
+        record.rotateMax = 360;
+      }
+
+      CHANNELS.forEach(function(channel){
+        if (!TRANSITIONS[record.channelDefaults[channel]] || record.channelDefaults[channel] === "hold") {
+          record.channelDefaults[channel] = "none";
+        }
+      });
+
+      Object.keys(record.keys || {}).forEach(function(frame){
+        if (!record.keyChannels[frame]) {
+          record.keyChannels[frame] = { move: true, scale: true, rotate: true };
+        }
+        if (!record.channelTypes[frame]) record.channelTypes[frame] = {};
+        if (!record.channelEasing[frame]) record.channelEasing[frame] = {};
+        CHANNELS.forEach(function(channel){
+          if (record.keyChannels[frame][channel] === undefined) record.keyChannels[frame][channel] = true;
+          if (!record.channelTypes[frame][channel]) {
+            record.channelTypes[frame][channel] = record.keyTypes[frame] === "hold" ? "hold" : "auto";
+          }
+          if (!TRANSITIONS[record.channelEasing[frame][channel]] || record.channelEasing[frame][channel] === "hold") {
+            record.channelEasing[frame][channel] = record.channelDefaults[channel];
+          }
+        });
+      });
+
+      fresh.nodes[node.id] = record;
+      node.base = record.base;
+    });
+    state.anim = fresh;
+  }
+
+  function getNodeRecord(id){
+    return state.anim && state.anim.nodes ? state.anim.nodes[id] : null;
+  }
+
+  function ensureChannelMaps(record){
+    if (!record) return;
+    if (!record.keyChannels) record.keyChannels = {};
+    if (!record.channelTypes) record.channelTypes = {};
+    if (!record.channelEasing) record.channelEasing = {};
+    if (!record.channelDefaults) record.channelDefaults = { move: "none", scale: "none", rotate: "none" };
+  }
+
+  function channelForProperty(property){
+    if (property === "x" || property === "y") return "move";
+    if (property === "scale") return "scale";
+    return "rotate";
+  }
+
+  function channelKeyExists(record, frame, channel){
+    ensureChannelMaps(record);
+    var map = record && record.keyChannels ? record.keyChannels[String(frame)] : null;
+    return !!(map && map[channel]);
+  }
+
+  function channelKeyFrames(record, channel){
+    ensureChannelMaps(record);
+    return Object.keys(record.keyChannels || {})
+      .filter(function(frame){ return record.keyChannels[frame] && record.keyChannels[frame][channel] && record.keys && record.keys[frame]; })
+      .map(function(frame){ return Number(frame); })
+      .filter(function(frame){ return isFinite(frame); })
+      .sort(function(a, b){ return a - b; });
+  }
+
+  function channelType(record, frame, channel){
+    ensureChannelMaps(record);
+    var types = record.channelTypes[String(frame)] || {};
+    return types[channel] === "hold" ? "hold" : "auto";
+  }
+
+  function channelEasing(record, frame, channel){
+    ensureChannelMaps(record);
+    var easing = record.channelEasing[String(frame)] && record.channelEasing[String(frame)][channel];
+    if (!TRANSITIONS[easing] || easing === "hold") easing = record.channelDefaults[channel] || "none";
+    if (!TRANSITIONS[easing] || easing === "hold") easing = "none";
+    return easing;
+  }
+
+  function transitionInfo(record, frame, channel){
+    if (channelType(record, frame, channel) === "hold") return TRANSITIONS.hold;
+    return TRANSITIONS[channelEasing(record, frame, channel)] || TRANSITIONS.none;
+  }
+
+  function setChannelKeyMeta(record, frame, channel, type){
+    ensureChannelMaps(record);
+    var key = String(frame);
+    var frameNumber = Math.max(1, Math.round(n(frame, 1)));
+
+    if (frameNumber > 1 && record.keys && record.keys["1"] && channelKeyFrames(record, channel).length === 0) {
+      if (!record.keyChannels["1"]) record.keyChannels["1"] = {};
+      if (!record.channelTypes["1"]) record.channelTypes["1"] = {};
+      if (!record.channelEasing["1"]) record.channelEasing["1"] = {};
+      record.keyChannels["1"][channel] = true;
+      record.channelTypes["1"][channel] = "auto";
+      record.channelEasing["1"][channel] = record.channelDefaults[channel] || "none";
+      record.keyTypes["1"] = "auto";
+    }
+
+    if (!record.keyChannels[key]) record.keyChannels[key] = {};
+    if (!record.channelTypes[key]) record.channelTypes[key] = {};
+    if (!record.channelEasing[key]) record.channelEasing[key] = {};
+    record.keyChannels[key][channel] = true;
+    record.channelTypes[key][channel] = type === "hold" ? "hold" : "auto";
+    record.channelEasing[key][channel] = record.channelDefaults[channel] || "none";
+    var active = CHANNELS.filter(function(name){ return record.keyChannels[key] && record.keyChannels[key][name]; });
+    record.keyTypes[key] = active.length && active.every(function(name){ return record.channelTypes[key][name] === "hold"; }) ? "hold" : "auto";
+  }
+
+  function removeChannelKeyMeta(record, frame, channel){
+    ensureChannelMaps(record);
+    var key = String(frame);
+    if (record.keyChannels[key]) delete record.keyChannels[key][channel];
+    if (record.channelTypes[key]) delete record.channelTypes[key][channel];
+    if (record.channelEasing[key]) delete record.channelEasing[key][channel];
+    var remains = CHANNELS.some(function(name){ return record.keyChannels[key] && record.keyChannels[key][name]; });
+    if (!remains) {
+      delete record.keyChannels[key];
+      delete record.channelTypes[key];
+      delete record.channelEasing[key];
+      delete record.keys[key];
+      if (record.keyTypes) delete record.keyTypes[key];
+    } else {
+      var active = CHANNELS.filter(function(name){ return record.keyChannels[key] && record.keyChannels[key][name]; });
+      record.keyTypes[key] = active.every(function(name){ return record.channelTypes[key][name] === "hold"; }) ? "hold" : "auto";
+    }
+  }
+
+  function previousChannelValues(record, frame, channel){
+    var frames = channelKeyFrames(record, channel).filter(function(value){ return value < frame; });
+    var pose = frames.length ? copyPose(record.keys[String(frames[frames.length - 1])]) : copyPose(record.base || {});
+    if (channel === "move") return { x: pose.x, y: pose.y };
+    if (channel === "scale") return { scale: pose.scale };
+    return { rotation: pose.rotation };
+  }
+
+  function applyHeldChannelValues(pose, values, channel){
+    if (channel === "move") {
+      pose.x = values.x;
+      pose.y = values.y;
+    } else if (channel === "scale") {
+      pose.scale = values.scale;
+    } else {
+      pose.rotation = values.rotation;
+    }
+    return pose;
+  }
+
+  function currentChannelStatus(record, frame, channel){
+    if (!channelKeyExists(record, frame, channel)) return { label: "No key", keyed: false, info: TRANSITIONS.none };
+    var type = channelType(record, frame, channel);
+    var info = transitionInfo(record, frame, channel);
+    return {
+      label: type === "hold" ? ("Hold " + frame) : (info.label + " " + frame),
+      keyed: true,
+      info: info
+    };
+  }
+
+  function sortedKeyFrames(record){
+    if (!record || !record.keys) return [];
+    return Object.keys(record.keys)
+      .map(function(key){ return Number(key); })
+      .filter(function(frame){ return isFinite(frame); })
+      .sort(function(a, b){ return a - b; });
+  }
+
+  function copyPose(pose){
+    return {
+      x: round3(n(pose && pose.x, 0)),
+      y: round3(n(pose && pose.y, 0)),
+      scale: round3(Math.max(0.01, n(pose && pose.scale, 1))),
+      rotation: round3(n(pose && pose.rotation, 0))
+    };
+  }
+
+  function easeValue(t, easing){
+    var value = clamp(n(t, 0), 0, 1);
+    if (easing === "in") return value * value;
+    if (easing === "out") return 1 - Math.pow(1 - value, 2);
+    if (easing === "in-out") {
+      return value < 0.5 ? 2 * value * value : 1 - Math.pow(-2 * value + 2, 2) / 2;
+    }
+    return value;
+  }
+
+  function channelPoseAtFrame(record, frame, channel){
+    var base = copyPose(record.base || {});
+    var frames = channelKeyFrames(record, channel);
+    var previousFrame = null;
+    var nextFrame = null;
+    var exact = null;
+    var i;
+
+    for (i = 0; i < frames.length; i += 1) {
+      if (frames[i] === frame) { exact = frames[i]; break; }
+      if (frames[i] < frame) previousFrame = frames[i];
+      if (frames[i] > frame) { nextFrame = frames[i]; break; }
+    }
+
+    function pick(pose){
+      var source = pose || base;
+      if (channel === "move") return { x: n(source.x, base.x), y: n(source.y, base.y) };
+      if (channel === "scale") return { scale: n(source.scale, base.scale) };
+      return { rotation: n(source.rotation, base.rotation) };
+    }
+
+    if (exact !== null) return pick(record.keys[String(exact)]);
+    if (!frames.length) return pick(base);
+    if (previousFrame === null && nextFrame !== null) {
+      previousFrame = 1;
+      var startPose = pick(base);
+      var endPose = pick(record.keys[String(nextFrame)]);
+      if (frame <= previousFrame || nextFrame <= previousFrame) return startPose;
+      var earlyT = easeValue((frame - previousFrame) / (nextFrame - previousFrame), "none");
+      if (channel === "move") return { x: round3(startPose.x + (endPose.x - startPose.x) * earlyT), y: round3(startPose.y + (endPose.y - startPose.y) * earlyT) };
+      if (channel === "scale") return { scale: round3(startPose.scale + (endPose.scale - startPose.scale) * earlyT) };
+      return { rotation: round3(startPose.rotation + (endPose.rotation - startPose.rotation) * earlyT) };
+    }
+    if (previousFrame !== null && nextFrame === null) return pick(record.keys[String(previousFrame)]);
+    if (previousFrame === null || nextFrame === null) return pick(base);
+
+    var from = pick(record.keys[String(previousFrame)]);
+    var to = pick(record.keys[String(nextFrame)]);
+    var type = channelType(record, previousFrame, channel);
+    var easing = type === "hold" ? "hold" : channelEasing(record, previousFrame, channel);
+    var rawT = clamp((frame - previousFrame) / (nextFrame - previousFrame), 0, 1);
+    /* Linear is a true continuous interpolation. Only an explicitly held
+       key keeps its previous channel value until the following key. */
+    var t = type === "hold" ? 0 : easeValue(rawT, easing === "none" ? "none" : easing);
+
+    if (channel === "move") return { x: round3(from.x + (to.x - from.x) * t), y: round3(from.y + (to.y - from.y) * t) };
+    if (channel === "scale") return { scale: round3(from.scale + (to.scale - from.scale) * t) };
+    return { rotation: round3(from.rotation + (to.rotation - from.rotation) * t) };
+  }
+
+  function interpolatePose(record, frame){
+    if (!record) return { x: 0, y: 0, scale: 1, rotation: 0 };
+    var move = channelPoseAtFrame(record, frame, "move");
+    var scale = channelPoseAtFrame(record, frame, "scale");
+    var rotate = channelPoseAtFrame(record, frame, "rotate");
+    return {
+      x: round3(move.x),
+      y: round3(move.y),
+      scale: round3(scale.scale),
+      rotation: round3(rotate.rotation)
+    };
+  }
+
+  function previousHeldPose(record, frame){
+    if (!record) return { x: 0, y: 0, scale: 1, rotation: 0 };
+    var frames = sortedKeyFrames(record).filter(function(value){ return value < frame; });
+    if (!frames.length) return copyPose(record.base || {});
+    return copyPose(record.keys[String(frames[frames.length - 1])]);
+  }
+
+  function ensureKeyAtFrame(node, frame, keyType){
+    var record = getNodeRecord(node.id);
+    if (!record) return null;
+    if (!record.keyTypes) record.keyTypes = {};
+    var key = String(frame);
+    var type = keyType === "hold" ? "hold" : "auto";
+
+    if (!record.keys[key]) {
+      if (!sortedKeyFrames(record).length && frame > 1) {
+        record.keys["1"] = copyPose(record.base);
+        record.keyTypes["1"] = "auto";
+      }
+      record.keys[key] = type === "hold" ? previousHeldPose(record, frame) : interpolatePose(record, frame);
+    }
+
+    if (keyType) record.keyTypes[key] = type;
+    if (!record.keyTypes[key]) record.keyTypes[key] = "auto";
+    return record.keys[key];
+  }
+
+  function keyTypeAtCurrentFrame(id){
+    var record = getNodeRecord(id);
+    if (!record || !record.keys || !record.keys[String(state.frame)]) return "";
+    return record.keyTypes && record.keyTypes[String(state.frame)] === "hold" ? "hold" : "auto";
+  }
+
+  function keyExistsAtCurrentFrame(id){
+    var record = getNodeRecord(id);
+    return !!(record && record.keys && record.keys[String(state.frame)]);
+  }
+
+  function cardPose(id){
+    var record = getNodeRecord(id);
+    return interpolatePose(record, state.frame);
+  }
+
+  function rotationLimits(record){
+    var min = record && isFinite(Number(record.rotateMin)) ? Number(record.rotateMin) : -359;
+    var max = record && isFinite(Number(record.rotateMax)) ? Number(record.rotateMax) : 360;
+    if (min >= max) {
+      min = -359;
+      max = 360;
+    }
+    return { min: round3(min), max: round3(max), step: 0.5 };
+  }
+
+  function rangeConfig(property){
+    if (property === "x" || property === "y") return { min: -3000, max: 3000, step: 1 };
+    if (property === "scale") return { min: 1, max: 400, step: 1 };
+    return { min: -360, max: 360, step: 1 };
+  }
+
+  function displayValue(property, value){
+    if (property === "scale") return round3(value * 100);
+    return round3(value);
+  }
+
+  function poseValue(property, display){
+    if (property === "scale") return Math.max(0.01, n(display, 100) / 100);
+    return n(display, 0);
+  }
+
+  function renderAll(){
+    $("frameValue").textContent = String(state.frame);
+    if (!state.nodes.length) {
+      $("empty").style.display = "block";
+      $("cards").innerHTML = "";
+      return;
+    }
+
+    $("empty").style.display = "none";
+    $("cards").innerHTML = state.nodes.map(renderCard).join("");
+    bindCardEvents();
+  }
+
+  function renderCard(node){
+    var active = state.activeId === node.id;
+    var open = !!state.openIds[node.id];
+    var keyed = keyExistsAtCurrentFrame(node.id);
+    var pose = cardPose(node.id);
+    var disabled = active ? "" : " disabled";
+    var record = getNodeRecord(node.id);
+
+    return "" +
+      '<div class="partCard' + (active ? ' active' : '') + (open ? ' open' : '') + (keyed ? ' hasKey' : '') + '" data-id="' + htmlEscape(node.id) + '">' +
+        '<div class="partHead">' +
+          '<div class="depthPad" style="width:' + Math.min(72, node.depth * 14) + 'px"></div>' +
+          '<button class="expandBtn" type="button" data-action="toggle" data-id="' + htmlEscape(node.id) + '">' + (open ? '−' : '+') + '</button>' +
+          '<div class="partIdentity"><div class="partName">' + htmlEscape(node.name) + '</div></div>' +
+          '<button class="animateBtn' + (active ? ' active' : '') + '" type="button" data-action="animate" data-id="' + htmlEscape(node.id) + '">' + (active ? 'Active' : 'Animate') + '</button>' +
+        '</div>' +
+        '<div class="partBody">' +
+          '<div class="channelGrid">' +
+            renderChannelPanel(node, record, "move", pose, disabled) +
+            renderChannelPanel(node, record, "scale", pose, disabled) +
+            renderChannelPanel(node, record, "rotate", pose, disabled) +
+          '</div>' +
+          '<div class="cardActions singleAction">' +
+            '<button type="button" data-action="resetBase" data-id="' + htmlEscape(node.id) + '"' + disabled + '>Reset All</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function renderChannelPanel(node, record, channel, pose, disabled){
+    var status = currentChannelStatus(record, state.frame, channel);
+    var heldAtFrame = status.keyed && channelType(record, state.frame, channel) === "hold";
+    var easing = heldAtFrame ? "hold" : channelEasing(record, state.frame, channel);
+    if (!status.keyed) easing = record.channelDefaults[channel] || "none";
+    var info = status.keyed ? status.info : (TRANSITIONS[easing] || TRANSITIONS.none);
+    var body = "";
+    var isOpen = state.openChannels[node.id] === channel;
+
+    if (channel === "move") {
+      body = renderControl(node, "x", "X", pose.x, disabled) + renderControl(node, "y", "Y", pose.y, disabled);
+    } else if (channel === "scale") {
+      body = renderControl(node, "scale", "%", pose.scale, disabled);
+    } else {
+      body = renderRotateControl(node, pose.rotation, disabled);
+    }
+
+    return "" +
+      '<section class="channelPanel ' + channel + (isOpen ? ' open' : '') + '">' +
+        '<div class="channelHead" data-action="toggleChannel" data-channel="' + channel + '" data-id="' + htmlEscape(node.id) + '">' +
+          '<button class="channelToggleBtn" type="button" data-action="toggleChannel" data-channel="' + channel + '" data-id="' + htmlEscape(node.id) + '">' + (isOpen ? '−' : '+') + '</button>' +
+          '<div class="channelTitle" data-action="toggleChannel" data-channel="' + channel + '" data-id="' + htmlEscape(node.id) + '">' + htmlEscape(channel.charAt(0).toUpperCase() + channel.slice(1)) + '</div>' +
+          '<span class="keyBadge' + (status.keyed ? ' keyed' : '') + '" style="border-color:' + htmlEscape(info.colour) + ';color:' + htmlEscape(status.keyed ? info.colour : '#9fb2c8') + '">' + htmlEscape(status.label) + '</span>' +
+          '<button class="channelSetBtn" type="button" data-action="setChannelKey" data-channel="' + channel + '" data-id="' + htmlEscape(node.id) + '"' + (status.keyed ? ' disabled' : '') + '>Set Key</button>' +
+        '</div>' +
+        '<div class="channelBody">' + body + '</div>' +
+        '<div class="channelFooter">' +
+          renderTransitionSelect(node.id, channel, easing, disabled) +
+          '<button class="channelDeleteBtn" type="button" data-action="deleteChannelKey" data-channel="' + channel + '" data-id="' + htmlEscape(node.id) + '"' + (status.keyed ? '' : ' disabled') + '>Delete Key</button>' +
+        '</div>' +
+      '</section>';
+  }
+
+  function renderTransitionSelect(id, channel, easing, disabled){
+    var selectedEasing = TRANSITIONS[easing] ? easing : "none";
+    var info = TRANSITIONS[selectedEasing] || TRANSITIONS.none;
+    var options = ["none", "in", "out", "in-out", "hold"].map(function(value){
+      return '<option value="' + value + '"' + (value === selectedEasing ? ' selected' : '') + '>' + htmlEscape(TRANSITIONS[value].label) + '</option>';
+    }).join("");
+    return '<select class="transitionSelect ' + info.css + '" data-action="transition" data-channel="' + channel + '" data-id="' + htmlEscape(id) + '"' + disabled + '>' + options + '</select>';
+  }
+
+  function renderControl(node, property, label, rawValue, disabled){
+    var config = rangeConfig(property);
+    var value = displayValue(property, rawValue);
+    return "" +
+      '<div class="controlRow">' +
+        '<div class="controlLabel">' + htmlEscape(label) + '</div>' +
+        '<input type="range" data-action="range" data-id="' + htmlEscape(node.id) + '" data-property="' + htmlEscape(property) + '" min="' + config.min + '" max="' + config.max + '" step="' + config.step + '" value="' + htmlEscape(value) + '"' + disabled + '>' +
+        '<input type="number" data-action="number" data-id="' + htmlEscape(node.id) + '" data-property="' + htmlEscape(property) + '" min="' + config.min + '" max="' + config.max + '" step="' + config.step + '" value="' + htmlEscape(value) + '"' + disabled + '>' +
+      '</div>';
+  }
+
+  function dialRadiansForValue(value){
+    return (n(value, 0) - 90) * Math.PI / 180;
+  }
+
+  function dialPoint(radius, value){
+    var rad = dialRadiansForValue(value);
+    return {
+      x: 90 + Math.cos(rad) * radius,
+      y: 90 + Math.sin(rad) * radius
+    };
+  }
+
+  function dialQuickValues(record){
+    var limits = rotationLimits(record);
+    var min = limits.min;
+    var max = limits.max;
+    var values = [];
+    var canonical = [0, 45, 90, 135, 180, -135, -90, -45];
+    canonical.forEach(function(value){
+      if (value >= min && value <= max && values.indexOf(value) === -1) values.push(value);
+    });
+    [min, max, round3((min + max) / 2)].forEach(function(value){
+      value = round3(value);
+      if (value >= min && value <= max && values.indexOf(value) === -1) values.push(value);
+    });
+    if (values.length < 5) {
+      var count = 5;
+      if (max === min) values = [min];
+      else {
+        values = [];
+        for (var i = 0; i < count; i += 1) {
+          values.push(round3(min + ((max - min) * i / (count - 1))));
+        }
+      }
+    }
+    values.sort(function(a, b){ return dialRadiansForValue(a) - dialRadiansForValue(b); });
+    return values;
+  }
+
+  function dialValueFromClientPosition(clientX, clientY, area, record){
+    var rect = area.getBoundingClientRect();
+    var cx = rect.left + rect.width / 2;
+    var cy = rect.top + rect.height / 2;
+    var dx = clientX - cx;
+    var dy = clientY - cy;
+    var angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    if (angle > 180) angle -= 360;
+    if (angle < -180) angle += 360;
+    var limits = rotationLimits(record);
+    return clamp(round3(angle), limits.min, limits.max);
+  }
+
+  function updateRotateDialVisual(area, record, value){
+    if (!area) return;
+    var clamped = clamp(n(value, 0), rotationLimits(record).min, rotationLimits(record).max);
+    var p1 = dialPoint(52, clamped);
+    var p2 = dialPoint(84, clamped);
+    var line = area.querySelector('.rotateDialHandle');
+    if (line) {
+      line.setAttribute('x1', p1.x.toFixed(2));
+      line.setAttribute('y1', p1.y.toFixed(2));
+      line.setAttribute('x2', p2.x.toFixed(2));
+      line.setAttribute('y2', p2.y.toFixed(2));
+    }
+    var card = area.closest('.partCard');
+    if (card) {
+      var number = card.querySelector('.rotateCurrentValue');
+      if (number) number.value = round3(clamped);
+    }
+  }
+
+  function setRotationFromDial(id, rawValue, commit, area){
+    var node = state.nodeMap[id];
+    var record = getNodeRecord(id);
+    if (!node || !record) return;
+    state.activeId = id;
+    state.frame = currentProjectFrame();
+    var key = ensureKeyAtFrame(node, state.frame, 'auto');
+    var limits = rotationLimits(record);
+    var nextValue = clamp(round3(n(rawValue, 0)), limits.min, limits.max);
+    key.rotation = nextValue;
+    setChannelKeyMeta(record, state.frame, 'rotate', 'auto');
+    applyTransformToObject(node, key, commit);
+    if (area) updateRotateDialVisual(area, record, nextValue);
+    if (commit) {
+      renderAll();
+      saveStagingData(false);
+      syncStickRigProxyLayers();
+    }
+  }
+
+  function renderRotateControl(node, rawValue, disabled){
+    var record = getNodeRecord(node.id);
+    var limits = rotationLimits(record);
+    var value = clamp(displayValue("rotation", rawValue), limits.min, limits.max);
+    var quickValues = dialQuickValues(record);
+    var p1 = dialPoint(52, value);
+    var p2 = dialPoint(84, value);
+    var dots = quickValues.map(function(angle){
+      var p = dialPoint(48, angle);
+      var labelPoint = dialPoint(64, angle);
+      return '' +
+        '<g class="rotateQuickSet" data-action="rotate-quick" data-id="' + htmlEscape(node.id) + '" data-angle="' + htmlEscape(angle) + '">' +
+          '<circle class="rotateDialQuickDot" data-action="rotate-quick" data-id="' + htmlEscape(node.id) + '" data-angle="' + htmlEscape(angle) + '" cx="' + p.x.toFixed(2) + '" cy="' + p.y.toFixed(2) + '" r="5.4"></circle>' +
+          '<text class="rotateDialQuickLabel" data-action="rotate-quick" data-id="' + htmlEscape(node.id) + '" data-angle="' + htmlEscape(angle) + '" x="' + labelPoint.x.toFixed(2) + '" y="' + labelPoint.y.toFixed(2) + '">' + htmlEscape(String(round3(angle))) + '</text>' +
+        '</g>';
+    }).join('');
+    return '' +
+      '<div class="rotateControl">' +
+        '<div class="rotateDialArea' + (disabled ? ' disabled' : '') + '" data-action="rotate-dial" data-id="' + htmlEscape(node.id) + '">' +
+          '<svg class="rotateDialSvg" viewBox="0 0 180 180" aria-label="Rotation dial">' +
+            '<circle class="rotateDialOuter" cx="90" cy="90" r="74"></circle>' +
+            '<circle class="rotateDialInner" cx="90" cy="90" r="54"></circle>' +
+            dots +
+            '<line class="rotateDialHandle" x1="' + p1.x.toFixed(2) + '" y1="' + p1.y.toFixed(2) + '" x2="' + p2.x.toFixed(2) + '" y2="' + p2.y.toFixed(2) + '"></line>' +
+          '</svg>' +
+          '<div class="rotateDialHint">Click or drag</div>' +
+        '</div>' +
+        '<div class="rotateValueRow">' +
+          '<input class="rotateLimit rotateMin" type="number" data-action="rotate-min" data-id="' + htmlEscape(node.id) + '" step="0.5" value="' + htmlEscape(limits.min) + '" title="Minimum rotation"' + disabled + '>' +
+          '<input class="rotateCurrentValue" type="number" data-action="number" data-id="' + htmlEscape(node.id) + '" data-property="rotation" min="' + htmlEscape(limits.min) + '" max="' + htmlEscape(limits.max) + '" step="' + limits.step + '" value="' + htmlEscape(value) + '"' + disabled + '>' +
+          '<input class="rotateLimit rotateMax" type="number" data-action="rotate-max" data-id="' + htmlEscape(node.id) + '" step="0.5" value="' + htmlEscape(limits.max) + '" title="Maximum rotation"' + disabled + '>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function cssEscapeAttribute(value){
+    return s(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  }
+
+  function setOpenCard(id){
+    state.openIds = {};
+    if (id) state.openIds[id] = true;
+  }
+
+  function setOpenChannel(id, channel){
+    if (!id) return;
+    if (state.openChannels[id] === channel) {
+      delete state.openChannels[id];
+    } else {
+      state.openChannels[id] = channel;
+    }
+  }
+
+  function bindCardEvents(){
+    var cards = $("cards");
+    cards.onclick = function(event){
+      var target = event.target;
+      var action = target && target.getAttribute ? target.getAttribute("data-action") : "";
+      var id = target && target.getAttribute ? target.getAttribute("data-id") : "";
+      var channel = target && target.getAttribute ? target.getAttribute("data-channel") : "";
+      if (!action || !id) return;
+      if (action === "toggle") { setOpenCard(state.openIds[id] ? "" : id); renderAll(); return; }
+      if (action === "toggleChannel") { setOpenChannel(id, channel); renderAll(); return; }
+      if (action === "setChannelKey") { setHeldChannelKey(id, channel); return; }
+      if (action === "animate") { armNode(id); return; }
+      if (action === "deleteChannelKey") { deleteCurrentChannelKey(id, channel); return; }
+      if (action === "resetBase") { resetCurrentKeyToBase(id); return; }
+      if (action === "rotate-quick") {
+        setRotationFromDial(id, n(target.getAttribute("data-angle"), 0), true, target.closest('.rotateDialArea'));
+        return;
+      }
+    };
+
+    cards.onpointerdown = function(event){
+      var target = event.target;
+      if (!target || !target.closest) return;
+      if (target.closest('[data-action="rotate-quick"]')) return;
+      var area = target.closest('.rotateDialArea');
+      if (!area) return;
+      var id = area.getAttribute('data-id');
+      if (!id) return;
+      var card = area.closest('.partCard');
+      if (!card || card.className.indexOf('open') === -1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      var record = getNodeRecord(id);
+      if (!record) return;
+      state.rotateDialDrag = { id: id, area: area, pointerId: event.pointerId };
+      try { area.setPointerCapture(event.pointerId); } catch(eCapture) {}
+      setRotationFromDial(id, dialValueFromClientPosition(event.clientX, event.clientY, area, record), false, area);
+    };
+
+    cards.onpointermove = function(event){
+      var drag = state.rotateDialDrag;
+      if (!drag || !drag.area) return;
+      var record = getNodeRecord(drag.id);
+      if (!record) return;
+      setRotationFromDial(drag.id, dialValueFromClientPosition(event.clientX, event.clientY, drag.area, record), false, drag.area);
+    };
+
+    cards.onpointerup = function(event){
+      var drag = state.rotateDialDrag;
+      if (!drag || !drag.area) return;
+      var record = getNodeRecord(drag.id);
+      if (!record) { state.rotateDialDrag = null; return; }
+      try { drag.area.releasePointerCapture(drag.pointerId); } catch(eRelease) {}
+      setRotationFromDial(drag.id, dialValueFromClientPosition(event.clientX, event.clientY, drag.area, record), true, drag.area);
+      state.rotateDialDrag = null;
+    };
+
+    cards.onpointercancel = function(){
+      state.rotateDialDrag = null;
+    };
+
+    cards.oninput = function(event){
+      var target = event.target;
+      var action = target && target.getAttribute ? target.getAttribute("data-action") : "";
+      var id = target && target.getAttribute ? target.getAttribute("data-id") : "";
+      var property = target && target.getAttribute ? target.getAttribute("data-property") : "";
+      var channel = target && target.getAttribute ? target.getAttribute("data-channel") : "";
+      if (!id) return;
+      if (action === "transition") {
+        updateChannelTransition(id, channel, target.value, false);
+        return;
+      }
+      if (action === "rotate-min" || action === "rotate-max") {
+        updateRotationLimit(id, action === "rotate-min" ? "min" : "max", target.value, false);
+        return;
+      }
+      if ((action !== "range" && action !== "number") || !property) return;
+      syncPairedControl(target, action);
+      updateKeyFromControl(id, property, target.value, false);
+    };
+
+    cards.onchange = function(event){
+      var target = event.target;
+      var action = target && target.getAttribute ? target.getAttribute("data-action") : "";
+      var id = target && target.getAttribute ? target.getAttribute("data-id") : "";
+      var property = target && target.getAttribute ? target.getAttribute("data-property") : "";
+      var channel = target && target.getAttribute ? target.getAttribute("data-channel") : "";
+      if (!id) return;
+      if (action === "transition") {
+        updateChannelTransition(id, channel, target.value, true);
+        return;
+      }
+      if (action === "rotate-min" || action === "rotate-max") {
+        updateRotationLimit(id, action === "rotate-min" ? "min" : "max", target.value, true);
+        return;
+      }
+      if ((action !== "range" && action !== "number") || !property) return;
+      syncPairedControl(target, action);
+      updateKeyFromControl(id, property, target.value, true);
+    };
+  }
+
+  function syncPairedControl(source, action){
+    var id = source.getAttribute("data-id");
+    var property = source.getAttribute("data-property");
+    var otherAction = action === "range" ? "number" : "range";
+    var selector = '[data-action="' + otherAction + '"][data-id="' + cssEscapeAttribute(id) + '"][data-property="' + cssEscapeAttribute(property) + '"]';
+    var other = $("cards").querySelector(selector);
+    if (other) other.value = source.value;
+  }
+
+  function refreshRotationControl(id, record, value){
+    var card = $("cards").querySelector('.partCard[data-id="' + cssEscapeAttribute(id) + '"]');
+    if (!card || !record) return;
+    var limits = rotationLimits(record);
+    var number = card.querySelector('.rotateCurrentValue');
+    var minField = card.querySelector('[data-action="rotate-min"]');
+    var maxField = card.querySelector('[data-action="rotate-max"]');
+    var clamped = clamp(n(value, 0), limits.min, limits.max);
+    if (number) {
+      number.min = limits.min;
+      number.max = limits.max;
+      number.value = clamped;
+    }
+    if (minField) minField.value = limits.min;
+    if (maxField) maxField.value = limits.max;
+    var area = card.querySelector('.rotateDialArea');
+    if (area) updateRotateDialVisual(area, record, clamped);
+  }
+
+  function updateRotationLimit(id, which, rawValue, commit){
+    var record = getNodeRecord(id);
+    var node = state.nodeMap[id];
+    if (!record || !node) return;
+    if (state.activeId !== id) armNode(id);
+
+    var limits = rotationLimits(record);
+    var value = n(rawValue, which === "min" ? limits.min : limits.max);
+
+    if (which === "min") {
+      record.rotateMin = round3(value);
+      if (record.rotateMin >= limits.max) record.rotateMin = round3(limits.max - 0.5);
+      record.rotateMax = limits.max;
+    } else {
+      record.rotateMax = round3(value);
+      if (record.rotateMax <= limits.min) record.rotateMax = round3(limits.min + 0.5);
+      record.rotateMin = limits.min;
+    }
+
+    var updatedLimits = rotationLimits(record);
+    state.frame = currentProjectFrame();
+    var currentPose = interpolatePose(record, state.frame);
+    var clampedRotation = clamp(n(currentPose.rotation, 0), updatedLimits.min, updatedLimits.max);
+
+    if (clampedRotation !== currentPose.rotation) {
+      var key = ensureKeyAtFrame(node, state.frame, "auto");
+      key.rotation = round3(clampedRotation);
+      setChannelKeyMeta(record, state.frame, "rotate", "auto");
+      applyTransformToObject(node, key, commit);
+    }
+
+    renderAll();
+    if (commit) {
+      saveStagingData(false);
+      syncStickRigProxyLayers();
+    } else {
+      queueSave();
+      queueProxySync();
+    }
+  }
+
+  function armNode(id){
+    var node = state.nodeMap[id];
+    if (!node) return;
+    state.activeId = id;
+    setOpenCard(id);
+    state.frame = currentProjectFrame();
+    var record = getNodeRecord(id);
+    if (record) applyTransformToObject(node, interpolatePose(record, state.frame), true);
+    renderAll();
+    setStatus("Animating " + node.name + " at Wick frame " + state.frame + ".", "good");
+  }
+
+  function setHeldChannelKey(id, channel){
+    var node = state.nodeMap[id];
+    var record = getNodeRecord(id);
+    if (!node || !record || CHANNELS.indexOf(channel) === -1) return;
+    state.frame = currentProjectFrame();
+    if (channelKeyExists(record, state.frame, channel)) return;
+    state.activeId = id;
+    setOpenCard(id);
+    var key = ensureKeyAtFrame(node, state.frame, "auto");
+    applyHeldChannelValues(key, previousChannelValues(record, state.frame, channel), channel);
+    setChannelKeyMeta(record, state.frame, channel, "hold");
+    applyTransformToObject(node, key, true);
+    renderAll();
+    saveStagingData(false);
+    syncStickRigProxyLayers();
+    setStatus("Held " + channel + " for " + node.name + " at frame " + state.frame + ".", "good");
+  }
+
+  function updateChannelTransition(id, channel, value, commit){
+    var record = getNodeRecord(id);
+    if (!record || CHANNELS.indexOf(channel) === -1) return;
+    var selected = TRANSITIONS[value] ? value : "none";
+    ensureChannelMaps(record);
+    state.frame = currentProjectFrame();
+    var frameKey = String(state.frame);
+    var hasKey = channelKeyExists(record, state.frame, channel);
+
+    if (selected === "hold") {
+      if (hasKey) {
+        if (!record.channelTypes[frameKey]) record.channelTypes[frameKey] = {};
+        if (!record.channelEasing[frameKey]) record.channelEasing[frameKey] = {};
+        record.channelTypes[frameKey][channel] = "hold";
+        record.channelEasing[frameKey][channel] = "none";
+      }
+    } else {
+      record.channelDefaults[channel] = selected;
+      if (hasKey) {
+        if (!record.channelTypes[frameKey]) record.channelTypes[frameKey] = {};
+        if (!record.channelEasing[frameKey]) record.channelEasing[frameKey] = {};
+        record.channelTypes[frameKey][channel] = "auto";
+        record.channelEasing[frameKey][channel] = selected;
+      }
+    }
+
+    if (hasKey) {
+      var active = CHANNELS.filter(function(name){
+        return record.keyChannels[frameKey] && record.keyChannels[frameKey][name];
+      });
+      record.keyTypes[frameKey] = active.length && active.every(function(name){
+        return record.channelTypes[frameKey] && record.channelTypes[frameKey][name] === "hold";
+      }) ? "hold" : "auto";
+    }
+
+    renderAll();
+    if (commit) {
+      saveStagingData(false);
+      syncStickRigProxyLayers();
+    } else {
+      queueSave();
+      queueProxySync();
+    }
+  }
+
+  function updateKeyFromControl(id, property, display, commit){
+    var node = state.nodeMap[id];
+    if (!node) return;
+    if (state.activeId !== id) armNode(id);
+    var record = getNodeRecord(id);
+    if (!record) return;
+    state.frame = currentProjectFrame();
+    var channel = channelForProperty(property);
+    var key = ensureKeyAtFrame(node, state.frame, "auto");
+    var nextValue = poseValue(property, display);
+    if (property === "rotation") {
+      var limits = rotationLimits(record);
+      nextValue = clamp(nextValue, limits.min, limits.max);
+    }
+    key[property] = round3(nextValue);
+    setChannelKeyMeta(record, state.frame, channel, "auto");
+    applyTransformToObject(node, key, commit);
+    if (property === "rotation") refreshRotationControl(id, record, key.rotation);
+    renderAll();
+    if (commit) {
+      saveStagingData(false);
+      syncStickRigProxyLayers();
+    } else {
+      queueSave();
+      queueProxySync();
+    }
+  }
+
+  function deleteCurrentChannelKey(id, channel){
+    var record = getNodeRecord(id);
+    var node = state.nodeMap[id];
+    if (!record || !node || CHANNELS.indexOf(channel) === -1) return;
+    state.frame = currentProjectFrame();
+    if (!channelKeyExists(record, state.frame, channel)) return;
+    removeChannelKeyMeta(record, state.frame, channel);
+    var pose = interpolatePose(record, state.frame);
+    applyTransformToObject(node, pose, true);
+    renderAll();
+    saveStagingData(false);
+    syncStickRigProxyLayers();
+    setStatus("Deleted " + channel + " key for " + node.name + " at frame " + state.frame + ".", "good");
+  }
+
+  function resetCurrentKeyToBase(id){
+    var record = getNodeRecord(id);
+    var node = state.nodeMap[id];
+    if (!record || !node || state.activeId !== id) return;
+    state.frame = currentProjectFrame();
+    record.keys[String(state.frame)] = copyPose(record.base);
+    CHANNELS.forEach(function(channel){ setChannelKeyMeta(record, state.frame, channel, "auto"); });
+    applyTransformToObject(node, record.keys[String(state.frame)], true);
+    renderAll();
+    saveStagingData(false);
+    syncStickRigProxyLayers();
+    setStatus("Reset " + node.name + " at frame " + state.frame + ".", "good");
+  }
+
+  function clearAllKeys(){
+    if (!state.nodes.length) return;
+    clearTimeout(state.saveTimer);
+    clearTimeout(state.proxySyncTimer);
+    state.saveTimer = null;
+    state.proxySyncTimer = null;
+
+    Object.keys(state.anim.nodes).forEach(function(id){
+      state.anim.nodes[id].keys = {};
+      state.anim.nodes[id].keyTypes = {};
+      state.anim.nodes[id].keyChannels = {};
+      state.anim.nodes[id].channelTypes = {};
+      state.anim.nodes[id].channelEasing = {};
+    });
+
+    state.nodes.forEach(function(node){
+      var record = getNodeRecord(node.id);
+      if (record) applyTransformToObject(node, record.base, false);
+    });
+
+    removeTimelineOverlay();
+    removeStickRigProxyLayers();
+    removeStaleStickRigProxyLayers(getMainTimeline());
+    clearStagingBlock();
+    state.timelineOverlay.selected = null;
+    state.openChannels = {};
+    markProjectChanged();
+    renderAll();
+    setStatus("Cleared all StickRig keys, saved staging data and timeline indicators.", "good");
+  }
+
+  function serializableAnimation(){
+    var output = {
+      version: 1,
+      toolVersion: VERSION,
+      root: state.rootInfo,
+      nodes: {}
+    };
+    Object.keys(state.anim.nodes).forEach(function(id){
+      var record = state.anim.nodes[id];
+      ensureChannelMaps(record);
+      output.nodes[id] = {
+        id: record.id,
+        name: record.name,
+        path: record.path,
+        pathKey: record.pathKey,
+        isRoot: !!record.isRoot,
+        rotateMin: rotationLimits(record).min,
+        rotateMax: rotationLimits(record).max,
+        base: {
+          x: round3(record.base.x),
+          y: round3(record.base.y),
+          scale: round3(record.base.scale),
+          rotation: round3(record.base.rotation),
+          signX: n(record.base.signX, 1) < 0 ? -1 : 1,
+          signY: n(record.base.signY, 1) < 0 ? -1 : 1
+        },
+        keys: {},
+        keyTypes: {},
+        keyChannels: JSON.parse(JSON.stringify(record.keyChannels || {})),
+        channelTypes: JSON.parse(JSON.stringify(record.channelTypes || {})),
+        channelEasing: JSON.parse(JSON.stringify(record.channelEasing || {})),
+        channelDefaults: JSON.parse(JSON.stringify(record.channelDefaults || { move: "none", scale: "none", rotate: "none" }))
+      };
+      Object.keys(record.keys || {}).forEach(function(frame){ output.nodes[id].keys[String(frame)] = copyPose(record.keys[frame]); });
+      Object.keys(record.keyTypes || {}).forEach(function(frame){ output.nodes[id].keyTypes[String(frame)] = record.keyTypes[frame] === "hold" ? "hold" : "auto"; });
+    });
+    return output;
+  }
+
+  function safeFileName(value){
+    var name = s(value || "StickRig")
+      .replace(/[\\/:*?"<>|]+/g, "_")
+      .replace(/\s+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    return name || "StickRig";
+  }
+
+  function buildRigJsonData(){
+    var animation = serializableAnimation();
+    var hierarchy = state.nodes.map(function(node){
+      var record = animation.nodes[node.id] || {};
+      return {
+        id: node.id,
+        name: node.name,
+        parentId: node.parentId || null,
+        depth: node.depth,
+        isRoot: !!node.isRoot,
+        path: node.path || [],
+        rotateMin: isFinite(Number(record.rotateMin)) ? Number(record.rotateMin) : -359,
+        rotateMax: isFinite(Number(record.rotateMax)) ? Number(record.rotateMax) : 360,
+        base: record.base || copyPose(node.base),
+        keys: record.keys || {},
+        keyTypes: record.keyTypes || {},
+        keyChannels: record.keyChannels || {},
+        channelTypes: record.channelTypes || {},
+        channelEasing: record.channelEasing || {},
+        channelDefaults: record.channelDefaults || { move: "none", scale: "none", rotate: "none" }
+      };
+    });
+
+    var frameRate = null;
+    try {
+      frameRate = n(safeGet(state.project, "framerate"), n(safeGet(state.project, "frameRate"), null));
+    } catch(eFrameRate) {}
+
+    return {
+      format: "LukeTools.StickRig",
+      formatVersion: 4,
+      tool: "StickRig",
+      toolVersion: VERSION,
+      savedAt: new Date().toISOString(),
+      rootName: state.rootName,
+      root: state.rootInfo,
+      timelineLength: getProjectDuration(),
+      frameRate: frameRate,
+      hierarchy: hierarchy,
+      animation: animation
+    };
+  }
+
+  function triggerTextDownload(filename, text, mimeType){
+    var bridgeResult = null;
+
+    try {
+      if (state.bridge && typeof state.bridge.downloadTextFile === "function") {
+        bridgeResult = state.bridge.downloadTextFile(filename, text, mimeType || "application/json");
+        if (bridgeResult !== false) return true;
+      }
+    } catch(eBridgeDownload) {}
+
+    try {
+      if (state.bridge && typeof state.bridge.saveTextFile === "function") {
+        bridgeResult = state.bridge.saveTextFile(filename, text, mimeType || "application/json");
+        if (bridgeResult !== false) return true;
+      }
+    } catch(eBridgeSave) {}
+
+    try {
+      var blob = new Blob([text], { type: mimeType || "application/json" });
+      var url = URL.createObjectURL(blob);
+      var anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      setTimeout(function(){
+        try { document.body.removeChild(anchor); } catch(eRemove) {}
+        try { URL.revokeObjectURL(url); } catch(eRevoke) {}
+      }, 1000);
+      return true;
+    } catch(eDownload) {
+      console.error(eDownload);
+      return false;
+    }
+  }
+
+  function saveRigJson(){
+    if (!state.root || !state.nodes.length) {
+      setStatus("Load a rig first.", "warn");
+      return false;
+    }
+
+    var data = buildRigJsonData();
+    var filename = safeFileName(state.rootName) + "_StickRig.json";
+    var json = JSON.stringify(data, null, 2);
+    var ok = triggerTextDownload(filename, json, "application/json");
+
+    if (!ok) {
+      setStatus("Rig JSON could not be downloaded.", "bad");
+      return false;
+    }
+
+    setStatus("Saved " + filename + ".", "good");
+    return true;
+  }
+
+  function buildStagingBlock(){
+    var data = serializableAnimation();
+    var json = JSON.stringify(data);
+    return [
+      BLOCK_START,
+      DATA_BEGIN,
+      "var LT_NCSA_DATA = " + json + ";",
+      DATA_END,
+      BLOCK_END
+    ].join("\n");
+  }
+
+  function saveStagingData(showSuccess){
+    if (!state.root || !state.nodes.length) {
+      setStatus("Read a selected clip before saving staging data.", "warn");
+      return false;
+    }
+    clearTimeout(state.saveTimer);
+    state.saveTimer = null;
+    var existing = getExistingUpdateScript();
+    var clean = stripExistingBlock(existing);
+    var block = buildStagingBlock();
+    var finalSource = clean ? (clean + "\n\n" + block) : block;
+    var result = setUpdateScript(finalSource);
+    if (result && result.ok === false) {
+      setStatus("Save failed: " + (result.reason || "unknown bridge error"), "bad");
+      return false;
+    }
+    markProjectChanged();
+    if (showSuccess !== false) setStatus("Saved staging data into " + state.rootName + ".", "good");
+    return true;
+  }
+
+  function clearStagingBlock(){
+    if (!state.root) return true;
+    var existing = getExistingUpdateScript();
+    var clean = stripExistingBlock(existing);
+    var result = setUpdateScript(clean);
+    if (result && result.ok === false) return false;
+    return true;
+  }
+
+  function clearStagingBlockOnObject(obj){
+    if (!obj || !state.bridge) return true;
+    var info = getObjectInfo(obj);
+    try {
+      if (typeof state.bridge.getUpdateScriptByInfo === "function" && typeof state.bridge.setUpdateScriptByInfo === "function") {
+        var existing = s(state.bridge.getUpdateScriptByInfo(info));
+        var clean = stripExistingBlock(existing);
+        var result = state.bridge.setUpdateScriptByInfo(info, clean);
+        if (result && result.ok === false) return false;
+      }
+    } catch(e) {
+      return false;
+    }
+    return true;
+  }
+
+  function queueSave(){
+    clearTimeout(state.saveTimer);
+    state.saveTimer = setTimeout(function(){ saveStagingData(false); }, 220);
+  }
+
+  function readSelectedClip(){
+    if (state.reading) return;
+    state.reading = true;
+    setStatus("Loading…", "");
+    try {
+      removeStickRigProxyLayers();
+      if (!refreshRefs()) { setStatus("LukeToolsBridge or Wick project could not be found.", "bad"); return; }
+      var root = getSelectedObject();
+      if (!root) { setStatus("Select a clip first.", "warn"); return; }
+      if (!looksLikeClip(root)) { setStatus("Selection is not a clip.", "warn"); return; }
+      state.root = root;
+      state.rootInfo = getObjectInfo(root);
+      state.rootName = getObjectName(root, "Selected Root Clip");
+      state.frame = currentProjectFrame();
+      state.lastPolledFrame = state.frame;
+      state.activeId = "";
+      state.openIds = {};
+      state.openChannels = {};
+      buildHierarchy(root);
+      if (!state.nodes.length) { setStatus("The selected clip could not be read.", "bad"); return; }
+      mergeSavedAnimation(null);
+      state.openIds[state.nodes[0].id] = true;
+      renderAll();
+      $("saveBtn").disabled = false;
+      $("jsonBtn").disabled = false;
+      $("commitBtn").disabled = false;
+      $("clearAllBtn").disabled = false;
+      setupStickRigProxyLayers();
+      setStatus("Read " + state.nodes.length + " clip" + (state.nodes.length === 1 ? "" : "s") + " from " + state.rootName + ".", "good");
+    } catch(error) {
+      console.error(error);
+      setStatus("Read failed: " + (error && error.message ? error.message : String(error)), "bad");
+    } finally {
+      state.reading = false;
+    }
+  }
+
+  function refreshCurrentFrame(forceRender){
+    var frame = currentProjectFrame();
+    state.frame = frame;
+    $("frameValue").textContent = String(frame);
+    if (forceRender || frame !== state.lastPolledFrame) {
+      state.lastPolledFrame = frame;
+      if (state.nodes.length) {
+        renderAll();
+        state.nodes.forEach(function(node){
+          var record = getNodeRecord(node.id);
+          if (record) applyTransformToObject(node, interpolatePose(record, frame), false);
+        });
+      }
+    }
+  }
+
+  function getFrameStart(frame){
+    return Math.max(1, Math.round(n(safeGet(frame, "start"), n(safeGet(frame, "startFrame"), 1))));
+  }
+
+  function getFrameEnd(frame){
+    return Math.max(getFrameStart(frame), Math.round(n(safeGet(frame, "end"), n(safeGet(frame, "endFrame"), getFrameStart(frame)))));
+  }
+
+  function setFrameSpan(frame, start, end){
+    var s1 = Math.max(1, Math.round(n(start, 1)));
+    var e1 = Math.max(s1, Math.round(n(end, s1)));
+    try { frame.start = s1; } catch(e1a) {}
+    try { frame.startFrame = s1; } catch(e1b) {}
+    try { frame.end = e1; } catch(e2a) {}
+    try { frame.endFrame = e1; } catch(e2b) {}
+  }
+
+  function ensureTimelineExists(clip){
+    if (getTimeline(clip)) return getTimeline(clip);
+    var W = getWickNamespace();
+    try { if (W && W.Timeline) clip.timeline = new W.Timeline(); } catch(e1) {}
+    return getTimeline(clip);
+  }
+
+  function validIdentifier(value, fallback){
+    var text = s(value || fallback || "CommittedClip").replace(/[^A-Za-z0-9_$]/g, "_");
+    if (!text) text = "CommittedClip";
+    if (!/^[A-Za-z_$]/.test(text)) text = "_" + text;
+    return text;
+  }
+
+  function createClip(name){
+    var W = getWickNamespace();
+    if (!W || !W.Clip) throw new Error("Wick.Clip is not available");
+    var identifier = validIdentifier(name, "CommittedClip");
+    var clip = new W.Clip({
+      identifier: identifier,
+      transformation: new W.Transformation({ x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 })
+    });
+    try { clip.identifier = identifier; } catch(e1) {}
+    try { clip.name = name; } catch(e2) {}
+    return clip;
+  }
+
+  function createLayer(name){
+    var W = getWickNamespace();
+    if (!W || !W.Layer) throw new Error("Wick.Layer is not available");
+    return new W.Layer({ name: name || "Layer" });
+  }
+
+  function createFrame(start, end){
+    var W = getWickNamespace();
+    if (!W || !W.Frame) throw new Error("Wick.Frame is not available");
+    return new W.Frame({
+      start: Math.max(1, Math.round(n(start, 1))),
+      end: Math.max(Math.max(1, Math.round(n(start, 1))), Math.round(n(end, start || 1)))
+    });
+  }
+
+  function applyTimelineColour(target, colour){
+    if (!target || !colour) return;
+    ["colour", "color", "timelineColour", "timelineColor", "tweenColour", "tweenColor", "_colour", "_color", "_timelineColour", "_timelineColor"].forEach(function(prop){
+      try { target[prop] = colour; } catch(e) {}
+    });
+  }
+
+  function createTween(frameNumber, pose, base, easingType, colour){
+    var W = getWickNamespace();
+    if (!W || !W.Tween || !W.Transformation) throw new Error("Wick.Tween or Wick.Transformation is not available");
+    var signX = n(base && base.signX, 1) < 0 ? -1 : 1;
+    var signY = n(base && base.signY, 1) < 0 ? -1 : 1;
+    var easing = TRANSITIONS[easingType] && easingType !== "hold" ? easingType : "none";
+    var transformation = new W.Transformation({
+      x: n(pose && pose.x, 0),
+      y: n(pose && pose.y, 0),
+      scaleX: Math.max(0.01, n(pose && pose.scale, 1)) * signX,
+      scaleY: Math.max(0.01, n(pose && pose.scale, 1)) * signY,
+      rotation: n(pose && pose.rotation, 0),
+      opacity: 1
+    });
+    var tween = new W.Tween({
+      playheadPosition: Math.max(1, Math.round(n(frameNumber, 1))),
+      transformation: transformation,
+      easingType: easing
+    });
+    applyTimelineColour(tween, colour || (TRANSITIONS[easing] || TRANSITIONS.none).colour);
+    return tween;
+  }
+
+  function addLayerToTimeline(timeline, layer){
+    if (!timeline || !layer || typeof timeline.addLayer !== "function") {
+      throw new Error("Wick timeline.addLayer is unavailable");
+    }
+    timeline.addLayer(layer);
+    return true;
+  }
+
+  function addFrameToLayer(layer, frame){
+    if (!layer || !frame || typeof layer.addFrame !== "function") {
+      throw new Error("Wick layer.addFrame is unavailable");
+    }
+    layer.addFrame(frame);
+    return true;
+  }
+
+  function addChildToFrame(frame, child){
+    if (!frame || !child || typeof frame.addClip !== "function") {
+      throw new Error("Wick frame.addClip is unavailable");
+    }
+    frame.addClip(child);
+    return true;
+  }
+
+  function removeChildFromFrame(frame, child){
+    if (!frame || !child || typeof frame.removeClip !== "function") {
+      throw new Error("Wick frame.removeClip is unavailable");
+    }
+    frame.removeClip(child);
+    return true;
+  }
+
+  function addTweenToFrame(frame, tween){
+    if (!frame || !tween || typeof frame.addTween !== "function") {
+      throw new Error("Wick frame.addTween is unavailable");
+    }
+    frame.addTween(tween);
+    return true;
+  }
+
+  function clearTweensOnFrame(frame){
+    if (!frame) return;
+    if (typeof frame.removeAllTweens === "function") {
+      frame.removeAllTweens();
+      return;
+    }
+    var tweens = safeGet(frame, "tweens");
+    if (tweens && typeof tweens.slice === "function") {
+      tweens.slice().forEach(function(tween){
+        if (tween && typeof tween.remove === "function") tween.remove();
+      });
+    }
+  }
+
+  var STICKRIG_PROXY_PREFIX = "StickRig_Proxy_";
+  var ZERO_WIDTH_SEPARATOR = "\u2063";
+  var CHANNEL_VISUALS = {
+    scale: { label: "S", colour: "#fff200" },
+    move: { label: "M", colour: "#8bdcff" },
+    rotate: { label: "R", colour: "#ff4d7a" }
+  };
+
+  function getAccessibleEditorDocuments(){
+    var result = [];
+    var seen = [];
+
+    function addDocument(doc){
+      if (!doc || !doc.body) return;
+      for (var i = 0; i < seen.length; i += 1) {
+        if (seen[i] === doc) return;
+      }
+      seen.push(doc);
+      result.push(doc);
+    }
+
+    var currentWindow = window;
+    var guard = 0;
+    while (currentWindow && guard < 12) {
+      try { addDocument(currentWindow.document); } catch(eDoc) {}
+      var parentWindow = null;
+      try { parentWindow = currentWindow.parent; } catch(eParent) { parentWindow = null; }
+      if (!parentWindow || parentWindow === currentWindow) break;
+      currentWindow = parentWindow;
+      guard += 1;
+    }
+
+    try { if (window.top) addDocument(window.top.document); } catch(eTop) {}
+    return result;
+  }
+
+  function scoreTimelineDocument(doc){
+    if (!doc || !doc.body) return -Infinity;
+    var score = 0;
+    var viewportWidth = 0;
+    var viewportHeight = 0;
+    try {
+      viewportWidth = Math.max(doc.documentElement ? doc.documentElement.clientWidth : 0, doc.defaultView ? doc.defaultView.innerWidth : 0);
+      viewportHeight = Math.max(doc.documentElement ? doc.documentElement.clientHeight : 0, doc.defaultView ? doc.defaultView.innerHeight : 0);
+    } catch(eViewport) {}
+    score += Math.min(40, (viewportWidth * viewportHeight) / 100000);
+
+    try {
+      var timelineMatches = doc.querySelectorAll('[class*="timeline" i],[id*="timeline" i]');
+      score += Math.min(60, timelineMatches.length * 3);
+    } catch(eTimelineQuery) {}
+
+    try {
+      var bodyText = cleanInvisibleText(doc.body.innerText || doc.body.textContent || "");
+      if (/\bLayer\b/.test(bodyText)) score += 12;
+      if (/\bFrame\b/.test(bodyText)) score += 4;
+    } catch(eBodyText) {}
+
+    if (state.proxy && state.proxy.layers && state.proxy.layers.length) {
+      state.proxy.layers.forEach(function(info){
+        try {
+          if (findLayerLabelElement(doc, info.displayName, info.cleanName)) score += 250;
+        } catch(eLabel) {}
+      });
+    }
+
+    try { if (doc === window.document) score -= 20; } catch(eCurrent) {}
+    return score;
+  }
+
+  function getParentEditorDocument(){
+    var docs = getAccessibleEditorDocuments();
+    var best = null;
+    var bestScore = -Infinity;
+    docs.forEach(function(doc){
+      if (!doc || !doc.body) return;
+      try {
+        if (doc === window.document) return;
+        if (doc.getElementById("app") && doc.getElementById("cards")) return;
+        if (/StickRig/i.test(doc.title || "")) return;
+      } catch(eExclude) {}
+      var score = scoreTimelineDocument(doc);
+      try {
+        if (doc.defaultView === window.top) score += 500;
+      } catch(eTop) {}
+      if (score > bestScore) {
+        best = doc;
+        bestScore = score;
+      }
+    });
+    if (best) return best;
+    try {
+      if (window.parent && window.parent !== window && window.parent.document && window.parent.document.body) return window.parent.document;
+    } catch(eParent) {}
+    return null;
+  }
+
+  function isStickRigProxyLayer(layer){
+    var identifier = s(safeGet(layer, "identifier"));
+    var name = s(safeGet(layer, "name"));
+    return identifier.indexOf(STICKRIG_PROXY_PREFIX) === 0 ||
+      name.indexOf("SR Move • ") === 0 ||
+      name.indexOf("SR Scale • ") === 0 ||
+      name.indexOf("SR Rotate • ") === 0 ||
+      name.indexOf("SR • ") === 0;
+  }
+
+  function removeLayerFromTimeline(timeline, layer){
+    if (!timeline || !layer) return false;
+    try {
+      if (typeof timeline.removeLayer === "function") {
+        timeline.removeLayer(layer);
+        return true;
+      }
+    } catch(e1) {}
+    try {
+      if (typeof layer.remove === "function") {
+        layer.remove();
+        return true;
+      }
+    } catch(e2) {}
+    try {
+      if (timeline.layers && typeof timeline.layers.indexOf === "function") {
+        var index = timeline.layers.indexOf(layer);
+        if (index !== -1) {
+          timeline.layers.splice(index, 1);
+          return true;
+        }
+      }
+    } catch(e3) {}
+    return false;
+  }
+
+  function removeStaleStickRigProxyLayers(timeline){
+    if (!timeline) return;
+    var layers = getTimelineLayers(timeline).slice();
+    layers.forEach(function(layer){
+      if (isStickRigProxyLayer(layer)) removeLayerFromTimeline(timeline, layer);
+    });
+  }
+
+  function restoreTimelineRowStyles(){
+    var overlay = state.timelineOverlay;
+    var modified = Array.isArray(overlay.modifiedRows) ? overlay.modifiedRows.slice() : [];
+    modified.forEach(function(entry){
+      if (!entry || !entry.element) return;
+      try {
+        entry.element.style.cssText = entry.cssText || "";
+      } catch(eRestore) {}
+    });
+    overlay.modifiedRows = [];
+  }
+
+  function rememberTimelineRowStyle(element){
+    if (!element || !element.style) return;
+    var overlay = state.timelineOverlay;
+    if (!Array.isArray(overlay.modifiedRows)) overlay.modifiedRows = [];
+    for (var i = 0; i < overlay.modifiedRows.length; i += 1) {
+      if (overlay.modifiedRows[i].element === element) return;
+    }
+    overlay.modifiedRows.push({
+      element: element,
+      cssText: element.style.cssText || ""
+    });
+  }
+
+  function forceStickRigRowHeight(row, labelElement){
+    if (!row) return;
+    var targetHeight = 72;
+    var baseRect = null;
+    try { baseRect = row.getBoundingClientRect(); } catch(eBase) {}
+    var baseTop = baseRect ? baseRect.top : 0;
+
+    function stretchChain(start, maxDepth){
+      var current = start;
+      var guard = 0;
+      while (current && guard < maxDepth) {
+        var rect = null;
+        try { rect = current.getBoundingClientRect(); } catch(eRect) {}
+        if (!rect) break;
+        if (guard > 0 && (Math.abs(rect.top - baseTop) > 5 || rect.height > 96)) break;
+        if (current.style) {
+          rememberTimelineRowStyle(current);
+          current.style.setProperty("height", targetHeight + "px", "important");
+          current.style.setProperty("min-height", targetHeight + "px", "important");
+          current.style.setProperty("max-height", targetHeight + "px", "important");
+          current.style.setProperty("overflow", "visible", "important");
+          current.style.setProperty("align-items", "stretch", "important");
+          current.style.setProperty("box-sizing", "border-box", "important");
+        }
+        current = current.parentElement;
+        guard += 1;
+      }
+    }
+
+    stretchChain(row, 6);
+    if (labelElement) stretchChain(labelElement, 7);
+  }
+
+  function removeTimelineOverlay(){
+    var overlay = state.timelineOverlay;
+    var docs = getAccessibleEditorDocuments();
+    docs.forEach(function(doc){
+      try {
+        var groups = doc.querySelectorAll('.sr-compact-group[data-stickrig-embedded="1"]');
+        for (var i = 0; i < groups.length; i += 1) {
+          if (groups[i].parentNode) groups[i].parentNode.removeChild(groups[i]);
+        }
+      } catch(eGroups) {}
+    });
+    var doc = overlay.parentDocument || getParentEditorDocument();
+    try { if (overlay.root && overlay.root.parentNode) overlay.root.parentNode.removeChild(overlay.root); } catch(e1) {}
+    try { if (overlay.style && overlay.style.parentNode) overlay.style.parentNode.removeChild(overlay.style); } catch(e2) {}
+    try { if (doc && overlay.keyboardBound) doc.removeEventListener("keydown", handleTimelineOverlayKeydown, true); } catch(e3) {}
+    restoreTimelineRowStyles();
+    try {
+      if (overlay.drag && typeof overlay.drag.cleanup === "function") overlay.drag.cleanup(true);
+    } catch(eDragCleanup) {}
+    overlay.root = null;
+    overlay.style = null;
+    overlay.selected = null;
+    overlay.drag = null;
+    overlay.keyboardBound = false;
+    try { if (overlay.retryTimer) clearTimeout(overlay.retryTimer); } catch(eRetry) {}
+    overlay.retryTimer = null;
+    overlay.parentDocument = doc || null;
+    overlay.attachedCount = 0;
+    overlay.attachAttempts = 0;
+    overlay.warningShown = false;
+    overlay.rulerGrid = null;
+    state.nativeTimeline.geometry = [];
+    requestNativeTimelineDraw();
+  }
+
+  function ensureTimelineOverlay(){
+    var overlay = state.timelineOverlay;
+    var doc = getParentEditorDocument();
+    if (!doc || !doc.body) return null;
+
+    if (overlay.parentDocument && overlay.parentDocument !== doc) removeTimelineOverlay();
+    overlay.parentDocument = doc;
+
+    if (!overlay.style || !overlay.style.parentNode) {
+      var style = doc.createElement("style");
+      style.id = "stickrig-compact-timeline-style";
+      style.textContent = [
+        "#stickrig-compact-timeline-root{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;pointer-events:none!important;overflow:hidden!important;z-index:2147482000!important;}",
+        ".sr-compact-group{position:fixed!important;pointer-events:none!important;overflow:visible!important;border-radius:0!important;background:transparent!important;z-index:2147482001!important;box-sizing:border-box!important;box-shadow:none!important;}",
+        ".sr-compact-track{position:absolute!important;left:0!important;right:0!important;box-sizing:border-box!important;border:2px solid var(--sr-channel)!important;background:rgba(31,112,82,.66)!important;pointer-events:auto!important;cursor:crosshair!important;overflow:hidden!important;}",
+        ".sr-compact-track::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(65,215,154,.20),rgba(20,84,63,.10));pointer-events:none;}",
+        ".sr-compact-label{position:absolute;left:4px;top:50%;transform:translateY(-50%);font:bold 10px Arial,sans-serif;color:var(--sr-channel);text-shadow:0 1px 2px #000;z-index:4;pointer-events:none;line-height:1;}",
+        ".sr-compact-key{position:absolute;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);background:transparent;border:0;box-shadow:none;z-index:8;pointer-events:auto;cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none;}",
+        ".sr-compact-key::before{content:'';position:absolute;left:50%;top:50%;width:7px;height:7px;transform:translate(-50%,-50%) rotate(45deg);background:var(--sr-channel);border:1px solid var(--sr-transition);box-shadow:0 0 0 1px rgba(0,0,0,.35);}",
+        ".sr-compact-key.sr-selected::before{outline:1px solid #fff;outline-offset:2px;filter:brightness(1.25);}",
+        ".sr-compact-key.sr-dragging::before{opacity:.72;filter:brightness(1.35);}"
+      ].join("\n");
+      (doc.head || doc.body).appendChild(style);
+      overlay.style = style;
+    }
+
+    if (!overlay.root || !overlay.root.parentNode) {
+      var root = doc.createElement("div");
+      root.id = "stickrig-compact-timeline-root";
+      doc.body.appendChild(root);
+      overlay.root = root;
+    }
+
+    try {
+      var lukePanels = doc.querySelectorAll('#luke_tools_fullscreen_overlay_271,#luke_tools_panel_271,[id*="luke_tools_panel"],[id*="luke_tools_fullscreen"]');
+      Array.prototype.slice.call(lukePanels).forEach(function(panel){
+        if (panel && panel.style) panel.style.setProperty('z-index', '2147483000', 'important');
+      });
+    } catch(ePanelZ) {}
+
+    if (!overlay.keyboardBound) {
+      doc.addEventListener("keydown", handleTimelineOverlayKeydown, true);
+      overlay.keyboardBound = true;
+    }
+    return overlay.root;
+  }
+
+  function cleanInvisibleText(value){
+    return s(value).replace(/[\u200B-\u200D\u2060\u2063\uFEFF]/g, "").trim();
+  }
+
+
+  function parseCssColour(value){
+    var match = s(value).match(/rgba?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?/i);
+    if (!match) return null;
+    return {
+      r: Number(match[1]),
+      g: Number(match[2]),
+      b: Number(match[3]),
+      a: match[4] === undefined ? 1 : Number(match[4])
+    };
+  }
+
+  function isLikelyNativeFrameBar(doc, element, rect){
+    if (!doc || !element || !rect) return false;
+    var view = doc.defaultView;
+    var viewportWidth = Math.max(doc.documentElement ? doc.documentElement.clientWidth : 0, view ? view.innerWidth : 0);
+    var viewportHeight = Math.max(doc.documentElement ? doc.documentElement.clientHeight : 0, view ? view.innerHeight : 0);
+    if (rect.width < 180 || rect.height < 24 || rect.height > 62) return false;
+    if (rect.top < viewportHeight * 0.42 || rect.bottom > viewportHeight + 4) return false;
+    if (rect.left < 70 || rect.left > viewportWidth * 0.62) return false;
+    if (rect.right < rect.left + 180) return false;
+    try {
+      if (element.closest && element.closest('#luke_tools_fullscreen_overlay_271,#luke_tools_panel_271,#stickrig-compact-timeline-root')) return false;
+    } catch(eClosest) {}
+
+    var style = null;
+    try { style = view.getComputedStyle(element); } catch(eStyle) {}
+    if (!style || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
+    var colour = parseCssColour(style.backgroundColor);
+    var brightness = colour ? (colour.r + colour.g + colour.b) / 3 : 0;
+    var signature = (s(element.className) + ' ' + s(element.id)).toLowerCase();
+    var frameSignature = signature.indexOf('frame') !== -1 || signature.indexOf('timeline') !== -1 || signature.indexOf('cell') !== -1;
+    if (!(colour && colour.a > 0.45 && brightness > 175) && !frameSignature) return false;
+    var text = cleanInvisibleText(element.textContent || '');
+    if (text.length > 8) return false;
+    return true;
+  }
+
+  function sampleCanvasPixel(data, width, height, x, y){
+    var px = Math.max(0, Math.min(width - 1, Math.round(x)));
+    var py = Math.max(0, Math.min(height - 1, Math.round(y)));
+    var index = (py * width + px) * 4;
+    return {
+      r: data[index] || 0,
+      g: data[index + 1] || 0,
+      b: data[index + 2] || 0,
+      a: data[index + 3] || 0
+    };
+  }
+
+  function isBrightTimelinePixel(pixel){
+    if (!pixel || pixel.a < 90) return false;
+    var max = Math.max(pixel.r, pixel.g, pixel.b);
+    var min = Math.min(pixel.r, pixel.g, pixel.b);
+    var brightness = (pixel.r + pixel.g + pixel.b) / 3;
+    return brightness >= 145 && max - min <= 105;
+  }
+
+  /*
+   * The vertical row finder can be permissive because it only needs to locate
+   * timeline-height bands. The horizontal calibration cannot be permissive:
+   * Wick's grey layer-name column is also bright and was being joined to the
+   * white frame strip. That made the compact tracks begin at the layer panel,
+   * use the wrong width and place every key in the wrong frame. This stricter
+   * test isolates the near-white native frame interior only.
+   */
+  function isNativeFrameInteriorPixel(pixel){
+    if (!pixel || pixel.a < 170) return false;
+    var max = Math.max(pixel.r, pixel.g, pixel.b);
+    var min = Math.min(pixel.r, pixel.g, pixel.b);
+    return min >= 222 && max - min <= 34;
+  }
+
+  function scanCanvasForFrameBars(doc, canvas){
+    var result = [];
+    if (!doc || !canvas) return result;
+    var rect = rectOf(canvas);
+    if (!rect || rect.width < 240 || rect.height < 90) return result;
+
+    var view = doc.defaultView;
+    var viewportHeight = Math.max(doc.documentElement ? doc.documentElement.clientHeight : 0, view ? view.innerHeight : 0);
+    if (rect.bottom < viewportHeight * 0.50 || rect.top > viewportHeight + 4) return result;
+
+    try {
+      if (canvas.closest && canvas.closest('#luke_tools_fullscreen_overlay_271,#luke_tools_panel_271,#stickrig-compact-timeline-root')) return result;
+    } catch(eClosest) {}
+
+    var context = null;
+    try { context = canvas.getContext('2d', { willReadFrequently: true }); } catch(eContext1) {}
+    try { if (!context) context = canvas.getContext('2d'); } catch(eContext2) {}
+    if (!context || !canvas.width || !canvas.height) return result;
+
+    var image = null;
+    try { image = context.getImageData(0, 0, canvas.width, canvas.height); } catch(eRead) { return result; }
+    if (!image || !image.data) return result;
+
+    var scaleX = canvas.width / Math.max(1, rect.width);
+    var scaleY = canvas.height / Math.max(1, rect.height);
+    var sampleCssXs = [
+      Math.min(rect.width - 2, 8),
+      Math.min(rect.width - 2, 18),
+      Math.min(rect.width - 2, 34),
+      Math.min(rect.width - 2, 62),
+      Math.min(rect.width - 2, Math.max(84, rect.width * 0.10)),
+      Math.min(rect.width - 2, Math.max(120, rect.width * 0.16))
+    ].filter(function(value, index, array){ return value > 1 && array.indexOf(value) === index; });
+
+    var brightByY = [];
+    var cssHeight = Math.floor(rect.height);
+    for (var cssY = 0; cssY < cssHeight; cssY += 1) {
+      var votes = 0;
+      for (var xIndex = 0; xIndex < sampleCssXs.length; xIndex += 1) {
+        var pixel = sampleCanvasPixel(image.data, canvas.width, canvas.height, sampleCssXs[xIndex] * scaleX, cssY * scaleY);
+        if (isBrightTimelinePixel(pixel)) votes += 1;
+      }
+      brightByY[cssY] = votes >= 2;
+    }
+
+    var runs = [];
+    var runStart = -1;
+    for (var yIndex = 0; yIndex <= brightByY.length; yIndex += 1) {
+      var isBright = yIndex < brightByY.length && brightByY[yIndex];
+      if (isBright && runStart < 0) runStart = yIndex;
+      if ((!isBright || yIndex === brightByY.length) && runStart >= 0) {
+        var runEnd = yIndex - 1;
+        var runHeight = runEnd - runStart + 1;
+        if (runHeight >= 18 && runHeight <= 78) runs.push({ top: runStart, bottom: runEnd, height: runHeight });
+        runStart = -1;
+      }
+    }
+
+    runs.forEach(function(run){
+      /*
+       * Do not sample only the vertical centre of the row. Wick draws the
+       * playhead, tween line and tween diamonds through that centre. Those
+       * dark/coloured pixels split the white frame strip into separate runs,
+       * which previously made StickRig choose only the section ahead of the
+       * playhead. Sample the whole row instead, then bridge small gaps so the
+       * detected bounds remain fixed while the scrubber moves.
+       */
+      var step = 2;
+      var sampleYs = [];
+      var inset = Math.max(2, Math.min(6, Math.floor(run.height * 0.16)));
+      var usableTop = run.top + inset;
+      var usableBottom = run.bottom - inset;
+      var sampleCount = Math.max(5, Math.min(11, Math.floor(run.height / 4)));
+      for (var syIndex = 0; syIndex < sampleCount; syIndex += 1) {
+        var syT = sampleCount <= 1 ? 0.5 : syIndex / (sampleCount - 1);
+        sampleYs.push(usableTop + (usableBottom - usableTop) * syT);
+      }
+
+      var horizontalBright = [];
+      for (var cssX = 0; cssX < rect.width; cssX += step) {
+        var votes = 0;
+        for (var sampleIndex = 0; sampleIndex < sampleYs.length; sampleIndex += 1) {
+          var pixel = sampleCanvasPixel(
+            image.data,
+            canvas.width,
+            canvas.height,
+            cssX * scaleX,
+            sampleYs[sampleIndex] * scaleY
+          );
+          if (isNativeFrameInteriorPixel(pixel)) votes += 1;
+        }
+        horizontalBright.push({
+          x: cssX,
+          bright: votes >= Math.max(2, Math.ceil(sampleYs.length * 0.30))
+        });
+      }
+
+      /* Bridge only narrow interruptions made by the native playhead and
+         tween diamonds. A wider bridge can incorrectly join the layer-name
+         column to the actual frame strip. */
+      var maxGapCss = Math.max(6, Math.min(12, Math.round(run.height * 0.28)));
+      var maxGapSamples = Math.max(1, Math.ceil(maxGapCss / step));
+      var bridged = horizontalBright.map(function(item){ return item.bright; });
+      var gapStart = -1;
+      for (var bridgeIndex = 0; bridgeIndex <= bridged.length; bridgeIndex += 1) {
+        var isOn = bridgeIndex < bridged.length && bridged[bridgeIndex];
+        if (!isOn && gapStart < 0) gapStart = bridgeIndex;
+        if ((isOn || bridgeIndex === bridged.length) && gapStart >= 0) {
+          var gapEnd = bridgeIndex - 1;
+          var beforeOn = gapStart > 0 && bridged[gapStart - 1];
+          var afterOn = bridgeIndex < bridged.length && bridged[bridgeIndex];
+          var gapLength = gapEnd - gapStart + 1;
+          if (beforeOn && afterOn && gapLength <= maxGapSamples) {
+            for (var fillIndex = gapStart; fillIndex <= gapEnd; fillIndex += 1) bridged[fillIndex] = true;
+          }
+          gapStart = -1;
+        }
+      }
+
+      var horizontalRuns = [];
+      var horizontalStart = -1;
+      for (var hIndex = 0; hIndex <= bridged.length; hIndex += 1) {
+        var itemBright = hIndex < bridged.length && bridged[hIndex];
+        if (itemBright && horizontalStart < 0) horizontalStart = horizontalBright[hIndex].x;
+        if ((!itemBright || hIndex === bridged.length) && horizontalStart >= 0) {
+          var horizontalEnd = hIndex < horizontalBright.length ? horizontalBright[hIndex].x : rect.width;
+          if (horizontalEnd - horizontalStart >= 80) {
+            horizontalRuns.push({
+              left: horizontalStart,
+              right: horizontalEnd,
+              width: horizontalEnd - horizontalStart
+            });
+          }
+          horizontalStart = -1;
+        }
+      }
+
+      horizontalRuns.sort(function(a, b){ return b.width - a.width; });
+      var bestHorizontal = horizontalRuns[0] || { left: 0, right: rect.width, width: rect.width };
+
+      /* Never snap to the canvas edge. The Wick canvas also contains the
+         layer controls on the left; snapping there is what moved the S/M/R
+         tracks away from frame 1. */
+      bestHorizontal.width = Math.max(80, bestHorizontal.right - bestHorizontal.left);
+
+      result.push({
+        element: canvas,
+        source: 'canvas',
+        rect: {
+          left: rect.left + bestHorizontal.left,
+          right: rect.left + bestHorizontal.right,
+          top: rect.top + run.top,
+          bottom: rect.top + run.bottom + 1,
+          width: bestHorizontal.width,
+          height: run.height
+        }
+      });
+    });
+
+    return result;
+  }
+
+  function collectCanvasFrameBars(doc){
+    if (!doc || !doc.body) return [];
+    var canvases = [];
+    try { canvases = Array.prototype.slice.call(doc.querySelectorAll('canvas')); } catch(eQuery) {}
+    var rows = [];
+    canvases.forEach(function(canvas){
+      scanCanvasForFrameBars(doc, canvas).forEach(function(row){ rows.push(row); });
+    });
+
+    rows.sort(function(a, b){
+      if (Math.abs(a.rect.top - b.rect.top) > 2) return a.rect.top - b.rect.top;
+      return b.rect.width - a.rect.width;
+    });
+
+    var collapsed = [];
+    rows.forEach(function(candidate){
+      var existing = null;
+      for (var i = 0; i < collapsed.length; i += 1) {
+        if (Math.abs(collapsed[i].rect.top - candidate.rect.top) <= 3 && Math.abs(collapsed[i].rect.left - candidate.rect.left) <= 16) {
+          existing = collapsed[i];
+          break;
+        }
+      }
+      if (!existing) collapsed.push(candidate);
+      else if (candidate.rect.width > existing.rect.width) {
+        existing.element = candidate.element;
+        existing.rect = candidate.rect;
+        existing.source = candidate.source;
+      }
+    });
+    return collapsed;
+  }
+
+  function renderPersistentFrameCovers(){
+    /* v33 uses no native proxy frames, so there is nothing white to cover. */
+  }
+
+  function collectNativeFrameBars(doc){
+    if (!doc || !doc.body) return [];
+    var view = doc.defaultView;
+    var viewportWidth = Math.max(doc.documentElement ? doc.documentElement.clientWidth : 0, view ? view.innerWidth : 0);
+    var viewportHeight = Math.max(doc.documentElement ? doc.documentElement.clientHeight : 0, view ? view.innerHeight : 0);
+    var startY = Math.max(0, Math.floor(viewportHeight * 0.46));
+    var probeXs = [
+      Math.max(90, Math.min(viewportWidth - 20, 180)),
+      Math.max(110, Math.min(viewportWidth - 20, 230)),
+      Math.max(140, Math.min(viewportWidth - 20, 310)),
+      Math.max(180, Math.min(viewportWidth - 20, 430)),
+      Math.max(220, Math.min(viewportWidth - 20, Math.round(viewportWidth * 0.42)))
+    ];
+    var candidates = [];
+    var seen = [];
+
+    function alreadySeen(element){
+      for (var i = 0; i < seen.length; i += 1) if (seen[i] === element) return true;
+      seen.push(element);
+      return false;
+    }
+
+    for (var y = startY; y < viewportHeight - 4; y += 7) {
+      for (var xIndex = 0; xIndex < probeXs.length; xIndex += 1) {
+        var x = probeXs[xIndex];
+        var stack = [];
+        try { stack = doc.elementsFromPoint(x, y) || []; } catch(ePoint) {}
+        for (var stackIndex = 0; stackIndex < stack.length; stackIndex += 1) {
+          var element = stack[stackIndex];
+          if (!element || alreadySeen(element)) continue;
+          var rect = rectOf(element);
+          if (!isLikelyNativeFrameBar(doc, element, rect)) continue;
+          candidates.push({ element: element, rect: rect });
+        }
+      }
+    }
+
+    candidates.sort(function(a, b){
+      if (Math.abs(a.rect.top - b.rect.top) > 2) return a.rect.top - b.rect.top;
+      return b.rect.width - a.rect.width;
+    });
+
+    var collapsed = [];
+    candidates.forEach(function(candidate){
+      var existing = null;
+      for (var i = 0; i < collapsed.length; i += 1) {
+        if (Math.abs(collapsed[i].rect.top - candidate.rect.top) <= 3 && Math.abs(collapsed[i].rect.left - candidate.rect.left) <= 12) {
+          existing = collapsed[i];
+          break;
+        }
+      }
+      if (!existing) {
+        collapsed.push(candidate);
+      } else if (candidate.rect.width > existing.rect.width) {
+        existing.element = candidate.element;
+        existing.rect = candidate.rect;
+      }
+    });
+
+    collapsed.sort(function(a, b){ return a.rect.top - b.rect.top; });
+    return collapsed;
+  }
+
+  function medianNumber(values){
+    var clean = (values || []).filter(function(value){ return isFinite(Number(value)); }).map(Number).sort(function(a, b){ return a - b; });
+    if (!clean.length) return NaN;
+    var middle = Math.floor(clean.length / 2);
+    return clean.length % 2 ? clean[middle] : (clean[middle - 1] + clean[middle]) * 0.5;
+  }
+
+  /*
+   * Calibrate the horizontal frame grid from Wick's numbered timeline ruler.
+   * The ruler is much more reliable than reading the white frame strip: the
+   * frame strip contains the playhead, tween line and key diamonds, while the
+   * ruler labels retain a stable frame number and x position.
+   */
+  function findTimelineRulerGrid(doc, selectedRows){
+    if (!doc || !doc.body) return null;
+
+    var view = doc.defaultView;
+    var viewportWidth = Math.max(doc.documentElement ? doc.documentElement.clientWidth : 0, view ? view.innerWidth : 0);
+    var viewportHeight = Math.max(doc.documentElement ? doc.documentElement.clientHeight : 0, view ? view.innerHeight : 0);
+    var firstRowTop = Infinity;
+
+    (selectedRows || []).forEach(function(row){
+      if (row && row.rect && isFinite(Number(row.rect.top))) firstRowTop = Math.min(firstRowTop, Number(row.rect.top));
+    });
+
+    var candidates = [];
+    var walker = null;
+    try { walker = doc.createTreeWalker(doc.body, 4, null); } catch(eWalker) {}
+
+    if (walker) {
+      var textNode = null;
+      while ((textNode = walker.nextNode())) {
+        var raw = cleanInvisibleText(textNode.nodeValue || '');
+        if (!/^\d{1,4}$/.test(raw)) continue;
+
+        var value = Number(raw);
+        if (!isFinite(value) || value < 1 || value > 9999) continue;
+
+        var element = textNode.parentElement;
+        if (!element) continue;
+
+        try {
+          if (element.closest && element.closest('#luke_tools_fullscreen_overlay_271,#luke_tools_panel_271,#stickrig-compact-timeline-root,#app')) continue;
+        } catch(eClosest) {}
+
+        var rect = rectOf(element);
+        if (!rect) continue;
+        if (rect.width < 2 || rect.width > 58 || rect.height < 7 || rect.height > 32) continue;
+        if (rect.left < 70 || rect.right > viewportWidth + 4) continue;
+        if (rect.top < viewportHeight * 0.40 || rect.bottom > viewportHeight + 4) continue;
+
+        if (isFinite(firstRowTop)) {
+          var centreY = rect.top + rect.height * 0.5;
+          if (centreY > firstRowTop + 8 || centreY < firstRowTop - 90) continue;
+        }
+
+        var style = null;
+        try { style = view.getComputedStyle(element); } catch(eStyle) {}
+        if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) continue;
+
+        candidates.push({
+          value: value,
+          x: rect.left + rect.width * 0.5,
+          y: rect.top + rect.height * 0.5,
+          rect: rect,
+          element: element
+        });
+      }
+    }
+
+    if (candidates.length < 4) return null;
+
+    candidates.sort(function(a, b){
+      if (Math.abs(a.y - b.y) > 3) return a.y - b.y;
+      return a.x - b.x;
+    });
+
+    var groups = [];
+    candidates.forEach(function(candidate){
+      var group = null;
+      for (var i = 0; i < groups.length; i += 1) {
+        if (Math.abs(groups[i].y - candidate.y) <= 3) {
+          group = groups[i];
+          break;
+        }
+      }
+      if (!group) {
+        group = { y: candidate.y, items: [] };
+        groups.push(group);
+      }
+      group.items.push(candidate);
+      group.y = medianNumber(group.items.map(function(item){ return item.y; }));
+    });
+
+    var best = null;
+    var bestScore = -Infinity;
+
+    groups.forEach(function(group){
+      var items = group.items.slice().sort(function(a, b){ return a.x - b.x; });
+      var deduped = [];
+
+      items.forEach(function(item){
+        var duplicate = false;
+        for (var i = 0; i < deduped.length; i += 1) {
+          if (deduped[i].value === item.value && Math.abs(deduped[i].x - item.x) <= 5) {
+            duplicate = true;
+            break;
+          }
+        }
+        if (!duplicate) deduped.push(item);
+      });
+
+      if (deduped.length < 4) return;
+
+      var cellWidths = [];
+      for (var pairIndex = 1; pairIndex < deduped.length; pairIndex += 1) {
+        var previous = deduped[pairIndex - 1];
+        var current = deduped[pairIndex];
+        var frameDelta = current.value - previous.value;
+        var xDelta = current.x - previous.x;
+        if (frameDelta <= 0 || frameDelta > 20 || xDelta <= 0) continue;
+        var cellWidth = xDelta / frameDelta;
+        if (cellWidth >= 12 && cellWidth <= 100) cellWidths.push(cellWidth);
+      }
+
+      if (cellWidths.length < 3) return;
+      var canonicalCellWidth = medianNumber(cellWidths);
+      if (!isFinite(canonicalCellWidth) || canonicalCellWidth < 12 || canonicalCellWidth > 100) return;
+
+      var origins = [];
+      var residuals = [];
+      deduped.forEach(function(item){
+        origins.push(item.x - (item.value - 0.5) * canonicalCellWidth);
+      });
+      var origin = medianNumber(origins);
+      if (!isFinite(origin)) return;
+
+      deduped.forEach(function(item){
+        var predicted = origin + (item.value - 0.5) * canonicalCellWidth;
+        residuals.push(Math.abs(predicted - item.x));
+      });
+      var residual = medianNumber(residuals);
+      if (!isFinite(residual) || residual > 5.5) return;
+
+      var rowDistance = isFinite(firstRowTop) ? Math.abs(firstRowTop - group.y) : 0;
+      var score = deduped.length * 100 - residual * 25 - rowDistance;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = {
+          origin: origin,
+          cellWidth: canonicalCellWidth,
+          rulerY: group.y,
+          firstVisibleFrame: deduped[0].value,
+          lastVisibleFrame: deduped[deduped.length - 1].value,
+          firstVisibleLeft: deduped[0].x - canonicalCellWidth * 0.5,
+          lastVisibleRight: deduped[deduped.length - 1].x + canonicalCellWidth * 0.5,
+          itemCount: deduped.length,
+          residual: residual
+        };
+      }
+    });
+
+    return best;
+  }
+
+  function chooseProxyFrameRows(doc, count){
+    /* Prefer canvas-derived frame strips. DOM timeline containers often span
+       the entire editor width, which is exactly what produced the full-width
+       S/M/R channels in v20. */
+    var canvasRows = collectCanvasFrameBars(doc);
+    var domRows = collectNativeFrameBars(doc);
+    var rows = canvasRows.length >= count ? canvasRows.slice() : domRows.slice();
+
+    if (rows.length < count) {
+      canvasRows.concat(domRows).forEach(function(candidate){
+        var duplicate = false;
+        for (var existingIndex = 0; existingIndex < rows.length; existingIndex += 1) {
+          if (Math.abs(rows[existingIndex].rect.top - candidate.rect.top) <= 3) {
+            duplicate = true;
+            if (candidate.source === 'canvas' || candidate.rect.width < rows[existingIndex].rect.width) rows[existingIndex] = candidate;
+            break;
+          }
+        }
+        if (!duplicate) rows.push(candidate);
+      });
+      rows.sort(function(a, b){ return a.rect.top - b.rect.top; });
+    }
+    if (!rows.length || count <= 0) return [];
+    var groups = [];
+    var current = [];
+
+    rows.forEach(function(row){
+      if (!current.length) {
+        current.push(row);
+        return;
+      }
+      var previous = current[current.length - 1];
+      var gap = row.rect.top - previous.rect.top;
+      var similarLeft = Math.abs(row.rect.left - previous.rect.left) <= 24;
+      var similarWidth = Math.abs(row.rect.width - previous.rect.width) <= 120;
+      if (gap >= 20 && gap <= 82 && similarLeft && similarWidth) {
+        current.push(row);
+      } else {
+        groups.push(current);
+        current = [row];
+      }
+    });
+    if (current.length) groups.push(current);
+
+    groups.sort(function(a, b){
+      if (a.length !== b.length) return b.length - a.length;
+      var aBottom = a.length ? a[a.length - 1].rect.bottom : 0;
+      var bBottom = b.length ? b[b.length - 1].rect.bottom : 0;
+      return bBottom - aBottom;
+    });
+
+    var best = groups[0] || [];
+    if (best.length < count) return [];
+
+    var selected = best.slice(best.length - count);
+
+    /*
+     * Use Wick's numbered ruler as the single source of truth for horizontal
+     * alignment. The overlay begins at the exact left edge of frame 1 and its
+     * width is the frame-cell width multiplied by the project duration.
+     */
+    var rulerGrid = findTimelineRulerGrid(doc, selected);
+    var duration = Math.max(1, getProjectDuration());
+
+    if (rulerGrid && isFinite(rulerGrid.origin) && isFinite(rulerGrid.cellWidth)) {
+      var canonicalLeft = rulerGrid.origin;
+      var canonicalWidth = rulerGrid.cellWidth * duration;
+      var canonicalRight = canonicalLeft + canonicalWidth;
+
+      selected.forEach(function(row){
+        row.rect.left = canonicalLeft;
+        row.rect.right = canonicalRight;
+        row.rect.width = canonicalWidth;
+        row.rulerGrid = rulerGrid;
+      });
+      state.timelineOverlay.rulerGrid = rulerGrid;
+      return selected;
+    }
+
+    /* Fallback only when the ruler is unavailable. Keep all selected rows on
+       one shared horizontal measurement so key positions remain consistent. */
+    var validLefts = selected.map(function(row){ return row.rect.left; }).filter(function(value){ return isFinite(value); });
+    var validRights = selected.map(function(row){ return row.rect.right; }).filter(function(value){ return isFinite(value); });
+    var fallbackLeft = medianNumber(validLefts);
+    var fallbackRight = medianNumber(validRights);
+
+    if (isFinite(fallbackLeft) && isFinite(fallbackRight) && fallbackRight - fallbackLeft >= 80) {
+      selected.forEach(function(row){
+        row.rect.left = fallbackLeft;
+        row.rect.right = fallbackRight;
+        row.rect.width = fallbackRight - fallbackLeft;
+      });
+    }
+
+    return selected;
+  }
+
+  function requestNativeTimelineDraw(clearCanvas){
+    var nativeState = state.nativeTimeline;
+    var gui = nativeState.lastTimelineGUI;
+
+    if (gui && gui.canvas && gui.ctx && clearCanvas) {
+      try {
+        gui.ctx.save();
+        if (typeof gui.ctx.setTransform === "function") gui.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        gui.ctx.clearRect(0, 0, gui.canvas.width, gui.canvas.height);
+        gui.ctx.restore();
+      } catch(eClear) {}
+    }
+
+    try {
+      if (gui && typeof gui.draw === "function") {
+        gui.draw();
+        return true;
+      }
+    } catch(eGuiDraw) {}
+
+    try {
+      if (state.project && state.project.guiElement && typeof state.project.guiElement.draw === "function") {
+        state.project.guiElement.draw();
+        return true;
+      }
+    } catch(eProjectDraw) {}
+
+    try {
+      if (state.editor && typeof state.editor.forceUpdate === "function") {
+        state.editor.forceUpdate();
+        return true;
+      }
+    } catch(eEditorDraw) {}
+    return false;
+  }
+
+  function nativeCanvasPoint(canvas, event){
+    var rect = canvas.getBoundingClientRect();
+    var scaleX = rect.width ? canvas.width / rect.width : 1;
+    var scaleY = rect.height ? canvas.height / rect.height : 1;
+    return {
+      x: (event.clientX - rect.left) * scaleX,
+      y: (event.clientY - rect.top) * scaleY
+    };
+  }
+
+  function nativeFrameFromX(x, geometry){
+    if (!geometry) return 1;
+    return clamp(Math.floor((x - geometry.baseX) / geometry.cellWidth) + 1, 1, geometry.duration);
+  }
+
+  function findNativeChannelAtPoint(x, y){
+    var geometry = state.nativeTimeline.geometry || [];
+    for (var i = geometry.length - 1; i >= 0; i -= 1) {
+      var item = geometry[i];
+      if (x < item.visibleLeft || x > item.visibleRight || y < item.trackTop || y > item.trackBottom) continue;
+      return item;
+    }
+    return null;
+  }
+
+  function findNativeMarkerAtPoint(x, y){
+    var geometry = state.nativeTimeline.geometry || [];
+    var best = null;
+    var bestDistance = Infinity;
+    geometry.forEach(function(item){
+      (item.markers || []).forEach(function(marker){
+        var dx = x - marker.x;
+        var dy = y - marker.y;
+        var distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance <= 11 && distance < bestDistance) {
+          bestDistance = distance;
+          best = marker;
+        }
+      });
+    });
+    return best;
+  }
+
+  function detachNativeTimelineEvents(){
+    var nativeState = state.nativeTimeline;
+    var canvas = nativeState.canvas;
+    var doc = nativeState.document;
+    if (canvas) {
+      try { canvas.removeEventListener('pointerdown', nativeState.pointerDownHandler, true); } catch(e1) {}
+      try { canvas.removeEventListener('pointermove', nativeState.pointerMoveHandler, true); } catch(e2) {}
+      try { canvas.removeEventListener('pointerup', nativeState.pointerUpHandler, true); } catch(e3) {}
+      try { canvas.removeEventListener('pointercancel', nativeState.pointerCancelHandler, true); } catch(e4) {}
+      try { canvas.removeEventListener('contextmenu', nativeState.contextMenuHandler, true); } catch(e5) {}
+    }
+    if (doc) {
+      try { doc.removeEventListener('keydown', nativeState.keyDownHandler, true); } catch(e6) {}
+    }
+    nativeState.canvas = null;
+    nativeState.document = null;
+    nativeState.drag = null;
+    nativeState.pointerDownHandler = null;
+    nativeState.pointerMoveHandler = null;
+    nativeState.pointerUpHandler = null;
+    nativeState.pointerCancelHandler = null;
+    nativeState.contextMenuHandler = null;
+    nativeState.keyDownHandler = null;
+  }
+
+  function attachNativeTimelineEvents(canvas){
+    if (!canvas || !canvas.addEventListener) return;
+    var nativeState = state.nativeTimeline;
+    if (nativeState.canvas === canvas && nativeState.pointerDownHandler) return;
+    detachNativeTimelineEvents();
+
+    nativeState.canvas = canvas;
+    nativeState.document = canvas.ownerDocument || null;
+
+    nativeState.pointerDownHandler = function(event){
+      if (!state.proxy.active || event.button !== 0) return;
+      var point = nativeCanvasPoint(canvas, event);
+      var marker = findNativeMarkerAtPoint(point.x, point.y);
+      var channelGeometry = marker ? marker.geometry : findNativeChannelAtPoint(point.x, point.y);
+      if (!channelGeometry) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+
+      if (marker) {
+        state.timelineOverlay.selected = {
+          nodeId: marker.nodeId,
+          channel: marker.channel,
+          frame: marker.frame
+        };
+        nativeState.drag = {
+          active: true,
+          pointerId: event.pointerId,
+          nodeId: marker.nodeId,
+          channel: marker.channel,
+          oldFrame: marker.frame,
+          previewFrame: marker.frame,
+          geometry: marker.geometry,
+          moved: false,
+          startX: point.x
+        };
+        state.timelineOverlay.drag = nativeState.drag;
+        try { canvas.setPointerCapture(event.pointerId); } catch(eCapture) {}
+        requestNativeTimelineDraw();
+        return;
+      }
+
+      var clickedFrame = nativeFrameFromX(point.x, channelGeometry);
+      setMainTimelineFrame(clickedFrame);
+      requestNativeTimelineDraw();
+    };
+
+    nativeState.pointerMoveHandler = function(event){
+      var drag = nativeState.drag;
+      if (!drag || !drag.active || drag.pointerId !== event.pointerId) return;
+      var point = nativeCanvasPoint(canvas, event);
+      if (Math.abs(point.x - drag.startX) > 2) drag.moved = true;
+      drag.previewFrame = nativeFrameFromX(point.x, drag.geometry);
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+      requestNativeTimelineDraw();
+    };
+
+    nativeState.pointerUpHandler = function(event){
+      var drag = nativeState.drag;
+      if (!drag || !drag.active || drag.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+      drag.active = false;
+      try { canvas.releasePointerCapture(event.pointerId); } catch(eRelease) {}
+      nativeState.drag = null;
+      state.timelineOverlay.drag = null;
+      if (drag.moved && drag.previewFrame !== drag.oldFrame) {
+        moveTimelineMarker(drag.nodeId, drag.channel, drag.oldFrame, drag.previewFrame);
+      } else {
+        requestNativeTimelineDraw();
+      }
+    };
+
+    nativeState.pointerCancelHandler = function(event){
+      var drag = nativeState.drag;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      drag.active = false;
+      nativeState.drag = null;
+      state.timelineOverlay.drag = null;
+      requestNativeTimelineDraw();
+    };
+
+    nativeState.contextMenuHandler = function(event){
+      if (!state.proxy.active) return;
+      var point = nativeCanvasPoint(canvas, event);
+      var marker = findNativeMarkerAtPoint(point.x, point.y);
+      if (!marker) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+      deleteTimelineMarker({ nodeId: marker.nodeId, channel: marker.channel, frame: marker.frame });
+    };
+
+    nativeState.keyDownHandler = function(event){
+      if (!state.proxy.active || !state.timelineOverlay.selected) return;
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      var target = event.target;
+      var tag = target && target.tagName ? target.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      event.preventDefault();
+      event.stopPropagation();
+      deleteTimelineMarker(state.timelineOverlay.selected);
+    };
+
+    canvas.addEventListener('pointerdown', nativeState.pointerDownHandler, true);
+    canvas.addEventListener('pointermove', nativeState.pointerMoveHandler, true);
+    canvas.addEventListener('pointerup', nativeState.pointerUpHandler, true);
+    canvas.addEventListener('pointercancel', nativeState.pointerCancelHandler, true);
+    canvas.addEventListener('contextmenu', nativeState.contextMenuHandler, true);
+    if (nativeState.document) nativeState.document.addEventListener('keydown', nativeState.keyDownHandler, true);
+  }
+
+  function drawNativeKeyShape(ctx, x, y, colour, transitionColour, shape, selected){
+    ctx.save();
+    ctx.fillStyle = colour;
+    ctx.strokeStyle = selected ? '#ffffff' : transitionColour;
+    ctx.lineWidth = selected ? 2 : 1;
+    ctx.beginPath();
+    if (shape === 'square') {
+      ctx.rect(x - 4, y - 4, 8, 8);
+    } else if (shape === 'circle') {
+      ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+    } else if (shape === 'triangle-left') {
+      ctx.moveTo(x - 5, y);
+      ctx.lineTo(x + 4, y - 5);
+      ctx.lineTo(x + 4, y + 5);
+      ctx.closePath();
+    } else if (shape === 'triangle-right') {
+      ctx.moveTo(x + 5, y);
+      ctx.lineTo(x - 4, y - 5);
+      ctx.lineTo(x - 4, y + 5);
+      ctx.closePath();
+    } else {
+      ctx.moveTo(x, y - 5);
+      ctx.lineTo(x + 5, y);
+      ctx.lineTo(x, y + 5);
+      ctx.lineTo(x - 5, y);
+      ctx.closePath();
+    }
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawNativeStickRigTimeline(timelineGUI){
+    if (timelineGUI) state.nativeTimeline.lastTimelineGUI = timelineGUI;
+    if (!state.proxy.active || !state.proxy.layers.length || !timelineGUI) return;
+    var W = getWickNamespace();
+    if (!W || !W.GUIElement) return;
+    var ctx = timelineGUI.ctx;
+    var canvas = timelineGUI.canvas;
+    if (!ctx || !canvas) return;
+
+    attachNativeTimelineEvents(canvas);
+
+    var G = W.GUIElement;
+    var layerWidth = n(G.LAYERS_CONTAINER_WIDTH, 160);
+    var breadcrumbHeight = n(G.BREADCRUMBS_HEIGHT, 30);
+    var numberHeight = n(G.NUMBER_LINE_HEIGHT, 35);
+    var rowHeight = n(timelineGUI.gridCellHeight, n(G.GRID_DEFAULT_CELL_HEIGHT, 42));
+    var cellWidth = n(timelineGUI.gridCellWidth, n(G.GRID_DEFAULT_CELL_WIDTH, 38));
+    var scrollbarSize = n(G.SCROLLBAR_SIZE, 14);
+    var scrollX = n(timelineGUI.project && timelineGUI.project.scrollX, 0);
+    var scrollY = n(timelineGUI.project && timelineGUI.project.scrollY, 0);
+    var duration = Math.max(1, getProjectDuration());
+    var layers = getTimelineLayers(timelineGUI.model);
+    var baseX = layerWidth - scrollX;
+    var clipLeft = layerWidth;
+    var clipTop = breadcrumbHeight + numberHeight;
+    var clipRight = Math.max(clipLeft, canvas.width - scrollbarSize);
+    var clipBottom = Math.max(clipTop, canvas.height - scrollbarSize);
+    var order = ['scale', 'move', 'rotate'];
+    var selected = state.timelineOverlay.selected;
+    var drag = state.nativeTimeline.drag;
+    var geometry = [];
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(clipLeft, clipTop, Math.max(0, clipRight - clipLeft), Math.max(0, clipBottom - clipTop));
+    ctx.clip();
+    ctx.font = 'bold 10px Arial, sans-serif';
+    ctx.textBaseline = 'middle';
+
+    state.proxy.layers.forEach(function(info){
+      var layerIndex = layers.indexOf(info.layer);
+      if (layerIndex < 0) return;
+      var rowTop = clipTop + layerIndex * rowHeight - scrollY;
+      var rowBottom = rowTop + rowHeight;
+      if (rowBottom < clipTop || rowTop > clipBottom) return;
+
+      var record = getNodeRecord(info.nodeId);
+      if (!record) return;
+      var trackHeight = rowHeight / 3;
+      var totalWidth = duration * cellWidth;
+      var visibleLeft = Math.max(clipLeft, baseX);
+      var visibleRight = Math.min(clipRight, baseX + totalWidth);
+
+      order.forEach(function(channel, channelIndex){
+        var visual = CHANNEL_VISUALS[channel];
+        var trackTop = rowTop + channelIndex * trackHeight;
+        var trackBottom = channelIndex === 2 ? rowBottom : rowTop + (channelIndex + 1) * trackHeight;
+        var trackHeightActual = Math.max(1, trackBottom - trackTop);
+
+        ctx.fillStyle = 'rgba(31,112,82,0.66)';
+        ctx.fillRect(baseX, trackTop, totalWidth, trackHeightActual);
+        ctx.strokeStyle = visual.colour;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(baseX + 0.5, trackTop + 0.5, Math.max(0, totalWidth - 1), Math.max(0, trackHeightActual - 1));
+        ctx.fillStyle = visual.colour;
+        ctx.fillText(visual.label, baseX + 4, trackTop + trackHeightActual * 0.5);
+
+        var item = {
+          nodeId: info.nodeId,
+          channel: channel,
+          duration: duration,
+          baseX: baseX,
+          cellWidth: cellWidth,
+          trackTop: trackTop,
+          trackBottom: trackBottom,
+          visibleLeft: visibleLeft,
+          visibleRight: visibleRight,
+          markers: []
+        };
+
+        channelKeyFrames(record, channel).forEach(function(frameNumber){
+          if (frameNumber < 1 || frameNumber > duration) return;
+          var drawFrame = frameNumber;
+          if (drag && drag.active && drag.nodeId === info.nodeId && drag.channel === channel && drag.oldFrame === frameNumber) {
+            drawFrame = drag.previewFrame;
+          }
+          var keyX = baseX + (drawFrame - 0.5) * cellWidth;
+          var keyY = trackTop + trackHeightActual * 0.5;
+          var transition = transitionInfo(record, frameNumber, channel);
+          var markerSelected = !!(selected && selected.nodeId === info.nodeId && selected.channel === channel && selected.frame === frameNumber);
+          drawNativeKeyShape(ctx, keyX, keyY, visual.colour, transition.colour, transitionShape(record, frameNumber, channel), markerSelected);
+          var marker = {
+            nodeId: info.nodeId,
+            channel: channel,
+            frame: frameNumber,
+            x: keyX,
+            y: keyY,
+            geometry: item
+          };
+          item.markers.push(marker);
+        });
+
+        geometry.push(item);
+      });
+    });
+
+    /* Redraw Wick's current playhead through the StickRig rows at the exact
+       native frame-centre position because the channels are drawn after the
+       native timeline. This is the same playhead position, not a second one. */
+    var currentFrame = currentProjectFrame();
+    var playheadX = baseX + (currentFrame - 0.5) * cellWidth;
+    ctx.strokeStyle = '#ff5b63';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(playheadX, clipTop);
+    ctx.lineTo(playheadX, clipBottom);
+    ctx.stroke();
+
+    ctx.restore();
+    state.nativeTimeline.geometry = geometry;
+    state.timelineOverlay.attachedCount = state.proxy.layers.length;
+  }
+
+  function installNativeTimelineRenderer(){
+    var W = getWickNamespace();
+    if (!W || !W.GUIElement || !W.GUIElement.Timeline || !W.GUIElement.Timeline.prototype) return false;
+
+    var TimelineClass = W.GUIElement.Timeline;
+    var proto = TimelineClass.prototype;
+    var nativeState = state.nativeTimeline;
+
+    if (nativeState.installed && nativeState.TimelineClass === TimelineClass && TimelineClass.__stickRigNativeRenderer === drawNativeStickRigTimeline) {
+      requestNativeTimelineDraw(false);
+      return true;
+    }
+
+    /* Remove any wrapper left by an earlier StickRig iframe before installing
+       this instance. This prevents old closures from surviving after a tool
+       panel has been closed or a newer script version has been loaded. */
+    try {
+      if (proto.__stickRigNativeOriginalDraw && typeof proto.__stickRigNativeOriginalDraw === "function") {
+        proto.draw = proto.__stickRigNativeOriginalDraw;
+        delete proto.__stickRigNativeOriginalDraw;
+      }
+    } catch(eRestoreOld) {}
+    try { TimelineClass.__stickRigNativeRenderer = null; } catch(eClearOldRenderer) {}
+
+    var originalDraw = proto.draw;
+    if (typeof originalDraw !== "function") return false;
+
+    proto.__stickRigNativeOriginalDraw = originalDraw;
+    proto.draw = function(){
+      TimelineClass.__stickRigLastTimelineGUI = this;
+      var result = originalDraw.apply(this, arguments);
+      try {
+        var renderer = TimelineClass.__stickRigNativeRenderer;
+        if (typeof renderer === "function") renderer(this);
+      } catch(error) {
+        try { console.error('[StickRig] Native timeline renderer failed.', error); } catch(eLog) {}
+      }
+      return result;
+    };
+
+    TimelineClass.__stickRigNativeRenderer = drawNativeStickRigTimeline;
+    nativeState.installed = true;
+    nativeState.TimelineClass = TimelineClass;
+    nativeState.prototype = proto;
+    nativeState.originalDraw = originalDraw;
+    try {
+      if (TimelineClass.__stickRigLastTimelineGUI) nativeState.lastTimelineGUI = TimelineClass.__stickRigLastTimelineGUI;
+    } catch(eLastGui) {}
+    requestNativeTimelineDraw(false);
+    return true;
+  }
+
+  function uninstallNativeTimelineRenderer(suppressRedraw){
+    var nativeState = state.nativeTimeline;
+    var W = getWickNamespace();
+    var TimelineClass = nativeState.TimelineClass || (W && W.GUIElement && W.GUIElement.Timeline ? W.GUIElement.Timeline : null);
+    var proto = nativeState.prototype || (TimelineClass && TimelineClass.prototype ? TimelineClass.prototype : null);
+
+    try {
+      if (TimelineClass) TimelineClass.__stickRigNativeRenderer = null;
+    } catch(eRenderer) {}
+
+    try {
+      if (proto && proto.__stickRigNativeOriginalDraw && typeof proto.__stickRigNativeOriginalDraw === "function") {
+        proto.draw = proto.__stickRigNativeOriginalDraw;
+        delete proto.__stickRigNativeOriginalDraw;
+      } else if (proto && nativeState.originalDraw && typeof nativeState.originalDraw === "function") {
+        proto.draw = nativeState.originalDraw;
+      }
+    } catch(eRestoreDraw) {}
+
+    nativeState.installed = false;
+    nativeState.geometry = [];
+    detachNativeTimelineEvents();
+
+    if (!suppressRedraw) requestNativeTimelineDraw(true);
+  }
+
+  function scheduleTimelineOverlayRetries(){
+    clearTimeout(state.timelineOverlay.retryTimer);
+    state.timelineOverlay.retryTimer = null;
+    state.timelineOverlay.attachAttempts = 0;
+    state.timelineOverlay.warningShown = false;
+    if (!installNativeTimelineRenderer()) {
+      setStatus("StickRig could not access Wick's native timeline renderer.", "bad");
+      return;
+    }
+    state.timelineOverlay.attachedCount = state.proxy.layers.length;
+    requestNativeTimelineDraw();
+  }
+
+  function findLayerLabelElement(doc, rawName, cleanName){
+    if (!doc || !doc.body) return null;
+    var exactMatches = [];
+    var cleanMatches = [];
+    var walker;
+    try { walker = doc.createTreeWalker(doc.body, 4, null); } catch(eWalker) { walker = null; }
+
+    function allowed(element){
+      if (!element) return false;
+      try {
+        if (element.closest && element.closest("#stickrig-compact-timeline-root,#cards,.partCard,.channelPanel,[id*='luke_tools_panel'],[id*='luke_tools_fullscreen']")) return false;
+      } catch(eClosest) {}
+      return true;
+    }
+
+    if (walker) {
+      var node;
+      while ((node = walker.nextNode())) {
+        var raw = s(node.nodeValue).trim();
+        if (!raw || !node.parentElement || !allowed(node.parentElement)) continue;
+        if (raw === rawName) exactMatches.push(node.parentElement);
+        else if (cleanInvisibleText(raw) === cleanName) cleanMatches.push(node.parentElement);
+      }
+    }
+
+    var matches = exactMatches.length ? exactMatches : cleanMatches;
+    var best = null;
+    var bestScore = -Infinity;
+    matches.forEach(function(element){
+      var rect = rectOf(element);
+      if (!rect || rect.width < 4 || rect.height < 8) return;
+      var score = exactMatches.indexOf(element) !== -1 ? 1000 : 0;
+      if (rect.left < 260) score += 180;
+      if (rect.height >= 18 && rect.height <= 76) score += 60;
+      if (rect.width >= 20 && rect.width <= 260) score += 35;
+      try {
+        var ancestors = element;
+        var depth = 0;
+        while (ancestors && depth < 8) {
+          var signature = (s(ancestors.className) + " " + s(ancestors.id)).toLowerCase();
+          if (signature.indexOf("timeline") !== -1 || signature.indexOf("layer") !== -1) score += 45;
+          ancestors = ancestors.parentElement;
+          depth += 1;
+        }
+      } catch(eAncestors) {}
+      if (score > bestScore) { best = element; bestScore = score; }
+    });
+    return best;
+  }
+
+  function rectOf(element){
+    if (!element) return null;
+    try { return element.getBoundingClientRect(); } catch(e) { return null; }
+  }
+
+  function findLayerRow(labelElement){
+    if (!labelElement) return null;
+    var labelRect = rectOf(labelElement);
+    if (!labelRect) return null;
+    var current = labelElement;
+    var best = labelElement;
+    var bestScore = -Infinity;
+    var depth = 0;
+
+    while (current && depth < 14) {
+      var rect = rectOf(current);
+      if (!rect) break;
+      var sameLine = Math.abs((rect.top + rect.height * 0.5) - (labelRect.top + labelRect.height * 0.5)) < 12;
+      var usefulHeight = rect.height >= 22 && rect.height <= 72;
+      var usefulWidth = rect.width >= Math.max(90, labelRect.width) && rect.width <= 360;
+      if (sameLine && usefulHeight && usefulWidth) {
+        var score = rect.width + rect.height * 4;
+        if (score > bestScore) {
+          best = current;
+          bestScore = score;
+        }
+      }
+      if (rect.height > 110 || rect.width > 500) break;
+      current = current.parentElement;
+      depth += 1;
+    }
+    return best;
+  }
+
+  function findTimelineRowAtY(doc, labelRow, labelElement){
+    if (!doc) return null;
+    var labelRect = rectOf(labelRow) || rectOf(labelElement);
+    if (!labelRect) return null;
+    var viewportWidth = Math.max(
+      doc.documentElement ? doc.documentElement.clientWidth : 0,
+      doc.defaultView ? doc.defaultView.innerWidth : 0
+    );
+    var y = Math.round(labelRect.top + Math.max(2, Math.min(labelRect.height - 2, labelRect.height * 0.5)));
+    var probeXs = [
+      labelRect.right + 12,
+      labelRect.right + 60,
+      labelRect.right + 150,
+      labelRect.right + 300,
+      viewportWidth - 40
+    ];
+    var candidates = [];
+
+    probeXs.forEach(function(x){
+      if (!isFinite(x) || x <= labelRect.right || x >= viewportWidth) return;
+      var stack = [];
+      try { stack = doc.elementsFromPoint(x, y) || []; } catch(ePoint) {}
+      for (var i = 0; i < stack.length; i += 1) {
+        var current = stack[i];
+        var guard = 0;
+        while (current && guard < 7) {
+          var rect = rectOf(current);
+          if (!rect) break;
+          var containsY = y >= rect.top - 2 && y <= rect.bottom + 2;
+          var rightSide = rect.left >= labelRect.right - 8 || rect.right > labelRect.right + 100;
+          var rowHeight = rect.height >= 22 && rect.height <= 78;
+          var rowWidth = rect.width >= 100;
+          if (containsY && rightSide && rowHeight && rowWidth) {
+            candidates.push({ element: current, rect: rect });
+          }
+          if (rect.height > 100) break;
+          current = current.parentElement;
+          guard += 1;
+        }
+      }
+    });
+
+    if (!candidates.length) return null;
+    candidates.sort(function(a, b){
+      var aLeft = Math.max(a.rect.left, labelRect.right);
+      var bLeft = Math.max(b.rect.left, labelRect.right);
+      var aVisibleWidth = a.rect.right - aLeft;
+      var bVisibleWidth = b.rect.right - bLeft;
+      var aTopPenalty = Math.abs(a.rect.top - labelRect.top) * 25;
+      var bTopPenalty = Math.abs(b.rect.top - labelRect.top) * 25;
+      return (bVisibleWidth - bTopPenalty) - (aVisibleWidth - aTopPenalty);
+    });
+    return candidates[0].element;
+  }
+
+  function findTimelineRect(row, labelElement, doc){
+    var labelRow = row || findLayerRow(labelElement);
+    var labelRect = rectOf(labelRow) || rectOf(labelElement);
+    if (!labelRect) return null;
+    var timelineRow = findTimelineRowAtY(doc, labelRow, labelElement);
+    var timelineRect = rectOf(timelineRow);
+    var viewportWidth = Math.max(
+      doc && doc.documentElement ? doc.documentElement.clientWidth : 0,
+      doc && doc.defaultView ? doc.defaultView.innerWidth : 0
+    );
+
+    var left = labelRect.right + 4;
+    var right = viewportWidth - 4;
+    var top = labelRect.top;
+
+    if (timelineRect) {
+      left = Math.max(labelRect.right + 2, timelineRect.left);
+      right = Math.max(left + 80, timelineRect.right);
+      top = Math.min(labelRect.top, timelineRect.top);
+    }
+
+    return {
+      left: left,
+      top: top,
+      width: Math.max(80, right - left),
+      height: 72,
+      rowRect: labelRect,
+      labelRow: labelRow,
+      timelineRow: timelineRow
+    };
+  }
+
+  function transitionShape(record, frame, channel){
+    if (channelType(record, frame, channel) === "hold") return "hold";
+    var easing = channelEasing(record, frame, channel);
+    if (easing === "in") return "ease-in";
+    if (easing === "out") return "ease-out";
+    if (easing === "in-out") return "ease-in-out";
+    return "linear";
+  }
+
+  function frameToOverlayX(frameNumber, duration, width){
+    var safeDuration = Math.max(1, Math.round(n(duration, 1)));
+    var safeFrame = clamp(Math.round(n(frameNumber, 1)), 1, safeDuration);
+    var cellWidth = width / safeDuration;
+    /* Wick positions a key at the centre of its frame cell. */
+    return (safeFrame - 0.5) * cellWidth;
+  }
+
+  function overlayXToFrame(clientX, groupRect, duration){
+    var safeDuration = Math.max(1, Math.round(n(duration, 1)));
+    var local = clientX - groupRect.left;
+    var cellWidth = groupRect.width / safeDuration;
+    return clamp(Math.floor(local / Math.max(0.0001, cellWidth)) + 1, 1, safeDuration);
+  }
+
+  function setMainTimelineFrame(frameNumber){
+    var timeline = getMainTimeline();
+    if (!timeline) return;
+    var frame = Math.max(1, Math.round(n(frameNumber, 1)));
+    try { timeline.playheadPosition = frame - 1; } catch(e1) {}
+    try { state.project.currentFrameNumber = frame; } catch(e2) {}
+    state.frame = frame;
+    state.lastPolledFrame = frame;
+    try { renderAll(); } catch(e3) {}
+  }
+
+  function selectTimelineMarker(marker, element){
+    var overlay = state.timelineOverlay;
+    var doc = overlay.parentDocument;
+    if (doc) {
+      var selected = doc.querySelectorAll(".sr-compact-key.sr-selected");
+      for (var i = 0; i < selected.length; i += 1) selected[i].classList.remove("sr-selected");
+    }
+    overlay.selected = marker;
+    if (element) element.classList.add("sr-selected");
+    setMainTimelineFrame(marker.frame);
+  }
+
+  function deleteTimelineMarker(marker){
+    if (!marker) return;
+    var record = getNodeRecord(marker.nodeId);
+    var node = state.nodeMap[marker.nodeId];
+    if (!record || !channelKeyExists(record, marker.frame, marker.channel)) return;
+    removeChannelKeyMeta(record, marker.frame, marker.channel);
+    if (node) applyTransformToObject(node, interpolatePose(record, currentProjectFrame()), false);
+    state.timelineOverlay.selected = null;
+    markProjectChanged();
+    renderAll();
+    saveStagingData(false);
+    queueProxySync();
+    setStatus("Deleted " + marker.channel + " key " + marker.frame + " for " + (node ? node.name : "part") + ".", "good");
+  }
+
+  function handleTimelineOverlayKeydown(event){
+    var overlay = state.timelineOverlay;
+    if (!overlay.selected) return;
+    if (event.key !== "Delete" && event.key !== "Backspace") return;
+    var target = event.target;
+    var tag = target && target.tagName ? target.tagName.toLowerCase() : "";
+    if (tag === "input" || tag === "textarea" || tag === "select") return;
+    event.preventDefault();
+    event.stopPropagation();
+    deleteTimelineMarker(overlay.selected);
+  }
+
+  function copyChannelToPose(targetPose, sourcePose, channel){
+    if (channel === "move") {
+      targetPose.x = n(sourcePose.x, targetPose.x);
+      targetPose.y = n(sourcePose.y, targetPose.y);
+    } else if (channel === "scale") {
+      targetPose.scale = n(sourcePose.scale, targetPose.scale);
+    } else {
+      targetPose.rotation = n(sourcePose.rotation, targetPose.rotation);
+    }
+  }
+
+  function moveTimelineMarker(nodeId, channel, oldFrame, newFrame){
+    if (oldFrame === newFrame) return;
+    var record = getNodeRecord(nodeId);
+    var node = state.nodeMap[nodeId];
+    if (!record || !channelKeyExists(record, oldFrame, channel)) return;
+
+    ensureChannelMaps(record);
+    var oldKey = String(oldFrame);
+    var newKey = String(newFrame);
+    var oldPose = copyPose(record.keys[oldKey] || interpolatePose(record, oldFrame));
+    var oldType = channelType(record, oldFrame, channel);
+    var oldEasing = channelEasing(record, oldFrame, channel);
+    var targetPose = copyPose(record.keys[newKey] || interpolatePose(record, newFrame));
+    copyChannelToPose(targetPose, oldPose, channel);
+
+    removeChannelKeyMeta(record, oldFrame, channel);
+    record.keys[newKey] = targetPose;
+    if (!record.keyChannels[newKey]) record.keyChannels[newKey] = {};
+    if (!record.channelTypes[newKey]) record.channelTypes[newKey] = {};
+    if (!record.channelEasing[newKey]) record.channelEasing[newKey] = {};
+    record.keyChannels[newKey][channel] = true;
+    record.channelTypes[newKey][channel] = oldType;
+    record.channelEasing[newKey][channel] = oldEasing;
+    var active = CHANNELS.filter(function(name){ return record.keyChannels[newKey] && record.keyChannels[newKey][name]; });
+    record.keyTypes[newKey] = active.length && active.every(function(name){ return record.channelTypes[newKey][name] === "hold"; }) ? "hold" : "auto";
+
+    if (node) applyTransformToObject(node, interpolatePose(record, currentProjectFrame()), false);
+    markProjectChanged();
+    renderAll();
+    saveStagingData(false);
+    queueProxySync();
+    setStatus("Moved " + channel + " key from " + oldFrame + " to " + newFrame + ".", "good");
+  }
+
+  function bindTimelineMarkerEvents(element, marker, groupRect, duration){
+    var doc = state.timelineOverlay.parentDocument;
+    if (!doc) return;
+
+    element.addEventListener("pointerdown", function(event){
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      var overlay = state.timelineOverlay;
+      if (overlay.drag && typeof overlay.drag.cleanup === "function") {
+        try { overlay.drag.cleanup(true); } catch(ePreviousDrag) {}
+      }
+
+      selectTimelineMarker(marker, element);
+      var pointerId = event.pointerId;
+      var drag = {
+        marker: marker,
+        element: element,
+        groupRect: {
+          left: groupRect.left,
+          top: groupRect.top,
+          width: groupRect.width,
+          height: groupRect.height
+        },
+        duration: duration,
+        pointerId: pointerId,
+        startX: event.clientX,
+        currentFrame: marker.frame,
+        moved: false,
+        active: true,
+        cleanup: null
+      };
+
+      function moveDrag(moveEvent){
+        if (!drag.active || moveEvent.pointerId !== pointerId) return;
+        moveEvent.preventDefault();
+        moveEvent.stopPropagation();
+        if (Math.abs(moveEvent.clientX - drag.startX) > 2) drag.moved = true;
+        if (!drag.moved) return;
+        drag.currentFrame = overlayXToFrame(moveEvent.clientX, drag.groupRect, drag.duration);
+        element.style.left = frameToOverlayX(drag.currentFrame, drag.duration, drag.groupRect.width) + "px";
+        element.title = marker.channel.toUpperCase() + " frame " + drag.currentFrame;
+      }
+
+      function finishDrag(upEvent, cancelled){
+        if (!drag.active) return;
+        if (upEvent && upEvent.pointerId !== pointerId) return;
+        drag.active = false;
+        try { doc.removeEventListener("pointermove", moveDrag, true); } catch(eMoveOff) {}
+        try { doc.removeEventListener("pointerup", finishPointer, true); } catch(eUpOff) {}
+        try { doc.removeEventListener("pointercancel", cancelPointer, true); } catch(eCancelOff) {}
+        try { element.releasePointerCapture(pointerId); } catch(eRelease) {}
+        element.classList.remove("sr-dragging");
+        if (state.timelineOverlay.drag === drag) state.timelineOverlay.drag = null;
+
+        if (cancelled) {
+          renderTimelineOverlays();
+          return;
+        }
+        if (!drag.moved || drag.currentFrame === marker.frame) {
+          renderTimelineOverlays();
+          return;
+        }
+        moveTimelineMarker(marker.nodeId, marker.channel, marker.frame, drag.currentFrame);
+      }
+
+      function finishPointer(upEvent){
+        upEvent.preventDefault();
+        upEvent.stopPropagation();
+        finishDrag(upEvent, false);
+      }
+
+      function cancelPointer(cancelEvent){
+        finishDrag(cancelEvent, true);
+      }
+
+      drag.cleanup = function(cancelled){ finishDrag(null, cancelled !== false); };
+      overlay.drag = drag;
+      element.classList.add("sr-dragging");
+      try { element.setPointerCapture(pointerId); } catch(eCapture) {}
+      doc.addEventListener("pointermove", moveDrag, true);
+      doc.addEventListener("pointerup", finishPointer, true);
+      doc.addEventListener("pointercancel", cancelPointer, true);
+    });
+
+    element.addEventListener("contextmenu", function(event){
+      event.preventDefault();
+      event.stopPropagation();
+      selectTimelineMarker(marker, element);
+      deleteTimelineMarker(marker);
+    });
+  }
+
+  function resolveStickRigTimelineSpan(doc, resolvedRows, duration){
+    var firstPartTop = Infinity;
+    (resolvedRows || []).forEach(function(item){
+      if (item && item.rowRect && isFinite(Number(item.rowRect.top))) {
+        firstPartTop = Math.min(firstPartTop, Number(item.rowRect.top));
+      }
+    });
+
+    var bars = collectCanvasFrameBars(doc);
+    if (!bars.length) bars = collectNativeFrameBars(doc);
+
+    var candidatesAbove = bars.filter(function(item){
+      if (!item || !item.rect) return false;
+      var rect = item.rect;
+      if (!isFinite(Number(rect.left)) || !isFinite(Number(rect.width)) || Number(rect.width) < 80) return false;
+      if (!isFinite(firstPartTop)) return true;
+      var distance = firstPartTop - Number(rect.bottom);
+      return distance >= -4 && distance <= 110;
+    });
+
+    candidatesAbove.sort(function(a, b){
+      var aDistance = isFinite(firstPartTop) ? Math.abs(firstPartTop - Number(a.rect.bottom)) : 0;
+      var bDistance = isFinite(firstPartTop) ? Math.abs(firstPartTop - Number(b.rect.bottom)) : 0;
+      if (Math.abs(aDistance - bDistance) > 2) return aDistance - bDistance;
+      return Number(b.rect.width) - Number(a.rect.width);
+    });
+
+    var selectedBar = candidatesAbove[0] || null;
+    if (!selectedBar && bars.length) {
+      selectedBar = bars.slice().sort(function(a, b){
+        return Number(b.rect.width) - Number(a.rect.width);
+      })[0];
+    }
+
+    if (selectedBar && selectedBar.rect) {
+      return {
+        left: Number(selectedBar.rect.left),
+        width: Number(selectedBar.rect.width),
+        source: 'wick-frame-bar',
+        rulerGrid: null
+      };
+    }
+
+    var rulerRows = bars.slice();
+    var rulerGrid = findTimelineRulerGrid(doc, rulerRows);
+    if (rulerGrid && isFinite(Number(rulerGrid.origin)) && isFinite(Number(rulerGrid.cellWidth))) {
+      return {
+        left: Number(rulerGrid.origin),
+        width: Math.max(Number(rulerGrid.cellWidth), Number(rulerGrid.cellWidth) * Math.max(1, duration)),
+        source: 'wick-ruler',
+        rulerGrid: rulerGrid
+      };
+    }
+
+    if (resolvedRows && resolvedRows.length) {
+      var sample = resolvedRows[0];
+      var fallbackRect = findTimelineRect(sample.labelRow, sample.labelElement, doc);
+      if (fallbackRect && isFinite(Number(fallbackRect.left)) && isFinite(Number(fallbackRect.width)) && Number(fallbackRect.width) >= 80) {
+        return {
+          left: Number(fallbackRect.left),
+          width: Number(fallbackRect.width),
+          source: 'timeline-pane-fallback',
+          rulerGrid: null
+        };
+      }
+
+      /* Guaranteed fallback: the timeline begins immediately to the right of
+         Wick's native layer-name column. Wick's default frame cell is about
+         43 CSS pixels at normal zoom. This fallback is used only when the
+         ruler and native frame bar are canvas-rendered and cannot be read. */
+      var rowRights = resolvedRows.map(function(item){
+        return item && item.rowRect ? Number(item.rowRect.right) : NaN;
+      }).filter(function(value){ return isFinite(value); });
+      var layerRight = medianNumber(rowRights);
+      if (isFinite(layerRight)) {
+        var viewportWidth = Math.max(
+          doc.documentElement ? doc.documentElement.clientWidth : 0,
+          doc.defaultView ? doc.defaultView.innerWidth : 0
+        );
+        var fallbackLeft = layerRight + 4;
+        var fallbackCellWidth = 43;
+        var requestedWidth = fallbackCellWidth * Math.max(1, duration);
+        var visibleWidth = Math.max(100, viewportWidth - fallbackLeft - 8);
+        return {
+          left: fallbackLeft,
+          width: Math.min(requestedWidth, visibleWidth),
+          source: 'native-layer-edge-fallback',
+          rulerGrid: {
+            origin: fallbackLeft,
+            cellWidth: fallbackCellWidth,
+            fallback: true
+          }
+        };
+      }
+    }
+
+    return null;
+  }
+
+  function indexOfLayerReference(layers, target){
+    if (!layers || !target) return -1;
+    for (var i = 0; i < layers.length; i += 1) {
+      if (layers[i] === target) return i;
+    }
+    var targetUuid = s(safeGet(target, "uuid") || safeGet(target, "_uuid"));
+    if (targetUuid) {
+      for (var j = 0; j < layers.length; j += 1) {
+        var uuid = s(safeGet(layers[j], "uuid") || safeGet(layers[j], "_uuid"));
+        if (uuid && uuid === targetUuid) return j;
+      }
+    }
+    return -1;
+  }
+
+  function firstLayerWithFrameIndex(layers){
+    for (var i = 0; i < layers.length; i += 1) {
+      if (isStickRigProxyLayer(layers[i])) continue;
+      var frames = getLayerFrames(layers[i]);
+      if (frames && frames.length) return i;
+    }
+    return -1;
+  }
+
+  /*
+   * Empty StickRig layers have no native frame bars, and their names can be
+   * rendered by Wick's canvas rather than HTML. Therefore the overlay must
+   * not search for the text TopLeg/LowerLeg/Foot in the DOM. Instead:
+   * 1. locate a real native frame bar on an existing Wick layer;
+   * 2. use that bar as the horizontal frame span;
+   * 3. use Wick's actual timeline layer array to calculate each empty
+   *    StickRig layer's row position.
+   */
+  function resolveStickRigRowsFromMainFrame(doc){
+    if (!doc || !state.proxy.active || !state.proxy.layers.length) return null;
+
+    var view = doc.defaultView;
+    var viewportWidth = Math.max(
+      doc.documentElement ? doc.documentElement.clientWidth : 0,
+      view ? view.innerWidth : 0
+    );
+    var viewportHeight = Math.max(
+      doc.documentElement ? doc.documentElement.clientHeight : 0,
+      view ? view.innerHeight : 0
+    );
+
+    var bars = collectCanvasFrameBars(doc);
+    if (!bars.length) bars = collectNativeFrameBars(doc);
+
+    bars = (bars || []).filter(function(item){
+      if (!item || !item.rect) return false;
+      var rect = item.rect;
+      if (!isFinite(Number(rect.left)) || !isFinite(Number(rect.top))) return false;
+      if (!isFinite(Number(rect.width)) || !isFinite(Number(rect.height))) return false;
+      if (Number(rect.left) < 90) return false;
+      if (Number(rect.left) > viewportWidth * 0.55) return false;
+      if (Number(rect.top) < viewportHeight * 0.45) return false;
+      if (Number(rect.height) < 20 || Number(rect.height) > 72) return false;
+      if (Number(rect.width) < 80) return false;
+      return true;
+    });
+
+    if (!bars.length) return null;
+
+    /* The only native white frame bar that remains is the selected clip's
+       real stage-layer span. It is the correct horizontal start, duration and
+       row-height reference. Prefer the uppermost valid bar; if several share
+       that row, prefer the narrower one rather than a full canvas container. */
+    bars.sort(function(a, b){
+      var topDiff = Number(a.rect.top) - Number(b.rect.top);
+      if (Math.abs(topDiff) > 3) return topDiff;
+      return Number(a.rect.width) - Number(b.rect.width);
+    });
+
+    var anchor = bars[0].rect;
+    var rowStride = Math.max(20, Number(anchor.height));
+    var timelineLeft = Number(anchor.left);
+    var channelWidth = Number(anchor.width);
+
+    if (!isFinite(timelineLeft) || !isFinite(channelWidth) || channelWidth < 80) return null;
+
+    var rows = state.proxy.layers.map(function(info, index){
+      var top = Number(anchor.top) + rowStride * (index + 1);
+      return {
+        info: info,
+        rowRect: {
+          left: timelineLeft,
+          right: timelineLeft + channelWidth,
+          top: top,
+          bottom: top + rowStride,
+          width: channelWidth,
+          height: rowStride
+        }
+      };
+    });
+
+    return {
+      rows: rows,
+      left: timelineLeft,
+      width: channelWidth,
+      rowStride: rowStride,
+      source: 'main-native-frame-span'
+    };
+  }
+
+  function renderTimelineOverlays(){
+    if (!state.proxy.active || !state.proxy.layers.length) {
+      state.timelineOverlay.attachedCount = 0;
+      requestNativeTimelineDraw();
+      return;
+    }
+    installNativeTimelineRenderer();
+    state.timelineOverlay.attachedCount = state.proxy.layers.length;
+    requestNativeTimelineDraw();
+  }
+
+  function removeStickRigProxyLayers(){
+    state.proxy.syncing = true;
+    state.proxy.ignoreChangesUntil = Date.now() + 500;
+    clearTimeout(state.proxySyncTimer);
+    state.proxySyncTimer = null;
+    var timeline = state.proxy.timeline || getMainTimeline();
+    (state.proxy.layers || []).slice().forEach(function(info){
+      if (info && info.layer) removeLayerFromTimeline(timeline, info.layer);
+    });
+    removeStaleStickRigProxyLayers(timeline);
+    state.proxy.active = false;
+    state.proxy.timeline = null;
+    state.proxy.layers = [];
+    state.proxy.previousActiveLayer = null;
+    state.proxy.syncing = false;
+    removeTimelineOverlay();
+    markProjectChanged();
+    requestNativeTimelineDraw();
+  }
+
+  function setupStickRigProxyLayers(){
+    if (!state.nodes.length) return false;
+    var timeline = getMainTimeline();
+    if (!timeline) return false;
+
+    removeStickRigProxyLayers();
+    removeStaleStickRigProxyLayers(timeline);
+
+    state.proxy.timeline = timeline;
+    state.proxy.layers = [];
+    try {
+      state.proxy.previousActiveLayer = timeline.activeLayer;
+    } catch(eActiveRead) {
+      state.proxy.previousActiveLayer = null;
+    }
+
+    state.nodes.forEach(function(node, nodeIndex){
+      /* Invisible separators keep duplicate part names unique in the DOM while
+         remaining visually identical in Wick's native layer-name column. */
+      var displayName = node.name + new Array(nodeIndex + 2).join('\u2063');
+      var layer = createLayer(displayName);
+
+      try { layer.identifier = STICKRIG_PROXY_PREFIX + String(nodeIndex + 1); } catch(eIdentifier) {}
+      try { layer.name = displayName; } catch(eName) {}
+      try { layer._stickRigChannelLayer = true; } catch(eFlag) {}
+
+      /* Deliberately add only the layer. No Wick frame and no Wick clip are
+         created, therefore no native white frame oblong can appear. */
+      addLayerToTimeline(timeline, layer);
+
+      state.proxy.layers.push({
+        nodeId: node.id,
+        layer: layer,
+        frame: null,
+        clip: null,
+        displayName: displayName,
+        cleanName: node.name,
+        virtualIndex: nodeIndex,
+        lastUnionFrames: [],
+        lastFramesByChannel: {
+          move: [],
+          scale: [],
+          rotate: []
+        }
+      });
+    });
+
+    state.proxy.active = true;
+
+    try {
+      if (state.proxy.previousActiveLayer !== null && state.proxy.previousActiveLayer !== undefined) {
+        timeline.activeLayer = state.proxy.previousActiveLayer;
+      }
+    } catch(eActiveRestore) {}
+
+    installNativeTimelineRenderer();
+    markProjectChanged();
+    syncStickRigProxyLayers();
+    renderTimelineOverlays();
+    scheduleTimelineOverlayRetries();
+    return true;
+  }
+
+  function getFrameTweens(frame){
+    if (!frame) return [];
+    var tweens = safeGet(frame, "tweens") || safeGet(frame, "_tweens") || null;
+    if (tweens && typeof tweens.length === "number") return Array.prototype.slice.call(tweens);
+
+    try {
+      if (typeof frame.getChildren === "function") {
+        return Array.prototype.slice.call(frame.getChildren()).filter(function(child){
+          var className = s(safeGet(child, "className")).toLowerCase();
+          var type = s(safeGet(child, "type")).toLowerCase();
+          return className.indexOf("tween") !== -1 || type.indexOf("tween") !== -1 || safeGet(child, "playheadPosition") !== undefined;
+        });
+      }
+    } catch(eChildren) {}
+
+    return [];
+  }
+
+  function getTweenFrameNumber(tween){
+    var value = safeGet(tween, "playheadPosition");
+    if (!isFinite(Number(value))) value = safeGet(tween, "frameNumber");
+    if (!isFinite(Number(value))) value = safeGet(tween, "position");
+    return isFinite(Number(value)) ? Math.max(1, Math.round(Number(value))) : null;
+  }
+
+  function readProxyFrameNumbers(info){
+    if (!info || !info.frame) return [];
+    var seen = {};
+    var frames = [];
+    getFrameTweens(info.frame).forEach(function(tween){
+      var frameNumber = getTweenFrameNumber(tween);
+      if (frameNumber === null || seen[frameNumber]) return;
+      seen[frameNumber] = true;
+      frames.push(frameNumber);
+    });
+    frames.sort(function(a, b){ return a - b; });
+    return frames;
+  }
+
+  function sameFrameNumberList(a, b){
+    var left = a || [];
+    var right = b || [];
+    if (left.length !== right.length) return false;
+    for (var i = 0; i < left.length; i += 1) {
+      if (Number(left[i]) !== Number(right[i])) return false;
+    }
+    return true;
+  }
+
+  function unionChannelFrames(record){
+    var seen = {};
+    var result = [];
+    CHANNELS.forEach(function(channel){
+      channelKeyFrames(record, channel).forEach(function(frame){
+        if (seen[frame]) return;
+        seen[frame] = true;
+        result.push(frame);
+      });
+    });
+    result.sort(function(a, b){ return a - b; });
+    return result;
+  }
+
+  function syncStickRigProxyLayers(){
+    if (state.timelineOverlay.drag && state.timelineOverlay.drag.active) return;
+    if (!state.proxy.active || !state.proxy.layers.length) return;
+    state.proxy.syncing = true;
+    state.proxy.ignoreChangesUntil = Date.now() + 120;
+    try {
+      state.proxy.layers.forEach(function(info){
+        var record = getNodeRecord(info.nodeId);
+        if (!record) return;
+        info.lastUnionFrames = unionChannelFrames(record);
+        info.lastFramesByChannel = {
+          move: channelKeyFrames(record, 'move').slice(),
+          scale: channelKeyFrames(record, 'scale').slice(),
+          rotate: channelKeyFrames(record, 'rotate').slice()
+        };
+      });
+    } finally {
+      state.proxy.syncing = false;
+      renderTimelineOverlays();
+    }
+  }
+
+  function reconcileDeletedTimelineKeys(){
+    if (!state.proxy.active || !state.proxy.layers.length) return;
+    if (state.timelineOverlay.drag && state.timelineOverlay.drag.active) return;
+    renderTimelineOverlays();
+  }
+
+  function queueProxySync(){
+    clearTimeout(state.proxySyncTimer);
+    state.proxySyncTimer = setTimeout(function(){
+      if (!state.proxy.active && state.nodes.length) setupStickRigProxyLayers();
+      else syncStickRigProxyLayers();
+    }, 90);
+  }
+
+  function getParentFrame(obj){
+    var direct = safeGet(obj, "parentFrame") || safeGet(obj, "_parentFrame") || null;
+    if (looksLikeFrame(direct)) return direct;
+    direct = safeGet(obj, "parent") || safeGet(obj, "_parent") || null;
+    if (looksLikeFrame(direct)) return direct;
+    return null;
+  }
+
+  function ensureLayerHasDuration(layer, duration){
+    var frames = getLayerFrames(layer).slice().sort(function(a, b){ return getFrameStart(a) - getFrameStart(b); });
+    if (!frames.length) {
+      var newFrame = createFrame(1, duration);
+      addFrameToLayer(layer, newFrame);
+      return newFrame;
+    }
+    var last = frames[frames.length - 1];
+    if (getFrameEnd(last) < duration) last.end = duration;
+    return frames[0];
+  }
+
+  function ensureClipTimelineDuration(clip, duration){
+    var timeline = getTimeline(clip);
+    if (!timeline) throw new Error("Timeline missing from " + getObjectName(clip, "clip"));
+    var layers = getTimelineLayers(timeline);
+    if (!layers.length) {
+      var layer = createLayer(getObjectName(clip, "Clip") + "_Layer1");
+      addLayerToTimeline(timeline, layer);
+      ensureLayerHasDuration(layer, duration);
+      layers = getTimelineLayers(timeline);
+    }
+    layers.forEach(function(layer){ ensureLayerHasDuration(layer, duration); });
+  }
+
+  function createDedicatedLayerFrame(parentClip, childClip, duration, label){
+    var parentTimeline = getTimeline(parentClip);
+    if (!parentTimeline) throw new Error("Parent clip timeline missing for " + getObjectName(parentClip));
+    var oldFrame = getParentFrame(childClip);
+    if (!oldFrame) throw new Error("Could not find the existing parent frame for " + getObjectName(childClip));
+    removeChildFromFrame(oldFrame, childClip);
+    var layer = createLayer(label || (getObjectName(childClip, "Clip") + "_Animated"));
+    addLayerToTimeline(parentTimeline, layer);
+    var frame = createFrame(1, duration);
+    addFrameToLayer(layer, frame);
+    addChildToFrame(frame, childClip);
+    return frame;
+  }
+
+  function resolveCopiedPath(rootCopy, path){
+    var current = rootCopy;
+    var i;
+    for (i = 0; i < path.length; i += 1) {
+      var segment = path[i] || {};
+      var children = getTimelineChildClips(current);
+      var matches = children.filter(function(child){
+        var info = getObjectInfo(child);
+        if (segment.identifier) return info.identifier === segment.identifier;
+        if (segment.name) return info.name === segment.name;
+        return true;
+      });
+      var occurrence = Math.max(0, Math.round(n(segment.occurrence, 0)));
+      current = matches[occurrence] || matches[0] || null;
+      if (!current) return null;
+    }
+    return current;
+  }
+
+  function copyRootHierarchy(root){
+    if (!root || typeof root.copy !== "function") {
+      throw new Error("The selected clip does not expose Wick's copy() method");
+    }
+    var copy = root.copy();
+    if (!copy || !looksLikeClip(copy)) throw new Error("Wick failed to copy the selected clip hierarchy");
+    return copy;
+  }
+
+  function createCommittedWrapper(sourceRoot, rootCopy, duration){
+    var sourceParentFrame = getParentFrame(sourceRoot);
+    if (!sourceParentFrame) throw new Error("Could not find the selected root clip's containing stage frame");
+
+    var rootName = getObjectName(sourceRoot, "RootClip");
+    var wrapper = createClip("Committed_" + rootName + "_Wrapper");
+    var wrapperTimeline = getTimeline(wrapper);
+    var wrapperLayer = getTimelineLayers(wrapperTimeline)[0];
+    var wrapperFrame = wrapperLayer && getLayerFrames(wrapperLayer)[0];
+    if (!wrapperLayer || !wrapperFrame) throw new Error("The new wrapper clip did not contain its default layer and frame");
+    wrapperFrame.end = duration;
+
+    sourceParentFrame.addClip(wrapper);
+    wrapperFrame.addClip(rootCopy);
+
+    try { rootCopy.identifier = validIdentifier("Committed_" + (getObjectInfo(sourceRoot).identifier || rootName), "CommittedRoot"); } catch(e1) {}
+    try { rootCopy.name = "Committed " + rootName; } catch(e2) {}
+
+    return { wrapper: wrapper, frame: wrapperFrame, sourceParentFrame: sourceParentFrame };
+  }
+
+  function preflightNativeCommit(){
+    var W = getWickNamespace();
+    if (!W) throw new Error("Wick namespace is unavailable");
+    ["Clip", "Layer", "Frame", "Tween", "Transformation"].forEach(function(className){
+      if (!W[className]) throw new Error("Wick." + className + " is unavailable");
+    });
+    if (!state.root || typeof state.root.copy !== "function") throw new Error("Selected root clip cannot be copied safely");
+    var parentFrame = getParentFrame(state.root);
+    if (!parentFrame || typeof parentFrame.addClip !== "function") throw new Error("Selected root clip is not inside a writable Wick frame");
+  }
+
+  function combinedEasingForFrame(record, frameNumber){
+    var active = CHANNELS.filter(function(channel){ return channelKeyExists(record, frameNumber, channel); });
+    if (!active.length) return "none";
+    var values = active.map(function(channel){ return channelEasing(record, frameNumber, channel); });
+    if (values.indexOf("in-out") !== -1) return "in-out";
+    if (values.indexOf("in") !== -1 && values.indexOf("out") !== -1) return "in-out";
+    if (values.indexOf("in") !== -1) return "in";
+    if (values.indexOf("out") !== -1) return "out";
+    return "none";
+  }
+
+  function addNativeTweensForNode(frame, record){
+    clearTweensOnFrame(frame);
+    var keyedFrames = sortedKeyFrames(record);
+    var framesToWrite = [];
+    if (!keyedFrames.length) return 0;
+    if (keyedFrames[0] !== 1) framesToWrite.push(1);
+    keyedFrames.forEach(function(f){ if (framesToWrite.indexOf(f) === -1) framesToWrite.push(f); });
+    framesToWrite.sort(function(a, b){ return a - b; });
+    var count = 0;
+    framesToWrite.forEach(function(frameNumber){
+      var pose = frameNumber === 1 && !record.keys["1"] ? copyPose(record.base) : interpolatePose(record, frameNumber);
+      var easing = combinedEasingForFrame(record, frameNumber);
+      var tween = createTween(frameNumber, pose, record.base, easing, (TRANSITIONS[easing] || TRANSITIONS.none).colour);
+      addTweenToFrame(frame, tween);
+      count += 1;
+    });
+    return count;
+  }
+
+  function setClipSynced(clip, synced){
+    try { clip.isSynced = !!synced; } catch(e1) {}
+    try { clip._isSynced = !!synced; } catch(e2) {}
+  }
+
+  function commitNativeKeys(){
+    if (state.committing) return;
+    if (!state.root || !state.nodes.length) {
+      setStatus("Read a selected clip before committing.", "warn");
+      return;
+    }
+
+    state.committing = true;
+    setStatus("Creating a safe copied hierarchy and writing native Wick tweens…", "");
+
+    var wrapper = null;
+    try {
+      refreshRefs();
+      preflightNativeCommit();
+      saveStagingData(false);
+
+      var duration = getProjectDuration();
+      var currentFrame = currentProjectFrame();
+      var rootCopy = copyRootHierarchy(state.root);
+      var copyNodeMap = {};
+
+      state.nodes.forEach(function(node){
+        var copiedObject = node.isRoot ? rootCopy : resolveCopiedPath(rootCopy, node.path || []);
+        if (!copiedObject) throw new Error("Could not match copied clip: " + node.name);
+        copyNodeMap[node.id] = copiedObject;
+      });
+
+      Object.keys(copyNodeMap).forEach(function(id){
+        ensureClipTimelineDuration(copyNodeMap[id], duration);
+      });
+
+      var wrap = createCommittedWrapper(state.root, rootCopy, duration);
+      wrapper = wrap.wrapper;
+      var totalTweens = 0;
+
+      var rootRecord = getNodeRecord(state.nodes[0].id);
+      if (rootRecord) totalTweens += addNativeTweensForNode(wrap.frame, rootRecord);
+      setClipSynced(rootCopy, true);
+
+      var nonRootNodes = state.nodes.slice(1).sort(function(a, b){ return a.depth - b.depth; });
+      nonRootNodes.forEach(function(node){
+        var record = getNodeRecord(node.id);
+        var copiedChild = copyNodeMap[node.id];
+        var copiedParent = copyNodeMap[node.parentId];
+        if (!record || !copiedChild || !copiedParent) return;
+        ensureClipTimelineDuration(copiedParent, duration);
+        ensureClipTimelineDuration(copiedChild, duration);
+        var frame = createDedicatedLayerFrame(copiedParent, copiedChild, duration, node.name + "_Animated");
+        totalTweens += addNativeTweensForNode(frame, record);
+        setClipSynced(copiedChild, true);
+      });
+
+      try {
+        var mainTimeline = getMainTimeline();
+        if (mainTimeline) mainTimeline.playheadPosition = currentFrame;
+      } catch(ePlayhead) {}
+
+      clearStagingBlockOnObject(rootCopy);
+      clearStagingBlock();
+      removeStickRigProxyLayers();
+      markProjectChanged();
+
+      try {
+        if (wrapper && wrapper.timeline && wrapper.timeline.activeFrames) {
+          wrapper.timeline.activeFrames.forEach(function(frame){
+            if (frame && frame.view && typeof frame.view.render === "function") frame.view.render();
+          });
+        }
+      } catch(eRender) {}
+
+      renderAll();
+      setStatus(
+        "Commit complete. The original clip was left untouched. A committed wrapper copy was added on the same stage frame with " +
+        totalTweens + " native tween" + (totalTweens === 1 ? "" : "s") + " across " + state.nodes.length + " clip level" +
+        (state.nodes.length === 1 ? "" : "s") + ".",
+        "good"
+      );
+    } catch(error) {
+      console.error(error);
+      try {
+        if (wrapper && wrapper.parentFrame && typeof wrapper.parentFrame.removeClip === "function") wrapper.parentFrame.removeClip(wrapper);
+      } catch(eRollback) {}
+      markProjectChanged();
+      setStatus("Commit failed safely; the original clip was not removed. " + (error && error.message ? error.message : String(error)), "bad");
+    } finally {
+      state.committing = false;
+    }
+  }
+
+  function cleanupStickRigRuntime(){
+    if (state.cleanupDone) return;
+    state.cleanupDone = true;
+
+    try { clearTimeout(state.saveTimer); } catch(eSaveTimer) {}
+    try { clearTimeout(state.proxySyncTimer); } catch(eProxyTimer) {}
+    try { clearTimeout(state.timelineOverlay.retryTimer); } catch(eRetryTimer) {}
+    try { if (state.framePollTimer) clearInterval(state.framePollTimer); } catch(eFrameTimer) {}
+    try { if (state.proxyWatchTimer) clearInterval(state.proxyWatchTimer); } catch(eWatchTimer) {}
+    state.saveTimer = null;
+    state.proxySyncTimer = null;
+    state.timelineOverlay.retryTimer = null;
+    state.framePollTimer = null;
+    state.proxyWatchTimer = null;
+
+    try { uninstallNativeTimelineRenderer(true); } catch(eRendererCleanup) {}
+    try { removeStickRigProxyLayers(); } catch(eLayerCleanup) {}
+    try { removeTimelineOverlay(); } catch(eOverlayCleanup) {}
+    try { restoreTimelineRowStyles(); } catch(eRowCleanup) {}
+    try { removeStaleStickRigProxyLayers(getMainTimeline()); } catch(eStaleCleanup) {}
+
+    try {
+      if (state.cleanupObserver) state.cleanupObserver.disconnect();
+    } catch(eObserver) {}
+    state.cleanupObserver = null;
+
+    try {
+      var parentWindow = window.parent && window.parent !== window ? window.parent : null;
+      if (parentWindow && parentWindow[state.parentCleanupKey] === cleanupStickRigRuntime) {
+        delete parentWindow[state.parentCleanupKey];
+      }
+    } catch(eParentKey) {}
+
+    /* The custom renderer drew directly into Wick's timeline canvas. Clear
+       that canvas once and call Wick's restored original renderer so no blue
+       frame strip, channel line, selection outline or hit area survives. */
+    try { requestNativeTimelineDraw(true); } catch(eFinalDraw) {}
+    try { markProjectChanged(); } catch(eMark) {}
+  }
+
+  function installStickRigLifecycleGuard(){
+    try {
+      var parentWindow = window.parent && window.parent !== window ? window.parent : null;
+      if (parentWindow) {
+        var previousCleanup = parentWindow[state.parentCleanupKey];
+        if (typeof previousCleanup === "function" && previousCleanup !== cleanupStickRigRuntime) {
+          try { previousCleanup(); } catch(ePreviousCleanup) {}
+        }
+        parentWindow[state.parentCleanupKey] = cleanupStickRigRuntime;
+      }
+    } catch(eParent) {}
+
+    try {
+      var frame = window.frameElement;
+      var parentDocument = frame && frame.ownerDocument ? frame.ownerDocument : null;
+      if (frame && parentDocument && parentDocument.documentElement && typeof MutationObserver !== "undefined") {
+        state.cleanupObserver = new MutationObserver(function(){
+          try {
+            if (!frame.isConnected || !parentDocument.documentElement.contains(frame)) cleanupStickRigRuntime();
+          } catch(eCheck) {}
+        });
+        state.cleanupObserver.observe(parentDocument.documentElement, { childList: true, subtree: true });
+      }
+    } catch(eMutation) {}
+  }
+
+  $("readBtn").addEventListener("click", readSelectedClip);
+  $("saveBtn").addEventListener("click", function(){ saveStagingData(true); });
+  $("jsonBtn").addEventListener("click", saveRigJson);
+  $("commitBtn").addEventListener("click", commitNativeKeys);
+  $("refreshFrameBtn").addEventListener("click", function(){ refreshCurrentFrame(true); setStatus("Current Wick frame refreshed: " + state.frame + ".", "good"); });
+  $("clearAllBtn").addEventListener("click", clearAllKeys);
+
+  window.addEventListener("beforeunload", cleanupStickRigRuntime);
+  window.addEventListener("pagehide", cleanupStickRigRuntime);
+  window.addEventListener("unload", cleanupStickRigRuntime);
+
+  state.framePollTimer = setInterval(function(){
+    try { refreshCurrentFrame(false); } catch(ePoll) {}
+  }, 300);
+
+  state.proxyWatchTimer = setInterval(function(){
+    try { reconcileDeletedTimelineKeys(); } catch(eProxyWatch) {}
+    try {
+      if (state.proxy.active && !(state.timelineOverlay.drag && state.timelineOverlay.drag.active) && state.timelineOverlay.attachedCount === state.proxy.layers.length) renderTimelineOverlays();
+    } catch(eOverlayWatch) {}
+  }, 420);
+
+  installStickRigLifecycleGuard();
+  refreshRefs();
+  try {
+    /* Clean up a native draw wrapper or temporary layers left by an older
+       StickRig instance before this tool becomes active. */
+    var WStartup = getWickNamespace();
+    if (WStartup && WStartup.GUIElement && WStartup.GUIElement.Timeline && WStartup.GUIElement.Timeline.prototype) {
+      var startupProto = WStartup.GUIElement.Timeline.prototype;
+      if (startupProto.__stickRigNativeOriginalDraw && typeof startupProto.__stickRigNativeOriginalDraw === "function") {
+        startupProto.draw = startupProto.__stickRigNativeOriginalDraw;
+        delete startupProto.__stickRigNativeOriginalDraw;
+      }
+      WStartup.GUIElement.Timeline.__stickRigNativeRenderer = null;
+    }
+  } catch(eStartupRendererCleanup) {}
+  try {
+    removeTimelineOverlay();
+    removeStaleStickRigProxyLayers(getMainTimeline());
+    markProjectChanged();
+  } catch(eStartupCleanup) {}
+  refreshCurrentFrame(true);
+  setStatus("Ready.", "");
+})();
+</script>
+</body>
+</html>
