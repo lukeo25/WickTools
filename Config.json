@@ -203,7 +203,15 @@
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBones.txt",
           "action": "tool",
           "F_Screen": 0
-        },        
+        },
+        {
+          "id": "Stick Rig",
+          "label": "Stick Rig",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/PStick.svg",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/StickRig.txt",
+          "action": "tool",
+          "F_Screen": 0
+        },
         {
           "id": "Screen Record",
           "label": "Screen Record",
