@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Luke Tools StickRig GPT v41.0</title>
+<title>Luke Tools StickRig GPT v42.0</title>
 <style>
 :root {
   color-scheme: dark;
@@ -518,7 +518,7 @@ input[type="range"] {
 (function(){
   "use strict";
 
-  var VERSION = "41.0";
+  var VERSION = "42.0";
   var BLOCK_START = "// LukeTools Native Clip Stack Commit GPT v4 BEGIN";
   var BLOCK_END = "// LukeTools Native Clip Stack Commit GPT v4 END";
   var DATA_BEGIN = "/* LT_NCSA_DATA_BEGIN */";
@@ -4720,10 +4720,56 @@ input[type="range"] {
     return copy;
   }
 
-  function createCommittedWrapper(sourceRoot, rootCopy, duration){
+  /*
+   * Parent-origin rule:
+   * The committed wrapper must inherit the original root clip's loaded X/Y
+   * origin. The copied root is then placed at local 0,0 inside that wrapper.
+   * Child positions and child artwork bounds are never used to calculate the
+   * wrapper origin, and no recentering operation is performed.
+   */
+  function setExactClipTransform(clip, values){
+    if (!clip || !values) return;
+    var current = safeGet(clip, "transformation");
+    var transformation = cloneTransformation(current || {});
+    transformation.x = n(values.x, 0);
+    transformation.y = n(values.y, 0);
+    transformation.rotation = n(values.rotation, 0);
+    transformation.scaleX = n(values.scaleX, 1);
+    transformation.scaleY = n(values.scaleY, 1);
+    try { clip.transformation = transformation; } catch(eAssign) {}
+    setOneProperty(clip, "x", transformation.x);
+    setOneProperty(clip, "y", transformation.y);
+    setOneProperty(clip, "rotation", transformation.rotation);
+    setOneProperty(clip, "scaleX", transformation.scaleX);
+    setOneProperty(clip, "scaleY", transformation.scaleY);
+  }
+
+  function rootBaseForPreservedOrigin(sourceRoot, rootRecord){
+    var base = rootRecord && rootRecord.base ? rootRecord.base : readTransform(sourceRoot);
+    return {
+      x: round3(n(base.x, 0)),
+      y: round3(n(base.y, 0)),
+      scale: round3(Math.max(0.01, n(base.scale, 1))),
+      rotation: round3(n(base.rotation, 0)),
+      signX: n(base.signX, 1) < 0 ? -1 : 1,
+      signY: n(base.signY, 1) < 0 ? -1 : 1
+    };
+  }
+
+  function rootPoseRelativeToPreservedOrigin(pose, preservedBase){
+    return {
+      x: round3(n(pose && pose.x, preservedBase.x) - preservedBase.x),
+      y: round3(n(pose && pose.y, preservedBase.y) - preservedBase.y),
+      scale: round3(Math.max(0.01, n(pose && pose.scale, preservedBase.scale))),
+      rotation: round3(n(pose && pose.rotation, preservedBase.rotation))
+    };
+  }
+
+  function createCommittedWrapper(sourceRoot, rootCopy, duration, preservedBase){
     var sourceParentFrame = getParentFrame(sourceRoot);
     if (!sourceParentFrame) throw new Error("Could not find the selected root clip's containing stage frame");
 
+    var origin = preservedBase || rootBaseForPreservedOrigin(sourceRoot, null);
     var rootName = getObjectName(sourceRoot, "RootClip");
     var wrapper = createClip("Committed_" + rootName + "_Wrapper");
     var wrapperTimeline = getTimeline(wrapper);
@@ -4732,13 +4778,40 @@ input[type="range"] {
     if (!wrapperLayer || !wrapperFrame) throw new Error("The new wrapper clip did not contain its default layer and frame");
     wrapperFrame.end = duration;
 
+    /* The wrapper owns the original parent origin. It remains otherwise
+       unrotated and unscaled, so root X/Y keys can be represented as simple
+       offsets from the preserved origin without changing their stage result. */
+    setExactClipTransform(wrapper, {
+      x: origin.x,
+      y: origin.y,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1
+    });
+
+    /* The copied parent clip is centred on the wrapper's origin. Its original
+       rotation, scale and sign are retained. Internal child transforms are not
+       touched, so every child remains in exactly the same parent-local place. */
+    setExactClipTransform(rootCopy, {
+      x: 0,
+      y: 0,
+      rotation: origin.rotation,
+      scaleX: origin.scale * origin.signX,
+      scaleY: origin.scale * origin.signY
+    });
+
     sourceParentFrame.addClip(wrapper);
     wrapperFrame.addClip(rootCopy);
 
     try { rootCopy.identifier = validIdentifier("Committed_" + (getObjectInfo(sourceRoot).identifier || rootName), "CommittedRoot"); } catch(e1) {}
     try { rootCopy.name = "Committed " + rootName; } catch(e2) {}
 
-    return { wrapper: wrapper, frame: wrapperFrame, sourceParentFrame: sourceParentFrame };
+    return {
+      wrapper: wrapper,
+      frame: wrapperFrame,
+      sourceParentFrame: sourceParentFrame,
+      preservedBase: origin
+    };
   }
 
   function preflightNativeCommit(){
@@ -4782,6 +4855,46 @@ input[type="range"] {
     return count;
   }
 
+  function addNativeTweensForRootAtPreservedOrigin(frame, record, preservedBase){
+    clearTweensOnFrame(frame);
+    var keyedFrames = sortedKeyFrames(record);
+    var framesToWrite = [];
+    if (!keyedFrames.length) return 0;
+    if (keyedFrames[0] !== 1) framesToWrite.push(1);
+    keyedFrames.forEach(function(frameNumber){
+      if (framesToWrite.indexOf(frameNumber) === -1) framesToWrite.push(frameNumber);
+    });
+    framesToWrite.sort(function(a, b){ return a - b; });
+
+    var localBase = {
+      x: 0,
+      y: 0,
+      scale: preservedBase.scale,
+      rotation: preservedBase.rotation,
+      signX: preservedBase.signX,
+      signY: preservedBase.signY
+    };
+
+    var count = 0;
+    framesToWrite.forEach(function(frameNumber){
+      var stagePose = frameNumber === 1 && !record.keys["1"]
+        ? copyPose(record.base)
+        : interpolatePose(record, frameNumber);
+      var localPose = rootPoseRelativeToPreservedOrigin(stagePose, preservedBase);
+      var easing = combinedEasingForFrame(record, frameNumber);
+      var tween = createTween(
+        frameNumber,
+        localPose,
+        localBase,
+        easing,
+        (TRANSITIONS[easing] || TRANSITIONS.none).colour
+      );
+      addTweenToFrame(frame, tween);
+      count += 1;
+    });
+    return count;
+  }
+
   function setClipSynced(clip, synced){
     try { clip.isSynced = !!synced; } catch(e1) {}
     try { clip._isSynced = !!synced; } catch(e2) {}
@@ -4818,12 +4931,19 @@ input[type="range"] {
         ensureClipTimelineDuration(copyNodeMap[id], duration);
       });
 
-      var wrap = createCommittedWrapper(state.root, rootCopy, duration);
+      var rootRecord = getNodeRecord(state.nodes[0].id);
+      var preservedRootBase = rootBaseForPreservedOrigin(state.root, rootRecord);
+      var wrap = createCommittedWrapper(state.root, rootCopy, duration, preservedRootBase);
       wrapper = wrap.wrapper;
       var totalTweens = 0;
 
-      var rootRecord = getNodeRecord(state.nodes[0].id);
-      if (rootRecord) totalTweens += addNativeTweensForNode(wrap.frame, rootRecord);
+      if (rootRecord) {
+        totalTweens += addNativeTweensForRootAtPreservedOrigin(
+          wrap.frame,
+          rootRecord,
+          preservedRootBase
+        );
+      }
       setClipSynced(rootCopy, true);
 
       var nonRootNodes = state.nodes.slice(1).sort(function(a, b){ return a.depth - b.depth; });
@@ -4859,8 +4979,8 @@ input[type="range"] {
 
       renderAll();
       setStatus(
-        "Commit complete. The original clip was left untouched. A committed wrapper copy was added on the same stage frame with " +
-        totalTweens + " native tween" + (totalTweens === 1 ? "" : "s") + " across " + state.nodes.length + " clip level" +
+        "Commit complete. The original clip was left untouched. The committed wrapper uses the original parent origin, the copied parent is local 0,0, and " +
+        totalTweens + " native tween" + (totalTweens === 1 ? "" : "s") + " were written across " + state.nodes.length + " clip level" +
         (state.nodes.length === 1 ? "" : "s") + ".",
         "good"
       );
