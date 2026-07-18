@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Luke Tools StickRig GPT v59.0</title>
+<title>Luke Tools StickRig GPT v67.0</title>
 <style>
 :root {
   color-scheme: dark;
@@ -532,7 +532,6 @@ input[type="range"] {
       <button id="reanimateBtn" type="button">Reanimate</button>
       <button id="saveBtn" type="button" disabled>Save</button>
       <button id="jsonBtn" type="button" disabled>Rig JSON</button>
-      <button id="commitBtn" class="good" type="button" disabled>Commit</button>
       <button id="refreshFrameBtn" type="button">Refresh</button>
       <button id="clearAllBtn" class="danger" type="button" disabled>Clear</button>
     </div>
@@ -547,16 +546,26 @@ input[type="range"] {
 <div id="status">Ready.</div>
 
 <script>
+/* Luke Tools StickRig GPT v68 */
 (function(){
   "use strict";
 
-  var VERSION = "59.0";
+  var VERSION = "68.0";
   var BLOCK_START = "// LukeTools Native Clip Stack Commit GPT v4 BEGIN";
   var BLOCK_END = "// LukeTools Native Clip Stack Commit GPT v4 END";
   var DATA_BEGIN = "/* LT_NCSA_DATA_BEGIN */";
   var DATA_END = "/* LT_NCSA_DATA_END */";
   var COMMITTED_DATA_BEGIN = "/* LT_STICKRIG_COMMITTED_DATA_BEGIN */";
   var COMMITTED_DATA_END = "/* LT_STICKRIG_COMMITTED_DATA_END */";
+  var LIVE_DRIVER_BEGIN = "/* LT_STICKRIG_LIVE_DRIVER_BEGIN */";
+  var LIVE_DRIVER_END = "/* LT_STICKRIG_LIVE_DRIVER_END */";
+  var MOTION_LAYER_NAME = "StickRig Motion";
+  var MOTION_LAYER_ID = "__LT_STICKRIG_MOTION_LAYER__";
+  var MOTION_FRAME_ID = "__LT_STICKRIG_MOTION_FRAME__";
+  var KEY_LAYER_NAME = "StickRig Keys";
+  var KEY_LAYER_ID = "__LT_STICKRIG_KEY_LAYER__";
+  var KEY_FRAME_PREFIX = "__LT_STICKRIG_KEY_FRAME__";
+  var INTERNAL_CARRIER_PREFIX = "__LT_STICKRIG_INTERNAL_CARRIER__";
 
 
   var CHANNELS = ["move", "scale", "rotate"];
@@ -883,7 +892,14 @@ input[type="range"] {
     return frames && typeof frames.length === "number" ? frames : [];
   }
 
-  function getTimelineChildClips(parentClip){
+  function isStickRigInternalCarrier(clip){
+    if (!clip || !looksLikeClip(clip)) return false;
+    var identifier = s(safeGet(clip, "identifier") || safeGet(clip, "_identifier"));
+    return safeGet(clip, "_stickRigInternalCarrier") === true ||
+      identifier.indexOf(INTERNAL_CARRIER_PREFIX) === 0;
+  }
+
+  function rawTimelineChildClips(parentClip){
     var out = [];
     var seen = {};
     var timeline = getTimeline(parentClip);
@@ -915,6 +931,23 @@ input[type="range"] {
     }
 
     return out.filter(function(obj){ return looksLikeClip(obj); });
+  }
+
+  function getTimelineChildClips(parentClip){
+    var out = [];
+    var seen = {};
+
+    function addLogical(clip, depth){
+      if (!clip || depth > 20) return;
+      if (isStickRigInternalCarrier(clip)) {
+        rawTimelineChildClips(clip).forEach(function(child){ addLogical(child, depth + 1); });
+        return;
+      }
+      addUniqueObject(out, seen, clip);
+    }
+
+    rawTimelineChildClips(parentClip).forEach(function(child){ addLogical(child, 0); });
+    return out;
   }
 
   function readNumericProperty(obj, keys, fallback){
@@ -1150,6 +1183,18 @@ input[type="range"] {
     state.nodeMap = nodeMap;
   }
 
+  /* The selected outer clip is the user-owned rig container. Its name is
+     irrelevant and StickRig must never offer animation controls for it. Only
+     clips nested beneath that selected root are editable parts. */
+  function animatableNodes(){
+    return state.nodes.filter(function(node){ return node && !node.isRoot; });
+  }
+
+  function firstAnimatableNode(){
+    var nodes = animatableNodes();
+    return nodes.length ? nodes[0] : null;
+  }
+
   function getUpdateScriptForObject(obj){
     if (!obj || !state.bridge) return "";
     var info = getObjectInfo(obj);
@@ -1162,12 +1207,195 @@ input[type="range"] {
   function setUpdateScriptForObject(obj, source){
     if (!obj || !state.bridge) return { ok: false, reason: "object or bridge missing" };
     var info = getObjectInfo(obj);
+    var result = null;
+
     try {
-      if (typeof state.bridge.setUpdateScriptByInfo === "function") return state.bridge.setUpdateScriptByInfo(info, s(source));
+      if (typeof state.bridge.setUpdateScriptByInfo === "function") {
+        result = state.bridge.setUpdateScriptByInfo(info, s(source));
+        if (!(result && result.ok === false)) return result || { ok: true };
+      }
     } catch(eByInfo) {
-      return { ok: false, reason: eByInfo && eByInfo.message ? eByInfo.message : String(eByInfo) };
+      result = { ok: false, reason: eByInfo && eByInfo.message ? eByInfo.message : String(eByInfo) };
     }
-    return { ok: false, reason: "LukeToolsBridge has no object update script writer" };
+
+    /* Moving a clip to a dedicated animation layer can leave a bridge lookup
+       cache stale for a moment. Re-select the same real clip and use the
+       selection writer rather than treating that cache miss as animation
+       failure. No clip is copied or replaced here. */
+    try { refreshRefs(); } catch(eRefresh) {}
+    try {
+      if (state.bridge && typeof state.bridge.selectObjectByInfo === "function") {
+        state.bridge.selectObjectByInfo(info);
+      }
+      if (state.bridge && typeof state.bridge.setUpdateScriptOnSelection === "function") {
+        var selectionResult = state.bridge.setUpdateScriptOnSelection(s(source));
+        if (!(selectionResult && selectionResult.ok === false)) return selectionResult || { ok: true };
+        result = selectionResult;
+      }
+    } catch(eSelection) {
+      result = { ok: false, reason: eSelection && eSelection.message ? eSelection.message : String(eSelection) };
+    }
+
+    return result || { ok: false, reason: "target not found" };
+  }
+
+
+  function stripLiveDriverBlock(source){
+    var text = s(source);
+    var start = text.indexOf(LIVE_DRIVER_BEGIN);
+    while (start !== -1) {
+      var end = text.indexOf(LIVE_DRIVER_END, start);
+      if (end === -1) text = text.substring(0, start);
+      else text = text.substring(0, start) + text.substring(end + LIVE_DRIVER_END.length);
+      start = text.indexOf(LIVE_DRIVER_BEGIN);
+    }
+    return text.trim();
+  }
+
+  function buildLiveDriverData(record, duration){
+    ensureChannelMaps(record);
+    var rotationPath = rotationPathValues(record);
+    var data = {
+      version: 2,
+      duration: Math.max(1, Math.round(n(duration, 1))),
+      base: {
+        x: round3(n(record && record.base && record.base.x, 0)),
+        y: round3(n(record && record.base && record.base.y, 0)),
+        scale: round3(Math.max(0.01, n(record && record.base && record.base.scale, 1))),
+        rotation: round3(n(rotationPath && rotationPath.base, n(record && record.base && record.base.rotation, 0))),
+        signX: n(record && record.base && record.base.signX, 1) < 0 ? -1 : 1,
+        signY: n(record && record.base && record.base.signY, 1) < 0 ? -1 : 1
+      },
+      channels: {
+        move: [],
+        scale: [],
+        rotate: []
+      }
+    };
+
+    CHANNELS.forEach(function(channel){
+      channelKeyFrames(record, channel).forEach(function(frameNumber){
+        var pose = record.keys && record.keys[String(frameNumber)] ? record.keys[String(frameNumber)] : record.base;
+        var entry = {
+          frame: Math.max(1, Math.round(n(frameNumber, 1))),
+          type: channelType(record, frameNumber, channel),
+          easing: channelEasing(record, frameNumber, channel)
+        };
+        if (channel === "move") {
+          entry.x = round3(n(pose && pose.x, data.base.x));
+          entry.y = round3(n(pose && pose.y, data.base.y));
+        } else if (channel === "scale") {
+          entry.scale = round3(Math.max(0.01, n(pose && pose.scale, data.base.scale)));
+        } else {
+          entry.rotation = round3(
+            rotationPath && rotationPath.keys[String(frameNumber)] !== undefined
+              ? rotationPath.keys[String(frameNumber)]
+              : n(pose && pose.rotation, data.base.rotation)
+          );
+        }
+        data.channels[channel].push(entry);
+      });
+    });
+    return data;
+  }
+
+  function buildLiveDriverBlock(record, duration){
+    var data = buildLiveDriverData(record, duration);
+    return [
+      LIVE_DRIVER_BEGIN,
+      "(function(){",
+      "  try {",
+      "    var D = " + JSON.stringify(data) + ";",
+      "    var tl = this.timeline || this._timeline;",
+      "    var frame = Number(tl && (tl.playheadPosition !== undefined ? tl.playheadPosition : tl._playheadPosition));",
+      "    if (!isFinite(frame)) frame = 1;",
+      "    function num(value, fallback){ value = Number(value); return isFinite(value) ? value : fallback; }",
+      "    function clamp(value, min, max){ return Math.max(min, Math.min(max, value)); }",
+      "    function ease(value, kind){",
+      "      var t = clamp(num(value, 0), 0, 1);",
+      "      if (kind === 'in') return t * t;",
+      "      if (kind === 'out') return 1 - Math.pow(1 - t, 2);",
+      "      if (kind === 'in-out') return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;",
+      "      return t;",
+      "    }",
+      "    function interpolate(list, base, properties){",
+      "      if (!list || !list.length) return base;",
+      "      var previous = null;",
+      "      var next = null;",
+      "      for (var i = 0; i < list.length; i += 1) {",
+      "        if (list[i].frame === frame) return list[i];",
+      "        if (list[i].frame < frame) previous = list[i];",
+      "        if (list[i].frame > frame) { next = list[i]; break; }",
+      "      }",
+      "      if (!previous && next) {",
+      "        previous = {};",
+      "        for (var b = 0; b < properties.length; b += 1) previous[properties[b]] = base[properties[b]];",
+      "        previous.frame = 1; previous.type = 'auto'; previous.easing = 'none';",
+      "      }",
+      "      if (previous && !next) return previous;",
+      "      if (!previous || !next || next.frame <= previous.frame) return base;",
+      "      var ratio = previous.type === 'hold' ? 0 : ease((frame - previous.frame) / (next.frame - previous.frame), previous.easing || 'none');",
+      "      var output = {};",
+      "      for (var p = 0; p < properties.length; p += 1) {",
+      "        var property = properties[p];",
+      "        var from = num(previous[property], num(base[property], 0));",
+      "        var to = num(next[property], from);",
+      "        output[property] = from + (to - from) * ratio;",
+      "      }",
+      "      return output;",
+      "    }",
+      "    var move = interpolate(D.channels.move, {x:D.base.x, y:D.base.y}, ['x','y']);",
+      "    var scale = interpolate(D.channels.scale, {scale:D.base.scale}, ['scale']);",
+      "    var rotate = interpolate(D.channels.rotate, {rotation:D.base.rotation}, ['rotation']);",
+      "    var value;",
+      "    value = num(move.x, D.base.x); if (isFinite(value)) this.x = value;",
+      "    value = num(move.y, D.base.y); if (isFinite(value)) this.y = value;",
+      "    value = Math.max(0.01, num(scale.scale, D.base.scale)); this.scaleX = value * (D.base.signX < 0 ? -1 : 1);",
+      "    this.scaleY = value * (D.base.signY < 0 ? -1 : 1);",
+      "    value = num(rotate.rotation, D.base.rotation); if (isFinite(value)) this.rotation = value;",
+      "  } catch (error) {}",
+      "}).call(this);",
+      LIVE_DRIVER_END
+    ].join("\n");
+  }
+
+  function writeLiveDriverToObject(obj, record, duration){
+    if (!obj) return { ok: false, reason: "clip missing" };
+    if (!record) return { ok: false, reason: "animation record missing" };
+    var existing = getUpdateScriptForObject(obj);
+    var clean = stripLiveDriverBlock(existing);
+    var block = buildLiveDriverBlock(record, duration);
+    var source = clean ? clean + "\n\n" + block : block;
+    var result = setUpdateScriptForObject(obj, source);
+    if (!(result && result.ok === false)) return result || { ok: true };
+
+    try { markProjectChanged(); } catch(eMark) {}
+    try { refreshRefs(); } catch(eRefresh) {}
+    result = setUpdateScriptForObject(obj, source);
+    if (!(result && result.ok === false)) return result || { ok: true };
+
+    try {
+      var info = getObjectInfo(obj);
+      if (state.bridge && typeof state.bridge.selectObjectByInfo === "function") {
+        state.bridge.selectObjectByInfo(info);
+      }
+      if (state.bridge && typeof state.bridge.setUpdateScriptOnSelection === "function") {
+        var selectionResult = state.bridge.setUpdateScriptOnSelection(source);
+        if (!(selectionResult && selectionResult.ok === false)) return selectionResult || { ok: true };
+        result = selectionResult;
+      }
+    } catch(eSelectionWrite) {
+      result = { ok: false, reason: eSelectionWrite && eSelectionWrite.message ? eSelectionWrite.message : String(eSelectionWrite) };
+    }
+    return result || { ok: false, reason: "target not found" };
+  }
+
+  function removeLiveDriverFromObject(obj){
+    if (!obj) return { ok: true };
+    var existing = getUpdateScriptForObject(obj);
+    var clean = stripLiveDriverBlock(existing);
+    if (clean === s(existing).trim()) return { ok: true };
+    return setUpdateScriptForObject(obj, clean);
   }
 
   function stripCommittedDataBlock(source){
@@ -1791,14 +2019,15 @@ input[type="range"] {
 
   function renderAll(){
     $("frameValue").textContent = String(state.frame);
-    if (!state.nodes.length) {
+    var visibleNodes = animatableNodes();
+    if (!visibleNodes.length) {
       $("empty").style.display = "block";
       $("cards").innerHTML = "";
       return;
     }
 
     $("empty").style.display = "none";
-    $("cards").innerHTML = state.nodes.map(renderCard).join("");
+    $("cards").innerHTML = visibleNodes.map(renderCard).join("");
     bindCardEvents();
   }
 
@@ -1813,7 +2042,7 @@ input[type="range"] {
     return "" +
       '<div class="partCard' + (active ? ' active' : '') + (open ? ' open' : '') + (keyed ? ' hasKey' : '') + '" data-id="' + htmlEscape(node.id) + '">' +
         '<div class="partHead">' +
-          '<div class="depthPad" style="width:' + Math.min(72, node.depth * 14) + 'px"></div>' +
+          '<div class="depthPad" style="width:' + Math.min(72, Math.max(0, node.depth - 1) * 14) + 'px"></div>' +
           '<button class="expandBtn" type="button" data-action="toggle" data-id="' + htmlEscape(node.id) + '">' + (open ? '−' : '+') + '</button>' +
           '<div class="partIdentity"><div class="partName">' + htmlEscape(node.name) + '</div></div>' +
           '<button class="animateBtn' + (active ? ' active' : '') + '" type="button" data-action="animate" data-id="' + htmlEscape(node.id) + '">' + (active ? 'Active' : 'Animate') + '</button>' +
@@ -2413,19 +2642,19 @@ input[type="range"] {
 
     if (!nativeSync.ok) {
       setStatus(
-        "The " + channel + " key was removed from StickRig, but the stage clip could not be refreshed: " +
+        "The " + channel + " key was removed from StickRig, but the real clip timeline could not be refreshed: " +
         nativeSync.reason + ".",
         "warn"
       );
     } else if (stagingSaved === false) {
       setStatus(
-        "The " + channel + " key and native tween were deleted, but editable Reanimate data could not be saved.",
+        "The " + channel + " key and native keyframe were deleted, but editable Reanimate data could not be saved.",
         "warn"
       );
     } else {
       setStatus(
         "Deleted " + channel + " key for " + node.name + " at frame " + state.frame +
-        (nativeSync.skipped ? "." : " and removed its native stage tween data immediately."),
+        (nativeSync.skipped ? "." : " and removed its native keyframe data on the real owning timeline immediately."),
         "good"
       );
     }
@@ -2453,16 +2682,18 @@ input[type="range"] {
     state.saveTimer = null;
     state.proxySyncTimer = null;
 
-    Object.keys(state.anim.nodes).forEach(function(id){
-      state.anim.nodes[id].keys = {};
-      state.anim.nodes[id].keyTypes = {};
-      state.anim.nodes[id].keyChannels = {};
-      state.anim.nodes[id].channelTypes = {};
-      state.anim.nodes[id].channelEasing = {};
+    animatableNodes().forEach(function(node){
+      var editableRecord = state.anim.nodes[node.id];
+      if (!editableRecord) return;
+      editableRecord.keys = {};
+      editableRecord.keyTypes = {};
+      editableRecord.keyChannels = {};
+      editableRecord.channelTypes = {};
+      editableRecord.channelEasing = {};
     });
 
     var nativeSyncFailures = [];
-    state.nodes.forEach(function(node){
+    animatableNodes().forEach(function(node){
       var record = getNodeRecord(node.id);
       if (!record) return;
       applyTransformToObject(node, record.base, false);
@@ -2485,7 +2716,7 @@ input[type="range"] {
       );
     } else {
       setStatus(
-        "Cleared all StickRig keys and removed all corresponding native tweens from the stage clips immediately.",
+        "Cleared all StickRig keys and removed all corresponding real Wick keyframes from the clips immediately.",
         "good"
       );
     }
@@ -2701,22 +2932,29 @@ input[type="range"] {
 
   function saveStagingData(showSuccess){
     if (!state.root || !state.nodes.length) {
-      setStatus("Read a selected clip before saving staging data.", "warn");
+      if (showSuccess !== false) setStatus("Read a selected clip before saving staging data.", "warn");
       return false;
     }
     clearTimeout(state.saveTimer);
     state.saveTimer = null;
-    var existing = getExistingUpdateScript();
+
+    /* Native Wick tweens are now the live source of truth. Automatic metadata
+       saves must never interrupt key editing or report a false animation
+       failure when the bridge cache is refreshing after a layer move. */
+    if (showSuccess === false) return true;
+
+    var existing = getUpdateScriptForObject(state.root);
     var clean = stripExistingBlock(existing);
     var block = buildStagingBlock();
     var finalSource = clean ? (clean + "\n\n" + block) : block;
-    var result = setUpdateScript(finalSource);
+    var result = setUpdateScriptForObject(state.root, finalSource);
     if (result && result.ok === false) {
-      setStatus("Save failed: " + (result.reason || "unknown bridge error"), "bad");
+      setStatus("Save failed: " + (result.reason || "unknown bridge error") + ". The native Wick animation was not affected.", "bad");
       return false;
     }
+    state.rootInfo = getObjectInfo(state.root);
     markProjectChanged();
-    if (showSuccess !== false) setStatus("Saved staging data into " + state.rootName + ".", "good");
+    setStatus("Saved editable StickRig channel data into " + state.rootName + ".", "good");
     return true;
   }
 
@@ -2747,7 +2985,7 @@ input[type="range"] {
 
   function queueSave(){
     clearTimeout(state.saveTimer);
-    state.saveTimer = setTimeout(function(){ saveStagingData(false); }, 220);
+    state.saveTimer = null;
   }
 
   function resetReanimateState(){
@@ -2759,7 +2997,6 @@ input[type="range"] {
     state.reanimate.root = null;
     state.reanimate.manifest = null;
     state.reanimate.duration = 0;
-    try { $("commitBtn").textContent = "Commit"; } catch(eButton) {}
   }
 
   function resetLiveNativeState(){
@@ -2817,6 +3054,8 @@ input[type="range"] {
 
   function clipHasOwnNativeTweens(clip){
     if (!clip || !looksLikeClip(clip)) return false;
+    var internalFrame = findStickRigMotionFrame(clip);
+    if (internalFrame && getFrameTweens(internalFrame).length > 0) return true;
     return getFrameTweens(getParentFrame(clip)).length > 0;
   }
 
@@ -2859,7 +3098,7 @@ input[type="range"] {
       guard += 1;
     }
 
-    /* Prefer the outermost clip whose own containing frame has native tweens.
+    /* Prefer the outermost clip whose own containing frame has native keyframes.
        That is the actual committed root in v54 and prevents a same-named
        legacy wrapper from being ingested as an extra TopLeg level. */
     return outermostDirectAnimatedClip || explicitLegacyWrapper || outermostStructuralMatch;
@@ -2914,8 +3153,8 @@ input[type="range"] {
 
   function nativeAnimationFallback(){
     var output = { version: 1, toolVersion: VERSION, root: state.rootInfo, nodes: {} };
-    state.nodes.forEach(function(node){
-      var frame = getParentFrame(node.obj);
+    animatableNodes().forEach(function(node){
+      var frame = findStickRigMotionFrame(node.obj) || getParentFrame(node.obj);
       var tweens = getFrameTweens(frame).slice().sort(function(a, b){
         return n(getTweenFrameNumber(a), 1) - n(getTweenFrameNumber(b), 1);
       });
@@ -3059,7 +3298,7 @@ input[type="range"] {
   function committedRigDuration(container, manifest){
     if (manifest && isFinite(Number(manifest.duration))) return Math.max(1, Math.round(Number(manifest.duration)));
     if (clipHasOwnNativeTweens(container)) {
-      var ownFrame = getParentFrame(container);
+      var ownFrame = findStickRigMotionFrame(container) || getParentFrame(container);
       if (ownFrame) return Math.max(1, getFrameEnd(ownFrame));
     }
     var children = getTimelineChildClips(container);
@@ -3082,8 +3321,9 @@ input[type="range"] {
       var wrapper = findCommittedWrapper(selected);
       if (!wrapper) { setStatus("The selected clip is not a committed StickRig rig.", "warn"); return; }
       var manifest = parseCommittedData(getUpdateScriptForObject(wrapper));
-      var committedRoot = findCommittedRoot(wrapper, manifest);
-      if (!committedRoot) { setStatus("The committed StickRig root clip could not be found.", "bad"); return; }
+      /* Whatever the user called the selected outer clip is the rig container.
+         Do not descend past it and then accidentally hide the first real limb. */
+      var committedRoot = wrapper;
 
       state.reanimate.active = true;
       state.reanimate.wrapper = wrapper;
@@ -3100,7 +3340,8 @@ input[type="range"] {
       state.openIds = {};
       state.openChannels = {};
       buildHierarchy(committedRoot);
-      if (!state.nodes.length) { setStatus("The committed rig hierarchy could not be read.", "bad"); return; }
+      if (!animatableNodes().length) { setStatus("The selected rig container has no nested clips to animate.", "warn"); return; }
+      animatableNodes().forEach(function(node){ consolidateLiveLayersForNode(node, state.reanimate.duration || getProjectDuration()); });
 
       var staged = parseSavedData(getUpdateScriptForObject(committedRoot));
       var exactAnimation = staged || (manifest && manifest.animation ? manifest.animation : null);
@@ -3109,20 +3350,22 @@ input[type="range"] {
         ? alignExactAnimationToNativeTweens(exactAnimation, nativeAnimation)
         : nativeAnimation;
       mergeSavedAnimation(reanimatedAnimation);
+      var reanimateMigration = migrateLoadedKeysIntoRealClipTimelines();
 
-      state.openIds[state.nodes[0].id] = true;
+      var firstEditable = firstAnimatableNode();
+      if (firstEditable) state.openIds[firstEditable.id] = true;
       renderAll();
       $("saveBtn").disabled = false;
       $("jsonBtn").disabled = false;
-      $("commitBtn").disabled = false;
-      $("commitBtn").textContent = "Commit";
       $("clearAllBtn").disabled = false;
       setupStickRigProxyLayers();
       setStatus(
-        exactAnimation
-          ? "Committed StickRig loaded from its actual native tween positions with the original separate channel metadata restored."
-          : "Older committed StickRig loaded from its actual native tween positions. Constant channels were left unkeyed.",
-        exactAnimation ? "good" : "warn"
+        !reanimateMigration.ok
+          ? "Reanimate loaded the keys, but some clips could not receive their internal Wick keyframes: " + reanimateMigration.failures.join(" | ")
+          : (exactAnimation
+            ? "Reanimate loaded the original channels and wrote every native key onto the real drawable layers inside the clips. Every change is written automatically."
+            : "Older animation loaded from its native keyframes and was written onto the real drawable layers inside the clips. Every change is written automatically."),
+        !reanimateMigration.ok ? "bad" : (exactAnimation ? "good" : "warn")
       );
     } catch(error) {
       console.error(error);
@@ -3148,9 +3391,9 @@ input[type="range"] {
 
       /* A committed parent contains its root animation on an internal frame.
          Loading that outer parent as an ordinary hierarchy would display the
-         parent name twice and a later Commit would create another container.
+         parent name twice and the hierarchy could be interpreted twice.
          Route exact StickRig committed parents through the same ingest used by
-         Reanimate while leaving the normal Commit button unchanged. */
+         Reanimate through the Reanimate ingest path. */
       var committedMarker = parseCommittedData(getUpdateScriptForObject(root));
       if (committedMarker && committedMarker.format === "LukeTools.StickRig.Committed") {
         state.reading = false;
@@ -3167,21 +3410,29 @@ input[type="range"] {
       state.openIds = {};
       state.openChannels = {};
       buildHierarchy(root);
-      if (!state.nodes.length) { setStatus("The selected clip could not be read.", "bad"); return; }
+      if (!animatableNodes().length) { setStatus("The selected rig container has no nested clips to animate.", "warn"); return; }
+      animatableNodes().forEach(function(node){ consolidateLiveLayersForNode(node, getProjectDuration()); });
       var stagedAnimation = parseSavedData(getUpdateScriptForObject(root));
       mergeSavedAnimation(stagedAnimation);
       state.liveNative.active = !!stagedAnimation;
-      state.openIds[state.nodes[0].id] = true;
+      var loadMigration = stagedAnimation
+        ? migrateLoadedKeysIntoRealClipTimelines()
+        : { ok: true, written: 0, failures: [] };
+      var firstEditable = firstAnimatableNode();
+      if (firstEditable) state.openIds[firstEditable.id] = true;
       renderAll();
       $("saveBtn").disabled = false;
       $("jsonBtn").disabled = false;
-      $("commitBtn").disabled = false;
       $("clearAllBtn").disabled = false;
       setupStickRigProxyLayers();
       setStatus(
-        "Read " + state.nodes.length + " clip" + (state.nodes.length === 1 ? "" : "s") + " from " + state.rootName + "." +
-        (stagedAnimation ? " Existing live StickRig keys were restored." : " Native tween data will now be written as each key is edited."),
-        "good"
+        !loadMigration.ok
+          ? "The rig loaded, but some real clip timelines could not be updated: " + loadMigration.failures.join(" | ")
+          : ("Read " + animatableNodes().length + " nested clip" + (animatableNodes().length === 1 ? "" : "s") + " from " + state.rootName + ". The selected outer container is not animatable. " +
+            (stagedAnimation
+              ? "Existing StickRig keys are now native Wick tweens on the real frames that own the clip instances."
+              : "Every new key is written immediately as a native Wick tween on the one real frame that owns that clip instance; Every change is written automatically.")),
+        !loadMigration.ok ? "bad" : "good"
       );
     } catch(error) {
       console.error(error);
@@ -3199,7 +3450,7 @@ input[type="range"] {
       state.lastPolledFrame = frame;
       if (state.nodes.length) {
         renderAll();
-        state.nodes.forEach(function(node){
+        animatableNodes().forEach(function(node){
           var record = getNodeRecord(node.id);
           if (record) applyTransformToObject(node, interpolatePose(record, frame), false);
         });
@@ -5337,19 +5588,19 @@ input[type="range"] {
 
     if (!nativeSync.ok) {
       setStatus(
-        "Deleted the " + marker.channel + " channel key in StickRig, but the stage clip could not be refreshed: " +
+        "Deleted the " + marker.channel + " channel key in StickRig, but the real clip timeline could not be refreshed: " +
         nativeSync.reason + ".",
         "warn"
       );
     } else if (stagingSaved === false) {
       setStatus(
-        "Deleted the " + marker.channel + " key and its native tween data, but editable Reanimate data could not be saved.",
+        "Deleted the " + marker.channel + " key and its native keyframe data, but editable Reanimate data could not be saved.",
         "warn"
       );
     } else {
       setStatus(
         "Deleted " + marker.channel + " key " + marker.frame + " for " + (node ? node.name : "part") +
-        (nativeSync.skipped ? "." : " and removed its native stage tween data immediately."),
+        (nativeSync.skipped ? "." : " and removed its native keyframe data on the real owning timeline immediately."),
         "good"
       );
     }
@@ -5416,18 +5667,18 @@ input[type="range"] {
 
     if (!nativeSync.ok) {
       setStatus(
-        "Moved the " + channel + " key in StickRig, but the stage clip could not be refreshed: " + nativeSync.reason + ".",
+        "Moved the " + channel + " key in StickRig, but the real clip timeline could not be refreshed: " + nativeSync.reason + ".",
         "warn"
       );
     } else if (stagingSaved === false) {
       setStatus(
-        "Moved the " + channel + " key and updated the native tween, but editable Reanimate data could not be saved.",
+        "Moved the " + channel + " key and updated the native keyframe, but editable Reanimate data could not be saved.",
         "warn"
       );
     } else {
       setStatus(
         "Moved " + channel + " key from " + oldFrame + " to " + newFrame +
-        (nativeSync.skipped ? "." : " and updated the native stage tween immediately."),
+        (nativeSync.skipped ? "." : " and updated the native keyframe on the real owning timeline immediately."),
         "good"
       );
     }
@@ -5768,7 +6019,8 @@ input[type="range"] {
   }
 
   function setupStickRigProxyLayers(){
-    if (!state.nodes.length) return false;
+    var visibleNodes = animatableNodes();
+    if (!visibleNodes.length) return false;
     var timeline = getMainTimeline();
     if (!timeline) return false;
 
@@ -5783,7 +6035,7 @@ input[type="range"] {
       state.proxy.previousActiveLayer = null;
     }
 
-    state.nodes.forEach(function(node, nodeIndex){
+    visibleNodes.forEach(function(node, nodeIndex){
       /* Invisible separators keep duplicate part names unique in the DOM while
          remaining visually identical in Wick's native layer-name column. */
       var displayName = node.name + new Array(nodeIndex + 2).join('\u2063');
@@ -6307,58 +6559,479 @@ input[type="range"] {
   function setClipSynced(clip, synced){
     try { clip.isSynced = !!synced; } catch(e1) {}
     try { clip._isSynced = !!synced; } catch(e2) {}
+    if (synced) {
+      try { clip.animationType = "sync"; } catch(e3) {}
+      try { clip._animationType = "sync"; } catch(e4) {}
+    }
   }
 
-  /*
-   * StickRig now writes native Wick tween data while the user is editing.
-   * Reanimate uses the already-isolated committed frames. A normal Load keeps
-   * the user's clip objects and hierarchy, and only moves a clip to a sibling
-   * layer when its current frame also contains unrelated objects. No wrapper,
-   * copied clip or renamed clip is created.
-   */
+  function isStickRigMotionLayer(layer){
+    if (!layer) return false;
+    var identifier = s(safeGet(layer, "identifier") || safeGet(layer, "_identifier"));
+    var name = s(safeGet(layer, "name") || safeGet(layer, "_name"));
+    return safeGet(layer, "_stickRigMotionLayer") === true ||
+      identifier === MOTION_LAYER_ID || name === MOTION_LAYER_NAME;
+  }
+
+  function findStickRigMotionLayer(clip){
+    var timeline = getTimeline(clip);
+    if (!timeline) return null;
+    var layers = getTimelineLayers(timeline);
+    for (var i = 0; i < layers.length; i += 1) {
+      if (isStickRigMotionLayer(layers[i])) return layers[i];
+    }
+    return null;
+  }
+
+  function findStickRigMotionFrame(clip){
+    var layer = findStickRigMotionLayer(clip);
+    if (!layer) return null;
+    var frames = getLayerFrames(layer);
+    for (var i = 0; i < frames.length; i += 1) {
+      var identifier = s(safeGet(frames[i], "identifier") || safeGet(frames[i], "_identifier"));
+      if (safeGet(frames[i], "_stickRigMotionFrame") === true || identifier === MOTION_FRAME_ID) return frames[i];
+    }
+    return frames.length ? frames[0] : null;
+  }
+
+  function ensureStickRigMotionFrame(node, duration){
+    if (!node || !node.obj) throw new Error("the animated clip is missing");
+    var clip = node.obj;
+    var timeline = getTimeline(clip);
+    if (!timeline) throw new Error("the clip's own timeline could not be found");
+
+    var layer = findStickRigMotionLayer(clip);
+    if (!layer) {
+      layer = createLayer(MOTION_LAYER_NAME);
+      try { layer.name = MOTION_LAYER_NAME; } catch(eName) {}
+      try { layer.identifier = MOTION_LAYER_ID; } catch(eIdentifier) {}
+      try { layer._stickRigMotionLayer = true; } catch(eFlag) {}
+      addLayerToTimeline(timeline, layer);
+    }
+
+    var frame = findStickRigMotionFrame(clip);
+    if (!frame) {
+      frame = createFrame(1, duration);
+      try { frame.identifier = MOTION_FRAME_ID; } catch(eFrameIdentifier) {}
+      try { frame._stickRigMotionFrame = true; } catch(eFrameFlag) {}
+      addFrameToLayer(layer, frame);
+    }
+
+    setFrameSpan(frame, 1, duration);
+    state.liveNative.active = true;
+    state.liveNative.frames[node.id] = frame;
+    node.committedFrame = frame;
+    return frame;
+  }
+
+  function removeStickRigMotionLayer(node){
+    if (!node || !node.obj) return false;
+    var clip = node.obj;
+    var timeline = getTimeline(clip);
+    var layer = findStickRigMotionLayer(clip);
+    if (layer && timeline) removeLayerFromTimeline(timeline, layer);
+    /* This layer lived inside the clip and is unrelated to the real owning
+       frame used by live native tweens. Do not discard that owning-frame map. */
+    removeLiveDriverFromObject(clip);
+    return !!layer;
+  }
+
   function mappedLiveNativeFrame(node){
     if (!node || !state.liveNative || !state.liveNative.frames) return null;
     var frame = state.liveNative.frames[node.id] || null;
     if (!frame) return null;
-    try {
-      if (getParentFrame(node.obj) === frame) return frame;
-    } catch(eParent) {}
+    var actual = findStickRigMotionFrame(node.obj);
+    if (actual === frame) return frame;
     delete state.liveNative.frames[node.id];
+    return actual;
+  }
+
+  function clearLegacyExternalTweensForNode(node){
+    if (!node || !node.obj) return false;
+    var parentFrame = getParentFrame(node.obj);
+    if (!parentFrame || !getFrameTweens(parentFrame).length) return false;
+
+    /* Only remove the old StickRig external tween when this clip is the sole
+       object on that frame. This avoids touching a user's unrelated artwork. */
+    var directObjects = directFrameObjectList(parentFrame);
+    if (directObjects.length !== 1 || directObjects[0] !== node.obj) return false;
+    clearTweensOnFrame(parentFrame);
+    return true;
+  }
+
+  function extendClipForLiveMotion(node, duration){
+    var parentFrame = getParentFrame(node.obj);
+    if (parentFrame && getFrameEnd(parentFrame) < duration) {
+      setFrameSpan(parentFrame, getFrameStart(parentFrame), duration);
+    }
+
+    var timeline = getTimeline(node.obj);
+    if (!timeline) return;
+    getTimelineLayers(timeline).forEach(function(layer){
+      if (isStickRigMotionLayer(layer) || isStickRigKeyLayer(layer)) return;
+      getLayerFrames(layer).forEach(function(frame){
+        if (getFrameEnd(frame) < duration) setFrameSpan(frame, getFrameStart(frame), duration);
+      });
+    });
+  }
+
+  function isStickRigKeyLayer(layer){
+    if (!layer) return false;
+    var identifier = s(safeGet(layer, "identifier") || safeGet(layer, "_identifier"));
+    var name = s(safeGet(layer, "name") || safeGet(layer, "_name"));
+    return safeGet(layer, "_stickRigKeyLayer") === true ||
+      identifier === KEY_LAYER_ID || name === KEY_LAYER_NAME;
+  }
+
+  function findStickRigKeyLayer(clip){
+    var timeline = getTimeline(clip);
+    if (!timeline) return null;
+    var layers = getTimelineLayers(timeline);
+    for (var i = 0; i < layers.length; i += 1) {
+      if (isStickRigKeyLayer(layers[i])) return layers[i];
+    }
     return null;
   }
 
-  function prepareInstantNativeFrame(node, duration){
-    if (!node || !node.obj) throw new Error("the animated clip is missing");
-    var mapped = mappedLiveNativeFrame(node);
-    if (mapped) {
-      setFrameSpan(mapped, 1, duration);
-      return mapped;
+  function clearFramesOnLayer(layer){
+    if (!layer) return;
+    getLayerFrames(layer).slice().forEach(function(frame){
+      try {
+        /* Remove directly so Wick does not resolve gaps by stretching one of
+           the remaining keyframes across the layer while it is being rebuilt. */
+        if (typeof layer.removeChild === "function") layer.removeChild(frame);
+        else if (frame && typeof frame.remove === "function") frame.remove();
+        else if (typeof layer.removeFrame === "function") layer.removeFrame(frame);
+      } catch(eRemoveFrame) {}
+    });
+  }
+
+  function removeStickRigKeyLayer(node){
+    if (!node || !node.obj) return false;
+    var timeline = getTimeline(node.obj);
+    var layer = findStickRigKeyLayer(node.obj);
+    if (layer && timeline) removeLayerFromTimeline(timeline, layer);
+    /* Removing the failed internal key layer must not invalidate the real
+       external owning frame where Wick stores this clip instance's tweens. */
+    return !!layer;
+  }
+
+  function addFrameDirectlyToLayer(layer, frame){
+    if (!layer || !frame) throw new Error("Wick keyframe layer or frame is missing");
+    if (typeof layer.addChild === "function") {
+      layer.addChild(frame);
+      return true;
     }
+    return addFrameToLayer(layer, frame);
+  }
+
+  function liveTargetEntryFrame(entry){
+    if (!entry) return null;
+    if (looksLikeFrame(entry)) return entry;
+    return entry.frame && looksLikeFrame(entry.frame) ? entry.frame : null;
+  }
+
+  function frameDirectlyContainsObject(frame, object){
+    if (!frame || !object) return false;
+    return directFrameObjectList(frame).indexOf(object) !== -1;
+  }
+
+  var LIVE_LAYER_PREFIX = "__LT_STICKRIG_LIVE_LAYER__";
+
+  function liveLayerIdentifierForNode(node){
+    return LIVE_LAYER_PREFIX + validIdentifier(node && node.id ? node.id : "Clip", "Clip");
+  }
+
+  function isStickRigLiveLayer(layer){
+    if (!layer) return false;
+    var identifier = s(safeGet(layer, "identifier") || safeGet(layer, "_identifier"));
+    return safeGet(layer, "_stickRigLiveLayer") === true || identifier.indexOf(LIVE_LAYER_PREFIX) === 0;
+  }
+
+  function liveLayerMatchesNode(layer, node){
+    if (!layer || !node) return false;
+    var identifier = s(safeGet(layer, "identifier") || safeGet(layer, "_identifier"));
+    var storedNodeId = s(safeGet(layer, "_stickRigNodeId"));
+    return storedNodeId === node.id || identifier === liveLayerIdentifierForNode(node);
+  }
+
+  function owningTimelineForNode(node){
+    if (!node) return null;
+    if (!node.isRoot && node.parentId && state.nodeMap[node.parentId]) {
+      var parentTimeline = getTimeline(state.nodeMap[node.parentId].obj);
+      if (parentTimeline) return parentTimeline;
+    }
+    var frame = getParentFrame(node.obj);
+    var layer = frame ? parentLayerOfFrame(frame) : null;
+    return layer ? parentTimelineOfLayer(layer) : getMainTimeline();
+  }
+
+  function layerFrameContainingObject(layer, object){
+    if (!layer || !object) return null;
+    var frames = getLayerFrames(layer);
+    for (var i = 0; i < frames.length; i += 1) {
+      if (frameDirectlyContainsObject(frames[i], object)) return frames[i];
+    }
+    return null;
+  }
+
+  function removeGeneratedLiveLayer(timeline, layer, preservedObject){
+    if (!timeline || !layer) return;
+    getLayerFrames(layer).slice().forEach(function(frame){
+      if (preservedObject && frameDirectlyContainsObject(frame, preservedObject)) {
+        try { removeChildFromFrame(frame, preservedObject); } catch(eDetach) {}
+      }
+    });
+    removeLayerFromTimeline(timeline, layer);
+  }
+
+  function consolidateLiveLayersForNode(node, duration){
+    if (!node || !node.obj) return null;
+    var timeline = owningTimelineForNode(node);
+    if (!timeline) return null;
+    var layers = getTimelineLayers(timeline).slice();
+    var generated = layers.filter(function(layer){ return liveLayerMatchesNode(layer, node); });
+    if (!generated.length) return null;
 
     var currentFrame = getParentFrame(node.obj);
-    if (!currentFrame) throw new Error("the clip's containing frame could not be found");
-    var directObjects = directFrameObjectList(currentFrame);
-    var canReuse = directObjects.length === 1 && directObjects[0] === node.obj;
-    var targetFrame = currentFrame;
+    var currentLayer = currentFrame ? parentLayerOfFrame(currentFrame) : null;
+    var keepLayer = currentLayer && liveLayerMatchesNode(currentLayer, node) ? currentLayer : null;
+    var keepFrame = keepLayer && frameDirectlyContainsObject(currentFrame, node.obj) ? currentFrame : null;
 
-    if (!canReuse) {
-      var oldLayer = parentLayerOfFrame(currentFrame);
-      var parentTimeline = oldLayer ? parentTimelineOfLayer(oldLayer) : null;
-      if (!parentTimeline) throw new Error("the clip's containing timeline could not be found");
-
-      var liveLayer = createLayer(node.name || getObjectName(node.obj, "Animated Clip"));
-      addLayerToTimeline(parentTimeline, liveLayer);
-      targetFrame = createFrame(1, duration);
-      addFrameToLayer(liveLayer, targetFrame);
-      removeChildFromFrame(currentFrame, node.obj);
-      addChildToFrame(targetFrame, node.obj);
+    if (!keepFrame) {
+      for (var i = generated.length - 1; i >= 0; i -= 1) {
+        var candidateFrame = layerFrameContainingObject(generated[i], node.obj);
+        if (candidateFrame) {
+          keepLayer = generated[i];
+          keepFrame = candidateFrame;
+          break;
+        }
+      }
     }
 
-    setFrameSpan(targetFrame, 1, duration);
+    /* v65 could leave many same-named generated layers. Detach the one real
+       ingested clip from every generated frame, remove the duplicate layers,
+       then attach that same object exactly once to the retained frame. */
+    if (keepLayer && keepFrame) {
+      generated.forEach(function(layer){
+        getLayerFrames(layer).forEach(function(frame){
+          if (frameDirectlyContainsObject(frame, node.obj)) {
+            try { removeChildFromFrame(frame, node.obj); } catch(eDetachDuplicate) {}
+          }
+        });
+      });
+    }
+    generated.forEach(function(layer){
+      if (layer === keepLayer) return;
+      removeLayerFromTimeline(timeline, layer);
+    });
+
+    if (!keepLayer || !keepFrame) return null;
+    if (!frameDirectlyContainsObject(keepFrame, node.obj)) addChildToFrame(keepFrame, node.obj);
+    try { keepLayer.name = node.name || getObjectName(node.obj, "Clip"); } catch(eName) {}
+    try { keepLayer.identifier = liveLayerIdentifierForNode(node); } catch(eIdentifier) {}
+    try { keepLayer._stickRigLiveLayer = true; } catch(eFlag) {}
+    try { keepLayer._stickRigNodeId = node.id; } catch(eNodeFlag) {}
+    setFrameSpan(keepFrame, 1, Math.max(1, Math.round(n(duration, 1))));
+
+    var entry = {
+      frame: keepFrame,
+      layer: keepLayer,
+      timeline: timeline,
+      createdLayer: true
+    };
     state.liveNative.active = true;
-    state.liveNative.frames[node.id] = targetFrame;
-    node.committedFrame = targetFrame;
-    return targetFrame;
+    state.liveNative.frames[node.id] = entry;
+    node.committedFrame = keepFrame;
+    return entry;
+  }
+
+  function ensureLiveTweenTargetFrame(node, duration){
+    if (!node || !node.obj) throw new Error("the animated clip is missing");
+    var safeDuration = Math.max(1, Math.round(n(duration, 1)));
+
+    var existing = state.liveNative && state.liveNative.frames ? state.liveNative.frames[node.id] : null;
+    var existingFrame = liveTargetEntryFrame(existing);
+    if (existingFrame && frameDirectlyContainsObject(existingFrame, node.obj)) {
+      setFrameSpan(existingFrame, 1, safeDuration);
+      return existing;
+    }
+
+    var consolidated = consolidateLiveLayersForNode(node, safeDuration);
+    if (consolidated) return consolidated;
+
+    var currentFrame = getParentFrame(node.obj);
+    if (!currentFrame) throw new Error("the clip is not inside a writable Wick frame");
+    var currentLayer = parentLayerOfFrame(currentFrame);
+    var currentTimeline = currentLayer ? parentTimelineOfLayer(currentLayer) : null;
+    if (!currentLayer || !currentTimeline) throw new Error("the clip's containing timeline could not be found");
+
+    /* A previously generated live layer is always reused, even when Wick's
+       frame child getters also expose paths or other implementation objects. */
+    if (liveLayerMatchesNode(currentLayer, node) && frameDirectlyContainsObject(currentFrame, node.obj)) {
+      setFrameSpan(currentFrame, 1, safeDuration);
+      var reusedGenerated = {
+        frame: currentFrame,
+        layer: currentLayer,
+        timeline: currentTimeline,
+        createdLayer: true
+      };
+      state.liveNative.active = true;
+      state.liveNative.frames[node.id] = reusedGenerated;
+      node.committedFrame = currentFrame;
+      return reusedGenerated;
+    }
+
+    var directObjects = directFrameObjectList(currentFrame);
+    var canReuseOriginal = directObjects.length === 1 && directObjects[0] === node.obj && getFrameStart(currentFrame) <= 1;
+    var entry;
+
+    if (canReuseOriginal) {
+      setFrameSpan(currentFrame, 1, safeDuration);
+      entry = {
+        frame: currentFrame,
+        layer: currentLayer,
+        timeline: currentTimeline,
+        createdLayer: false
+      };
+    } else {
+      /* A Wick tween affects every object in its frame. Move this exact clip
+         once to one dedicated sibling layer. Later key edits update this same
+         frame in place; they never create another TopLeg/LowerLeg/Foot row. */
+      removeChildFromFrame(currentFrame, node.obj);
+      var layer = createLayer(node.name || getObjectName(node.obj, "Clip"));
+      try { layer.name = node.name || getObjectName(node.obj, "Clip"); } catch(eLayerName) {}
+      try { layer.identifier = liveLayerIdentifierForNode(node); } catch(eLayerIdentifier) {}
+      try { layer._stickRigLiveLayer = true; } catch(eLayerFlag) {}
+      try { layer._stickRigNodeId = node.id; } catch(eLayerNodeFlag) {}
+      addLayerToTimeline(currentTimeline, layer);
+
+      var frame = createFrame(1, safeDuration);
+      addFrameToLayer(layer, frame);
+      addChildToFrame(frame, node.obj);
+      entry = {
+        frame: frame,
+        layer: layer,
+        timeline: currentTimeline,
+        createdLayer: true,
+        previousFrame: currentFrame,
+        previousLayer: currentLayer
+      };
+    }
+
+    state.liveNative.active = true;
+    state.liveNative.frames[node.id] = entry;
+    node.committedFrame = entry.frame;
+    return entry;
+  }
+
+  function clearLiveTweenDataForNode(node){
+    if (!node || !node.obj) return;
+
+    /* Native StickRig animation belongs on the frame that owns this exact
+       clip instance. Clearing a channel key therefore clears and rebuilds that
+       owning frame, never an overlay and never an invented internal carrier. */
+    var entry = state.liveNative && state.liveNative.frames ? state.liveNative.frames[node.id] : null;
+    var frame = liveTargetEntryFrame(entry) || getParentFrame(node.obj);
+    if (frame && frameDirectlyContainsObject(frame, node.obj)) {
+      clearTweensOnFrame(frame);
+      try { if (frame.view && typeof frame.view.render === "function") frame.view.render(); } catch(eRender) {}
+    }
+
+    /* Remove only the failed empty layers created by v60-v62. These are not
+       the user's animation layers and are no longer used by StickRig. */
+    removeStickRigKeyLayer(node);
+    removeStickRigMotionLayer(node);
+    removeLiveDriverFromObject(node.obj);
+
+    node.committedFrame = frame || null;
+    if (state.liveNative && state.liveNative.frames && entry) {
+      state.liveNative.frames[node.id] = entry;
+    }
+  }
+
+  function rebuildActualKeyFrames(node, record, duration){
+    if (!node || !node.obj) throw new Error("the animated clip is missing");
+
+    /* This is the original working Commit arrangement, applied to the actual
+       ingested hierarchy instead of to a copied wrapper hierarchy:
+
+       - the root is tweened by the stage/project frame that owns the root;
+       - every child is tweened by the frame in its real parent clip that owns
+         that child;
+       - Wick.Tween stores the real x, y, scaleX, scaleY and rotation values;
+       - no carrier, wrapper, duplicate clip or fictional key layer exists. */
+    if (!node._stickRigLegacyCleaned) {
+      removeStickRigKeyLayer(node);
+      removeStickRigMotionLayer(node);
+      try { removeLiveDriverFromObject(node.obj); } catch(eLegacyDriver) {}
+      node._stickRigLegacyCleaned = true;
+    }
+
+    var keyFrames = unionChannelFrames(record);
+    if (!keyFrames.length) {
+      clearLiveTweenDataForNode(node);
+      var emptyFrame = getParentFrame(node.obj);
+      return {
+        layer: emptyFrame ? parentLayerOfFrame(emptyFrame) : null,
+        frame: emptyFrame || null,
+        frames: emptyFrame ? [emptyFrame] : [],
+        tweens: [],
+        count: 0
+      };
+    }
+
+    var target = ensureLiveTweenTargetFrame(node, duration);
+    if (!target || !target.frame) throw new Error("the real containing frame could not be prepared");
+    if (!frameDirectlyContainsObject(target.frame, node.obj)) {
+      throw new Error("the native tween target does not contain the real clip");
+    }
+
+    setFrameSpan(target.frame, 1, Math.max(1, Math.round(n(duration, 1))));
+
+    /* Do not recreate this logic. This is the same native transform writer
+       used by the original working Commit. */
+    var count = addNativeTweensForNode(target.frame, record);
+    var tweens = getFrameTweens(target.frame).slice();
+
+    if (count !== tweens.length) {
+      throw new Error("Wick retained " + tweens.length + " of " + count + " native tween keys");
+    }
+
+    tweens.forEach(function(tween){
+      var frameNumber = getTweenFrameNumber(tween);
+      var transformation = safeGet(tween, "transformation") || safeGet(tween, "_transformation");
+      if (!transformation) {
+        throw new Error("a native tween was created without transform data");
+      }
+      ["x", "y", "scaleX", "scaleY", "rotation"].forEach(function(property){
+        if (!isFinite(Number(safeGet(transformation, property)))) {
+          throw new Error("native tween " + frameNumber + " is missing " + property);
+        }
+      });
+      var activeChannels = CHANNELS.filter(function(channel){
+        return frameNumber !== null && channelKeyExists(record, frameNumber, channel);
+      });
+      try { tween._stickRigTween = true; } catch(eTweenFlag) {}
+      try { tween._stickRigNodeId = node.id; } catch(eTweenNode) {}
+      try { tween._stickRigKeyPosition = frameNumber; } catch(eTweenPosition) {}
+      try { tween._stickRigChannels = activeChannels.slice(); } catch(eTweenChannels) {}
+    });
+
+    state.liveNative.active = true;
+    state.liveNative.frames[node.id] = target;
+    node.committedFrame = target.frame;
+
+    try { if (target.frame.view && typeof target.frame.view.render === "function") target.frame.view.render(); } catch(eFrameRender) {}
+    try { if (target.layer && target.layer.view && typeof target.layer.view.render === "function") target.layer.view.render(); } catch(eLayerRender) {}
+
+    return {
+      layer: target.layer,
+      frame: target.frame,
+      frames: [target.frame],
+      tweens: tweens,
+      count: count
+    };
   }
 
   function syncNodeNativeTweensInstantly(node, record){
@@ -6367,52 +7040,40 @@ input[type="range"] {
     }
 
     try {
-      var frame = null;
+      var actualKeyFrames = unionChannelFrames(record);
+      var lastKeyFrame = actualKeyFrames.length ? actualKeyFrames[actualKeyFrames.length - 1] : 1;
       var duration = Math.max(
         1,
-        Math.round(n(getProjectDuration(), state.reanimate && state.reanimate.active ? state.reanimate.duration || 1 : 1))
+        Math.round(n(getProjectDuration(), state.reanimate && state.reanimate.active ? state.reanimate.duration || 1 : 1)),
+        Math.round(n(lastKeyFrame, 1))
       );
 
-      if (state.reanimate && state.reanimate.active) {
-        frame = getParentFrame(node.obj);
-        if (!frame) throw new Error("the existing native animation frame could not be found");
-      } else {
-        var mapped = mappedLiveNativeFrame(node);
-        var currentFrame = getParentFrame(node.obj);
-        var currentTweenCount = currentFrame ? getFrameTweens(currentFrame).length : 0;
-        var hasKeys = sortedKeyFrames(record).length > 0;
-
-        /* Do not restructure an untouched clip merely because another limb in
-           the rig is already live. A frame is prepared only when this node has
-           keys, has already been prepared, or already contains native tweens
-           that now need to be changed or cleared. */
-        if (!hasKeys && !mapped && currentTweenCount === 0) {
-          return { ok: true, skipped: true, count: 0 };
-        }
-        frame = mapped || prepareInstantNativeFrame(node, duration);
+      if (!actualKeyFrames.length) {
+        clearLiveTweenDataForNode(node);
+        setClipSynced(node.obj, false);
+        markProjectChanged();
+        requestNativeTimelineDraw();
+        return { ok: true, skipped: true, count: 0, frame: getParentFrame(node.obj) || null };
       }
 
-      setFrameSpan(frame, 1, duration);
-      var count = addNativeTweensForNode(frame, record);
-      setClipSynced(node.obj, count > 0);
+      var rebuilt = rebuildActualKeyFrames(node, record, duration);
+      setClipSynced(node.obj, true);
 
-      var timeline = getTimeline(node.obj);
-      if (timeline) {
-        getTimelineLayers(timeline).forEach(function(layer){
-          getLayerFrames(layer).forEach(function(childFrame){
-            if (getFrameEnd(childFrame) < duration) {
-              setFrameSpan(childFrame, getFrameStart(childFrame), duration);
-            }
-          });
-        });
-      }
-
-      try {
-        if (frame.view && typeof frame.view.render === "function") frame.view.render();
-      } catch(eFrameRender) {}
-
+      /* Keep the real parent timelines long enough for Wick's synced child
+         instances to play. This changes frame duration only; it does not make
+         another clip or another animation store. */
+      extendClipForLiveMotion(node, duration);
       markProjectChanged();
-      return { ok: true, skipped: false, count: count, frame: frame };
+      requestNativeTimelineDraw();
+
+      return {
+        ok: true,
+        skipped: false,
+        count: rebuilt.count,
+        frame: rebuilt.frame,
+        frames: rebuilt.frames,
+        layer: rebuilt.layer
+      };
     } catch(error) {
       return {
         ok: false,
@@ -6422,6 +7083,7 @@ input[type="range"] {
       };
     }
   }
+
 
   function queueNodeNativeTweenSync(node, record, immediate){
     if (!state.liveNative) resetLiveNativeState();
@@ -6440,221 +7102,26 @@ input[type="range"] {
       if (!currentNode || !currentRecord) return;
       var result = syncNodeNativeTweensInstantly(currentNode, currentRecord);
       if (!result.ok) {
-        setStatus("The live native tween could not be refreshed: " + result.reason + ".", "warn");
+        setStatus("The live native keyframe could not be refreshed: " + result.reason + ".", "warn");
       }
       requestNativeTimelineDraw();
     }, 35);
     return { ok: true, skipped: false, pending: true, count: 0 };
   }
 
-  function replaceReanimatedAnimationInPlace(){
-    if (state.committing) return;
-    if (!state.reanimate || !state.reanimate.active || !state.reanimate.wrapper || !state.reanimate.root) {
-      setStatus("Reanimate the committed rig before replacing its animation.", "warn");
-      return;
-    }
-    if (state.root !== state.reanimate.root) {
-      setStatus("The loaded rig no longer matches the reanimated committed rig.", "bad");
-      return;
-    }
-    if (!state.nodes.length) {
-      setStatus("The reanimated rig hierarchy is empty.", "warn");
-      return;
-    }
 
-    state.committing = true;
-    setStatus("Replacing the committed rig's native animation in place…", "");
-
-    try {
-      refreshRefs();
-      var duration = Math.max(1, Math.round(n(getProjectDuration(), state.reanimate.duration || 1)));
-      var currentFrame = currentProjectFrame();
-      var entries = [];
-
-      state.nodes.forEach(function(node){
-        var record = getNodeRecord(node.id);
-        var frame = getParentFrame(node.obj);
-        if (!record) throw new Error("Animation data is missing for " + node.name);
-        if (!frame) throw new Error("The existing committed frame could not be found for " + node.name);
-        entries.push({ node: node, record: record, frame: frame });
-      });
-
-      /* Validate the existing hierarchy before changing anything. No clips,
-         wrappers, layers or dedicated frames are created in this path. */
-      if (!entries.length || entries[0].node.obj !== state.reanimate.root) {
-        throw new Error("The existing committed root could not be matched");
-      }
-
-      entries.forEach(function(entry){
-        setFrameSpan(entry.frame, 1, duration);
-        clearTweensOnFrame(entry.frame);
-      });
-
-      var totalTweens = 0;
-      entries.forEach(function(entry){
-        totalTweens += addNativeTweensForNode(entry.frame, entry.record);
-        setClipSynced(entry.node.obj, true);
-
-        /* Keep the existing clip timelines long enough for synced playback,
-           but never move or duplicate any clip. */
-        var timeline = getTimeline(entry.node.obj);
-        if (timeline) {
-          getTimelineLayers(timeline).forEach(function(layer){
-            var frames = getLayerFrames(layer);
-            frames.forEach(function(frame){
-              if (getFrameEnd(frame) < duration) setFrameSpan(frame, getFrameStart(frame), duration);
-            });
-          });
-        }
-      });
-
-      /* Preserve the editable separate-channel data on the existing committed
-         root so a later Reanimate reads exactly these replacement keys. */
-      saveStagingData(false);
-
-      try {
-        var mainTimeline = getMainTimeline();
-        if (mainTimeline) mainTimeline.playheadPosition = currentFrame;
-      } catch(ePlayhead) {}
-
-      removeStickRigProxyLayers();
-      markProjectChanged();
-
-      try {
-        var wrapperTimeline = getTimeline(state.reanimate.wrapper);
-        if (wrapperTimeline && wrapperTimeline.activeFrames) {
-          wrapperTimeline.activeFrames.forEach(function(frame){
-            if (frame && frame.view && typeof frame.view.render === "function") frame.view.render();
-          });
-        }
-      } catch(eRender) {}
-
-      setupStickRigProxyLayers();
-      renderAll();
-      setStatus(
-        "Reanimated rig updated in place. All previous native tweens were cleared and replaced with " +
-        totalTweens + " tween" + (totalTweens === 1 ? "" : "s") + ". No clips were added.",
-        "good"
-      );
-    } catch(error) {
-      console.error(error);
-      markProjectChanged();
-      setStatus("Reanimated rig replacement failed: " + (error && error.message ? error.message : String(error)), "bad");
-    } finally {
-      state.committing = false;
-    }
-  }
-
-  function finaliseLiveNativeCommit(){
-    if (state.committing) return;
-    if (!state.root || !state.nodes.length) {
-      setStatus("Read a selected clip before committing.", "warn");
-      return;
-    }
-
-    state.committing = true;
-    setStatus("Finalising the native animation already written to the selected clips…", "");
-    var metadataWarning = "";
-
-    try {
-      refreshRefs();
-      var duration = Math.max(1, getProjectDuration());
-      var totalTweens = 0;
-      var failed = [];
-
-      state.nodes.forEach(function(node){
-        var record = getNodeRecord(node.id);
-        if (!record) return;
-        var result = syncNodeNativeTweensInstantly(node, record);
-        if (!result.ok) failed.push(node.name + ": " + result.reason);
-        else totalTweens += n(result.count, 0);
-      });
-      if (failed.length) throw new Error(failed.join("; "));
-
-      var committedAnimation = cloneAnimationData(serializableAnimation());
-      committedAnimation.root = getObjectInfo(state.root);
-      var rootRecord = getNodeRecord(state.nodes[0].id);
-      var preservedRootBase = rootBaseForPreservedOrigin(state.root, rootRecord);
-      var committedManifest = buildCommittedManifest(
-        state.root,
-        state.root,
-        duration,
-        committedAnimation,
-        preservedRootBase
-      );
-      committedManifest.directRoot = true;
-      committedManifest.internalTimelineRoot = false;
-      committedManifest.noWrapper = true;
-      committedManifest.liveNative = true;
-
-      /* Save the exact separate channel maps first, then attach committed
-         metadata to the same surviving parent. Animation is never copied,
-         wrapped or recreated during Commit. */
-      saveStagingData(false);
-      var committedWrite = writeCommittedDataToObjectRobust(state.root, committedManifest);
-      if (committedWriteFailed(committedWrite)) {
-        metadataWarning =
-          "The native animation was kept. Exact Reanimate metadata could not be attached (" +
-          (committedWrite.reason || "target not found") +
-          "), so Reanimate will reconstruct keys from the native tweens.";
-      } else {
-        clearStagingBlockOnObject(state.root);
-      }
-
-      removeStickRigProxyLayers();
-      markProjectChanged();
-
-      $("commitBtn").disabled = true;
-      $("saveBtn").disabled = true;
-      $("jsonBtn").disabled = true;
-      $("clearAllBtn").disabled = true;
-
-      state.root = null;
-      state.rootInfo = null;
-      state.rootName = "";
-      state.nodes = [];
-      state.nodeMap = {};
-      state.anim = { version: 1, root: null, nodes: {} };
-      state.activeId = "";
-      state.openIds = {};
-      state.openChannels = {};
-      resetReanimateState();
-      resetLiveNativeState();
-
-      renderAll();
-      setStatus(
-        "Commit complete. The animation was already written directly to the original clips while editing. " +
-        "No clip was copied, deleted, wrapped or renamed. " + totalTweens + " native tween" +
-        (totalTweens === 1 ? "" : "s") + " remain in place." +
-        (metadataWarning ? " " + metadataWarning : ""),
-        metadataWarning ? "warn" : "good"
-      );
-    } catch(error) {
-      console.error(error);
-      markProjectChanged();
-      setStatus(
-        "Commit could not finalise the metadata, but the native animation already written to the clips was not removed. " +
-        (error && error.message ? error.message : String(error)),
-        "bad"
-      );
-    } finally {
-      state.committing = false;
-    }
-  }
-
-  function commitNativeKeys(){
-    if (state.committing) return;
-    if (!state.root || !state.nodes.length) {
-      setStatus("Read a selected clip before committing.", "warn");
-      return;
-    }
-
-    if (state.reanimate && state.reanimate.active) {
-      replaceReanimatedAnimationInPlace();
-      return;
-    }
-
-    finaliseLiveNativeCommit();
+  function migrateLoadedKeysIntoRealClipTimelines(){
+    var failures = [];
+    var written = 0;
+    animatableNodes().forEach(function(node){
+      var record = getNodeRecord(node.id);
+      if (!record) return;
+      var result = syncNodeNativeTweensInstantly(node, record);
+      if (!result.ok) failures.push(node.name + ": " + result.reason);
+      else written += Math.max(0, Math.round(n(result.count, 0)));
+    });
+    requestNativeTimelineDraw();
+    return { ok: failures.length === 0, written: written, failures: failures };
   }
 
   function cleanupStickRigRuntime(){
@@ -6732,6 +7199,56 @@ input[type="range"] {
     }
   }
 
+  function loadedRigStillExists(){
+    if (!state.root) return true;
+    try {
+      if (safeGet(state.root, "isRoot") === true) return true;
+      return !!getParentFrame(state.root);
+    } catch(error) {
+      return false;
+    }
+  }
+
+  function releaseDeletedLoadedRig(){
+    if (!state.root || loadedRigStillExists()) return false;
+
+    /* The root clip has been deleted from the stage. Remove the native tween
+       frame that contained it as well, so no StickRig diamonds or arrows are
+       left behind on the stage timeline. */
+    try {
+      var rootNode = state.nodes && state.nodes.length ? state.nodes[0] : null;
+      var rootEntry = rootNode && state.liveNative && state.liveNative.frames
+        ? state.liveNative.frames[rootNode.id]
+        : null;
+      var rootFrame = liveTargetEntryFrame(rootEntry);
+      if (rootEntry && rootEntry.createdLayer && rootEntry.timeline && rootEntry.layer) {
+        removeLayerFromTimeline(rootEntry.timeline, rootEntry.layer);
+      } else if (rootFrame) {
+        clearTweensOnFrame(rootFrame);
+      }
+    } catch(eRootCleanup) {}
+
+    removeStickRigProxyLayers();
+    removeTimelineOverlay();
+    state.root = null;
+    state.rootInfo = null;
+    state.rootName = "";
+    state.nodes = [];
+    state.nodeMap = {};
+    state.anim = { version: 1, root: null, nodes: {} };
+    state.activeId = "";
+    state.openIds = {};
+    state.openChannels = {};
+    resetReanimateState();
+    resetLiveNativeState();
+    $("saveBtn").disabled = true;
+    $("jsonBtn").disabled = true;
+    $("clearAllBtn").disabled = true;
+    renderAll();
+    setStatus("The loaded clip was deleted. Its StickRig keyframes were deleted with the clip.", "good");
+    return true;
+  }
+
   function installStickRigLifecycleGuard(){
     try {
       var parentWindow = window.parent && window.parent !== window ? window.parent : null;
@@ -6786,7 +7303,6 @@ input[type="range"] {
   $("reanimateBtn").addEventListener("click", reanimateSelectedRig);
   $("saveBtn").addEventListener("click", function(){ saveStagingData(true); });
   $("jsonBtn").addEventListener("click", saveRigJson);
-  $("commitBtn").addEventListener("click", commitNativeKeys);
   $("refreshFrameBtn").addEventListener("click", function(){ refreshCurrentFrame(true); setStatus("Current Wick frame refreshed: " + state.frame + ".", "good"); });
   $("clearAllBtn").addEventListener("click", clearAllKeys);
 
@@ -6795,6 +7311,7 @@ input[type="range"] {
   window.addEventListener("unload", cleanupStickRigRuntime);
 
   state.framePollTimer = setInterval(function(){
+    try { if (releaseDeletedLoadedRig()) return; } catch(eDeletedRig) {}
     try { refreshCurrentFrame(false); } catch(ePoll) {}
   }, 300);
 
