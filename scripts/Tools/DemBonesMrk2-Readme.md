@@ -20,12 +20,16 @@ Each selected curve sits in its own synced Wick clip at its existing stacking po
 
 Live mode supports paths/compound paths, ordinary and stretchy bones, source-curve edits, and curve-point animation. Frame Bones, expression artwork, and assembled MyCharacter rigs retain the original workflow; finish live editing and disable **Edit Wick curves directly** for those features.
 
-Do not alter the generated frames inside a managed rig clip. Transforming or copying a rig clip is not yet supported for continued bone editing; Mrk2 pauses or refuses to reconnect rather than editing another rig. Existing transformations on source paths are supported. Position artwork before binding.
+You can scale, stretch, move, rotate, or flip the rigged artwork in Wick. The bones and editable curve handles follow that transform, while existing animation keys stay intact. This also works when reopening a saved rig. If several curves were bound as one rig, select and transform all of those curves together.
+
+Do not alter the generated frames inside a managed rig clip. Copying a managed rig clip is not yet supported for continued bone editing; Mrk2 refuses to reconnect a copy to the original rig. Existing transformations on source paths are supported.
+
+To pick up an updated tool, save your project, reload Wick, then open **Tools → Dem Bones Mrk2**. A rig paused by the earlier scaling limitation can be reopened with this version without rebuilding its bones.
 
 Double-click reopening applies to Mrk2 rigs. Old Dem Bones commits do not include Mrk2 rig metadata. With an older LukeTools launcher, open the standalone [DemBonesMrk2.txt](DemBonesMrk2.txt) once per session; use the updated launcher for reliable reopening from saved projects.
 
 ## Validation
 
-Automated Edge/Wick-engine checks cover native deformation, interpolated frames, original path identity, unrelated artwork, Undo, real Wick-file save/reload, double-click reopening, multiple curves, compound holes, transformed path coordinates, non-first-frame exposures, and closed-curve point animation. The launcher and configuration are integration-tested separately.
+Automated Edge/Wick-engine checks cover native deformation, interpolated frames, original path identity, unrelated artwork, Undo, real Wick-file save/reload, double-click reopening, multiple curves, compound holes, transformed path coordinates, non-first-frame exposures, and closed-curve point animation. Transform checks include Wick Inspector scaling, non-uniform scale, rotation, mirroring, real mouse drags on bones and curve points, Wick Undo, and double-click reopening after save/reload. The launcher and configuration are integration-tested separately.
 
 Based on [DemBones.txt](DemBones.txt), source blob 7dce618b4ae4743cba96cab31c29779ea613e7f1.

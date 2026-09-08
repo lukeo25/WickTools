@@ -23302,6 +23302,7 @@ html, body, #app{
         try { rect = App.overlay && App.overlay.root ? App.overlay.root.getBoundingClientRect() : null; } catch(eRect40){}
         var bounds = App.overlay && App.overlay.previewBounds ? App.overlay.previewBounds : null;
         return {
+          dbm2Inverse:window.DemBonesMrk2 ? window.DemBonesMrk2.clientInverse() : null,
           left:rect ? Number(rect.left || 0) : 0,
           top:rect ? Number(rect.top || 0) : 0,
           width:rect ? Math.max(0.0001, Number(rect.width || 1)) : 1,
@@ -23314,6 +23315,7 @@ html, body, #app{
       }
 
       function rbClientToFrozenCurveLocal_V40(clientX, clientY, map){
+        if (map && map.dbm2Inverse) { var m=map.dbm2Inverse; return {x:m[0]*clientX+m[2]*clientY+m[4],y:m[1]*clientX+m[3]*clientY+m[5]}; }
         if (!map) return clientToOverlayLocal(clientX, clientY);
         return {
           x:(Number(clientX) - map.left) / map.width * map.logicalWidth - map.offsetX,
@@ -23675,6 +23677,11 @@ function createDemBonesMrk2Geometry() {
     return [m[3] / d, -m[1] / d, -m[2] / d, m[0] / d,
       (m[2] * m[5] - m[3] * m[4]) / d, (m[1] * m[4] - m[0] * m[5]) / d];
   }
+  function multiply(a, b) {
+    return [a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1],
+      a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3],
+      a[0]*b[4]+a[2]*b[5]+a[4], a[1]*b[4]+a[3]*b[5]+a[5]];
+  }
   function commands(points, closed) {
     if (!points.length) throw new Error('The selected path has no curve points.');
     var out = [{ type: 'M', p: copy(points[0].p) }];
@@ -23735,7 +23742,7 @@ function createDemBonesMrk2Geometry() {
     if (index !== subs.length) throw new Error('The source subpath count changed. Rebind this curve.');
     return json;
   }
-  return { copy: copy, clean: clean, xy: xy, transform: transform, inverse: inverse, commands: commands, segments: segments, setGeometry: setGeometry };
+  return { copy: copy, clean: clean, xy: xy, transform: transform, inverse: inverse, multiply: multiply, commands: commands, segments: segments, setGeometry: setGeometry };
 }
 
 
@@ -23747,11 +23754,13 @@ function installDemBonesMrk2() {
     timer: null, raf: null, lastSignature: '', lastPreview: '', error: '', restoring: false };
   var parentWindow = window.parent || window;
   var host = parentWindow.DemBonesMrk2Host;
+  var html = '<!doctype html>\n' + document.documentElement.outerHTML;
   if (!host) {
     // Construct the host in the parent realm so closing this iframe does not remove its listeners.
-    var html = '<!doctype html>\n' + document.documentElement.outerHTML;
     host = parentWindow.Function('html', 'return (' + installDemBonesMrk2Host.toString() + ')(window, html);')(html);
   }
+  // A newly opened tool replaces any older HTML cached by the launcher.
+  host.html = html;
   var baseBuildState = buildRigProjectState;
   var baseLoadState = loadRigProjectState;
   function status(message, error) {
@@ -23817,6 +23826,36 @@ function installDemBonesMrk2() {
   }
   function matrixOf(item) {
     return item && item.globalMatrix ? Array.prototype.slice.call(item.globalMatrix.values) : [1, 0, 0, 1, 0, 0];
+  }
+  function rigStageMatrix() {
+    if (!live.binding) return null;
+    var common = null;
+    live.binding.rows.forEach(function (row) {
+      var clip = resolve(row.clipUUID);
+      if (!clip) throw new Error('A rig curve was removed. Reopen the rig from the stage.');
+      // Keep geometry and keys in their binding coordinates. Wick owns the
+      // outer affine transform; the overlay and pointer use that same transform.
+      var delta = G.multiply(matrixOf(clip.view.group || clip.view.item), G.inverse(row.frameMatrix));
+      G.inverse(delta);
+      if (common && delta.some(function (v, i) { return Math.abs(v-common[i]) > 1e-5; }))
+        throw new Error('This rig contains several curves. Select and transform all of its curves together, then choose Resume updates.');
+      common = delta;
+    });
+    var b = live.binding.bounds;
+    return G.multiply(common || [1,0,0,1,0,0], [1,0,0,1,b.x,b.y]);
+  }
+  function rigClientMatrix() {
+    var m = rigStageMatrix();
+    if (!m) return null;
+    var view = getWickPaperView(), rect = getWickViewCanvasRect();
+    function toClient(p) {
+      var q = G.transform(m, p);
+      if (!view || !rect) return stageToVp(q.x, q.y);
+      var v = view.projectToView(pointToPaperPoint(q.x, q.y));
+      return { x:rect.left+v.x*rect.width/view.viewSize.width, y:rect.top+v.y*rect.height/view.viewSize.height };
+    }
+    var p=toClient({x:0,y:0}), x=toClient({x:1,y:0}), y=toClient({x:0,y:1});
+    return [x.x-p.x,x.y-p.y,y.x-p.x,y.y-p.y,p.x,p.y];
   }
   function collect(objects) {
     if (!objects.length) throw new Error('Select one or more Wick curves first.');
@@ -23903,13 +23942,8 @@ function installDemBonesMrk2() {
       clip.timeline.layers[0].frames.forEach(function (f) {
         if (f.clips.length || f.paths.length > 1 || f.tweens.length || f.start !== f.end) throw new Error('A managed rig frame was edited in Wick. Undo that edit before updating its bones.');
       });
-      var t = clip.transformation;
-      if (Math.abs(t.x) > 1e-8 || Math.abs(t.y) > 1e-8 || Math.abs(t.rotation) > 1e-8 || Math.abs(t.scaleX - 1) > 1e-8 || Math.abs(t.scaleY - 1) > 1e-8)
-        throw new Error('A rig clip was transformed in Wick. Undo that transform before editing its bones.');
-      var group = clip.view.group || clip.view.item;
-      var currentMatrix = matrixOf(group && group.parent);
-      if (currentMatrix.some(function (v, i) { return Math.abs(v - row.frameMatrix[i]) > 1e-6; })) throw new Error('The parent clip transform changed. Return it to its binding transform before editing bones.');
     });
+    rigStageMatrix();
     return frame;
   }
   function geometryAt(frameNumber, rest) {
@@ -24139,6 +24173,58 @@ function installDemBonesMrk2() {
     status('Finished. Double-click a rigged curve in Wick to reopen its bones.');
   }
   // Reuse all the existing rig/curve controls, but render the artwork through Wick.
+  var oldViewport = applyOverlayViewportForBounds;
+  applyOverlayViewportForBounds = function (bounds) {
+    if (!live.binding) {
+      if (App.overlay.root) App.overlay.root.style.transform = 'none';
+      return oldViewport.apply(this, arguments);
+    }
+    if (!App.overlay.root) return;
+    try {
+      bounds = bounds || App.overlay.previewBounds;
+      var m=rigClientMatrix(), origin=G.transform(m,{x:bounds.minX||0,y:bounds.minY||0});
+      var hostRect=updateOverlayClipHost()||{left:0,top:0}, style=App.overlay.root.style;
+      style.left='0px'; style.top='0px';
+      style.width=Math.max(1,bounds.width)+'px'; style.height=Math.max(1,bounds.height)+'px';
+      style.transformOrigin='0 0';
+      style.transform='matrix('+[m[0],m[1],m[2],m[3],origin.x-hostRect.left,origin.y-hostRect.top].join(',')+')';
+      live.clientMatrix=m;
+      resizeOverlayCanvas();
+    } catch (error) { if (!live.suspended) fail(error); }
+  };
+  var oldResize = resizeOverlayCanvas;
+  resizeOverlayCanvas = function () {
+    if (!live.binding) return oldResize.apply(this, arguments);
+    if (!App.overlay.root || !App.overlay.canvas) return;
+    var b=App.overlay.previewBounds||{width:App.source.width,height:App.source.height};
+    var m=live.clientMatrix||[1,0,0,1,0,0];
+    var dpr=Math.max(1,Math.min(4,Number(parentWindow.devicePixelRatio)||1));
+    // Canvas pixels follow the two transformed axes, not their rotated bounding box.
+    var sx=Math.max(1,Math.hypot(m[0],m[1])*dpr), sy=Math.max(1,Math.hypot(m[2],m[3])*dpr);
+    App.overlay.canvas.width=Math.max(1,Math.ceil(b.width*sx));
+    App.overlay.canvas.height=Math.max(1,Math.ceil(b.height*sy));
+    App.overlay.canvasScaleX=App.overlay.canvas.width/b.width;
+    App.overlay.canvasScaleY=App.overlay.canvas.height/b.height;
+    App.overlay.canvas.style.width=b.width+'px'; App.overlay.canvas.style.height=b.height+'px';
+    if (App.overlay.svgLayer) {
+      App.overlay.svgLayer.setAttribute('width',String(b.width)); App.overlay.svgLayer.setAttribute('height',String(b.height));
+      App.overlay.svgLayer.setAttribute('viewBox','0 0 '+b.width+' '+b.height);
+    }
+    App.overlay.root.style.opacity=String(App.overlay.opacity);
+  };
+  var oldClientLocal=clientToOverlayLocal;
+  clientToOverlayLocal=function (x,y) {
+    if (!live.binding) return oldClientLocal.apply(this,arguments);
+    return G.transform(G.inverse(rigClientMatrix()),{x:x,y:y});
+  };
+  var oldViewSignature=getStageViewSignature;
+  getStageViewSignature=function () {
+    var sig=oldViewSignature.apply(this,arguments);
+    if (live.binding) sig+='|rig:'+live.binding.rows.map(function(row){
+      var clip=resolve(row.clipUUID);return clip?matrixOf(clip.view.group||clip.view.item).join(','):'missing';
+    }).join(';');
+    return sig;
+  };
   var oldRender = renderOverlay;
   renderOverlay = function () { linkClosingAnchors(); var result = oldRender.apply(this, arguments); schedule(); return result; };
   var oldPoint = getAnimatedPointForFrame;
@@ -24205,7 +24291,7 @@ function installDemBonesMrk2() {
   function endGesture() {
     if (!live.binding || live.closed) return;
     clearTimeout(live.timer);
-    live.timer = setTimeout(function () { preview(); flush(false); }, 0);
+    live.timer = setTimeout(function () { renderOverlay(); preview(); flush(false); }, 0);
   }
   function beforeSave(event) {
     if ((event.ctrlKey || event.metaKey) && String(event.key).toLowerCase() === 's' && live.binding) flush(true);
@@ -24236,7 +24322,8 @@ function installDemBonesMrk2() {
   });
   el('chkUseSelectedCurveRemoveOriginals_Claude').disabled = true;
   el('chkUseSelectedCurveRemoveOriginals_Claude').checked = false;
-  var api = { bind: bind, resume: resume, flush: flush, preview: preview, finish: finish, geometryAt: geometryAt,
+  var api = { version: '2.1', bind: bind, resume: resume, flush: flush, preview: preview, finish: finish, geometryAt: geometryAt,
+    clientInverse: function () { return live.binding ? G.inverse(rigClientMatrix()) : null; },
     get binding() { return live.binding; }, get state() { return live; },
     project: function () { return App.project; },
     alive: function () { return !live.closed && (!window.frameElement || window.frameElement.isConnected); } };
