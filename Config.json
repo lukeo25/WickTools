@@ -205,6 +205,14 @@
           "F_Screen": 0
         },
         {
+          "id": "DemBonesMrk2",
+          "label": "Dem Bones Mrk2",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/DemBonesMrk2.svg",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2.txt",
+          "action": "tool",
+          "F_Screen": 0
+        },
+        {
           "id": "Stick Rig",
           "label": "Stick Rig",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Stick.svg",
@@ -262,3 +270,4 @@
     }
   ]
 }
+
