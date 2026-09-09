@@ -12,6 +12,10 @@ Live native Wick curves, automatic animation frames, and double-click rig editin
 
 Extend the selected frame's exposure in Wick before making a longer animation. Mrk2 respects this exposure and does not extend frames containing unrelated artwork. Save the Wick project normally.
 
+Bone keyframe rows reappear automatically when a rig is reopened. **Create Proxy Bone Layers** places rows in the timeline containing the rig, including inside clips. The rows use the actual Wick timeline canvas, and their key diamonds remain clickable.
+
+Bones and key overlays hide when the artwork is absent from the current frame or its layer is hidden. Deleting the associated artwork removes its temporary bone/key overlays; restoring the artwork makes them available again.
+
 ## What is saved
 
 Each selected curve sits in its own synced Wick clip at its existing stacking position. The original path remains in the first internal frame. Other frames contain native curve geometry. Source shapes, bones, and keys are stored as rig data in the clip's default script, so the rig survives saving/reloading. Playback uses native frames and works with Mrk2 closed. The updated LukeTools launcher can download Mrk2 on demand when a saved rig is double-clicked.
@@ -33,3 +37,5 @@ Double-click reopening applies to Mrk2 rigs. Old Dem Bones commits do not includ
 Automated Edge/Wick-engine checks cover native deformation, interpolated frames, original path identity, unrelated artwork, Undo, real Wick-file save/reload, double-click reopening, multiple curves, compound holes, transformed path coordinates, non-first-frame exposures, and closed-curve point animation. Transform checks include Wick Inspector scaling, non-uniform scale, rotation, mirroring, real mouse drags on bones and curve points, Wick Undo, and double-click reopening after save/reload. The launcher and configuration are integration-tested separately.
 
 Based on [DemBones.txt](DemBones.txt), source blob 7dce618b4ae4743cba96cab31c29779ea613e7f1.
+
+Version 2.2 additionally checks nested-timeline key setup, visible key restoration after double-click, clickable restored diamonds, empty-frame visibility, artwork deletion, and restoration.

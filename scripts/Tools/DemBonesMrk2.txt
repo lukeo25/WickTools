@@ -23800,6 +23800,95 @@ function installDemBonesMrk2() {
     for (var n = 0; cursor && n < 50; n++, cursor = cursor.parent) if (cursor === App.project) return object;
     return null;
   }
+  // Key rows belong to the frame containing the rig, even when Wick selects a
+  // child clip or the bridge still reports the root timeline.
+  var oldSelectedTimeline = getSelectedTimeline;
+  getSelectedTimeline = function () {
+    var frame = live.binding && resolve(live.binding.frameUUID);
+    return frame ? frame.parentTimeline : oldSelectedTimeline.apply(this, arguments);
+  };
+  var oldProxyCanvas = proxyTimelineCanvas;
+  proxyTimelineCanvas = function () {
+    if (!live.binding) return oldProxyCanvas.apply(this, arguments);
+    var gui = App.project && App.project.guiElement;
+    var canvas = gui && gui.canvas;
+    if (canvas && canvas.isConnected) return canvas;
+    // Do not mistake the bone overlay or stage canvas for the timeline.
+    return parentWindow.document.querySelector('#animation-timeline-container canvas');
+  };
+  var oldBoneIdentifier = boneProxyIdentifierForBone;
+  boneProxyIdentifierForBone = function (bone) {
+    if (!live.binding) return oldBoneIdentifier.apply(this, arguments);
+    return 'DemBonesMrk2_' + live.binding.rows[0].clipUUID.replace(/[^a-zA-Z0-9_]/g, '') + '_' + bone.id;
+  };
+  var oldFindProxy = proxyFindExistingWickProxyLayerForBone;
+  proxyFindExistingWickProxyLayerForBone = function (bone) {
+    if (!live.binding) return oldFindProxy.apply(this, arguments);
+    var tl = proxyTimeline(), id = boneProxyIdentifierForBone(bone);
+    return tl && tl.layers.find(function (layer) { return layer.identifier === id; }) || null;
+  };
+  var oldRemoveProxyLayers = removeProxyWickLayer;
+  removeProxyWickLayer = function () {
+    if (!live.binding) return oldRemoveProxyLayers.apply(this, arguments);
+    // A deleted rig frame may no longer resolve. Remove only our known helper
+    // rows from their actual parents, never a same-named artwork layer.
+    (App.proxy.layers || []).forEach(function (info) {
+      var layer = info.wickLayer;
+      if (layer && layer.parent) layer.parent.removeLayer(layer);
+    });
+    App.proxy.layers = []; App.proxy.wickLayer = null;
+    if (App.ed && App.ed.syncInterfaces) App.ed.syncInterfaces();
+  };
+  function rigVisibility() {
+    if (!live.binding) return { exists:true, visible:true };
+    var frame = resolve(live.binding.frameUUID);
+    var exists = !!frame && live.binding.rows.every(function (row) {
+      var clip = resolve(row.clipUUID);
+      return clip && clip.parent === frame && clip.timeline.layers.some(function (layer) {
+        return layer.frames.some(function (f) { return f.paths.length; });
+      });
+    });
+    var visible = exists && App.project.focus === frame.parentClip && !App.project.playing &&
+      !frame.parent.hidden && frame.parentTimeline.playheadPosition >= frame.start && frame.parentTimeline.playheadPosition <= frame.end;
+    if (visible) visible = live.binding.rows.every(function (row) {
+      var clip = resolve(row.clipUUID), n = frame.parentTimeline.playheadPosition - frame.start + 1;
+      return clip.transformation.opacity !== 0 && clip.timeline.layers.some(function (layer) {
+        var f = layer.getFrameAtPlayheadPosition(n);
+        return !layer.hidden && f && f.paths.length;
+      });
+    });
+    return { exists:exists, visible:!!visible };
+  }
+  function showRigUI(visible) {
+    if (App.overlay.root) App.overlay.root.style.visibility = visible ? '' : 'hidden';
+    if (App.proxy.overlayCanvas) App.proxy.overlayCanvas.style.visibility = visible ? '' : 'hidden';
+    (App.proxy.hitDivs || []).concat(App.proxy.blockDivs || []).forEach(function (node) {
+      node.style.visibility = visible ? '' : 'hidden';
+    });
+  }
+  function restoreKeyRows() {
+    if (!live.binding || !rigVisibility().exists) return;
+    syncProxyLayersToBones(true);
+    ensureProxyOverlayCanvasForTimeline();
+    renderProxyFrame(); updateUI();
+  }
+  function checkRigVisibility() {
+    if (!live.binding || live.closed || live.restoring || live.busy) return true;
+    refreshBridgeRefs();
+    var state = rigVisibility(), wasMissing = live.missing, wasVisible = live.visible;
+    live.missing = !state.exists; live.visible = state.visible;
+    if (!state.exists && !wasMissing) {
+      clearTimeout(live.timer); cancelAnimationFrame(live.raf); live.raf = null;
+      removeProxyOverlay(false);
+      status('Rig artwork is no longer present. Its bones are hidden. Undo the deletion to restore it.');
+    } else if (state.exists && wasMissing) {
+      live.lastPreview = ''; restoreKeyRows();
+      status('Rig artwork restored. Bones and keyframes are available again.');
+    }
+    showRigUI(state.visible);
+    if (state.visible && wasVisible === false) { fitOverlayToSource(); renderOverlay(); renderProxyFrame(); }
+    return state.visible;
+  }
   function notifyChange(label) {
     if (!App.project) return;
     App.project.unsavedChanges = true;
@@ -24021,6 +24110,7 @@ function installDemBonesMrk2() {
   function flush(force) {
     clearTimeout(live.timer); live.timer = null;
     if (!live.binding || live.busy || live.closed || live.restoring || live.suspended || App.project.playing) return false;
+    if (!rigVisibility().exists) { checkRigVisibility(); return false; }
     if (!force && App.interaction.dragging) return false;
     var signature = stateSignature();
     if (!force && signature === live.lastSignature) return false;
@@ -24051,6 +24141,7 @@ function installDemBonesMrk2() {
   function preview() {
     live.raf = null;
     if (!live.binding || live.busy || live.closed || live.restoring || live.suspended || App.project.playing) return;
+    if (!checkRigVisibility()) return;
     try {
       var frame = validate();
       if (App.currentFrame < frame.start || App.currentFrame > frame.end) return;
@@ -24078,8 +24169,10 @@ function installDemBonesMrk2() {
     if (!App.project || !App.Wick) { fail(new Error('Open this tool through LukeTools in Wick Editor.')); return; }
     if (App.project.playing) { status('Stop Wick playback before binding curves.', true); return; }
     if (live.binding) {
-      if (live.suspended) { status('Finish or resume the current rig before binding another.', true); return; }
-      if (!flush(true)) return;
+      var stillPresent = rigVisibility().exists;
+      if (live.suspended && stillPresent) { status('Finish or resume the current rig before binding another.', true); return; }
+      if (stillPresent && !flush(true)) return;
+      removeProxyOverlay(false);
       live.binding = null;
     }
     var selected = getSelectedObjects();
@@ -24138,6 +24231,7 @@ function installDemBonesMrk2() {
       status('This is a copied rig clip. Open its native artwork and bind it as a new rig.', true); return;
     }
     if (live.binding && !live.suspended) flush(true);
+    removeProxyOverlay(false);
     live.restoring = true; live.suspended = false;
     try {
       live.binding = G.copy(data.binding);
@@ -24162,14 +24256,16 @@ function installDemBonesMrk2() {
       validate();
     } catch (error) { fail(error); }
     finally { App.mcCommitSuppressProxySync = false; live.restoring = false; }
+    if (!live.suspended) restoreKeyRows();
+    checkRigVisibility();
     renderOverlay();
   }
   function finish() {
     if (!live.binding) return;
     live.suspended = false;
-    if (!flush(true)) return;
-    live.binding = null; live.lastPreview = '';
+    if (rigVisibility().exists && !flush(true)) return;
     removeOverlay(); removeProxyOverlay(false);
+    live.binding = null; live.lastPreview = '';
     status('Finished. Double-click a rigged curve in Wick to reopen its bones.');
   }
   // Reuse all the existing rig/curve controls, but render the artwork through Wick.
@@ -24226,7 +24322,17 @@ function installDemBonesMrk2() {
     return sig;
   };
   var oldRender = renderOverlay;
-  renderOverlay = function () { linkClosingAnchors(); var result = oldRender.apply(this, arguments); schedule(); return result; };
+  renderOverlay = function () {
+    if (live.binding && !live.restoring && !checkRigVisibility()) return;
+    linkClosingAnchors(); var result = oldRender.apply(this, arguments); schedule(); return result;
+  };
+  var oldProxyRender = renderProxyFrame;
+  renderProxyFrame = function () {
+    if (live.binding && !rigVisibility().visible) {
+      App.proxy.framePending = false; showRigUI(false); return;
+    }
+    return oldProxyRender.apply(this, arguments);
+  };
   var oldPoint = getAnimatedPointForFrame;
   getAnimatedPointForFrame = function (base, id, frame) { return oldPoint(base, canonicalPointId(id), frame); };
   var oldSetPoint = setPointKeyAtCurrent;
@@ -24264,7 +24370,7 @@ function installDemBonesMrk2() {
   loadRigProjectState = async function (data) {
     if (live.binding && !App.undo.isRestoring && !live.restoring) {
       // Loading a different part must not overwrite the previously bound Wick curves.
-      flush(true); live.binding = null;
+      flush(true); removeProxyOverlay(false); live.binding = null;
     }
     var savedBinding = live.binding;
     live.restoring = true;
@@ -24278,12 +24384,13 @@ function installDemBonesMrk2() {
         live.lastSignature = ''; live.suspended = false;
       }
     } finally { live.restoring = false; }
-    if (live.binding) { flush(true); renderOverlay(); }
+    if (live.binding) { restoreKeyRows(); flush(true); renderOverlay(); }
   };
   // Never persist a temporary rest-pose display in place of the keyed animation when closing/saving.
   var oldCleanup = cleanupToolOverlays;
   cleanupToolOverlays = function () {
     if (!live.closed) { flush(true); live.closed = true; clearTimeout(live.timer); cancelAnimationFrame(live.raf); }
+    clearInterval(live.visibilityTimer);
     if (host.panel === api) host.panel = null;
     documents.forEach(function (doc) { doc.removeEventListener('mouseup', endGesture, true); doc.removeEventListener('change', endGesture, true); doc.removeEventListener('keydown', beforeSave, true); });
     return oldCleanup.apply(this, arguments);
@@ -24322,12 +24429,13 @@ function installDemBonesMrk2() {
   });
   el('chkUseSelectedCurveRemoveOriginals_Claude').disabled = true;
   el('chkUseSelectedCurveRemoveOriginals_Claude').checked = false;
-  var api = { version: '2.1', bind: bind, resume: resume, flush: flush, preview: preview, finish: finish, geometryAt: geometryAt,
+  var api = { version: '2.2', bind: bind, resume: resume, flush: flush, preview: preview, finish: finish, geometryAt: geometryAt,
     clientInverse: function () { return live.binding ? G.inverse(rigClientMatrix()) : null; },
     get binding() { return live.binding; }, get state() { return live; },
     project: function () { return App.project; },
     alive: function () { return !live.closed && (!window.frameElement || window.frameElement.isConnected); } };
   window.DemBonesMrk2 = api; host.panel = api;
+  live.visibilityTimer = setInterval(checkRigVisibility, 120);
   // The companion launcher hands off the exact rig that was hit, never the stale selection.
   setTimeout(function () {
     var pending = host.pending; host.pending = null;
