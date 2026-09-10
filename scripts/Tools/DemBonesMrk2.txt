@@ -949,7 +949,7 @@ html, body, #app{
       <button class="tabBtn" data-tab="editbone">Edit Bn</button>
       <button class="tabBtn" data-tab="animate">Animate</button>
       <button class="tabBtn" data-tab="animatepoints">Curves</button> <!-- FIX v18.54_AnimatePoints -->
-      <button class="tabBtn" data-tab="expression">Expression</button> <!-- FIX v18.0 -->
+      <button class="tabBtn" data-tab="expression">Gizmo</button> <!-- FIX v18.220_GPT: user-facing Expressions workflow is now Gizmo -->
       <button class="tabBtn" data-tab="stamp">Commit</button>
       <button class="tabBtn" data-tab="help">Help</button>
     </div>
@@ -999,6 +999,10 @@ html, body, #app{
           <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
             <button id="btnMcAddPartAndReset_Claude" class="secondary">Add To Character</button> <!-- FIX Claude_10-07-2026_V6: relabeled, no longer mentions Reset -->
           </div>
+          <div class="row rowButtonsSym_Claude cols1"> <!-- FIX v18.220_GPT -->
+            <button id="btnImportSelectedGizmoAsPart" class="secondary">Import Selected Gizmo As Part</button>
+          </div>
+          <div class="notice small">Part imports use the Gizmo frame currently shown on the stage as the artwork for this bone-rigged part. The original Gizmo Clip remains untouched.</div> <!-- FIX v18.220_GPT -->
           <input type="file" id="fileImageLoader" accept=".svg,image/svg+xml" style="display:none;">
           <div class="row"><label>Curve points</label></div>
           <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
@@ -1034,7 +1038,7 @@ html, body, #app{
       <div class="panelPage" data-page="bones">
         <div class="section">
           <h3>Bone creation</h3>
-          <div class="notice">The Bones tab is always in Add Bone mode. Drag empty overlay space to create the selected bone type. Click a bone to select it. Deleting a bone returns straight back to Add Bone mode. Lip_Bone and Frame_Bone can now be created from a blank Set Area first, without loading an SVG or shape. After creation you stay here to adjust their scale or rotation before opening Expression. Select a Lip_Bone or Frame_Bone on the overlay, then drag the corner square to scale or the round handle above it to rotate. <!-- FIX v18.181_GPT --></div>
+          <div class="notice">The Bones tab is always in Add Bone mode. Drag empty overlay space to create the selected bone type. Click a bone to select it. Deleting a bone returns straight back to Add Bone mode. Lip_Bone and Frame_Bone can now be created from a blank Set Area first, without loading an SVG or shape. After creation you stay here to adjust their scale or rotation before opening Gizmo. Select a Lip_Bone or Frame_Bone on the overlay, then drag the corner square to scale or the round handle above it to rotate. <!-- FIX v18.220_GPT --></div>
           <div class="row rowButtonsSym_Claude cols2" style="margin-top:8px;"> <!-- FIX Claude_10-07-2026_V8 -->
             <button id="btnDeleteBone" class="warn">Delete Selected Bone</button>
             <button id="btnClearBones" class="warn">Clear All Bones</button>
@@ -1419,12 +1423,17 @@ html, body, #app{
         </div>
       </div>
 
-      <div class="panelPage" data-page="expression"> <!-- FIX v18.0 -->
+      <div class="panelPage" data-page="expression"> <!-- Internal page id retained for saved-part compatibility. FIX v18.220_GPT -->
         <div class="section softSection">
-          <h3>Expression Bones</h3>
-          <div class="notice">Lip_Bone and Frame_Bone are frame bone style attachments. Create them by attaching to a selected parent bone or by pinning them to a point on the arm of a selected bone. Lip Service and Eye Service show their frame images and key the selected frame bone on the real Wick timeline. In Expression, click a mouth or eye frame to key it, then use the shared registration target on the dummy to align the current image. Each image keeps its own origin point, but all images align to the same dummy target so closed and open mouths line up naturally. <!-- FIX v18.191_GPT --></div>
+          <h3>Gizmo Bones</h3>
+          <div class="notice">Attach a selected stage Gizmo to the selected parent bone, or keep using Lip Service and Eye Service Gizmos. Clicking a Gizmo frame keys it on the real Wick timeline. Existing saved Expression data remains compatible. <!-- FIX v18.220_GPT --></div>
+          <div class="softActionRow" style="margin-top:10px;">
+            <button id="btnImportSelectedGizmoAsExpression" class="softBtn softBtnAccent">Import Selected Gizmo</button>
+          </div>
+          <div id="importedGizmoInfo" class="softReadout">Select a Gizmo Clip on the Wick stage and a parent bone, then import it here.</div>
+          <div id="importedGizmoSlots" class="frameSlotGrid"></div>
           <div class="row" style="margin-top:10px;">
-            <label>Selected expression frame bone</label>
+            <label>Selected Gizmo bone</label>
             <div id="expressionBoneInfo" class="small">None</div>
           </div>
           <div class="row">
@@ -1433,7 +1442,7 @@ html, body, #app{
             <button id="btnApplyExpressionTarget" class="secondary">Apply Target</button>
           </div>
           <div class="row">
-            <label>Expression commit</label>
+            <label>Gizmo commit</label>
             <select id="selExpressionCommitMode">
               <option value="script">Script Style</option>
               <option value="clipInClip">Clip In Clip Script Driver</option>
@@ -1449,7 +1458,7 @@ html, body, #app{
             <button class="expressionSubTab" data-expression-tab="script">Script</button>
           </div>
           <div class="expressionPanel active" data-expression-panel="lip">
-            <div class="notice">Lip_Bone is created from the Bone type setup as a pinned Frame Bone. The slots use the Lip Service default images in order, labelled A through I, then Rest. After creating the Lip_Bone, the Bones tab stays open so you can adjust scale and rotation with the overlay handles before choosing Expression. Load Lip images here in Expression, not in the generic Frame Bone slot area. <!-- FIX v18.10 --></div>
+            <div class="notice">Lip_Bone is created from the Bone type setup as a pinned Frame Bone. The slots use the Lip Service default images in order, labelled A through I, then Rest. After creating the Lip_Bone, the Bones tab stays open so you can adjust scale and rotation with the overlay handles before choosing Gizmo. Load Lip images here in Gizmo, not in the generic Frame Bone slot area. <!-- FIX v18.220_GPT --></div>
             <div class="softActionRow" style="margin-top:10px;">
               <button id="btnAttachLipFrameBone" class="softBtn softBtnAccent">Attach Lip Bone</button> <!-- FIX v18.6 -->
               <button id="btnPinLipFrameBone" class="softBtn softBtnSecondary">Pin Lip Bone</button> <!-- FIX v18.6 -->
@@ -1486,7 +1495,7 @@ html, body, #app{
       <div class="panelPage" data-page="stamp">
         <div class="section">
           <h3>Commit animation to Wick</h3>
-          <div class="notice">Choose PNG, SVG mesh warp, or SVG Native Mode. SVG Native Mode warps parsed SVG points directly and keeps the result vector. Frame Bones are committed into their own real frame layer. Expression clips are placed above the shape frames and frame bone frames.</div>
+          <div class="notice">Choose PNG, SVG mesh warp, or SVG Native Mode. SVG Native Mode warps parsed SVG points directly and keeps the result vector. Frame Bones are committed into their own real frame layer. Gizmo clips are placed above the shape frames and frame bone frames.</div>
           <div class="row" style="margin-top:8px;">
             <label>Clip name</label>
             <input type="text" id="inpClipName" value="BoneWarpClip">
@@ -1501,7 +1510,7 @@ html, body, #app{
             </select>
           </div>
           <div class="row"> <!-- FIX v18.0 -->
-            <label>Expression bones</label>
+            <label>Gizmo bones</label>
             <input type="checkbox" id="chkCommitExpressionScript" checked>
             <span class="small">Also add the Lip_Bone and Frame_Bone script driver where possible.</span>
           </div>
@@ -7500,7 +7509,7 @@ html, body, #app{
 
   function buildRigProjectState(){
     return {
-      app: 'LukeTools_BoneWarp_Stamp', version: '18.28', savedAt: new Date().toISOString(),
+      app: 'LukeTools_BoneWarp_Stamp', version: '18.220', savedAt: new Date().toISOString(),
       source: {
         fileName: App.source.fileName || '', captureMode: App.source.captureMode || 'local-file', selectedIdentifier: App.source.selectedIdentifier || '', selectedUUID: App.source.selectedUUID || '',
         width: Number(App.source.width || 0), height: Number(App.source.height || 0), svgRaw: App.source.svgRaw || '', dataUrl: App.source.dataUrl || App.source.embeddedDataUrl || '',
@@ -24429,7 +24438,7 @@ function installDemBonesMrk2() {
   });
   el('chkUseSelectedCurveRemoveOriginals_Claude').disabled = true;
   el('chkUseSelectedCurveRemoveOriginals_Claude').checked = false;
-  var api = { version: '2.2', bind: bind, resume: resume, flush: flush, preview: preview, finish: finish, geometryAt: geometryAt,
+  var api = { version: '2.3', bind: bind, resume: resume, flush: flush, preview: preview, finish: finish, geometryAt: geometryAt,
     clientInverse: function () { return live.binding ? G.inverse(rigClientMatrix()) : null; },
     get binding() { return live.binding; }, get state() { return live; },
     project: function () { return App.project; },
@@ -24445,8 +24454,215 @@ function installDemBonesMrk2() {
   return api;
 }
 
+  // FIX v18.220_GPT: import an existing Frame Gizmo Clip either as Build Parts
+  // artwork or as a multi-frame Gizmo Bone. Internal "expression" property names
+  // stay unchanged so older saved parts continue to load.
+  function dbm2IsClip_v18220(obj){
+    if (!obj) return false;
+    try { if (App.Wick && App.Wick.Clip && obj instanceof App.Wick.Clip) return true; } catch(e0){}
+    try { return obj.classname === 'Clip' && !!obj.timeline; } catch(e1){ return false; }
+  }
+
+  function dbm2GizmoScriptSource_v18220(clip){
+    if (!clip) return '';
+    try { if (typeof clip.getScript === 'function') { var record = clip.getScript('default'); if (record) return String(record.src || ''); } } catch(e0){}
+    try {
+      var scripts = clip.scripts || [];
+      for (var i = 0; i < scripts.length; i++) if (scripts[i] && String(scripts[i].name || '') === 'default') return String(scripts[i].src || '');
+    } catch(e1){}
+    return '';
+  }
+
+  function dbm2GizmoStops_v18220(clip){
+    var map = {};
+    try {
+      (clip.timeline.layers || []).forEach(function(layer){
+        (layer.frames || []).forEach(function(frame){
+          var start = Math.max(1, Math.round(Number(frame && (frame.start || frame.startFrame) || 1)));
+          var label = String(frame && (frame.identifier || frame.name) || '').trim();
+          if (!map[start] || (label && !map[start].label)) map[start] = { frame:start, label:label || ('Frame ' + start) };
+        });
+      });
+    } catch(e){}
+    if (!map[1]) map[1] = { frame:1, label:'Frame 1' };
+    return Object.keys(map).map(Number).sort(function(a,b){ return a-b; }).map(function(key){ return map[key]; });
+  }
+
+  function dbm2SelectedGizmoClip_v18220(){
+    refreshBridgeRefs();
+    try { if (App.B && typeof App.B.captureSelectionNow === 'function') App.B.captureSelectionNow(); } catch(e0){}
+    var clips = getSelectedObjects().filter(dbm2IsClip_v18220);
+    if (clips.length !== 1) throw new Error('Select exactly one Gizmo Clip on the Wick stage first.');
+    var clip = clips[0];
+    var marked = dbm2GizmoScriptSource_v18220(clip).indexOf('/*LUKE_FRAME_GIZMO:1*/') >= 0;
+    var stops = dbm2GizmoStops_v18220(clip);
+    if (!marked && stops.length < 2) throw new Error('The selected Clip is not a Gizmo. Mark it as a Gizmo in LukeTools Gizmo first.');
+    return clip;
+  }
+
+  function dbm2GizmoPaint_v18220(){
+    return new Promise(function(resolve){
+      var raf = null;
+      try { raf = (window.parent && window.parent.requestAnimationFrame) || window.requestAnimationFrame; } catch(e){}
+      if (typeof raf === 'function') raf.call(window.parent || window, function(){ raf.call(window.parent || window, resolve); });
+      else setTimeout(resolve, 30);
+    });
+  }
+
+  function dbm2RenderWick_v18220(){
+    try { if (App.project && App.project.view && typeof App.project.view.render === 'function') App.project.view.render(); } catch(e0){}
+    try { var paper = App.project && App.project.view && App.project.view.paper; if (paper && paper.view) paper.view.update(); } catch(e1){}
+  }
+
+  async function dbm2CaptureGizmoFrames_v18220(clip, currentOnly){
+    var original = {
+      animationType: clip.animationType,
+      isSynced: clip.isSynced,
+      singleFrameNumber: clip.singleFrameNumber,
+      playheadPosition: clip.timeline && clip.timeline.playheadPosition
+    };
+    var stops = dbm2GizmoStops_v18220(clip);
+    if (currentOnly) {
+      var current = Math.max(1, Math.round(Number(clip.singleFrameNumber || (clip.timeline && clip.timeline.playheadPosition) || 1)));
+      var currentLabel = 'Frame ' + current;
+      stops.forEach(function(stop){ if (stop.frame <= current) currentLabel = stop.label; });
+      stops = [{ frame:current, label:currentLabel }];
+    }
+    var captures = [];
+    try {
+      clip.isSynced = false;
+      clip.animationType = 'single';
+      for (var i = 0; i < stops.length; i++) {
+        var stop = stops[i];
+        clip.singleFrameNumber = stop.frame;
+        if (clip.timeline) clip.timeline.playheadPosition = stop.frame;
+        dbm2RenderWick_v18220();
+        await dbm2GizmoPaint_v18220();
+        var item = null;
+        try { item = clip.view && (clip.view.group || clip.view.item); } catch(e0){}
+        if (!item || typeof item.exportSVG !== 'function') throw new Error('The selected Gizmo does not expose artwork that Bones Mrk2 can import.');
+        var bounds = selectedCurvePaperBounds(item) || getObjectStageBounds(clip) || selectedCurveGetBounds(clip);
+        if (!bounds || bounds.w <= 0 || bounds.h <= 0) throw new Error('Could not read the selected Gizmo frame bounds.');
+        var exported = String(item.exportSVG({ asString:true, precision:4 }) || '');
+        var inner = selectedCurveExtractSvgInner(exported);
+        if (!inner) throw new Error('Gizmo frame ' + stop.frame + ' contains no exportable artwork.');
+        var name = String(stop.label || ('Frame ' + stop.frame));
+        var svgRaw = selectedCurveWrapSvgContent(inner, bounds, name);
+        captures.push({ frame:stop.frame, label:name, bounds:bounds, svgRaw:svgRaw, dataUrl:svgTextToDataUrl(svgRaw), width:Math.max(1, Math.ceil(bounds.w)), height:Math.max(1, Math.ceil(bounds.h)) });
+      }
+    } finally {
+      try { clip.animationType = original.animationType; } catch(e1){}
+      try { clip.isSynced = original.isSynced; } catch(e2){}
+      try { clip.singleFrameNumber = original.singleFrameNumber; } catch(e3){}
+      try { if (clip.timeline) clip.timeline.playheadPosition = original.playheadPosition; } catch(e4){}
+      dbm2RenderWick_v18220();
+    }
+    return captures;
+  }
+
+  async function dbm2ImportSelectedGizmoAsPart_v18220(){
+    try {
+      var clip = dbm2SelectedGizmoClip_v18220();
+      var captured = (await dbm2CaptureGizmoFrames_v18220(clip, true))[0];
+      if (!captured) throw new Error('No Gizmo frame was captured.');
+      try { if (window.DemBonesMrk2 && window.DemBonesMrk2.binding) window.DemBonesMrk2.finish(); } catch(eFinish){}
+      var clipName = String(clip.identifier || clip.name || 'Gizmo');
+      await loadSvgTextAsSource(captured.svgRaw, clipName + '_' + captured.label + '.svg', 'selected-gizmo-part', captured.bounds);
+      App.source.selectedIdentifier = clipName + ' · ' + captured.label;
+      App.source.selectedUUID = String(clip.uuid || 'selected-gizmo-part');
+      removeSetAreaOverlay(); ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource();
+      setActiveTab('source'); updateUI(); renderOverlay(); markDirty();
+      log('Imported Gizmo “' + clipName + '” frame “' + captured.label + '” as Build Parts artwork. Add bones, then Save Part or Add To Character as usual.');
+    } catch(err) { log('Import Gizmo As Part failed: ' + (err && err.message ? err.message : err)); }
+  }
+
+  function dbm2LocalPointForStageBounds_v18220(bounds){
+    var sourceBounds = App.source && App.source.stagePlacementBounds;
+    if (sourceBounds && sourceBounds.w && sourceBounds.h) {
+      return {
+        x: (Number(bounds.cx || 0) - Number(sourceBounds.x || 0)) * Math.max(1, Number(App.source.width || sourceBounds.w)) / Number(sourceBounds.w),
+        y: (Number(bounds.cy || 0) - Number(sourceBounds.y || 0)) * Math.max(1, Number(App.source.height || sourceBounds.h)) / Number(sourceBounds.h)
+      };
+    }
+    return dummyAreaCenterPoint();
+  }
+
+  async function dbm2ImportSelectedGizmoAsExpression_v18220(){
+    try {
+      var parentBone = getSelectedBone();
+      var clip = dbm2SelectedGizmoClip_v18220();
+      var captures = await dbm2CaptureGizmoFrames_v18220(clip, false);
+      if (!captures.length) throw new Error('The selected Gizmo has no importable frames.');
+      if ((!App.source || (!App.source.image && !App.source.svgNative && !(App.source.dummy && App.source.dummy.active))) && !parentBone) {
+        var firstBounds = captures[0].bounds;
+        var vp = stageBoundsToViewportRect(firstBounds) || { x:80, y:80, width:firstBounds.w, height:firstBounds.h };
+        createBlankSourceAreaAtViewport(vp.x, vp.y, Math.max(40, vp.width), Math.max(40, vp.height), 'dummy-area', 'Gizmo rig area');
+      }
+      var point = parentBone ? clone(parentBone.tail) : dbm2LocalPointForStageBounds_v18220(captures[0].bounds);
+      var fb = addFrameBoneAtPoint(point, parentBone ? parentBone.id : null);
+      var clipName = String(clip.identifier || clip.name || 'Gizmo');
+      fb.name = clipName + ' Gizmo';
+      fb.gizmoImported = true;
+      fb.gizmoSourceUUID = String(clip.uuid || '');
+      fb.gizmoSourceName = clipName;
+      fb.frameCount = captures.length;
+      fb.frames = {};
+      captures.forEach(function(capture, index){
+        var slot = index + 1;
+        fb.frames[slot] = {
+          fileName:capture.label + '.svg', label:capture.label, expressionKey:capture.label,
+          raw:capture.svgRaw, dataUrl:capture.dataUrl, width:capture.width, height:capture.height,
+          gizmoFrameNumber:capture.frame, gizmoSourceUUID:fb.gizmoSourceUUID
+        };
+        ensureFrameBoneImageCache(fb.frames[slot]);
+      });
+      App.selectedFrameBoneId = fb.id;
+      setActiveTab('expression');
+      App.selectedFrameBoneId = fb.id;
+      updateFrameBoneUI(); renderExpressionUI(); renderOverlay(); markDirty();
+      log('Imported Gizmo “' + clipName + '” with ' + captures.length + ' frame' + (captures.length === 1 ? '' : 's') + (parentBone ? ' attached to ' + parentBone.name : ' on the Gizmo rig area') + '. Click a frame in Gizmo to key it on the Wick timeline.');
+    } catch(err) { log('Import Selected Gizmo failed: ' + (err && err.message ? err.message : err)); }
+  }
+
+  function dbm2RenderImportedGizmo_v18220(){
+    var info = el('importedGizmoInfo');
+    var host = el('importedGizmoSlots');
+    if (!host) return;
+    host.innerHTML = '';
+    var fb = getSelectedFrameBone();
+    if (!fb || !fb.gizmoImported) {
+      if (info) info.textContent = 'Select a Gizmo Clip on the Wick stage and a parent bone, then import it here.';
+      return;
+    }
+    if (info) info.textContent = fb.name + ' · attached to ' + getBoneName(fb.attachedBoneId) + ' · ' + fb.frameCount + ' Gizmo frames · Wick frame ' + App.currentFrame;
+    for (var slot = 1; slot <= Math.max(1, Number(fb.frameCount || 1)); slot++) {
+      if (fb.frames && fb.frames[slot]) ensureFrameBoneImageCache(fb.frames[slot]);
+      host.appendChild(makeFrameBoneSlotCard(fb, slot, 'animate'));
+    }
+  }
+
+  var dbm2RenderExpressionUI_Base_v18220 = renderExpressionUI;
+  renderExpressionUI = function(){
+    var result = dbm2RenderExpressionUI_Base_v18220.apply(this, arguments);
+    dbm2RenderImportedGizmo_v18220();
+    return result;
+  };
+
+  var dbm2SetActiveTab_Base_v18220 = setActiveTab;
+  setActiveTab = function(name){
+    var selected = getSelectedFrameBone();
+    var selectedImportedId = selected && selected.gizmoImported ? selected.id : null;
+    var result = dbm2SetActiveTab_Base_v18220.apply(this, arguments);
+    if (String(name || '').toLowerCase() === 'expression' && selectedImportedId) {
+      App.selectedFrameBoneId = selectedImportedId;
+      updateFrameBoneUI(); renderExpressionUI(); renderOverlay();
+    }
+    return result;
+  };
 
   installDemBonesMrk2();
+  if (el('btnImportSelectedGizmoAsPart')) el('btnImportSelectedGizmoAsPart').addEventListener('click', dbm2ImportSelectedGizmoAsPart_v18220);
+  if (el('btnImportSelectedGizmoAsExpression')) el('btnImportSelectedGizmoAsExpression').addEventListener('click', dbm2ImportSelectedGizmoAsExpression_v18220);
 
   function init(){
     try { forceToolPanelFill(); } catch(e){ console.error('[MyCharacter] forceToolPanelFill failed', e); } // FIX v_018

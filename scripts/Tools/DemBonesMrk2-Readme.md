@@ -22,7 +22,7 @@ Each selected curve sits in its own synced Wick clip at its existing stacking po
 
 ## Scope
 
-Live mode supports paths/compound paths, ordinary and stretchy bones, source-curve edits, and curve-point animation. Frame Bones, expression artwork, and assembled MyCharacter rigs retain the original workflow; finish live editing and disable **Edit Wick curves directly** for those features.
+Live mode supports paths/compound paths, ordinary and stretchy bones, source-curve edits, and curve-point animation. Frame Bones, Gizmo artwork, and assembled MyCharacter rigs retain the original workflow; finish live editing and disable **Edit Wick curves directly** for those features.
 
 You can scale, stretch, move, rotate, or flip the rigged artwork in Wick. The bones and editable curve handles follow that transform, while existing animation keys stay intact. This also works when reopening a saved rig. If several curves were bound as one rig, select and transform all of those curves together.
 
@@ -39,3 +39,5 @@ Automated Edge/Wick-engine checks cover native deformation, interpolated frames,
 Based on [DemBones.txt](DemBones.txt), source blob 7dce618b4ae4743cba96cab31c29779ea613e7f1.
 
 Version 2.2 additionally checks nested-timeline key setup, visible key restoration after double-click, clickable restored diamonds, empty-frame visibility, artwork deletion, and restoration.
+
+Version 2.3 renames the user-facing Expression workspace to **Gizmo**. In **Build Parts**, **Import Selected Gizmo As Part** uses the Gizmo frame currently displayed on the Wick stage as part artwork. In **Gizmo**, **Import Selected Gizmo** imports every named internal Gizmo frame and attaches it to the selected bone, ready for normal Wick-timeline keying. Existing saved Expression data remains compatible.
