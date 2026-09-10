@@ -1,6 +1,6 @@
 {
   "title": "Luke Tools",
-  "version": 2,
+  "version": 3,
   "groups": [
     {
       "id": "behaviours",
@@ -140,7 +140,7 @@
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/clipboard2clip.txt",
           "action": "script",
           "F_Screen": 0
-        },        
+        },
         {
           "id": "Spriter",
           "label": "Spriter",
@@ -250,7 +250,9 @@
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Gizmo.svg",
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/FrameGizmo.txt",
           "action": "tool",
-          "F_Screen": 0
+          "F_Screen": 0,
+          "panelWidth": 300,
+          "panelHeight": 600
         },
         {
           "id": "Shapes",
