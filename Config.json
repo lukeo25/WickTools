@@ -1,6 +1,6 @@
 {
   "title": "Luke Tools",
-  "version": 1,
+  "version": 2,
   "groups": [
     {
       "id": "behaviours",
@@ -243,6 +243,14 @@
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Nodecoder.txt",
           "action": "tool",
           "F_Screen": 1
+        },
+        {
+          "id": "Frame_Gizmo",
+          "label": "Gizmo",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Gizmo.svg",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/FrameGizmo.txt",
+          "action": "tool",
+          "F_Screen": 0
         },
         {
           "id": "Shapes",
