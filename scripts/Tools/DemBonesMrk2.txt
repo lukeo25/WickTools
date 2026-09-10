@@ -24620,7 +24620,7 @@ function installDemBonesMrk2() {
       setActiveTab('expression');
       App.selectedFrameBoneId = fb.id;
       updateFrameBoneUI(); renderExpressionUI(); renderOverlay(); markDirty();
-      log('Imported Gizmo “' + clipName + '” with ' + captures.length + ' frame' + (captures.length === 1 ? '' : 's') + (parentBone ? ' attached to ' + parentBone.name : ' on the Gizmo rig area') + '. Click a frame in Gizmo to key it on the Wick timeline.');
+      log('Imported Gizmo “' + clipName + '” with ' + captures.length + ' frame' + (captures.length === 1 ? '' : 's') + (parentBone ? ' attached immediately to ' + parentBone.name : ' added immediately to the Gizmo rig area') + '. No commit is required. Click a frame in Gizmo to key it on the Wick timeline.');
     } catch(err) { log('Import Selected Gizmo failed: ' + (err && err.message ? err.message : err)); }
   }
 
