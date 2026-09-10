@@ -69,8 +69,8 @@ var F_Screen = 0;
 (function(){
   "use strict";
 
-  var MARKER="/*LUKE_FRAME_GIZMO:1*/";
-  var state={clip:null,lastStageClip:null,keepSelected:true,stops:[],signature:"",lastUUID:"",lastFrame:0};
+  var MARKER="/*LUKE_FRAME_GIZMO:1*/",FAMILY_PREFIX="/*LUKE_FRAME_GIZMO_ID:",FAMILY_SUFFIX="*/";
+  var state={clip:null,lastStageClip:null,parentLayer:null,familyId:"",keepSelected:true,stops:[],signature:"",lastUUID:"",lastFrame:0};
   var $=function(id){return document.getElementById(id);};
 
   function bridge(){
@@ -136,15 +136,32 @@ var F_Screen = 0;
     return null;
   }
   function hasGizmoStatus(clip){var record=scriptRecord(clip);return !!(record&&String(record.src||"").indexOf(MARKER)>=0);}
+  function readFamilyId(clip){
+    var record=scriptRecord(clip),match=record&&String(record.src||"").match(/\/\*LUKE_FRAME_GIZMO_ID:([A-Za-z0-9_-]+)\*\//);
+    return match?match[1]:"";
+  }
+  function newFamilyId(clip){
+    var seed="";try{seed=String(clip&&clip.uuid||"");}catch(e){}seed=seed.replace(/[^A-Za-z0-9_-]/g,"");
+    return seed||("gizmo_"+Date.now()+"_"+Math.floor(Math.random()*1000000));
+  }
+  function writeScriptSource(clip,source){
+    var record=scriptRecord(clip);
+    if(record)record.src=source;
+    else if(typeof clip.addScript==="function")clip.addScript("default",source);
+    else{if(!clip.scripts)clip.scripts=[];clip.scripts.push({name:"default",src:source});}
+  }
+  function ensureFamilyId(clip){
+    var id=readFamilyId(clip)||state.familyId;if(id){state.familyId=id;return id;}
+    id=newFamilyId(clip);var record=scriptRecord(clip),source=record?String(record.src||""):"";
+    writeScriptSource(clip,source+(source&&!/\s$/.test(source)?"\n":"")+FAMILY_PREFIX+id+FAMILY_SUFFIX);state.familyId=id;return id;
+  }
   function setGizmoStatus(on){
     var clip=state.clip;if(!clip)return status("Select one Clip first.","error");
     var record=scriptRecord(clip),source=record?String(record.src||""):"";
-    source=source.replace(/\s*\/\*LUKE_FRAME_GIZMO:1\*\//g,"").replace(/\s+$/g,"");
-    if(on)source+=(source?"\n":"")+MARKER;
+    source=source.replace(/\s*\/\*LUKE_FRAME_GIZMO:1\*\//g,"").replace(/\s*\/\*LUKE_FRAME_GIZMO_ID:[A-Za-z0-9_-]+\*\//g,"").replace(/\s+$/g,"");
+    if(on){var id=state.familyId||newFamilyId(clip);state.familyId=id;source+=(source?"\n":"")+MARKER+"\n"+FAMILY_PREFIX+id+FAMILY_SUFFIX;}else state.familyId="";
     try{
-      if(record)record.src=source;
-      else if(typeof clip.addScript==="function")clip.addScript("default",source);
-      else{if(!clip.scripts)clip.scripts=[];clip.scripts.push({name:"default",src:source});}
+      writeScriptSource(clip,source);
     }catch(e){return status("Could not change Gizmo status: "+e.message,"error");}
     markDirty(on?"Mark Clip as Gizmo":"Remove Clip Gizmo status");state.signature="";render(true);selectPinned();
     status(on?"Gizmo status added. Double-click this Clip to reopen the Gizmo tool.":"Gizmo status removed.","ok");
@@ -152,6 +169,52 @@ var F_Screen = 0;
   function clipName(clip){
     if(!clip)return "Select one Clip";
     try{return String(clip.identifier||clip.name||clip.uuid||"Selected Clip");}catch(e){return "Selected Clip";}
+  }
+  function rememberParent(clip){
+    if(!clip)return;
+    var layer=null;try{layer=clip.parentLayer;}catch(e0){}try{if(!layer&&clip.parentFrame)layer=clip.parentFrame.parentLayer||clip.parentFrame.parent;}catch(e1){}
+    if(layer)state.parentLayer=layer;
+    var id=readFamilyId(clip);if(id)state.familyId=id;
+  }
+  function parentTimeline(layer){try{return layer&&(layer.parentTimeline||layer.parent)||null;}catch(e){return null;}}
+  function parentPlayhead(layer){var tl=parentTimeline(layer),n=1;try{n=Number(tl&&tl.playheadPosition||1);}catch(e){}return Math.max(1,Math.round(isFinite(n)?n:1));}
+  function frameAt(layer,n){
+    try{if(layer&&typeof layer.getFrameAtPlayheadPosition==="function")return layer.getFrameAtPlayheadPosition(n);}catch(e0){}
+    var frames=[];try{frames=layer&&layer.frames||[];}catch(e1){}
+    for(var i=0;i<frames.length;i++){var frame=frames[i],start=Number(frame&&frame.start||1),end=Number(frame&&(frame.end==null?start:frame.end));if(start<=n&&end>=n)return frame;}
+    return null;
+  }
+  function clipsOnFrame(frame){
+    var out=[],lists=[];try{lists.push(frame&&frame.clips||[]);}catch(e0){}try{lists.push(frame&&frame.children||[]);}catch(e1){}try{lists.push(frame&&frame._children||[]);}catch(e2){}
+    lists.forEach(function(list){Array.prototype.slice.call(list||[]).forEach(function(obj){if(isClip(obj)&&out.indexOf(obj)<0)out.push(obj);});});return out;
+  }
+  function familyClipOnFrame(frame,id){
+    var clips=clipsOnFrame(frame);for(var i=0;i<clips.length;i++)if(id&&readFamilyId(clips[i])===id)return clips[i];return null;
+  }
+  function addClipToFrame(frame,clip){
+    if(typeof frame.addClip==="function"){frame.addClip(clip);return true;}if(typeof frame.addObject==="function"){frame.addObject(clip);return true;}
+    if(Array.isArray(frame._children)){frame._children.push(clip);try{clip._parent=frame;}catch(e0){}return true;}if(Array.isArray(frame.children)){frame.children.push(clip);try{clip.parent=frame;}catch(e1){}return true;}return false;
+  }
+  function copyClip(clip){try{if(clip&&typeof clip.copy==="function")return clip.copy();}catch(e0){}try{if(clip&&typeof clip.clone==="function")return clip.clone();}catch(e1){}return null;}
+  function ensureParentKeyedClip(){
+    var source=state.clip;if(!source)return {ok:false,error:"Select one Clip first."};rememberParent(source);
+    var layer=state.parentLayer;if(!layer)return {ok:true,clip:source,parentFrame:1,created:false};
+    var id=ensureFamilyId(source),position=parentPlayhead(layer),frame=frameAt(layer,position),target=familyClipOnFrame(frame,id);
+    if(target&&Number(frame.start||1)===position){state.clip=target;rememberParent(target);return {ok:true,clip:target,parentFrame:position,created:false};}
+    if(frame&&Number(frame.start||1)<position&&typeof frame.cut==="function"){
+      var tl=parentTimeline(layer);try{if(tl)tl.playheadPosition=position;}catch(e0){}frame.cut();frame=frameAt(layer,position);target=familyClipOnFrame(frame,id);
+      if(target){state.clip=target;rememberParent(target);selectPinned();return {ok:true,clip:target,parentFrame:position,created:true};}
+    }
+    if(!frame){try{if(typeof layer.insertBlankFrame==="function")frame=layer.insertBlankFrame(position);}catch(e1){}frame=frame||frameAt(layer,position);}
+    if(frame&&Number(frame.start||1)<position&&typeof frame.cut==="function"){var tl2=parentTimeline(layer);try{if(tl2)tl2.playheadPosition=position;}catch(e2){}frame.cut();frame=frameAt(layer,position);}
+    target=familyClipOnFrame(frame,id);
+    if(!target&&frame){target=copyClip(source);if(target&&!addClipToFrame(frame,target))target=null;}
+    if(!target)return {ok:false,error:"Could not create the Gizmo keyframe on timeline frame "+position+"."};
+    state.clip=target;rememberParent(target);selectPinned();return {ok:true,clip:target,parentFrame:position,created:true};
+  }
+  function syncToParentPlayhead(){
+    var layer=state.parentLayer,id=state.familyId;if(!layer||!id)return;
+    var target=familyClipOnFrame(frameAt(layer,parentPlayhead(layer)),id);if(target&&target!==state.clip){state.clip=target;rememberParent(target);state.signature="";}
   }
   function currentFrame(clip){
     var n=1;
@@ -197,14 +260,14 @@ var F_Screen = 0;
   }
   function status(text,type){var box=$("status");box.textContent=text;box.className=type||"";}
   function setFrame(frame){
-    var clip=state.clip;if(!clip)return status("Select one Clip first.","error");
+    var keyed=ensureParentKeyedClip(),clip=keyed.clip;if(!keyed.ok)return status(keyed.error,"error");
     var n=Math.max(1,Math.round(Number(frame)||1));
     try{clip.isSynced=false;}catch(e0){}
     try{clip.animationType="single";}catch(e1){}
     try{clip.singleFrameNumber=n;}catch(e2){}
     try{if(clip.timeline)clip.timeline.playheadPosition=n;}catch(e3){}
     markDirty("Set Gizmo frame "+n);
-    status("Showing "+clipName(clip)+" frame "+n+".","ok");
+    status((keyed.created?"Added key on timeline frame ":"Timeline frame ")+keyed.parentFrame+" → Gizmo frame "+n+".","ok");
     state.signature="";render();
   }
   function setMode(next){
@@ -281,14 +344,15 @@ var F_Screen = 0;
   function useSelected(){
     var clip=selectedClip()||state.lastStageClip;
     if(!clip)return status("Select one Clip on the Wick stage first.","error");
-    state.clip=clip;state.lastStageClip=clip;state.signature="";render(true);selectPinned();status("Using "+clipName(clip)+".","ok");
+    state.clip=clip;state.lastStageClip=clip;state.parentLayer=null;state.familyId=readFamilyId(clip);rememberParent(clip);state.signature="";render(true);selectPinned();status("Using "+clipName(clip)+".","ok");
   }
   function render(force){
     var incoming=pendingClip(),clip=selectedClip();
-    if(incoming){state.clip=incoming;state.lastStageClip=incoming;}
+    if(incoming){state.clip=incoming;state.lastStageClip=incoming;rememberParent(incoming);}
     if(clip)state.lastStageClip=clip;
     if(!state.clip)state.clip=clip||state.lastStageClip;
-    else if(!state.keepSelected&&clip)state.clip=clip;
+    else if(!state.keepSelected&&clip){state.clip=clip;rememberParent(clip);}
+    rememberParent(state.clip);syncToParentPlayhead();
     state.stops=state.clip?collectStops(state.clip):[];
     var uuid="";try{uuid=state.clip&&state.clip.uuid||"";}catch(e0){}
     var active=state.clip?currentFrame(state.clip):0,m=mode(state.clip);
@@ -296,7 +360,7 @@ var F_Screen = 0;
     var sig=[uuid,active,m,gizmo,state.keepSelected,state.stops.map(function(s){return s.frame+":"+s.label;}).join("|")].join("~");
     if(!force&&sig===state.signature)return;state.signature=sig;
     $("clipName").textContent=clipName(state.clip);$("modeBadge").textContent=m;
-    $("frameReadout").textContent=state.clip?("Frame "+active+" of "+Math.max(1,Number(state.clip.timeline&&state.clip.timeline.length)||1)):"No Clip selected";
+    $("frameReadout").textContent=state.clip?("Gizmo "+active+" of "+Math.max(1,Number(state.clip.timeline&&state.clip.timeline.length)||1)+(state.parentLayer?" · Timeline "+parentPlayhead(state.parentLayer):"")):"No Clip selected";
     renderDial(state.stops,active);
     var stop=null;state.stops.forEach(function(candidate){if(candidate.frame<=active)stop=candidate;});$("frameLabel").value=stop&&stop.named?stop.label:"";
     ["previous","next","single","follow","loop","saveLabel","keepSelected","gizmoStatus"].forEach(function(id){$(id).disabled=!state.clip;});
@@ -348,7 +412,7 @@ var F_Screen = 0;
       };
       host.document.addEventListener("mousedown",service.handle,true);host.document.addEventListener("dblclick",service.handle,true);
     }
-    var api={alive:function(){try{return !!(window.frameElement&&window.frameElement.isConnected);}catch(e){return false;}},resume:function(clip){if(isClip(clip)){state.clip=clip;state.lastStageClip=clip;service.pending=null;state.signature="";render(true);selectPinned();status("Gizmo reopened for "+clipName(clip)+".","ok");}return true;}};
+    var api={alive:function(){try{return !!(window.frameElement&&window.frameElement.isConnected);}catch(e){return false;}},resume:function(clip){if(isClip(clip)){state.clip=clip;state.lastStageClip=clip;state.parentLayer=null;state.familyId=readFamilyId(clip);rememberParent(clip);service.pending=null;state.signature="";render(true);selectPinned();status("Gizmo reopened for "+clipName(clip)+".","ok");}return true;}};
     service.panel=api;
   }
 
