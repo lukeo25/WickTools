@@ -46,6 +46,14 @@
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Brownian.txt",
           "action": "script",
           "F_Screen": 0
+        },
+        {
+          "id": "Incect",
+          "label": "Incect",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/incect.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Incect.txt",
+          "action": "script",
+          "F_Screen": 0
         }
       ]
     },
