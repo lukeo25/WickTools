@@ -42,7 +42,7 @@
         {
           "id": "Brownian",
           "label": "Brownian",
-          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Brownian.svg",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/brownian.svg",
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Brownian.txt",
           "action": "script",
           "F_Screen": 0
