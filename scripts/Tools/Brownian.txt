@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LukeTools Brownian</title>
+<style>
+:root{color-scheme:dark;--text:#e7e7ea;--muted:#a8a8b3;--line:rgba(255,255,255,.10);--card:rgba(20,20,22,.94);--green:#2ecc71}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:transparent;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}.wrap{padding:14px}.card{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px}.title{font-size:15px;font-weight:700;margin-bottom:10px}.row{display:grid;grid-template-columns:minmax(120px,1fr) 92px;gap:10px;align-items:center;margin:7px 0}.toprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pill{display:inline-flex;gap:7px;align-items:center;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.05);padding:6px 10px;font-size:12px;color:var(--muted);flex:1}.pill strong{color:var(--text)}label{font-size:12px;color:var(--muted)}input{width:100%;border:1px solid var(--line);border-radius:9px;background:rgba(0,0,0,.25);color:var(--text);padding:7px 9px}.divider{height:1px;background:rgba(255,255,255,.08);margin:12px 0}.section{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 5px}.btn{border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.06);color:var(--text);padding:8px 11px;font-weight:700;cursor:pointer}.btn.green{background:rgba(46,204,113,.18);border-color:rgba(46,204,113,.36)}.status{margin-top:12px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(0,0,0,.22);padding:9px 10px;font-size:12px;color:var(--muted);white-space:pre-wrap}.status.good{border-color:rgba(46,204,113,.35);color:#d9ffe9}.status.bad{border-color:rgba(231,76,60,.35);color:#ffd9d6}.status.warn{border-color:rgba(241,196,15,.35);color:#fff2c2}.hint{font-size:11px;color:var(--muted);line-height:1.4;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card">
+  <div class="title">Brownian</div>
+  <div class="toprow">
+    <div class="pill"><strong>Clip</strong><span id="selLabel">No Clip Chosen</span></div>
+    <button class="btn" id="refreshBtn">Refresh</button>
+  </div>
+
+  <div class="section">Movement</div>
+  <div class="row"><label>Random force X</label><input id="forceX" type="number" step="0.1" value="0.8"></div>
+  <div class="row"><label>Random force Y</label><input id="forceY" type="number" step="0.1" value="0.8"></div>
+  <div class="row"><label>Inertia</label><input id="inertia" type="number" min="0" max="0.999" step="0.01" value="0.88"></div>
+  <div class="row"><label>Return force</label><input id="returnForce" type="number" min="0" max="1" step="0.005" value="0.025"></div>
+  <div class="row"><label>Drift X</label><input id="driftX" type="number" step="0.05" value="0"></div>
+  <div class="row"><label>Drift Y</label><input id="driftY" type="number" step="0.05" value="0"></div>
+
+  <div class="section">Limits</div>
+  <div class="row"><label>Max distance X</label><input id="maxX" type="number" min="0" step="1" value="80"></div>
+  <div class="row"><label>Max distance Y</label><input id="maxY" type="number" min="0" step="1" value="80"></div>
+  <div class="row"><label>Rotation wander</label><input id="rotation" type="number" min="0" step="0.1" value="0"></div>
+  <div class="row"><label>Seed</label><input id="seed" type="number" min="0" step="1" value="12345"></div>
+
+  <div class="divider"></div>
+  <button class="btn green" id="createBtn" style="width:100%">Create / Update</button>
+  <div class="hint">Brownian creates a smooth random walk around the clip's starting position. Max distance 0 means unlimited on that axis.</div>
+  <div id="status" class="status">Select a clip on the Wick stage, then click Create / Update.</div>
+</div></div>
+<script>
+(function(){
+'use strict';
+var currentInfo=null;
+function getBridge(){
+  try{if(window.LukeToolsBridge)return window.LukeToolsBridge;}catch(e){}
+  try{if(window.parent&&window.parent.LukeToolsBridge)return window.parent.LukeToolsBridge;}catch(e){}
+  try{if(window.top&&window.top.LukeToolsBridge)return window.top.LukeToolsBridge;}catch(e){}
+  return null;
+}
+function status(msg,kind){var e=document.getElementById('status');e.className='status'+(kind?' '+kind:'');e.textContent=msg;}
+function num(id,d){var v=Number(document.getElementById(id).value);return isFinite(v)?v:d;}
+function config(){return{
+  forceX:Math.max(0,num('forceX',0.8)),forceY:Math.max(0,num('forceY',0.8)),
+  inertia:Math.max(0,Math.min(.999,num('inertia',.88))),returnForce:Math.max(0,Math.min(1,num('returnForce',.025))),
+  driftX:num('driftX',0),driftY:num('driftY',0),maxX:Math.max(0,num('maxX',80)),maxY:Math.max(0,num('maxY',80)),
+  rotation:Math.max(0,num('rotation',0)),seed:(Math.max(0,Math.floor(num('seed',12345)))>>>0)
+};}
+function parseConfig(s){
+  var m=String(s||'').match(/\/\/ Brownian CONFIG (\{[^\n]*\})/);
+  if(!m)return null;try{return JSON.parse(m[1]);}catch(e){return null;}
+}
+function applyConfig(c){if(!c)return;Object.keys(c).forEach(function(k){var e=document.getElementById(k);if(e)e.value=String(c[k]);});}
+function refresh(){
+  var b=getBridge();
+  if(!b||typeof b.getSelectionInfo!=='function'){currentInfo=null;document.getElementById('selLabel').textContent='No bridge';status('LukeToolsBridge is unavailable.','bad');return;}
+  try{
+    var i=b.getSelectionInfo();
+    if(i&&i.uuid){
+      currentInfo=i;document.getElementById('selLabel').textContent=i.identifier||i.name||i.uuid;
+      var s='';try{if(typeof b.getUpdateScriptByInfo==='function')s=b.getUpdateScriptByInfo(i)||'';}catch(e1){}
+      if(!s){try{if(typeof b.getUpdateScriptOnSelection==='function')s=b.getUpdateScriptOnSelection()||'';}catch(e2){}}
+      var c=parseConfig(s);if(c){applyConfig(c);status('Loaded existing Brownian settings.','warn');}else status('Clip selected. Configure Brownian and click Create / Update.');
+      return;
+    }
+  }catch(e){}
+  currentInfo=null;document.getElementById('selLabel').textContent='No Clip Chosen';status('Select a clip on the Wick stage, then click Refresh.','bad');
+}
+function buildScript(c){
+  var j=JSON.stringify(c);
+  return [
+    '// Brownian BEGIN',
+    '// Brownian CONFIG '+j,
+    '(function(){',
+    '  var C='+j+';',
+    '  var S=this.__ltBrownian;',
+    '  if(!S || S.version!==1 || S.seed!==C.seed){',
+    '    S=this.__ltBrownian={version:1,seed:C.seed,state:(C.seed||1)>>>0,vx:0,vy:0,vr:0,homeX:Number(this.x)||0,homeY:Number(this.y)||0,homeR:Number(this.rotation)||0};',
+    '  }',
+    '  function rnd(){',
+    '    var a=S.state|0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;S.state=a;return((t^t>>>14)>>>0)/4294967296;',
+    '  }',
+    '  var x=Number(this.x)||0,y=Number(this.y)||0,r=Number(this.rotation)||0;',
+    '  S.vx=(S.vx+(rnd()*2-1)*C.forceX+C.driftX+(S.homeX-x)*C.returnForce)*C.inertia;',
+    '  S.vy=(S.vy+(rnd()*2-1)*C.forceY+C.driftY+(S.homeY-y)*C.returnForce)*C.inertia;',
+    '  x+=S.vx;y+=S.vy;',
+    '  if(C.maxX>0){var dx=x-S.homeX;if(dx>C.maxX){x=S.homeX+C.maxX;S.vx*=-0.35;}else if(dx<-C.maxX){x=S.homeX-C.maxX;S.vx*=-0.35;}}',
+    '  if(C.maxY>0){var dy=y-S.homeY;if(dy>C.maxY){y=S.homeY+C.maxY;S.vy*=-0.35;}else if(dy<-C.maxY){y=S.homeY-C.maxY;S.vy*=-0.35;}}',
+    '  if(C.rotation>0){S.vr=(S.vr+(rnd()*2-1)*C.rotation+(S.homeR-r)*C.returnForce)*C.inertia;r+=S.vr;}',
+    '  this.x=x;this.y=y;if(C.rotation>0)this.rotation=r;',
+    '}).call(this);',
+    '// Brownian END'
+  ].join('\n');
+}
+function createOrUpdate(){
+  if(!currentInfo){refresh();if(!currentInfo)return;}
+  var b=getBridge();if(!b){status('LukeToolsBridge is unavailable.','bad');return;}
+  var existing='';
+  try{if(typeof b.getUpdateScriptByInfo==='function')existing=b.getUpdateScriptByInfo(currentInfo)||'';}catch(e1){}
+  if(!existing){try{if(typeof b.getUpdateScriptOnSelection==='function')existing=b.getUpdateScriptOnSelection()||'';}catch(e2){}}
+  existing=String(existing||'').replace(/\/\/ Brownian BEGIN[\s\S]*?\/\/ Brownian END\n?/g,'').trim();
+  var brown=buildScript(config());
+  var combined=existing?(existing+'\n\n'+brown):brown;
+  try{
+    var res=null;
+    if(typeof b.setUpdateScriptByInfo==='function')res=b.setUpdateScriptByInfo(currentInfo,combined);
+    if(!res||res.ok===false){if(typeof b.setUpdateScriptOnSelection==='function')res=b.setUpdateScriptOnSelection(combined);}
+    if(res&&res.ok===false)throw new Error(res.reason||res.error||'Bridge rejected the script');
+    status('Brownian behaviour created/updated on '+(currentInfo.identifier||currentInfo.name||'selected clip')+'.','good');
+  }catch(err){status('Could not write Brownian behaviour: '+(err&&err.message?err.message:String(err)),'bad');}
+}
+document.getElementById('refreshBtn').addEventListener('click',refresh);
+document.getElementById('createBtn').addEventListener('click',createOrUpdate);
+refresh();
+})();
+</script>
+</body>
+</html>
