@@ -30,6 +30,14 @@
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/JumpThrough.txt",
           "action": "script",
           "F_Screen": 0
+        },
+        {
+          "id": "Particles",
+          "label": "Particles",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/particles.svg",
+          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Particles.txt",
+          "action": "script",
+          "F_Screen": 0
         }
       ]
     },
@@ -46,7 +54,7 @@
           "action": "script",
           "F_Screen": 0
         },
-                {
+        {
           "id": "Fontasaur",
           "label": "Fontasaur",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Fonto.svg",
@@ -78,7 +86,7 @@
           "action": "script",
           "F_Screen": 0
         },
-                {
+        {
           "id": "Car",
           "label": "Car",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Car.svg",
