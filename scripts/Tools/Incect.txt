@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LukeTools Incect</title>
+<style>
+:root{color-scheme:dark;--text:#e7e7ea;--muted:#a8a8b3;--line:rgba(255,255,255,.10);--card:rgba(20,20,22,.94);--green:#2ecc71;--blue:#4da8ff}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:transparent;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}.wrap{padding:14px}.card{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px}.title{font-size:15px;font-weight:700;margin-bottom:10px}.row{display:grid;grid-template-columns:minmax(120px,1fr) 110px;gap:10px;align-items:center;margin:7px 0}.toprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pill{display:inline-flex;gap:7px;align-items:center;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.05);padding:6px 10px;font-size:12px;color:var(--muted);flex:1}.pill strong{color:var(--text)}label{font-size:12px;color:var(--muted)}input,select{width:100%;border:1px solid var(--line);border-radius:9px;background:rgba(0,0,0,.25);color:var(--text);padding:7px 9px}.divider{height:1px;background:rgba(255,255,255,.08);margin:12px 0}.section{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 5px}.btn{border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.06);color:var(--text);padding:8px 11px;font-weight:700;cursor:pointer}.btn.green{background:rgba(46,204,113,.18);border-color:rgba(46,204,113,.36)}.status{margin-top:12px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(0,0,0,.22);padding:9px 10px;font-size:12px;color:var(--muted);white-space:pre-wrap}.status.good{border-color:rgba(46,204,113,.35);color:#d9ffe9}.status.bad{border-color:rgba(231,76,60,.35);color:#ffd9d6}.status.warn{border-color:rgba(241,196,15,.35);color:#fff2c2}.hint{font-size:11px;color:var(--muted);line-height:1.4;margin-top:8px}.presetNote{font-size:11px;color:#cfe3f5;line-height:1.4;padding:8px 9px;border:1px solid rgba(77,168,255,.25);background:rgba(77,168,255,.07);border-radius:9px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card">
+  <div class="title">Incect</div>
+  <div class="toprow">
+    <div class="pill"><strong>Clip</strong><span id="selLabel">No Clip Chosen</span></div>
+    <button class="btn" id="refreshBtn">Refresh</button>
+  </div>
+
+  <div class="section">Flight type</div>
+  <div class="row"><label>Insect</label><select id="preset"><option value="dragonfly">Dragonfly</option><option value="hoverfly">Hoverfly</option><option value="housefly">Housefly</option><option value="mosquito">Mosquito</option></select></div>
+  <div id="presetNote" class="presetNote"></div>
+
+  <div class="section">Flight area</div>
+  <div class="row"><label>Area X</label><input id="areaX" type="number" min="0" step="1" value="180"></div>
+  <div class="row"><label>Area Y</label><input id="areaY" type="number" min="0" step="1" value="120"></div>
+  <div class="row"><label>Intensity %</label><input id="intensity" type="number" min="1" max="400" step="1" value="100"></div>
+  <div class="row"><label>Return to home</label><input id="returnForce" type="number" min="0" max="1" step="0.005" value="0.02"></div>
+
+  <div class="section">Variation</div>
+  <div class="row"><label>Speed variation %</label><input id="speedVariation" type="number" min="0" max="300" step="1" value="25"></div>
+  <div class="row"><label>Turn variation %</label><input id="turnVariation" type="number" min="0" max="300" step="1" value="25"></div>
+  <div class="row"><label>Hover / pause %</label><input id="pauseScale" type="number" min="0" max="300" step="1" value="100"></div>
+  <div class="row"><label>Seed</label><input id="seed" type="number" min="0" step="1" value="12345"></div>
+  <div class="row"><label>Face flight direction</label><input id="faceDirection" type="checkbox" checked style="width:auto;justify-self:end"></div>
+
+  <div class="divider"></div>
+  <button class="btn green" id="createBtn" style="width:100%">Create / Update</button>
+  <div class="hint">Select a Wick clip representing the insect. Incect adds an update behaviour that mimics the selected insect's flight pattern around its starting position.</div>
+  <div id="status" class="status">Select a clip on the Wick stage, then click Create / Update.</div>
+</div></div>
+<script>
+(function(){
+'use strict';
+var currentInfo=null;
+var PRESETS={
+  dragonfly:{label:'Dragonfly',speed:7.5,inertia:.78,turnEveryMin:4,turnEveryMax:14,pauseChance:.10,pauseMin:4,pauseMax:14,dartChance:.22,dartBoost:1.9,jitter:.18,orbit:.02,desc:'Fast, decisive darts with sudden direction changes and short suspended hovers.'},
+  hoverfly:{label:'Hoverfly',speed:4.2,inertia:.86,turnEveryMin:10,turnEveryMax:28,pauseChance:.34,pauseMin:12,pauseMax:42,dartChance:.16,dartBoost:2.1,jitter:.12,orbit:.025,desc:'Long precise hovering, then short lateral darts and rapid repositioning.'},
+  housefly:{label:'Housefly',speed:6.2,inertia:.72,turnEveryMin:3,turnEveryMax:11,pauseChance:.05,pauseMin:2,pauseMax:7,dartChance:.28,dartBoost:1.65,jitter:.38,orbit:.05,desc:'Erratic high energy flight with frequent sharp turns, loops and unpredictable bursts.'},
+  mosquito:{label:'Mosquito',speed:2.6,inertia:.91,turnEveryMin:12,turnEveryMax:34,pauseChance:.08,pauseMin:4,pauseMax:12,dartChance:.08,dartBoost:1.35,jitter:.26,orbit:.09,desc:'Slow drifting flight with fine jitter, gentle circling and occasional small darts.'}
+};
+function getBridge(){try{if(window.LukeToolsBridge)return window.LukeToolsBridge;}catch(e){}try{if(window.parent&&window.parent.LukeToolsBridge)return window.parent.LukeToolsBridge;}catch(e){}try{if(window.top&&window.top.LukeToolsBridge)return window.top.LukeToolsBridge;}catch(e){}return null;}
+function status(msg,kind){var e=document.getElementById('status');e.className='status'+(kind?' '+kind:'');e.textContent=msg;}
+function num(id,d){var v=Number(document.getElementById(id).value);return isFinite(v)?v:d;}
+function config(){return{preset:document.getElementById('preset').value,areaX:Math.max(0,num('areaX',180)),areaY:Math.max(0,num('areaY',120)),intensity:Math.max(.01,num('intensity',100)/100),returnForce:Math.max(0,Math.min(1,num('returnForce',.02))),speedVariation:Math.max(0,num('speedVariation',25)/100),turnVariation:Math.max(0,num('turnVariation',25)/100),pauseScale:Math.max(0,num('pauseScale',100)/100),seed:(Math.max(0,Math.floor(num('seed',12345)))>>>0),faceDirection:!!document.getElementById('faceDirection').checked};}
+function parseConfig(s){var m=String(s||'').match(/\/\/ Incect CONFIG (\{[^\n]*\})/);if(!m)return null;try{return JSON.parse(m[1]);}catch(e){return null;}}
+function applyConfig(c){if(!c)return;Object.keys(c).forEach(function(k){var e=document.getElementById(k);if(!e)return;if(e.type==='checkbox')e.checked=!!c[k];else e.value=String(c[k]);});if(c.intensity!=null)document.getElementById('intensity').value=String(Math.round(c.intensity*100));if(c.speedVariation!=null)document.getElementById('speedVariation').value=String(Math.round(c.speedVariation*100));if(c.turnVariation!=null)document.getElementById('turnVariation').value=String(Math.round(c.turnVariation*100));if(c.pauseScale!=null)document.getElementById('pauseScale').value=String(Math.round(c.pauseScale*100));updatePresetNote();}
+function updatePresetNote(){var p=PRESETS[document.getElementById('preset').value]||PRESETS.dragonfly;document.getElementById('presetNote').textContent=p.desc;}
+function refresh(){var b=getBridge();if(!b||typeof b.getSelectionInfo!=='function'){currentInfo=null;document.getElementById('selLabel').textContent='No bridge';status('LukeToolsBridge is unavailable.','bad');return;}try{var i=b.getSelectionInfo();if(i&&i.uuid){currentInfo=i;document.getElementById('selLabel').textContent=i.identifier||i.name||i.uuid;var s='';try{if(typeof b.getUpdateScriptByInfo==='function')s=b.getUpdateScriptByInfo(i)||'';}catch(e1){}if(!s){try{if(typeof b.getUpdateScriptOnSelection==='function')s=b.getUpdateScriptOnSelection()||'';}catch(e2){}}var c=parseConfig(s);if(c){applyConfig(c);status('Loaded existing Incect settings.','warn');}else status('Clip selected. Choose an insect flight type and click Create / Update.');return;}}catch(e){}currentInfo=null;document.getElementById('selLabel').textContent='No Clip Chosen';status('Select a clip on the Wick stage, then click Refresh.','bad');}
+function buildScript(c){var p=PRESETS[c.preset]||PRESETS.dragonfly;var payload={preset:c.preset,areaX:c.areaX,areaY:c.areaY,intensity:c.intensity,returnForce:c.returnForce,speedVariation:c.speedVariation,turnVariation:c.turnVariation,pauseScale:c.pauseScale,seed:c.seed,faceDirection:c.faceDirection};var j=JSON.stringify(payload),pj=JSON.stringify(p);return[
+'// Incect BEGIN','// Incect CONFIG '+j,'(function(){','  var C='+j+';','  var P='+pj+';','  var S=this.__ltIncect;','  if(!S || S.version!==1 || S.seed!==C.seed || S.preset!==C.preset){','    S=this.__ltIncect={version:1,seed:C.seed,preset:C.preset,state:(C.seed||1)>>>0,homeX:Number(this.x)||0,homeY:Number(this.y)||0,vx:0,vy:0,targetVX:0,targetVY:0,turnTimer:0,pauseTimer:0,phase:0};','  }','  function rnd(){var a=S.state|0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;S.state=a;return((t^t>>>14)>>>0)/4294967296;}','  function pickTarget(){','    var speed=P.speed*C.intensity*(1+(rnd()*2-1)*C.speedVariation);','    var angle=rnd()*Math.PI*2;','    if(rnd()<P.dartChance)speed*=P.dartBoost;','    S.targetVX=Math.cos(angle)*speed;S.targetVY=Math.sin(angle)*speed;','    var tv=1+(rnd()*2-1)*C.turnVariation;','    S.turnTimer=Math.max(1,Math.round((P.turnEveryMin+rnd()*(P.turnEveryMax-P.turnEveryMin))*tv));','    if(rnd()<P.pauseChance*C.pauseScale)S.pauseTimer=Math.max(1,Math.round((P.pauseMin+rnd()*(P.pauseMax-P.pauseMin))*C.pauseScale));','  }','  if(S.turnTimer<=0)pickTarget();else S.turnTimer--;','  var x=Number(this.x)||0,y=Number(this.y)||0;','  if(S.pauseTimer>0){S.pauseTimer--;S.targetVX*=0.72;S.targetVY*=0.72;}','  S.phase+=0.13+P.orbit;','  var jx=(rnd()*2-1)*P.jitter*C.intensity;var jy=(rnd()*2-1)*P.jitter*C.intensity;','  var orbitX=Math.cos(S.phase)*P.orbit*12*C.intensity,orbitY=Math.sin(S.phase*1.21)*P.orbit*12*C.intensity;','  S.vx+=(S.targetVX-S.vx)*(1-P.inertia);S.vy+=(S.targetVY-S.vy)*(1-P.inertia);','  S.vx+=(S.homeX-x)*C.returnForce;S.vy+=(S.homeY-y)*C.returnForce;','  x+=S.vx+jx+orbitX;y+=S.vy+jy+orbitY;','  if(C.areaX>0){var dx=x-S.homeX;if(dx>C.areaX){x=S.homeX+C.areaX;S.vx=-Math.abs(S.vx)*.55;S.turnTimer=0;}else if(dx<-C.areaX){x=S.homeX-C.areaX;S.vx=Math.abs(S.vx)*.55;S.turnTimer=0;}}','  if(C.areaY>0){var dy=y-S.homeY;if(dy>C.areaY){y=S.homeY+C.areaY;S.vy=-Math.abs(S.vy)*.55;S.turnTimer=0;}else if(dy<-C.areaY){y=S.homeY-C.areaY;S.vy=Math.abs(S.vy)*.55;S.turnTimer=0;}}','  this.x=x;this.y=y;','  if(C.faceDirection && Math.abs(S.vx)+Math.abs(S.vy)>.05)this.rotation=Math.atan2(S.vy,S.vx)*180/Math.PI;','}).call(this);','// Incect END'].join('\n');}
+function createOrUpdate(){if(!currentInfo){refresh();if(!currentInfo)return;}var b=getBridge();if(!b){status('LukeToolsBridge is unavailable.','bad');return;}var existing='';try{if(typeof b.getUpdateScriptByInfo==='function')existing=b.getUpdateScriptByInfo(currentInfo)||'';}catch(e1){}if(!existing){try{if(typeof b.getUpdateScriptOnSelection==='function')existing=b.getUpdateScriptOnSelection()||'';}catch(e2){}}existing=String(existing||'').replace(/\/\/ Incect BEGIN[\s\S]*?\/\/ Incect END\n?/g,'').trim();var insect=buildScript(config());var combined=existing?(existing+'\n\n'+insect):insect;try{var res=null;if(typeof b.setUpdateScriptByInfo==='function')res=b.setUpdateScriptByInfo(currentInfo,combined);if(!res||res.ok===false){if(typeof b.setUpdateScriptOnSelection==='function')res=b.setUpdateScriptOnSelection(combined);}if(res&&res.ok===false)throw new Error(res.reason||res.error||'Bridge rejected the script');status('Incect '+(PRESETS[document.getElementById('preset').value]||PRESETS.dragonfly).label+' flight created/updated on '+(currentInfo.identifier||currentInfo.name||'selected clip')+'.','good');}catch(err){status('Could not write Incect behaviour: '+(err&&err.message?err.message:String(err)),'bad');}}
+document.getElementById('refreshBtn').addEventListener('click',refresh);document.getElementById('createBtn').addEventListener('click',createOrUpdate);document.getElementById('preset').addEventListener('change',updatePresetNote);updatePresetNote();refresh();
+})();
+</script>
+</body>
+</html>
