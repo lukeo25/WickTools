@@ -32,6 +32,7 @@
     .stop{position:absolute;width:48px;height:48px;border-radius:50%;padding:2px;background:#285a44;border:3px solid var(--green2);font-size:9px;line-height:1.05;overflow:hidden;text-overflow:ellipsis;z-index:2}
     .stop small{display:block;font:9px Consolas,monospace;opacity:.76;margin-top:2px}
     .stop.active{background:var(--green);border-color:#fff;transform:scale(1.08)}
+    .stop.preview{border-color:#fff;box-shadow:0 0 0 2px rgba(121,220,168,.42),0 0 14px rgba(121,220,168,.35)}
     .empty{display:flex;align-items:center;justify-content:center;text-align:center;height:164px;color:var(--muted);font-size:12px;line-height:1.45}
     .labelRow{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
     input{min-width:0;width:100%;padding:9px 10px;border:1px solid #4a505a;border-radius:7px;background:#101216;color:#fff}
@@ -61,7 +62,7 @@
     <div class="muted" style="margin-bottom:7px">Label the selected internal frame</div>
     <div class="labelRow"><input id="frameLabel" type="text" maxlength="64" placeholder="e.g. Normal, Select, Down, Hover"><button id="saveLabel" class="primary" type="button">Save label</button></div>
   </div>
-  <div class="hint">Choose a point to hold the Clip on that internal frame. A Clip marked as a Gizmo reopens this panel when double-clicked; Alt + double-click keeps Wick's normal Clip editing.</div>
+  <div class="hint">Hover over a Gizmo frame to preview that frame directly on the Wick stage. Move off the item to restore the Clip. Click a point to set it normally.</div>
   <div id="status">Ready. Select one Clip on the stage.</div>
 </div>
 <script>
@@ -70,7 +71,7 @@ var F_Screen = 0;
   "use strict";
 
   var MARKER="/*LUKE_FRAME_GIZMO:1*/",FAMILY_PREFIX="/*LUKE_FRAME_GIZMO_ID:",FAMILY_SUFFIX="*/";
-  var state={clip:null,lastStageClip:null,parentLayer:null,familyId:"",keepSelected:true,stops:[],signature:"",lastUUID:"",lastFrame:0};
+  var state={clip:null,lastStageClip:null,parentLayer:null,familyId:"",keepSelected:true,stops:[],signature:"",lastUUID:"",lastFrame:0,hoverPreview:null};
   var $=function(id){return document.getElementById(id);};
 
   function bridge(){
@@ -88,6 +89,37 @@ var F_Screen = 0;
     var b=bridge(),ed=editor();
     try{if(b&&typeof b.getProject==="function")return b.getProject();}catch(e0){}
     try{return ed&&ed.project?ed.project:null;}catch(e1){return null;}
+  }
+  function redrawPreview(){
+    var ed=editor(),p=project();
+    try{if(p&&p.view&&typeof p.view.render==="function")p.view.render();}catch(e0){}
+    try{if(ed&&ed.canvas&&typeof ed.canvas.render==="function")ed.canvas.render();}catch(e1){}
+    try{if(ed&&typeof ed.syncInterfaces==="function")ed.syncInterfaces();}catch(e2){}
+    try{if(ed&&typeof ed.updateUI==="function")ed.updateUI();}catch(e3){}
+  }
+  function beginHoverPreview(frame){
+    var clip=state.clip;if(!clip||state.hoverPreview)return;
+    var n=Math.max(1,Math.round(Number(frame)||1));
+    var snap={clip:clip,isSynced:false,animationType:"loop",singleFrameNumber:1,playhead:1,frame:n};
+    try{snap.isSynced=!!clip.isSynced;}catch(e0){}
+    try{snap.animationType=clip.animationType;}catch(e1){}
+    try{snap.singleFrameNumber=Number(clip.singleFrameNumber||1);}catch(e2){}
+    try{snap.playhead=Number(clip.timeline&&clip.timeline.playheadPosition||1);}catch(e3){}
+    state.hoverPreview=snap;
+    try{clip.isSynced=false;}catch(e4){}
+    try{clip.animationType="single";}catch(e5){}
+    try{clip.singleFrameNumber=n;}catch(e6){}
+    try{if(clip.timeline)clip.timeline.playheadPosition=n;}catch(e7){}
+    redrawPreview();state.signature="";render(true);status("Previewing Gizmo frame "+n+". Move off the item to restore.","ok");
+  }
+  function endHoverPreview(){
+    var snap=state.hoverPreview;if(!snap)return;state.hoverPreview=null;
+    var clip=snap.clip;
+    try{clip.isSynced=snap.isSynced;}catch(e0){}
+    try{clip.animationType=snap.animationType;}catch(e1){}
+    try{clip.singleFrameNumber=snap.singleFrameNumber;}catch(e2){}
+    try{if(clip.timeline)clip.timeline.playheadPosition=snap.playhead;}catch(e3){}
+    redrawPreview();state.signature="";render(true);status("Preview ended. Original Gizmo frame restored.","ok");
   }
   function uniquePush(list,obj){if(obj&&list.indexOf(obj)<0)list.push(obj);}
   function selectedObjects(){
@@ -213,7 +245,7 @@ var F_Screen = 0;
     state.clip=target;rememberParent(target);selectPinned();return {ok:true,clip:target,parentFrame:position,created:true};
   }
   function syncToParentPlayhead(){
-    var layer=state.parentLayer,id=state.familyId;if(!layer||!id)return;
+    var layer=state.parentLayer,id=state.familyId;if(!layer||!id||state.hoverPreview)return;
     var target=familyClipOnFrame(frameAt(layer,parentPlayhead(layer)),id);if(target&&target!==state.clip){state.clip=target;rememberParent(target);state.signature="";}
   }
   function currentFrame(clip){
@@ -260,6 +292,7 @@ var F_Screen = 0;
   }
   function status(text,type){var box=$("status");box.textContent=text;box.className=type||"";}
   function setFrame(frame){
+    endHoverPreview();
     var keyed=ensureParentKeyedClip(),clip=keyed.clip;if(!keyed.ok)return status(keyed.error,"error");
     var n=Math.max(1,Math.round(Number(frame)||1));
     try{clip.isSynced=false;}catch(e0){}
@@ -271,6 +304,7 @@ var F_Screen = 0;
     state.signature="";render();
   }
   function setMode(next){
+    endHoverPreview();
     var clip=state.clip;if(!clip)return status("Select one Clip first.","error");
     try{
       if(next==="single"){
@@ -332,7 +366,9 @@ var F_Screen = 0;
       var button=document.createElement("button");button.type="button";button.className="stop"+(stop.frame===activeStopFrame?" active":"");
       button.style.left=Math.round(cx+Math.cos(a)*r-24)+"px";button.style.top=Math.round(cy+Math.sin(a)*r-24)+"px";
       var text=stop.named?stop.label:("Fr "+stop.frame);if(text.length>11)text=text.slice(0,10)+"…";
-      button.innerHTML=text+'<small>Fr '+stop.frame+'</small>';button.title=(stop.named?stop.label+" — ":"")+"Frame "+stop.frame;
+      button.innerHTML=text+'<small>Fr '+stop.frame+'</small>';button.title=(stop.named?stop.label+" — ":"")+"Frame "+stop.frame+" · hover to preview";
+      button.addEventListener("mouseenter",function(){button.classList.add("preview");beginHoverPreview(stop.frame);});
+      button.addEventListener("mouseleave",function(){button.classList.remove("preview");endHoverPreview();});
       button.addEventListener("click",function(){setFrame(stop.frame);});dial.appendChild(button);
     });
     if(stops.length>shown.length){var note=document.createElement("div");note.className="muted";note.style.cssText="position:absolute;left:0;right:0;bottom:0;text-align:center";note.textContent="First 12 of "+stops.length+" key frames shown";dial.appendChild(note);}
@@ -342,6 +378,7 @@ var F_Screen = 0;
     return null;
   }
   function useSelected(){
+    endHoverPreview();
     var clip=selectedClip()||state.lastStageClip;
     if(!clip)return status("Select one Clip on the Wick stage first.","error");
     state.clip=clip;state.lastStageClip=clip;state.parentLayer=null;state.familyId=readFamilyId(clip);rememberParent(clip);state.signature="";render(true);selectPinned();status("Using "+clipName(clip)+".","ok");
@@ -351,16 +388,17 @@ var F_Screen = 0;
     if(incoming){state.clip=incoming;state.lastStageClip=incoming;rememberParent(incoming);}
     if(clip)state.lastStageClip=clip;
     if(!state.clip)state.clip=clip||state.lastStageClip;
-    else if(!state.keepSelected&&clip){state.clip=clip;rememberParent(clip);}
+    else if(!state.keepSelected&&clip&&!state.hoverPreview){state.clip=clip;rememberParent(clip);}
     rememberParent(state.clip);syncToParentPlayhead();
     state.stops=state.clip?collectStops(state.clip):[];
     var uuid="";try{uuid=state.clip&&state.clip.uuid||"";}catch(e0){}
     var active=state.clip?currentFrame(state.clip):0,m=mode(state.clip);
     var gizmo=hasGizmoStatus(state.clip);
-    var sig=[uuid,active,m,gizmo,state.keepSelected,state.stops.map(function(s){return s.frame+":"+s.label;}).join("|")].join("~");
+    var previewFrame=state.hoverPreview?state.hoverPreview.frame:0;
+    var sig=[uuid,active,m,gizmo,state.keepSelected,previewFrame,state.stops.map(function(s){return s.frame+":"+s.label;}).join("|")].join("~");
     if(!force&&sig===state.signature)return;state.signature=sig;
-    $("clipName").textContent=clipName(state.clip);$("modeBadge").textContent=m;
-    $("frameReadout").textContent=state.clip?("Gizmo "+active+" of "+Math.max(1,Number(state.clip.timeline&&state.clip.timeline.length)||1)+(state.parentLayer?" · Timeline "+parentPlayhead(state.parentLayer):"")):"No Clip selected";
+    $("clipName").textContent=clipName(state.clip);$("modeBadge").textContent=state.hoverPreview?"Preview":m;
+    $("frameReadout").textContent=state.clip?((state.hoverPreview?"Preview ":"Gizmo ")+active+" of "+Math.max(1,Number(state.clip.timeline&&state.clip.timeline.length)||1)+(state.parentLayer?" · Timeline "+parentPlayhead(state.parentLayer):"")):"No Clip selected";
     renderDial(state.stops,active);
     var stop=null;state.stops.forEach(function(candidate){if(candidate.frame<=active)stop=candidate;});$("frameLabel").value=stop&&stop.named?stop.label:"";
     ["previous","next","single","follow","loop","saveLabel","keepSelected","gizmoStatus"].forEach(function(id){$(id).disabled=!state.clip;});
@@ -372,8 +410,8 @@ var F_Screen = 0;
   }
 
   $("useSelected").addEventListener("click",useSelected);
-  $("keepSelected").addEventListener("click",function(){state.keepSelected=!state.keepSelected;state.signature="";render(true);selectPinned();status(state.keepSelected?"This Clip will remain selected while the Gizmo tool is open.":"Selection lock released.","ok");});
-  $("gizmoStatus").addEventListener("click",function(){setGizmoStatus(!hasGizmoStatus(state.clip));});
+  $("keepSelected").addEventListener("click",function(){endHoverPreview();state.keepSelected=!state.keepSelected;state.signature="";render(true);selectPinned();status(state.keepSelected?"This Clip will remain selected while the Gizmo tool is open.":"Selection lock released.","ok");});
+  $("gizmoStatus").addEventListener("click",function(){endHoverPreview();setGizmoStatus(!hasGizmoStatus(state.clip));});
   $("previous").addEventListener("click",function(){neighbouring(-1);});
   $("next").addEventListener("click",function(){neighbouring(1);});
   $("single").addEventListener("click",function(){setMode("single");});
@@ -382,6 +420,7 @@ var F_Screen = 0;
   $("saveLabel").addEventListener("click",saveLabel);
   $("frameLabel").addEventListener("keydown",function(event){if(event.key==="Enter")saveLabel();});
   document.addEventListener("pointerdown",function(){setTimeout(selectPinned,0);},true);
+  window.addEventListener("blur",endHoverPreview);
 
   function installHost(){
     var host=null;try{host=window.parent;}catch(e0){}if(!host)return;
@@ -412,7 +451,7 @@ var F_Screen = 0;
       };
       host.document.addEventListener("mousedown",service.handle,true);host.document.addEventListener("dblclick",service.handle,true);
     }
-    var api={alive:function(){try{return !!(window.frameElement&&window.frameElement.isConnected);}catch(e){return false;}},resume:function(clip){if(isClip(clip)){state.clip=clip;state.lastStageClip=clip;state.parentLayer=null;state.familyId=readFamilyId(clip);rememberParent(clip);service.pending=null;state.signature="";render(true);selectPinned();status("Gizmo reopened for "+clipName(clip)+".","ok");}return true;}};
+    var api={alive:function(){try{return !!(window.frameElement&&window.frameElement.isConnected);}catch(e){return false;}},resume:function(clip){endHoverPreview();if(isClip(clip)){state.clip=clip;state.lastStageClip=clip;state.parentLayer=null;state.familyId=readFamilyId(clip);rememberParent(clip);service.pending=null;state.signature="";render(true);selectPinned();status("Gizmo reopened for "+clipName(clip)+".","ok");}return true;}};
     service.panel=api;
   }
 
