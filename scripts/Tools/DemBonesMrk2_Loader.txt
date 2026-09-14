@@ -12,7 +12,8 @@ function once(s,a,b,n){var i=s.indexOf(a);if(i<0)throw new Error('Missing guide 
 function patchLoader(src){
   var inject = String.raw`
 
-    // FIX v18.224_GPT: local bend-guide mesh controls
+    // FIX v18.225_GPT: local bend-guide mesh controls
+    function once(s,a,b,n){var i=s.indexOf(a);if(i<0)throw new Error('Missing guide patch anchor: '+n);return s.slice(0,i)+b+s.slice(i+a.length);} // FIX v18.225_GPT
     html=html.replace(
       '<div class="notice small">PNG smoothing now smooths the deformation field rather than shrinking the mesh itself. This reduces dents and kinks while preserving the source shape.</div>',
       '<div class="notice small">PNG smoothing now smooths the deformation field rather than shrinking the mesh itself. This reduces dents and kinks while preserving the source shape.</div>'+ 
