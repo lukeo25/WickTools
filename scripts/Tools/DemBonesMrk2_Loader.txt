@@ -6,7 +6,7 @@
 <script>
 (function(){
   'use strict';
-  var SOURCE='https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2.txt?v=pngmesh-2';
+  var SOURCE='https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2.txt?v=pngmesh-3';
   function fail(msg){var e=document.getElementById('ltLoadStatus');if(e)e.textContent='Dem Bones Mrk2 patch failed: '+msg;}
   function replaceOne(s,oldText,newText,label){
     var i=s.indexOf(oldText);
@@ -14,7 +14,10 @@
     return s.slice(0,i)+newText+s.slice(i+oldText.length);
   }
   function patch(html){
-    html=html.replace(/<button id="btnLoadImage" class="secondary">Load SVG<\/button>/g,'<button id="btnLoadImage" class="secondary">Load SVG / PNG</button>');
+    html=html.replace(
+      '<div class="row rowButtonsSym_Claude cols3" style="margin-top:8px;"> <!-- FIX Claude_10-07-2026_V8: symmetric grid, matches tabs/mcTopActions -->\n            <button id="btnSetArea">Set Area</button>\n            <button id="btnLoadImage" class="secondary">Load SVG</button>\n            <button id="btnAddDummyArea" class="secondary">Add Dummy</button> <!-- FIX v18.182_GPT -->\n          </div>',
+      '<div class="row rowButtonsSym_Claude cols4" style="margin-top:8px;"> <!-- FIX v18.222_GPT -->\n            <button id="btnSetArea">Set Area</button>\n            <button id="btnLoadImage" class="secondary">Load SVG</button>\n            <button id="btnLoadPng" class="secondary">Load PNG</button>\n            <button id="btnAddDummyArea" class="secondary">Add Dummy</button> <!-- FIX v18.182_GPT -->\n          </div>'
+    );
     html=html.replace(/<input type="file" id="fileImageLoader" accept="\.svg,image\/svg\+xml" style="display:none;">/g,'<input type="file" id="fileImageLoader" accept=".svg,image/svg+xml,.png,image/png" style="display:none;">');
     html=html.replace(/<div class="row"><label>Loaded SVG<\/label><div id="sourceInfo" class="small">No SVG loaded<\/div><\/div>/g,
       '<div class="row"><label>Loaded source</label><div id="sourceInfo" class="small">No source loaded</div></div>'+
@@ -35,6 +38,10 @@
       "applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: loaded.isPng ? 'local-png' : 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX v18.221_GPT");
     html=html.replace(/SVG file input not found\./g,'SVG / PNG file input not found.');
     html=html.replace(/Choose the SVG for this area/g,'Choose the SVG or PNG for this area');
+
+    var oldSvgClick="el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } promptLocalImageFile(); }); // FIX v6.0";
+    var newClicks="el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } var inp=el('fileImageLoader'); if(inp) inp.accept='.svg,image/svg+xml'; promptLocalImageFile(); }); // FIX v18.222_GPT\n    if (el('btnLoadPng')) el('btnLoadPng').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } var inp=el('fileImageLoader'); if(inp) inp.accept='.png,image/png'; promptLocalImageFile(); }); // FIX v18.222_GPT";
+    html=replaceOne(html,oldSvgClick,newClicks,'separate SVG/PNG buttons');
 
     var warpOld="function buildWarpedVertices(pose){\n    var rest = buildRestVertices();\n    return rest.map(function(p){ return skinPointByPose(p, pose); });\n  }";
     if(html.indexOf(warpOld)<0) warpOld="function buildWarpedVertices(pose){\r\n    var rest = buildRestVertices();\r\n    return rest.map(function(p){ return skinPointByPose(p, pose); });\r\n  }";
