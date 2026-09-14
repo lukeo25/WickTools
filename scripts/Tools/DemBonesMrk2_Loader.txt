@@ -6,7 +6,7 @@
 <script>
 (function(){
   'use strict';
-  var SOURCE='https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2.txt?v=pngmesh-3';
+  var SOURCE='https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2.txt?v=pngmesh-4';
   function fail(msg){var e=document.getElementById('ltLoadStatus');if(e)e.textContent='Dem Bones Mrk2 patch failed: '+msg;}
   function replaceOne(s,oldText,newText,label){
     var i=s.indexOf(oldText);
@@ -21,21 +21,24 @@
     html=html.replace(/<input type="file" id="fileImageLoader" accept="\.svg,image\/svg\+xml" style="display:none;">/g,'<input type="file" id="fileImageLoader" accept=".svg,image/svg+xml,.png,image/png" style="display:none;">');
     html=html.replace(/<div class="row"><label>Loaded SVG<\/label><div id="sourceInfo" class="small">No SVG loaded<\/div><\/div>/g,
       '<div class="row"><label>Loaded source</label><div id="sourceInfo" class="small">No source loaded</div></div>'+
-      '\n          <div class="row"><label>Mesh smoothing</label><input type="range" id="rngMeshSmooth" min="0" max="100" step="1" value="0"><span id="txtMeshSmooth" class="small">0%</span></div>'+
+      '\n          <div class="row"><label>Mesh smoothing</label><input type="range" id="rngMeshSmooth" min="0" max="100" step="1" value="20"><span id="txtMeshSmooth" class="small">20%</span></div>'+
       '\n          <div class="row rowButtonsSym_Claude cols1"><button id="btnSmoothMesh" class="secondary">Smooth Mesh</button></div>'+
-      '\n          <div class="notice small">PNG sources use the deformable grid mesh. Mesh smoothing relaxes interior warped vertices while preserving the outside edge.</div>');
+      '\n          <div class="notice small">PNG smoothing now smooths the deformation field rather than shrinking the mesh itself. This reduces dents and kinks while preserving the source shape.</div>');
 
-    html=html.replace(/grid:\s*\{\s*cols:\s*18,\s*rows:\s*18,\s*resolution:\s*18\s*\}/g,'grid: { cols: 18, rows: 18, resolution: 18, smooth: 0 }');
+    html=html.replace(/grid:\s*\{\s*cols:\s*18,\s*rows:\s*18,\s*resolution:\s*18\s*\}/g,'grid: { cols: 18, rows: 18, resolution: 18, smooth: 0.20 }');
 
     var loaderAnchor="function loadImageFromFile(file){ // FIX v7.2\n    return new Promise(function(resolve, reject){\n      try {";
     if(html.indexOf(loaderAnchor)<0){
       loaderAnchor="function loadImageFromFile(file){ // FIX v7.2\r\n    return new Promise(function(resolve, reject){\r\n      try {";
     }
-    var pngCode=loaderAnchor+"\n        var isPng = !!(file && (((file.type || '').toLowerCase() === 'image/png') || /\\.png$/i.test(file.name || ''))); // FIX v18.221_GPT\n        if (isPng) {\n          var pngReader = new FileReader();\n          pngReader.onerror = function(){ reject(new Error('Could not read PNG file.')); };\n          pngReader.onload = function(){\n            try {\n              var pngDataUrl = String(pngReader.result || '');\n              var pngImage = new Image();\n              pngImage.onload = function(){\n                resolve({dataUrl:pngDataUrl,image:pngImage,fileName:String(file.name||'image.png'),svgRaw:'',svgNative:null,width:Math.max(1,pngImage.naturalWidth||pngImage.width||1),height:Math.max(1,pngImage.naturalHeight||pngImage.height||1),isPng:true});\n              };\n              pngImage.onerror = function(){ reject(new Error('Could not decode PNG image.')); };\n              pngImage.src = pngDataUrl;\n            } catch(ePng) { reject(ePng); }\n          };\n          pngReader.readAsDataURL(file);\n          return;\n        }";
+    var pngCode=loaderAnchor+"\n        var isPng = !!(file && (((file.type || '').toLowerCase() === 'image/png') || /\\.png$/i.test(file.name || ''))); // FIX v18.223_GPT\n        if (isPng) {\n          var pngReader = new FileReader();\n          pngReader.onerror = function(){ reject(new Error('Could not read PNG file.')); };\n          pngReader.onload = function(){\n            try {\n              var pngDataUrl = String(pngReader.result || '');\n              var pngImage = new Image();\n              pngImage.onload = function(){\n                resolve({dataUrl:pngDataUrl,image:pngImage,fileName:String(file.name||'image.png'),svgRaw:'',svgNative:null,width:Math.max(1,pngImage.naturalWidth||pngImage.width||1),height:Math.max(1,pngImage.naturalHeight||pngImage.height||1),isPng:true});\n              };\n              pngImage.onerror = function(){ reject(new Error('Could not decode PNG image.')); };\n              pngImage.src = pngDataUrl;\n            } catch(ePng) { reject(ePng); }\n          };\n          pngReader.readAsDataURL(file);\n          return;\n        }";
     html=replaceOne(html,loaderAnchor,pngCode,'PNG loader');
     html=html.replace("reject(new Error('This tool only accepts SVG files, including normal SVG and Inkscape SVG.'));","reject(new Error('This tool accepts SVG and PNG files.'));" );
-    html=html.replace("applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX v7.5",
-      "applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: loaded.isPng ? 'local-png' : 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX v18.221_GPT");
+
+    var applyOld="applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX v7.5";
+    var applyNew="applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: loaded.isPng ? 'local-png' : 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX v18.223_GPT\n      if (loaded.isPng) { App.grid.resolution = 32; App.grid.cols = 32; App.grid.rows = 32; App.grid.smooth = 0.20; try { buildAlphaMask(); } catch(eMask){} } // FIX v18.223_GPT";
+    html=replaceOne(html,applyOld,applyNew,'PNG mesh defaults');
+
     html=html.replace(/SVG file input not found\./g,'SVG / PNG file input not found.');
     html=html.replace(/Choose the SVG for this area/g,'Choose the SVG or PNG for this area');
 
@@ -45,15 +48,15 @@
 
     var warpOld="function buildWarpedVertices(pose){\n    var rest = buildRestVertices();\n    return rest.map(function(p){ return skinPointByPose(p, pose); });\n  }";
     if(html.indexOf(warpOld)<0) warpOld="function buildWarpedVertices(pose){\r\n    var rest = buildRestVertices();\r\n    return rest.map(function(p){ return skinPointByPose(p, pose); });\r\n  }";
-    var warpNew="function buildWarpedVertices(pose){\n    var rest = buildRestVertices();\n    var warped = rest.map(function(p){ return skinPointByPose(p, pose); });\n    var amount = clamp(Number(App.grid && App.grid.smooth || 0), 0, 1); // FIX v18.221_GPT\n    if (amount <= 0 || !App.grid || App.grid.cols < 2 || App.grid.rows < 2) return warped;\n    var cols = App.grid.cols, rows = App.grid.rows;\n    var passes = Math.max(1, Math.round(1 + amount * 3));\n    var strength = Math.min(0.48, 0.16 + amount * 0.32);\n    for (var pass = 0; pass < passes; pass++) {\n      var prev = warped.map(function(v){ return {x:v.x,y:v.y}; });\n      var next = warped.map(function(v){ return {x:v.x,y:v.y}; });\n      for (var gy = 1; gy < rows; gy++) {\n        for (var gx = 1; gx < cols; gx++) {\n          var i = vertexIndex(gx, gy);\n          var l = prev[vertexIndex(gx-1,gy)], r = prev[vertexIndex(gx+1,gy)], u = prev[vertexIndex(gx,gy-1)], d = prev[vertexIndex(gx,gy+1)];\n          var ax=(l.x+r.x+u.x+d.x)*0.25, ay=(l.y+r.y+u.y+d.y)*0.25;\n          next[i].x=prev[i].x+(ax-prev[i].x)*strength;\n          next[i].y=prev[i].y+(ay-prev[i].y)*strength;\n        }\n      }\n      warped=next;\n    }\n    return warped;\n  }";
-    html=replaceOne(html,warpOld,warpNew,'mesh smoothing');
+    var warpNew="function buildWarpedVertices(pose){\n    var rest = buildRestVertices();\n    var warped = rest.map(function(p){ return skinPointByPose(p, pose); });\n    var amount = clamp(Number(App.grid && App.grid.smooth || 0), 0, 1); // FIX v18.223_GPT\n    if (amount <= 0 || !App.grid || App.grid.cols < 2 || App.grid.rows < 2) return warped;\n    var cols = App.grid.cols, rows = App.grid.rows;\n    var disp = warped.map(function(v,i){ return {x:v.x-rest[i].x,y:v.y-rest[i].y}; });\n    var passes = Math.max(1, Math.round(1 + amount * 4));\n    var strength = Math.min(0.40, 0.10 + amount * 0.30);\n    for (var pass = 0; pass < passes; pass++) {\n      var prev = disp.map(function(v){ return {x:v.x,y:v.y}; });\n      var next = disp.map(function(v){ return {x:v.x,y:v.y}; });\n      for (var gy = 1; gy < rows; gy++) {\n        for (var gx = 1; gx < cols; gx++) {\n          var i = vertexIndex(gx, gy);\n          var l = prev[vertexIndex(gx-1,gy)], r = prev[vertexIndex(gx+1,gy)], u = prev[vertexIndex(gx,gy-1)], d = prev[vertexIndex(gx,gy+1)];\n          var ax=(l.x+r.x+u.x+d.x)*0.25, ay=(l.y+r.y+u.y+d.y)*0.25;\n          next[i].x=prev[i].x+(ax-prev[i].x)*strength;\n          next[i].y=prev[i].y+(ay-prev[i].y)*strength;\n        }\n      }\n      disp=next;\n    }\n    return rest.map(function(p,i){ return {x:p.x+disp[i].x,y:p.y+disp[i].y}; });\n  }";
+    html=replaceOne(html,warpOld,warpNew,'deformation-field smoothing');
 
     var uiAnchor="if (el('rngGridResolution')) el('rngGridResolution').value = String(App.grid.resolution); // FIX v4.7";
-    var uiNew=uiAnchor+"\n    if (el('rngMeshSmooth')) el('rngMeshSmooth').value = String(Math.round(clamp(Number(App.grid.smooth || 0),0,1)*100)); // FIX v18.221_GPT\n    if (el('txtMeshSmooth')) el('txtMeshSmooth').textContent = Math.round(clamp(Number(App.grid.smooth || 0),0,1)*100) + '%'; // FIX v18.221_GPT";
+    var uiNew=uiAnchor+"\n    if (el('rngMeshSmooth')) el('rngMeshSmooth').value = String(Math.round(clamp(Number(App.grid.smooth || 0),0,1)*100)); // FIX v18.223_GPT\n    if (el('txtMeshSmooth')) el('txtMeshSmooth').textContent = Math.round(clamp(Number(App.grid.smooth || 0),0,1)*100) + '%'; // FIX v18.223_GPT";
     html=replaceOne(html,uiAnchor,uiNew,'mesh UI readout');
 
     var evtAnchor="if (el('chkShowMesh')) el('chkShowMesh').addEventListener('change', function(){ App.flags.showMesh = !!this.checked; renderOverlay(); }); // FIX v13.5";
-    var evtNew=evtAnchor+"\n    if (el('rngMeshSmooth')) el('rngMeshSmooth').addEventListener('input', function(){ App.grid.smooth=clamp((parseInt(this.value,10)||0)/100,0,1); updateUI(); renderOverlay(); }); // FIX v18.221_GPT\n    if (el('btnSmoothMesh')) el('btnSmoothMesh').addEventListener('click', function(){ App.grid.smooth=clamp(Number(App.grid.smooth||0)+0.15,0,1); updateUI(); renderOverlay(); log('Mesh smoothing: '+Math.round(App.grid.smooth*100)+'%. Outer boundary preserved.'); }); // FIX v18.221_GPT";
+    var evtNew=evtAnchor+"\n    if (el('rngMeshSmooth')) el('rngMeshSmooth').addEventListener('input', function(){ App.grid.smooth=clamp((parseInt(this.value,10)||0)/100,0,1); updateUI(); renderOverlay(); }); // FIX v18.223_GPT\n    if (el('btnSmoothMesh')) el('btnSmoothMesh').addEventListener('click', function(){ App.grid.smooth=clamp(Number(App.grid.smooth||0)+0.10,0,1); updateUI(); renderOverlay(); log('Deformation smoothing: '+Math.round(App.grid.smooth*100)+'%. Source shape preserved.'); }); // FIX v18.223_GPT";
     html=replaceOne(html,evtAnchor,evtNew,'mesh events');
 
     return html;
