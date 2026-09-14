@@ -6,7 +6,7 @@
 <script>
 (function(){
   'use strict';
-  var SOURCE='https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2.txt?v=pngmesh-1';
+  var SOURCE='https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2.txt?v=pngmesh-2';
   function fail(msg){var e=document.getElementById('ltLoadStatus');if(e)e.textContent='Dem Bones Mrk2 patch failed: '+msg;}
   function replaceOne(s,oldText,newText,label){
     var i=s.indexOf(oldText);
@@ -17,9 +17,9 @@
     html=html.replace(/<button id="btnLoadImage" class="secondary">Load SVG<\/button>/g,'<button id="btnLoadImage" class="secondary">Load SVG / PNG</button>');
     html=html.replace(/<input type="file" id="fileImageLoader" accept="\.svg,image\/svg\+xml" style="display:none;">/g,'<input type="file" id="fileImageLoader" accept=".svg,image/svg+xml,.png,image/png" style="display:none;">');
     html=html.replace(/<div class="row"><label>Loaded SVG<\/label><div id="sourceInfo" class="small">No SVG loaded<\/div><\/div>/g,
-      '<div class="row"><label>Loaded source</label><div id="sourceInfo" class="small">No source loaded</div></div>'+\
-      '\n          <div class="row"><label>Mesh smoothing</label><input type="range" id="rngMeshSmooth" min="0" max="100" step="1" value="0"><span id="txtMeshSmooth" class="small">0%</span></div>'+\
-      '\n          <div class="row rowButtonsSym_Claude cols1"><button id="btnSmoothMesh" class="secondary">Smooth Mesh</button></div>'+\
+      '<div class="row"><label>Loaded source</label><div id="sourceInfo" class="small">No source loaded</div></div>'+
+      '\n          <div class="row"><label>Mesh smoothing</label><input type="range" id="rngMeshSmooth" min="0" max="100" step="1" value="0"><span id="txtMeshSmooth" class="small">0%</span></div>'+
+      '\n          <div class="row rowButtonsSym_Claude cols1"><button id="btnSmoothMesh" class="secondary">Smooth Mesh</button></div>'+
       '\n          <div class="notice small">PNG sources use the deformable grid mesh. Mesh smoothing relaxes interior warped vertices while preserving the outside edge.</div>');
 
     html=html.replace(/grid:\s*\{\s*cols:\s*18,\s*rows:\s*18,\s*resolution:\s*18\s*\}/g,'grid: { cols: 18, rows: 18, resolution: 18, smooth: 0 }');
