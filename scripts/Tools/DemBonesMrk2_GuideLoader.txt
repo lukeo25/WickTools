@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Dem Bones Mrk2</title></head>
+<body style="margin:0;background:#111;color:#ddd;font-family:Arial,sans-serif">
+<div id="ltGuideLoadStatus" style="padding:14px;font-size:12px">Loading Dem Bones Mrk2…</div>
+<script>
+(function(){
+'use strict';
+var BASE='https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_Loader.txt?v=guidebase-1';
+function fail(m){var e=document.getElementById('ltGuideLoadStatus');if(e)e.textContent='Dem Bones Mrk2 guide patch failed: '+m;}
+function once(s,a,b,n){var i=s.indexOf(a);if(i<0)throw new Error('Missing guide patch anchor: '+n);return s.slice(0,i)+b+s.slice(i+a.length);}
+function patchLoader(src){
+  var inject = String.raw`
+
+    // FIX v18.224_GPT: local bend-guide mesh controls
+    html=html.replace(
+      '<div class="notice small">PNG smoothing now smooths the deformation field rather than shrinking the mesh itself. This reduces dents and kinks while preserving the source shape.</div>',
+      '<div class="notice small">PNG smoothing now smooths the deformation field rather than shrinking the mesh itself. This reduces dents and kinks while preserving the source shape.</div>'+ 
+      '\n          <div class="section softSection" style="margin-top:10px;">'+
+      '\n            <h3>Bend Guides</h3>'+
+      '\n            <div class="notice small">Draw one or more guide lines across elbows, knees, wrists or any place that needs a cleaner bend. Mesh points are concentrated toward the nearest guide and Relax softens the deformation outward from the guide.</div>'+
+      '\n            <div class="row rowButtonsSym_Claude cols2"><button id="btnAddMeshGuide" class="secondary">Draw Bend Guide</button><button id="btnClearMeshGuides" class="warn">Clear Guides</button></div>'+
+      '\n            <div class="row"><label>Guide density</label><input type="range" id="rngMeshGuideDensity" min="0" max="100" step="1" value="65"><span id="txtMeshGuideDensity" class="small">65%</span></div>'+
+      '\n            <div class="row"><label>Relax from guide</label><input type="range" id="rngMeshGuideRelax" min="0" max="100" step="1" value="55"><span id="txtMeshGuideRelax" class="small">55%</span></div>'+
+      '\n            <div class="row"><label>Influence radius</label><input type="range" id="rngMeshGuideRadius" min="10" max="220" step="2" value="80"><span id="txtMeshGuideRadius" class="small">80</span></div>'+
+      '\n            <div id="meshGuideInfo" class="small">No bend guides</div>'+
+      '\n          </div>'
+    );
+
+    html=html.replace(
+      'grid: { cols: 18, rows: 18, resolution: 18, smooth: 0.20 }',
+      'grid: { cols: 18, rows: 18, resolution: 18, smooth: 0.20, guide:{lines:[],density:0.65,relax:0.55,radius:80,current:null,drawing:false,mode:false} }'
+    );
+
+    var guideMath = "  function meshGuideState(){ if(!App.grid.guide) App.grid.guide={lines:[],density:.65,relax:.55,radius:80,current:null,drawing:false,mode:false}; if(!Array.isArray(App.grid.guide.lines)) App.grid.guide.lines=[]; return App.grid.guide; } // FIX v18.224_GPT\\n"+
+      "  function meshGuideDistance(p,g){ var lines=(g&&g.lines)||[]; var best={distance:1e9,x:p.x,y:p.y}; for(var gi=0;gi<lines.length;gi++){ var q=lines[gi],ax=Number(q.x1)||0,ay=Number(q.y1)||0,bx=Number(q.x2)||0,by=Number(q.y2)||0,dx=bx-ax,dy=by-ay,len2=dx*dx+dy*dy; if(len2<.0001)continue; var t=((p.x-ax)*dx+(p.y-ay)*dy)/len2; t=Math.max(0,Math.min(1,t)); var x=ax+dx*t,y=ay+dy*t,ddx=p.x-x,ddy=p.y-y,d=Math.sqrt(ddx*ddx+ddy*ddy); if(d<best.distance)best={distance:d,x:x,y:y}; } return best; } // FIX v18.224_GPT\\n";
+    html=once(html,'  function buildRestVertices(){',guideMath+'  function buildRestVertices(){','guide math');
+
+    html=html.replace(
+      "        verts.push({\\r\\n          x: bounds.x + (x / cols) * bounds.w, // FIX v4.9: mesh is built over the opaque image bounds instead of the full image area\\r\\n          y: bounds.y + (y / rows) * bounds.h // FIX v4.9\\r\\n        });",
+      "        var px=bounds.x+(x/cols)*bounds.w, py=bounds.y+(y/rows)*bounds.h; // FIX v18.224_GPT\\r\\n        var gg=meshGuideState();\\r\\n        if(gg.lines.length && gg.density>0 && x>0 && x<cols && y>0 && y<rows){ var md=meshGuideDistance({x:px,y:py},gg),rad=Math.max(4,Number(gg.radius)||80),fall=Math.max(0,1-md.distance/rad); if(fall>0){ var pull=Math.min(.52,Number(gg.density)||0)*fall*fall; px+=(md.x-px)*pull; py+=(md.y-py)*pull; } }\\r\\n        verts.push({x:px,y:py});"
+    );
+    html=html.replace(
+      "        verts.push({\\n          x: bounds.x + (x / cols) * bounds.w, // FIX v4.9: mesh is built over the opaque image bounds instead of the full image area\\n          y: bounds.y + (y / rows) * bounds.h // FIX v4.9\\n        });",
+      "        var px=bounds.x+(x/cols)*bounds.w, py=bounds.y+(y/rows)*bounds.h; // FIX v18.224_GPT\\n        var gg=meshGuideState();\\n        if(gg.lines.length && gg.density>0 && x>0 && x<cols && y>0 && y<rows){ var md=meshGuideDistance({x:px,y:py},gg),rad=Math.max(4,Number(gg.radius)||80),fall=Math.max(0,1-md.distance/rad); if(fall>0){ var pull=Math.min(.52,Number(gg.density)||0)*fall*fall; px+=(md.x-px)*pull; py+=(md.y-py)*pull; } }\\n        verts.push({x:px,y:py});"
+    );
+
+    html=html.replace(
+      '          next[i].x=prev[i].x+(ax-prev[i].x)*strength;\\n          next[i].y=prev[i].y+(ay-prev[i].y)*strength;',
+      '          var localStrength=strength,gg2=meshGuideState();\\n          if(gg2.lines.length && gg2.relax>0){ var md2=meshGuideDistance(rest[i],gg2),rad2=Math.max(4,Number(gg2.radius)||80),fall2=Math.max(0,1-md2.distance/rad2); localStrength=Math.max(localStrength,Math.min(.58,Number(gg2.relax)||0)*fall2*fall2); }\\n          next[i].x=prev[i].x+(ax-prev[i].x)*localStrength;\\n          next[i].y=prev[i].y+(ay-prev[i].y)*localStrength;'
+    );
+
+    var guideFns = "  function meshGuideLocalToClient(p){ var r=App.overlay&&App.overlay.root&&App.overlay.root.getBoundingClientRect(); if(!r)return {x:0,y:0}; var b=App.overlay.previewBounds||{width:App.source.width||1,height:App.source.height||1,offsetX:0,offsetY:0}; return {x:r.left+((p.x+(b.offsetX||0))/Math.max(1,b.width))*r.width,y:r.top+((p.y+(b.offsetY||0))/Math.max(1,b.height))*r.height}; } // FIX v18.224_GPT\\n"+
+      "  function removeMeshGuideVisual(){ try{var d=window.parent.document,n=d.getElementById('ltMeshGuideSvg');if(n&&n.parentNode)n.parentNode.removeChild(n);}catch(e){} }\\n"+
+      "  function updateMeshGuideVisual(){ try{var g=meshGuideState(),d=window.parent.document;if(!g.lines.length&&!g.current){removeMeshGuideVisual();return;}var svg=d.getElementById('ltMeshGuideSvg');if(!svg){svg=d.createElementNS('http://www.w3.org/2000/svg','svg');svg.id='ltMeshGuideSvg';svg.style.cssText='position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:950;overflow:visible';d.body.appendChild(svg);}while(svg.firstChild)svg.removeChild(svg.firstChild);var arr=g.lines.slice();if(g.current)arr.push(g.current);for(var i=0;i<arr.length;i++){var q=arr[i],a=meshGuideLocalToClient({x:q.x1,y:q.y1}),b=meshGuideLocalToClient({x:q.x2,y:q.y2}),band=d.createElementNS('http://www.w3.org/2000/svg','line');band.setAttribute('x1',a.x);band.setAttribute('y1',a.y);band.setAttribute('x2',b.x);band.setAttribute('y2',b.y);band.setAttribute('stroke','rgba(0,220,255,.12)');band.setAttribute('stroke-width',Math.max(12,(Number(g.radius)||80)*.45));band.setAttribute('stroke-linecap','round');svg.appendChild(band);var line=d.createElementNS('http://www.w3.org/2000/svg','line');line.setAttribute('x1',a.x);line.setAttribute('y1',a.y);line.setAttribute('x2',b.x);line.setAttribute('y2',b.y);line.setAttribute('stroke','#00e5ff');line.setAttribute('stroke-width','3');line.setAttribute('stroke-dasharray','8 5');svg.appendChild(line);} }catch(e){} } // FIX v18.224_GPT\\n"+
+      "  function beginMeshGuideDraw(){ var g=meshGuideState();if(!App.overlay||!App.overlay.root){log('Load a source and show the overlay first.');return;}g.mode=true;g.current=null;var d=window.parent.document;function inside(ev){var r=App.overlay.root.getBoundingClientRect();return ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom;}function down(ev){if(!inside(ev))return;ev.preventDefault();ev.stopImmediatePropagation();var p=clientToOverlayLocal(ev.clientX,ev.clientY);g.drawing=true;g.current={x1:p.x,y1:p.y,x2:p.x,y2:p.y};updateMeshGuideVisual();}function move(ev){if(!g.drawing||!g.current)return;ev.preventDefault();ev.stopImmediatePropagation();var p=clientToOverlayLocal(ev.clientX,ev.clientY);g.current.x2=p.x;g.current.y2=p.y;updateMeshGuideVisual();}function up(ev){if(!g.drawing)return;ev.preventDefault();ev.stopImmediatePropagation();g.drawing=false;if(g.current){var dx=g.current.x2-g.current.x1,dy=g.current.y2-g.current.y1;if(Math.sqrt(dx*dx+dy*dy)>4)g.lines.push(g.current);}g.current=null;g.mode=false;d.removeEventListener('mousedown',down,true);d.removeEventListener('mousemove',move,true);d.removeEventListener('mouseup',up,true);updateMeshGuideVisual();renderOverlay();updateUI();log('Bend guide added. Mesh density and relax now follow the guide.');}d.addEventListener('mousedown',down,true);d.addEventListener('mousemove',move,true);d.addEventListener('mouseup',up,true);log('Draw a line across the bend area on the stage.'); } // FIX v18.224_GPT\\n"+
+      "  function clearMeshGuides(){var g=meshGuideState();g.lines=[];g.current=null;g.drawing=false;g.mode=false;removeMeshGuideVisual();renderOverlay();updateUI();log('Bend guides cleared.');} // FIX v18.224_GPT\\n\\n";
+    html=once(html,'  function onOverlayMouseDown(e){',guideFns+'  function onOverlayMouseDown(e){','guide interaction');
+
+    html=html.replace(
+      "    if (el('txtMeshSmooth')) el('txtMeshSmooth').textContent = Math.round(clamp(Number(App.grid.smooth || 0),0,1)*100) + '%'; // FIX v18.223_GPT",
+      "    if (el('txtMeshSmooth')) el('txtMeshSmooth').textContent = Math.round(clamp(Number(App.grid.smooth || 0),0,1)*100) + '%'; // FIX v18.223_GPT\\n    var gUI=meshGuideState(); if(el('rngMeshGuideDensity'))el('rngMeshGuideDensity').value=String(Math.round(gUI.density*100)); if(el('txtMeshGuideDensity'))el('txtMeshGuideDensity').textContent=Math.round(gUI.density*100)+'%'; if(el('rngMeshGuideRelax'))el('rngMeshGuideRelax').value=String(Math.round(gUI.relax*100)); if(el('txtMeshGuideRelax'))el('txtMeshGuideRelax').textContent=Math.round(gUI.relax*100)+'%'; if(el('rngMeshGuideRadius'))el('rngMeshGuideRadius').value=String(Math.round(gUI.radius)); if(el('txtMeshGuideRadius'))el('txtMeshGuideRadius').textContent=String(Math.round(gUI.radius)); if(el('meshGuideInfo'))el('meshGuideInfo').textContent=gUI.lines.length?(gUI.lines.length+' bend guide'+(gUI.lines.length===1?'':'s')+' active'):'No bend guides'; updateMeshGuideVisual(); // FIX v18.224_GPT"
+    );
+
+    html=html.replace(
+      "    if (el('btnSmoothMesh')) el('btnSmoothMesh').addEventListener('click', function(){ App.grid.smooth=clamp(Number(App.grid.smooth||0)+0.10,0,1); updateUI(); renderOverlay(); log('Deformation smoothing: '+Math.round(App.grid.smooth*100)+'%. Source shape preserved.'); }); // FIX v18.223_GPT",
+      "    if (el('btnSmoothMesh')) el('btnSmoothMesh').addEventListener('click', function(){ App.grid.smooth=clamp(Number(App.grid.smooth||0)+0.10,0,1); updateUI(); renderOverlay(); log('Deformation smoothing: '+Math.round(App.grid.smooth*100)+'%. Source shape preserved.'); }); // FIX v18.223_GPT\\n    if(el('btnAddMeshGuide'))el('btnAddMeshGuide').addEventListener('click',beginMeshGuideDraw); if(el('btnClearMeshGuides'))el('btnClearMeshGuides').addEventListener('click',clearMeshGuides); if(el('rngMeshGuideDensity'))el('rngMeshGuideDensity').addEventListener('input',function(){meshGuideState().density=clamp((parseInt(this.value,10)||0)/100,0,1);updateUI();renderOverlay();}); if(el('rngMeshGuideRelax'))el('rngMeshGuideRelax').addEventListener('input',function(){meshGuideState().relax=clamp((parseInt(this.value,10)||0)/100,0,1);updateUI();renderOverlay();}); if(el('rngMeshGuideRadius'))el('rngMeshGuideRadius').addEventListener('input',function(){meshGuideState().radius=clamp(parseInt(this.value,10)||80,10,220);updateUI();renderOverlay();}); // FIX v18.224_GPT"
+    );
+`;
+  var anchor='\n    return html;\n  }';
+  var i=src.indexOf(anchor);
+  if(i<0)throw new Error('Could not extend DemBones patch function.');
+  return src.slice(0,i)+inject+src.slice(i);
+}
+fetch(BASE,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();}).then(function(t){var out=patchLoader(t);document.open();document.write(out);document.close();}).catch(function(e){fail(e&&e.message?e.message:String(e));});
+})();
+</script>
+</body>
+</html>
