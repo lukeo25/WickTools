@@ -146,7 +146,7 @@
     },
     {
       "id": "import",
-      "label": "Import",
+      "label": "Import Export",
       "tabIcon": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Import.svg",
       "items": [
         {
@@ -195,6 +195,14 @@
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/StopMo.svg",
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/StopMo.txt",
           "action": "script",
+          "F_Screen": 0
+        },
+        {
+          "id": "MP4_Exporter",
+          "label": "MP4 Export",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Record.svg",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/MP4_Exporter.txt",
+          "action": "tool",
           "F_Screen": 0
         }
       ]
