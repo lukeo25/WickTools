@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "LukeTools for Wick Editor",
+  "version": "0.1.0",
+  "description": "Loads the LukeTools panel automatically inside Wick Editor.",
+  "host_permissions": [
+    "https://www.wickeditor.com/editor/*",
+    "https://wickeditor.com/editor/*",
+    "https://raw.githubusercontent.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.wickeditor.com/editor/*",
+        "https://wickeditor.com/editor/*"
+      ],
+      "js": [
+        "luketools-bridge.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ]
+}
