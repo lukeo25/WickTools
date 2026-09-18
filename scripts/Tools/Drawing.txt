@@ -1482,13 +1482,71 @@ function getBooleanPaperScope(){
   catch(e){ return null; }
 }
 
+function svgMatrixScale(m){
+  if(!m) return 1;
+  const sx=Math.hypot(Number(m.a)||0,Number(m.b)||0);
+  const sy=Math.hypot(Number(m.c)||0,Number(m.d)||0);
+  const vals=[sx,sy].filter(v=>isFinite(v)&&v>0);
+  return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 1;
+}
+
+function bakeVisibleStrokeStyle(sourceRoot,cloneRoot){
+  const srcNodes=[sourceRoot].concat(sourceRoot.querySelectorAll ? Array.from(sourceRoot.querySelectorAll("*")) : []);
+  const dstNodes=[cloneRoot].concat(cloneRoot.querySelectorAll ? Array.from(cloneRoot.querySelectorAll("*")) : []);
+
+  for(let i=0;i<Math.min(srcNodes.length,dstNodes.length);i++){
+    const src=srcNodes[i], dst=dstNodes[i];
+    const tag=(src.tagName||"").toLowerCase();
+    if(!["path","rect","circle","ellipse","line","polyline","polygon"].includes(tag)) continue;
+
+    let cs=null;
+    try{ cs=getComputedStyle(src); }catch(e){}
+
+    let stroke="";
+    let fill="";
+    let sw=0;
+
+    try{
+      stroke=(cs?.stroke && cs.stroke!=="none") ? cs.stroke : (src.getAttribute("stroke")||"");
+      fill=(cs?.fill && cs.fill!=="none") ? cs.fill : (src.getAttribute("fill")||"");
+      sw=parseFloat(cs?.strokeWidth || src.getAttribute("stroke-width") || "0") || 0;
+    }catch(e){}
+
+    if(stroke && stroke!=="none" && sw>0){
+      let scale=1;
+      try{ scale=svgMatrixScale(src.getCTM()); }catch(e){}
+      const visualWidth=sw*scale;
+      dst.setAttribute("stroke",stroke==="currentcolor"||stroke==="currentColor" ? "#000000" : stroke);
+      dst.setAttribute("stroke-width",String(visualWidth));
+      dst.setAttribute("vector-effect","non-scaling-stroke");
+      const lc=cs?.strokeLinecap || src.getAttribute("stroke-linecap");
+      const lj=cs?.strokeLinejoin || src.getAttribute("stroke-linejoin");
+      if(lc) dst.setAttribute("stroke-linecap",lc);
+      if(lj) dst.setAttribute("stroke-linejoin",lj);
+    } else {
+      dst.setAttribute("stroke","none");
+      dst.setAttribute("stroke-width","0");
+    }
+
+    if(fill && fill!=="none"){
+      dst.setAttribute("fill",fill==="currentcolor"||fill==="currentColor" ? "#000000" : fill);
+    } else {
+      dst.setAttribute("fill","none");
+    }
+  }
+}
+
 function serializeOneDrawingObject(el){
   const wrap = document.createElementNS(SVGNS,"svg");
   wrap.setAttribute("xmlns",SVGNS);
   wrap.setAttribute("width",pageW);
   wrap.setAttribute("height",pageH);
   wrap.setAttribute("viewBox",`0 0 ${pageW} ${pageH}`);
-  wrap.appendChild(el.cloneNode(true));
+
+  const clone=el.cloneNode(true);
+  bakeVisibleStrokeStyle(el,clone);
+  wrap.appendChild(clone);
+
   return new XMLSerializer().serializeToString(wrap);
 }
 
@@ -1539,7 +1597,7 @@ function paperStrokeOutline(path,paper){
   const sw=Number(path.strokeWidth)||0;
   if(!path.strokeColor || sw<=0) return null;
 
-  const radius=Math.max(.25,sw*paperEffectiveScale(path)/2);
+  const radius=Math.max(.25,sw/2);
   const work=path.clone({insert:false});
   try{ work.flatten(Math.max(.6,radius*.18)); }catch(e){}
 
