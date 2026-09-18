@@ -1,6 +1,6 @@
 {
   "title": "Luke Tools",
-  "version": 4,
+  "version": 5,
   "groups": [
     {
       "id": "behaviours",
@@ -301,6 +301,14 @@
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Gradient.txt",
           "action": "tool",
           "F_Screen": 0
+        },
+        {
+          "id": "Drawing",
+          "label": "Drawing",
+          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Drawing.svg",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Drawing.txt",
+          "action": "tool",
+          "F_Screen": 1
         }
       ]
     },
