@@ -66,9 +66,7 @@
   .row input[type=range]{flex:1;margin:0 4px}
   .panel-section button{background:var(--panel-3);border:1px solid #444b55;color:var(--text);border-radius:4px;min-height:28px;padding:4px 7px;font-size:11px;cursor:pointer}
   .panel-section button:hover{background:#39404a;border-color:#59616c}
-  #wickStageSection{position:sticky;top:0;z-index:8;background:#172235;border-bottom:1px solid #315b8d;box-shadow:0 4px 12px rgba(0,0,0,.28)}
-  #wickStageSection .panel-title{color:#9dccff}
-  #btnWickCopy{background:var(--accent)!important;border-color:#6aa9ff!important;color:#fff!important;font-weight:800;min-height:38px!important;font-size:12px!important;box-shadow:0 0 0 1px rgba(255,255,255,.04) inset}
+  #btnWickCopy{background:var(--accent)!important;border-color:#6aa9ff!important;color:#fff!important;font-weight:800;height:28px!important;font-size:11px!important;padding:0 10px!important;box-shadow:0 0 0 1px rgba(255,255,255,.04) inset}
   #btnWickCopy:hover{background:var(--accent-hover)!important}
   #layerList{flex:1;overflow-y:auto;padding:4px 5px 8px}
   .layer-item{display:flex;align-items:center;gap:6px;padding:6px 7px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid transparent}
@@ -127,6 +125,7 @@
     <button id="btnOpen" title="Open SVG">Open</button>
     <button id="btnSave" title="Export SVG">SVG</button>
     <button id="btnPNG" title="Export PNG">PNG</button>
+    <button id="btnWickCopy" title="Add selected Drawing objects directly to the current Wick stage">Add to Wick Stage</button>
     <div class="sep"></div>
     <button id="btnUndo" title="Undo (Ctrl+Z)">↶</button>
     <button id="btnRedo" title="Redo (Ctrl+Y)">↷</button>
@@ -154,10 +153,6 @@
   </div>
 
   <div id="sidepanel">
-    <div class="panel-section" id="wickStageSection">
-      <div class="panel-title">Wick Stage</div>
-      <button id="btnWickCopy" style="width:100%;">Add Selected to Wick Stage</button>
-    </div>
     <div class="panel-section">
       <div class="panel-title">Style</div>
       <div class="row"><span>Fill</span><input type="color" id="fillColor" value="#4f8cff"></div>
