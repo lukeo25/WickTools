@@ -993,7 +993,7 @@ html, body, #app{
             <button id="btnAddDummyArea" class="secondary">Add Dummy</button> <!-- FIX v18.182_GPT -->
           </div>
           <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
-            <button id="btnUseSelectedCurve" class="secondary">Use Selected Artwork</button> <!-- FIX Claude_10-07-2026_V6: relabeled, now paired with Remove Originals checkbox -->
+            <button id="btnUseSelectedCurve" class="secondary">Edit Selected Artwork In Place</button> <!-- DemBonesMrk2: one stage based workflow -->
           </div>
           <div class="row"><label class="small" style="display:flex;align-items:center;gap:4px;min-width:0;"><input type="checkbox" id="chkUseSelectedCurveRemoveOriginals_Claude"> Remove Originals</label></div> <!-- FIX Claude_10-07-2026_V6/V8 -->
           <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
@@ -24668,12 +24668,10 @@ function installDemBonesMrk2() {
   };
   var oldStamp = stampAnimationIntoClip;
   stampAnimationIntoClip = function () { if (live.binding) return flush(true); return oldStamp.apply(this, arguments); };
-  var oldSelected = useSelectedWickCurveAsSourceInternal;
   useSelectedWickCurveAsSourceInternal = function () {
-    // FIX v18.227_GPT: restore the original DemBones selection workflow.
-    // Use Selected Artwork ingests the complete selected artwork as a source.
-    // Live Mrk2 curve binding remains explicit via the Bind selected curves button.
-    return oldSelected.apply(this, arguments);
+    // DemBonesMrk2 has one stage workflow: the selected native Wick artwork is
+    // bound and edited in place. Do not create a separate imported working copy.
+    return bind();
   };
   buildRigProjectState = function () {
     var state = baseBuildState.apply(this, arguments);
@@ -24747,7 +24745,9 @@ function installDemBonesMrk2() {
     el('chkUseSelectedCurveRemoveOriginals_Claude').disabled = this.checked;
   });
   el('chkUseSelectedCurveRemoveOriginals_Claude').disabled = true;
-  el('chkUseSelectedCurveRemoveOriginals_Claude').checked = false;
+  el('chkUseSelectedCurveRemoveOriginals_Claude').checked = true;
+  var removeOriginalsRow = el('chkUseSelectedCurveRemoveOriginals_Claude').closest('.row');
+  if (removeOriginalsRow) removeOriginalsRow.style.display = 'none';
   var api = { version: '2.3', bind: bind, resume: resume, flush: flush, preview: preview, finish: finish, geometryAt: geometryAt,
     clientInverse: function () { return live.binding ? G.inverse(rigClientMatrix()) : null; },
     get binding() { return live.binding; }, get state() { return live; },
