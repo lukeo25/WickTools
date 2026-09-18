@@ -5601,6 +5601,36 @@ html, body, #app{
     return { x:minX, y:minY, w:maxX - minX, h:maxY - minY, cx:(minX + maxX) * 0.5, cy:(minY + maxY) * 0.5 };
   }
 
+  function selectedArtworkSanitizeSvg_v18225(svgText){ // FIX v18.225_GPT
+    var raw = String(svgText || '').trim();
+    if (!raw) return '';
+    try {
+      var doc = new DOMParser().parseFromString(raw, 'image/svg+xml');
+      if (doc.querySelector && doc.querySelector('parsererror')) throw new Error('SVG parser rejected the selected artwork.');
+      var root = doc.documentElement;
+      if (!root || String(root.tagName || '').toLowerCase() !== 'svg') throw new Error('Selected artwork did not produce an SVG root.');
+
+      var nodes = [root].concat(Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('*') : []));
+      nodes.forEach(function(node){
+        Array.prototype.slice.call(node.attributes || []).forEach(function(attr){
+          var v = String(attr.value || '');
+          if (/\b(?:NaN|Infinity|-Infinity|undefined|null)\b/.test(v)) node.removeAttribute(attr.name);
+        });
+      });
+
+      if (!root.getAttribute('xmlns')) root.setAttribute('xmlns','http://www.w3.org/2000/svg');
+      return new XMLSerializer().serializeToString(root);
+    } catch(e) {
+      throw new Error('Selected artwork SVG cleanup failed: ' + (e && e.message ? e.message : e));
+    }
+  }
+
+  function selectedArtworkSanitizeInner_v18225(inner){ // FIX v18.225_GPT
+    var wrapped = '<svg xmlns="http://www.w3.org/2000/svg">' + String(inner || '') + '</svg>';
+    var clean = selectedArtworkSanitizeSvg_v18225(wrapped);
+    return selectedCurveExtractSvgInner(clean);
+  }
+
   function selectedCurveObjectsToSvg(objects){ // FIX v18.221_GPT: selected artwork is ingested as one composite source, preserving every selected path/group/SVG
     var list = (objects || []).filter(function(obj){ return !!obj; });
     if (!list.length) throw new Error('No Wick artwork is selected. Select one or more paths, SVG shapes, groups or clips on the stage first.');
@@ -5630,7 +5660,7 @@ html, body, #app{
         if (item && typeof item.exportSVG === 'function') {
           try { rawExport = String(item.exportSVG({ asString:true, precision:4 }) || ''); } catch(e0){}
           if (!rawExport) { try { rawExport = String(item.exportSVG({ asString:true }) || ''); } catch(e1){} }
-          if (rawExport) inner = selectedCurveApplyColourOverridesToSvgInner_v18207(selectedCurveExtractSvgInner(rawExport));
+          if (rawExport) inner = selectedArtworkSanitizeInner_v18225(selectedCurveApplyColourOverridesToSvgInner_v18207(selectedCurveExtractSvgInner(rawExport)));
         }
 
         // Fall back to the established converter for unusual Wick objects.
@@ -5660,8 +5690,11 @@ html, body, #app{
 
     var label = parts.length === 1 ? 'Selected Wick Artwork' : ('Selected Wick Artwork (' + parts.length + ' objects)');
 
+    var compositeSvg = selectedCurveWrapSvgContent(parts.map(function(p){ return p.inner; }).join('\n'), bounds, label);
+    compositeSvg = selectedArtworkSanitizeSvg_v18225(compositeSvg);
+
     return {
-      svgRaw:selectedCurveWrapSvgContent(parts.map(function(p){ return p.inner; }).join('\n'), bounds, label),
+      svgRaw:compositeSvg,
       bounds:bounds,
       fileName:fileName,
       count:parts.length,
@@ -5803,7 +5836,18 @@ html, body, #app{
     }
     if (!App.source.viewportRect) App.source.viewportRect = { x:80, y:80, width:100, height:100 };
     var dataUrl = svgTextToDataUrl(svgRaw);
-    var img = await loadImageFromUrl(dataUrl);
+    var img = null;
+    try { img = await loadImageFromUrl(dataUrl); }
+    catch(imageErr) {
+      try {
+        var testDoc = new DOMParser().parseFromString(String(svgRaw || ''), 'image/svg+xml');
+        var parserError = testDoc.querySelector && testDoc.querySelector('parsererror');
+        if (parserError) throw new Error('Composite SVG parser error: ' + String(parserError.textContent || '').slice(0,180));
+      } catch(parseErr) {
+        throw parseErr;
+      }
+      throw new Error('Composite SVG could not be rendered by the browser.');
+    }
     var targetW = Math.max(1, Math.round(App.source.viewportRect && App.source.viewportRect.width ? App.source.viewportRect.width : (bounds && bounds.w ? bounds.w : (img.naturalWidth || img.width || 100))));
     var targetH = Math.max(1, Math.round(App.source.viewportRect && App.source.viewportRect.height ? App.source.viewportRect.height : (bounds && bounds.h ? bounds.h : (img.naturalHeight || img.height || 100))));
     var svgNative = null;
