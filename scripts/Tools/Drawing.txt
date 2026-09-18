@@ -717,7 +717,7 @@ function attachHandleEvents(){
           } else {
             el.setAttribute("transform", `rotate(${ang.toFixed(1)} ${cx} ${cy})`);
           }
-        } else if(el.tagName==="g"){
+        } else if(el.tagName==="g" || el.tagName==="path"){
           resizeTransformedGroup(el,start,+handleId,p,startTransform);
         } else {
           resizeElement(el, start, +handleId, p, startPt);
@@ -786,15 +786,13 @@ function applyBBoxToElement(el, x, y, w, h){
     el.setAttribute("x1", x+(x1-bb.x)*sx); el.setAttribute("y1", y+(y1-bb.y)*sy);
     el.setAttribute("x2", x+(x2-bb.x)*sx); el.setAttribute("y2", y+(y2-bb.y)*sy);
   } else if(tag==="path"){
-    const bb = getBBox(el);
-    const sx = bb.width ? w/bb.width : 1, sy = bb.height ? h/bb.height : 1;
-    const pts = pathToPoints(el);
-    pts.forEach(pt=>{
-      if(pt.x!==undefined){ pt.x = x+(pt.x-bb.x)*sx; pt.y = y+(pt.y-bb.y)*sy; }
-      if(pt.c1x!==undefined){ pt.c1x = x+(pt.c1x-bb.x)*sx; pt.c1y = y+(pt.c1y-bb.y)*sy; }
-      if(pt.c2x!==undefined){ pt.c2x = x+(pt.c2x-bb.x)*sx; pt.c2y = y+(pt.c2y-bb.y)*sy; }
-    });
-    el.setAttribute("d", pointsToPath(pts));
+    const bb = getVisualBBox(el);
+    const sx = bb.width ? w/bb.width : 1;
+    const sy = bb.height ? h/bb.height : 1;
+    const base = el.getAttribute("transform") || "";
+    const tx = x - bb.x * sx;
+    const ty = y - bb.y * sy;
+    el.setAttribute("transform", `translate(${tx} ${ty}) scale(${sx} ${sy}) ${base}`.trim());
   } else if(tag==="text"){
     el.setAttribute("x", x); el.setAttribute("y", y+h);
   }
@@ -1336,7 +1334,7 @@ function betterMoveInit(){}
     draggingSelection = true;
     const startP = screenToSvg(ev.clientX, ev.clientY);
     const originals = selected.map(el=>{
-      if(el.tagName==="path") return {el, kind:"path", pts: pathToPoints(el)};
+      if(el.tagName==="path") return {el, kind:"path", transform:el.getAttribute("transform")||""};
       if(el.tagName==="line") return {el, kind:"line", x1:+el.getAttribute("x1"), y1:+el.getAttribute("y1"), x2:+el.getAttribute("x2"), y2:+el.getAttribute("y2")};
       if(el.tagName==="rect") return {el, kind:"rect", x:+el.getAttribute("x"), y:+el.getAttribute("y")};
       if(el.tagName==="ellipse") return {el, kind:"ellipse", cx:+el.getAttribute("cx"), cy:+el.getAttribute("cy")};
@@ -1354,14 +1352,7 @@ function betterMoveInit(){}
         else if(o.kind==="text"){ o.el.setAttribute("x", o.x+dx); o.el.setAttribute("y", o.y+dy); }
         else if(o.kind==="group"){ o.el.setAttribute("transform", `translate(${dx} ${dy}) ${o.transform}`); }
         else if(o.kind==="path"){
-          const pts = o.pts.map(pt=>{
-            const np = Object.assign({}, pt);
-            if(np.x!==undefined){ np.x=pt.x+dx; np.y=pt.y+dy; }
-            if(np.c1x!==undefined){ np.c1x=pt.c1x+dx; np.c1y=pt.c1y+dy; }
-            if(np.c2x!==undefined){ np.c2x=pt.c2x+dx; np.c2y=pt.c2y+dy; }
-            return np;
-          });
-          o.el.setAttribute("d", pointsToPath(pts));
+          o.el.setAttribute("transform", `translate(${dx} ${dy}) ${o.transform}`.trim());
         }
       });
       renderOverlay();
@@ -1393,7 +1384,7 @@ function updateTransformPanel(){
 [tX,tY,tW,tH].forEach(inp=>inp.addEventListener("change", ()=>{
   if(selected.length!==1) return;
   const el = selected[0];
-  if(el.tagName==="g"){
+  if(el.tagName==="g" || el.tagName==="path"){
     const bb=getVisualBBox(el);
     const target={x:+tX.value,y:+tY.value,w:+tW.value,h:+tH.value};
     const sx=bb.width ? target.w/bb.width : 1;
@@ -1414,7 +1405,7 @@ tRot.addEventListener("change", ()=>{
   const bb = getVisualBBox(el);
   const cx=bb.x+bb.width/2, cy=bb.y+bb.height/2;
   const base=el.getAttribute("transform")||"";
-  if(el.tagName==="g"){
+  if(el.tagName==="g" || el.tagName==="path" || base){
     el.setAttribute("transform", `rotate(${+tRot.value} ${cx} ${cy}) ${base}`.trim());
   } else {
     el.setAttribute("transform", `rotate(${+tRot.value} ${cx} ${cy})`);
