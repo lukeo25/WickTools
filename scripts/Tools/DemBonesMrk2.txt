@@ -5656,9 +5656,79 @@ html, body, #app{
     return selectedCurveExtractSvgInner(clean);
   }
 
-  function selectedCurveObjectsToSvg(objects){ // FIX v18.221_GPT: selected artwork is ingested as one composite source, preserving every selected path/group/SVG
+  function selectedArtworkCompositePaperExport_v18226(objects){ // FIX v18.226_GPT
+    var list=(objects||[]).filter(function(obj){return !!obj;});
+    if(!list.length) return null;
+
+    var paperScope=null;
+    try { paperScope=App.paper || (window.parent && window.parent.paper) || null; } catch(e){}
+    if(!paperScope || !paperScope.Group) return null;
+
+    var temp=null;
+    try {
+      temp=new paperScope.Group({insert:false});
+      var added=0;
+
+      list.forEach(function(obj){
+        try {
+          var item=selectedCurveFindPaperItem(obj);
+          if(!item || typeof item.clone!=='function') return;
+          var clone=item.clone({insert:false});
+          if(!clone) return;
+
+          // Preserve the item's actual global placement before moving it into
+          // the temporary group. Paper otherwise may reinterpret child matrices.
+          try {
+            if(item.globalMatrix && clone.transform) clone.transform(item.globalMatrix);
+          } catch(e0){}
+
+          temp.addChild(clone);
+          added++;
+        } catch(e){}
+      });
+
+      if(!added) return null;
+
+      var b=temp.bounds;
+      if(!b || !isFinite(b.left)||!isFinite(b.top)||!isFinite(b.width)||!isFinite(b.height)||b.width<=0||b.height<=0) return null;
+
+      var raw='';
+      try { raw=String(temp.exportSVG({asString:true,precision:4})||''); } catch(e1){}
+      if(!raw) return null;
+
+      var inner=selectedCurveExtractSvgInner(raw);
+      if(!inner) inner=raw;
+
+      var bounds={x:b.left,y:b.top,w:b.width,h:b.height,cx:b.left+b.width*.5,cy:b.top+b.height*.5};
+      var svg=selectedCurveWrapSvgContent(inner,bounds,'Selected Wick Artwork');
+      svg=selectedArtworkSanitizeSvg_v18225(svg);
+
+      return {
+        svgRaw:svg,
+        bounds:bounds,
+        fileName:list.length===1?'Selected_Wick_Artwork.svg':'Selected_Wick_Artwork_'+list.length+'.svg',
+        count:list.length,
+        errors:[]
+      };
+    } catch(e) {
+      try { console.warn('Composite Paper SVG export failed; falling back to per-object export.',e); } catch(e2){}
+      return null;
+    } finally {
+      try { if(temp) temp.remove(); } catch(e3){}
+    }
+  }
+
+  function selectedCurveObjectsToSvg(objects){ // FIX v18.226_GPT: prefer one coherent Paper SVG export for the complete selection
     var list = (objects || []).filter(function(obj){ return !!obj; });
     if (!list.length) throw new Error('No Wick artwork is selected. Select one or more paths, SVG shapes, groups or clips on the stage first.');
+
+    // This is intentionally the same conceptual path as loading one normal SVG:
+    // build one SVG document from the complete selection rather than stitching
+    // independently exported fragments together.
+    if (!(App.selectedCurve && App.selectedCurve.originalPointsOnly)) {
+      var composite = selectedArtworkCompositePaperExport_v18226(list);
+      if (composite && composite.svgRaw) return composite;
+    }
 
     var parts = [];
     var errors = [];
