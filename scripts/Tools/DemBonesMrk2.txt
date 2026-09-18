@@ -23848,6 +23848,7 @@ function installDemBonesMrk2Host(host, html) {
       return true;
     }).catch(function (error) {
       service.opening = false;
+      service.pending = null;
       host.URL.revokeObjectURL(url);
       host.console.error('DemBonesMrk2 could not open', error);
       return false;
@@ -24095,14 +24096,34 @@ function installDemBonesMrk2() {
     return tl && tl.layers.find(function (layer) { return layer.identifier === id; }) || null;
   };
   var oldRemoveProxyLayers = removeProxyWickLayer;
+  function managedProxyIdentifierPrefix(binding) {
+    var row = binding && binding.rows && binding.rows[0];
+    return row && row.clipUUID ? 'DemBonesMrk2_' + row.clipUUID.replace(/[^a-zA-Z0-9_]/g, '') + '_' : '';
+  }
+  function removeManagedProxyLayers(binding) {
+    var prefix = managedProxyIdentifierPrefix(binding);
+    var frame = binding && resolve(binding.frameUUID);
+    var timeline = frame && frame.parentTimeline;
+    if (!prefix || !timeline || !timeline.layers) return false;
+    var removed = false;
+    timeline.layers.slice().forEach(function (layer) {
+      if (layer && String(layer.identifier || '').indexOf(prefix) === 0) {
+        try { timeline.removeLayer(layer); removed = true; } catch (e) {}
+      }
+    });
+    return removed;
+  }
   removeProxyWickLayer = function () {
     if (!live.binding) return oldRemoveProxyLayers.apply(this, arguments);
     // A deleted rig frame may no longer resolve. Remove only our known helper
     // rows from their actual parents, never a same-named artwork layer.
+    var binding = live.binding;
     (App.proxy.layers || []).forEach(function (info) {
       var layer = info.wickLayer;
       if (layer && layer.parent) layer.parent.removeLayer(layer);
     });
+    // Undo, reload, or panel replacement can discard the in-memory proxy list.
+    removeManagedProxyLayers(binding);
     App.proxy.layers = []; App.proxy.wickLayer = null;
     if (App.ed && App.ed.syncInterfaces) App.ed.syncInterfaces();
   };
@@ -24518,6 +24539,12 @@ function installDemBonesMrk2() {
       App.interaction.cleanupDone = false;
       live.lastSignature = stateSignature(); live.lastPreview = ''; live.error = '';
       App.undo.stack = []; App.undo.lastSnapshotText = '';
+      // Double-clicking the stage artwork edits that existing rig in place.
+      App.project.selection.clear();
+      live.binding.rows.forEach(function (row) {
+        var clip = resolve(row.clipUUID);
+        if (clip) App.project.selection.select(clip);
+      });
       ensureOverlay(); fitOverlayToSource(); setActiveTab('animate');
       status('Rig reopened • bones and animation restored. Edits update Wick automatically.');
       validate();
@@ -24533,7 +24560,7 @@ function installDemBonesMrk2() {
     if (rigVisibility().exists && !flush(true)) return;
     removeOverlay(); removeProxyOverlay(false);
     live.binding = null; live.lastPreview = '';
-    status('Finished. Double-click a rigged curve in Wick to reopen its bones.');
+    status('Finished. Only the Wick artwork remains on stage. Double-click it to edit again.');
   }
   // Reuse all the existing rig/curve controls, but render the artwork through Wick.
   var oldViewport = applyOverlayViewportForBounds;
@@ -24658,7 +24685,13 @@ function installDemBonesMrk2() {
   // Never persist a temporary rest-pose display in place of the keyed animation when closing/saving.
   var oldCleanup = cleanupToolOverlays;
   cleanupToolOverlays = function () {
-    if (!live.closed) { flush(true); live.closed = true; clearTimeout(live.timer); cancelAnimationFrame(live.raf); }
+    if (!live.closed) {
+      flush(true);
+      removeManagedProxyLayers(live.binding);
+      live.closed = true;
+      clearTimeout(live.timer);
+      cancelAnimationFrame(live.raf);
+    }
     clearInterval(live.visibilityTimer);
     if (host.panel === api) host.panel = null;
     documents.forEach(function (doc) { doc.removeEventListener('mouseup', endGesture, true); doc.removeEventListener('change', endGesture, true); doc.removeEventListener('keydown', beforeSave, true); });
@@ -24681,7 +24714,7 @@ function installDemBonesMrk2() {
     '<div class="row rowButtonsSym_Claude cols1"><button id="dbm2Bind">Bind selected curves / Open rig</button></div>' +
     '<div class="row rowButtonsSym_Claude cols2"><button id="dbm2Resume" class="secondary">Resume updates</button><button id="dbm2Finish" class="secondary">Finish editing</button></div>' +
     '<p class="small">Select native curves on one Wick frame. Bones and curve handles update the real artwork. Animation is saved automatically within that frame’s exposure; extend the frame in Wick for a longer animation.</p>' +
-    '<p class="small">Double-click a rigged curve to reopen its bones. Alt + double-click uses Wick’s normal clip editing.</p>' +
+    '<p class="small">The Wick stage remains the workspace. Finishing removes DemBones overlays and helper layers, leaving only the editable Wick artwork. Double-click that artwork to reopen its bones. Alt + double-click uses Wick’s normal clip editing.</p>' +
     '<div id="dbm2Status" class="small" role="status" aria-live="polite">Ready to bind native Wick curves.</div>';
   var sourcePage = document.querySelector('[data-page="source"]');
   sourcePage.insertBefore(section, sourcePage.firstChild);
