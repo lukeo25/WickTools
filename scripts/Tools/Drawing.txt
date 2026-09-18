@@ -441,6 +441,25 @@ function setSelection(els){
 function getBBox(el){
   try { return el.getBBox(); } catch(e){ return {x:0,y:0,width:0,height:0}; }
 }
+function getVisualBBox(el){
+  try{
+    const bb=el.getBBox();
+    const m=el.getCTM();
+    if(!m) return bb;
+    const pts=[
+      new DOMPoint(bb.x,bb.y).matrixTransform(m),
+      new DOMPoint(bb.x+bb.width,bb.y).matrixTransform(m),
+      new DOMPoint(bb.x+bb.width,bb.y+bb.height).matrixTransform(m),
+      new DOMPoint(bb.x,bb.y+bb.height).matrixTransform(m)
+    ];
+    const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+    const x=Math.min(...xs), y=Math.min(...ys);
+    const x2=Math.max(...xs), y2=Math.max(...ys);
+    return {x,y,width:x2-x,height:y2-y};
+  }catch(e){
+    return getBBox(el);
+  }
+}
 function renderOverlay(){
   selOverlay.innerHTML = "";
   if(!selected.length) return;
@@ -449,7 +468,7 @@ function renderOverlay(){
     return;
   }
   selected.forEach(el=>{
-    const bb = getBBox(el);
+    const bb = getVisualBBox(el);
     const p1 = svgToScreen(bb.x, bb.y);
     const p2 = svgToScreen(bb.x+bb.width, bb.y+bb.height);
     const box = document.createElementNS(SVGNS,"rect");
@@ -680,16 +699,23 @@ function attachHandleEvents(){
       ev.stopPropagation();
       const handleId = h.dataset.handle;
       const el = selected[0];
-      const bb = getBBox(el);
+      const bb = getVisualBBox(el);
       const startPt = screenToSvg(ev.clientX, ev.clientY);
       const start = {x:bb.x,y:bb.y,w:bb.width,h:bb.height};
       const cx = bb.x+bb.width/2, cy = bb.y+bb.height/2;
+      const startTransform = el.getAttribute("transform") || "";
 
       const onMove = mv=>{
         const p = screenToSvg(mv.clientX, mv.clientY);
         if(handleId==="rot"){
           const ang = Math.atan2(p.y-cy, p.x-cx)*180/Math.PI + 90;
-          el.setAttribute("transform", `rotate(${ang.toFixed(1)} ${cx} ${cy})`);
+          if(el.tagName==="g" || startTransform){
+            el.setAttribute("transform", `rotate(${ang.toFixed(1)} ${cx} ${cy}) ${startTransform}`.trim());
+          } else {
+            el.setAttribute("transform", `rotate(${ang.toFixed(1)} ${cx} ${cy})`);
+          }
+        } else if(el.tagName==="g"){
+          resizeTransformedGroup(el,start,+handleId,p,startTransform);
         } else {
           resizeElement(el, start, +handleId, p, startPt);
         }
@@ -706,6 +732,29 @@ function attachHandleEvents(){
     });
   });
 }
+
+function resizeTransformedGroup(el,start,handleId,p,startTransform){
+  let nx=start.x, ny=start.y, nw=start.w, nh=start.h;
+  const right=start.x+start.w, bottom=start.y+start.h;
+  if([0,2,6].includes(handleId)){ nx=p.x; nw=right-p.x; }
+  if([1,3,7].includes(handleId)){ nw=p.x-start.x; }
+  if([0,1,4].includes(handleId)){ ny=p.y; nh=bottom-p.y; }
+  if([2,3,5].includes(handleId)){ nh=p.y-start.y; }
+
+  const minSize=2;
+  if(Math.abs(nw)<minSize) nw=(nw<0?-1:1)*minSize;
+  if(Math.abs(nh)<minSize) nh=(nh<0?-1:1)*minSize;
+
+  const sx=start.w ? nw/start.w : 1;
+  const sy=start.h ? nh/start.h : 1;
+
+  // Map the group's current visual bounding box to the dragged bounding box
+  // while preserving its original library transform.
+  const tx=nx - start.x*sx;
+  const ty=ny - start.y*sy;
+  el.setAttribute("transform", `translate(${tx} ${ty}) scale(${sx} ${sy}) ${startTransform}`.trim());
+}
+
 function resizeElement(el, start, handleId, p){
   // handles: 0=TL 1=TR 2=BL 3=BR 4=TM 5=BM 6=ML 7=MR
   let nx=start.x, ny=start.y, nw=start.w, nh=start.h;
@@ -767,7 +816,7 @@ function updateMarquee(p){
 function finishMarquee(box){
   const hits = [];
   Array.from(drawLayer.children).forEach(el=>{
-    const bb = getBBox(el);
+    const bb = getVisualBBox(el);
     if(bb.x>=box.x1 && bb.y>=box.y1 && bb.x+bb.width<=box.x2 && bb.y+bb.height<=box.y2){
       hits.push(el);
     }
@@ -1332,7 +1381,7 @@ const tX=document.getElementById("tX"), tY=document.getElementById("tY"), tW=doc
 function updateTransformPanel(){
   if(selected.length!==1){ [tX,tY,tW,tH,tRot].forEach(i=>i.value=""); return; }
   const el = selected[0];
-  const bb = getBBox(el);
+  const bb = getVisualBBox(el);
   tX.value = Math.round(bb.x); tY.value = Math.round(bb.y);
   tW.value = Math.round(bb.width); tH.value = Math.round(bb.height);
   const m = /rotate\(([-\d.]+)/.exec(el.getAttribute("transform")||"");
@@ -1341,16 +1390,32 @@ function updateTransformPanel(){
 [tX,tY,tW,tH].forEach(inp=>inp.addEventListener("change", ()=>{
   if(selected.length!==1) return;
   const el = selected[0];
-  applyBBoxToElement(el, +tX.value, +tY.value, +tW.value, +tH.value);
+  if(el.tagName==="g"){
+    const bb=getVisualBBox(el);
+    const target={x:+tX.value,y:+tY.value,w:+tW.value,h:+tH.value};
+    const sx=bb.width ? target.w/bb.width : 1;
+    const sy=bb.height ? target.h/bb.height : 1;
+    const base=el.getAttribute("transform")||"";
+    const tx=target.x-bb.x*sx;
+    const ty=target.y-bb.y*sy;
+    el.setAttribute("transform", `translate(${tx} ${ty}) scale(${sx} ${sy}) ${base}`.trim());
+  } else {
+    applyBBoxToElement(el, +tX.value, +tY.value, +tW.value, +tH.value);
+  }
   renderOverlay();
   pushHistory();
 }));
 tRot.addEventListener("change", ()=>{
   if(selected.length!==1) return;
   const el = selected[0];
-  const bb = getBBox(el);
+  const bb = getVisualBBox(el);
   const cx=bb.x+bb.width/2, cy=bb.y+bb.height/2;
-  el.setAttribute("transform", `rotate(${+tRot.value} ${cx} ${cy})`);
+  const base=el.getAttribute("transform")||"";
+  if(el.tagName==="g"){
+    el.setAttribute("transform", `rotate(${+tRot.value} ${cx} ${cy}) ${base}`.trim());
+  } else {
+    el.setAttribute("transform", `rotate(${+tRot.value} ${cx} ${cy})`);
+  }
   renderOverlay();
   pushHistory();
 });
