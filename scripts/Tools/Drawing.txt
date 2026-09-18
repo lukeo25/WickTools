@@ -1636,20 +1636,49 @@ function importBooleanResultToDrawing(svgText){
   let node = doc.documentElement;
   if(!node) throw new Error("Boolean result could not be converted back to SVG");
 
+  function forceFilledGeometry(root){
+    const all=[root].concat(root.querySelectorAll ? Array.from(root.querySelectorAll("*")) : []);
+    all.forEach(n=>{
+      const tag=(n.tagName||"").toLowerCase();
+      if(["path","compoundpath","rect","circle","ellipse","polygon","polyline"].includes(tag)){
+        n.setAttribute("fill","#000000");
+        n.setAttribute("stroke","none");
+        n.removeAttribute("stroke-width");
+        n.removeAttribute("stroke-linecap");
+        n.removeAttribute("stroke-linejoin");
+        const style=n.getAttribute("style")||"";
+        if(style){
+          const cleaned=style
+            .replace(/fill\s*:\s*[^;]+;?/gi,"")
+            .replace(/stroke\s*:\s*[^;]+;?/gi,"")
+            .replace(/stroke-width\s*:\s*[^;]+;?/gi,"");
+          n.setAttribute("style","fill:#000000;stroke:none;"+cleaned);
+        }
+      }
+    });
+  }
+
   if(node.tagName.toLowerCase()==="svg"){
+    forceFilledGeometry(node);
     const kids = Array.from(node.children).filter(n=>!["defs","title","desc"].includes(n.tagName.toLowerCase()));
     if(kids.length===1) node=kids[0];
     else{
       const g=document.createElementNS(SVGNS,"g");
       kids.forEach(k=>g.appendChild(document.importNode(k,true)));
       g.id=newId();
+      g.setAttribute("fill","#000000");
+      g.setAttribute("stroke","none");
       drawLayer.appendChild(g);
       return g;
     }
+  } else {
+    forceFilledGeometry(node);
   }
 
   const imported=document.importNode(node,true);
   imported.id=newId();
+  imported.setAttribute("fill","#000000");
+  imported.setAttribute("stroke","none");
   drawLayer.appendChild(imported);
   return imported;
 }
