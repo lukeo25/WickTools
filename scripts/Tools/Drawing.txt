@@ -1505,27 +1505,129 @@ function booleanCollectPathItems(item){
   return out;
 }
 
-function booleanCollapsePaths(paths){
-  if(!paths?.length) return null;
-  let acc = paths[0].clone({insert:false});
-  for(let i=1;i<paths.length;i++){
-    const next = paths[i];
+function booleanUniteItems(items){
+  if(!items?.length) return null;
+  let acc=items[0].clone({insert:false});
+  for(let i=1;i<items.length;i++){
     let merged=null;
-    try { merged = acc.unite(next,{insert:false}); }
-    catch(e){ merged = null; }
-    try { acc.remove(); } catch(e){}
+    try{ merged=acc.unite(items[i],{insert:false}); }catch(e){ merged=null; }
+    try{ acc.remove(); }catch(e){}
     if(!merged) return null;
-    acc = merged;
+    acc=merged;
   }
   return acc;
 }
 
+function paperEffectiveScale(item){
+  try{
+    const m=item.globalMatrix || item.matrix;
+    if(!m) return 1;
+    const sx=Math.hypot(Number(m.a)||1,Number(m.b)||0);
+    const sy=Math.hypot(Number(m.c)||0,Number(m.d)||1);
+    return Math.max(.0001,(sx+sy)/2);
+  }catch(e){ return 1; }
+}
+
+function paperGlobalPoint(item,pt){
+  try{
+    if(typeof item.localToGlobal==="function") return item.localToGlobal(pt);
+  }catch(e){}
+  return pt.clone ? pt.clone() : pt;
+}
+
+function paperStrokeOutline(path,paper){
+  const sw=Number(path.strokeWidth)||0;
+  if(!path.strokeColor || sw<=0) return null;
+
+  const radius=Math.max(.25,sw*paperEffectiveScale(path)/2);
+  const work=path.clone({insert:false});
+  try{ work.flatten(Math.max(.6,radius*.18)); }catch(e){}
+
+  const pts=(work.segments||[]).map(s=>paperGlobalPoint(work,s.point));
+  const closed=!!work.closed;
+  try{work.remove();}catch(e){}
+  if(pts.length<2) return null;
+
+  const parts=[];
+
+  function addDisc(p){
+    try{
+      const c=new paper.Path.Circle({center:p,radius:radius,insert:false});
+      c.fillColor="black";
+      c.strokeColor=null;
+      parts.push(c);
+    }catch(e){}
+  }
+
+  function addSegment(a,b){
+    const dx=b.x-a.x,dy=b.y-a.y;
+    const len=Math.hypot(dx,dy);
+    if(len<.001){ addDisc(a); return; }
+    const nx=-dy/len*radius, ny=dx/len*radius;
+    const poly=new paper.Path({
+      segments:[
+        [a.x+nx,a.y+ny],
+        [b.x+nx,b.y+ny],
+        [b.x-nx,b.y-ny],
+        [a.x-nx,a.y-ny]
+      ],
+      closed:true,
+      insert:false
+    });
+    poly.fillColor="black";
+    poly.strokeColor=null;
+    parts.push(poly);
+  }
+
+  for(let i=0;i<pts.length-1;i++){
+    addSegment(pts[i],pts[i+1]);
+    addDisc(pts[i]);
+  }
+  addDisc(pts[pts.length-1]);
+
+  if(closed && pts.length>2) addSegment(pts[pts.length-1],pts[0]);
+
+  const outline=booleanUniteItems(parts);
+  parts.forEach(x=>{try{x.remove();}catch(e){}});
+  if(outline){
+    outline.fillColor="black";
+    outline.strokeColor=null;
+  }
+  return outline;
+}
+
+function paperFilledGeometry(path){
+  if(!path.fillColor) return null;
+  try{
+    const c=path.clone({insert:false});
+    if(c.globalMatrix && typeof c.transform==="function"){
+      try{ c.transform(c.globalMatrix); }catch(e){}
+    }
+    c.strokeColor=null;
+    c.fillColor="black";
+    return c;
+  }catch(e){ return null; }
+}
+
+function booleanVisibleGeometry(paths,paper){
+  const visible=[];
+  for(const path of paths){
+    const fill=paperFilledGeometry(path);
+    if(fill) visible.push(fill);
+    const stroke=paperStrokeOutline(path,paper);
+    if(stroke) visible.push(stroke);
+  }
+  const item=booleanUniteItems(visible);
+  visible.forEach(x=>{try{x.remove();}catch(e){}});
+  return item;
+}
+
 function booleanImportObject(el,paper){
-  const svg = serializeOneDrawingObject(el);
-  const imported = paper.project.importSVG(svg,{insert:false,expandShapes:true});
+  const svg=serializeOneDrawingObject(el);
+  const imported=paper.project.importSVG(svg,{insert:false,expandShapes:true});
   if(!imported) return {root:null,item:null};
-  const paths = booleanCollectPathItems(imported);
-  const item = booleanCollapsePaths(paths);
+  const paths=booleanCollectPathItems(imported);
+  const item=booleanVisibleGeometry(paths,paper);
   return {root:imported,item};
 }
 
@@ -1582,6 +1684,13 @@ function runBooleanOperation(op){
 
     if(!result) throw new Error("No Boolean result");
 
+    try{
+      result.fillColor="black";
+      result.strokeColor=null;
+      if(result.children?.length){
+        result.children.forEach(ch=>{try{ch.fillColor="black";ch.strokeColor=null;}catch(e){}});
+      }
+    }catch(e){}
     const resultSvg=result.exportSVG({asString:true});
     aEl.remove();
     bEl.remove();
