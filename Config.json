@@ -1,6 +1,6 @@
 {
   "title": "Luke Tools",
-  "version": 5,
+  "version": 6,
   "groups": [
     {
       "id": "behaviours",
@@ -221,14 +221,6 @@
           "F_Screen": 1
         },
         {
-          "id": "Texture Pen",
-          "label": "Texture Pen",
-          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Pen.svg",
-          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/LukeInk.txt",
-          "action": "tool",
-          "F_Screen": 0
-        },
-        {
           "id": "DemBonesMrk2",
           "label": "Dem Bones Mrk2",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/DemBonesMrk2.svg",
@@ -277,14 +269,6 @@
           "F_Screen": 0,
           "panelWidth": 300,
           "panelHeight": 600
-        },
-        {
-          "id": "Shapes",
-          "label": "Shapes",
-          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Shapes.svg",
-          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/ShapeLibrary.txt",
-          "action": "tool",
-          "F_Screen": 0
         },
         {
           "id": "Gradient",
