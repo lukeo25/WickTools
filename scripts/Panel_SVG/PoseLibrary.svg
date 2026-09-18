@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Pose Library">
+  <g fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="12" y="15" width="72" height="66" rx="9"/>
+    <path d="M28 15v66M68 15v66" opacity="0.55"/>
+    <circle cx="48" cy="31" r="7"/>
+    <path d="M48 38v18M48 43L35 51M48 43l14-9M48 56L37 70M48 56l13 14"/>
+    <path d="M18 8v14M78 8v14"/>
+  </g>
+</svg>
