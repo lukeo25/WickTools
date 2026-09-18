@@ -68,10 +68,9 @@
   .panel-section button:hover{background:#39404a;border-color:#59616c}
   #btnWickCopy{background:var(--accent)!important;border-color:#6aa9ff!important;color:#fff!important;font-weight:800;height:28px!important;font-size:11px!important;padding:0 10px!important;box-shadow:0 0 0 1px rgba(255,255,255,.04) inset}
   #btnWickCopy:hover{background:var(--accent-hover)!important}
-  .boolean-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
-  .boolean-grid button{min-height:30px!important;font-weight:600}
-  .boolean-grid button[data-op="subtract"]{border-color:#815a42}
-  .boolean-note{font-size:9px;color:var(--text-dim);margin-top:6px;line-height:1.3}
+  #topbar .bool-top{font-weight:700}
+  #topbar .bool-top[data-op="subtract"]{border-color:#815a42}
+  #topbar .bool-top:hover{background:#35485f}
   #layerList{flex:1;overflow-y:auto;padding:4px 5px 8px}
   .layer-item{display:flex;align-items:center;gap:6px;padding:6px 7px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid transparent}
   .layer-item:hover{background:var(--panel-2);border-color:#363c45}
@@ -130,6 +129,11 @@
     <button id="btnSave" title="Export SVG">SVG</button>
     <button id="btnPNG" title="Export PNG">PNG</button>
     <button id="btnWickCopy" title="Add selected Drawing objects directly to the current Wick stage">Add to Wick Stage</button>
+    <div class="sep"></div>
+    <button class="bool-top" data-op="unite" title="Union two selected shapes">Union</button>
+    <button class="bool-top" data-op="subtract" title="Subtract second selected shape from first">Subtract</button>
+    <button class="bool-top" data-op="intersect" title="Intersect two selected shapes">Intersect</button>
+    <button class="bool-top" data-op="exclude" title="Exclude overlapping area">Exclude</button>
     <div class="sep"></div>
     <button id="btnUndo" title="Undo (Ctrl+Z)">↶</button>
     <button id="btnRedo" title="Redo (Ctrl+Y)">↷</button>
@@ -207,16 +211,6 @@
         <button id="btnDup" style="flex:1;">Duplicate</button>
         <button id="btnDel" style="flex:1;color:var(--danger);">Delete</button>
       </div>
-    </div>
-    <div class="panel-section">
-      <div class="panel-title">Boolean</div>
-      <div class="boolean-grid">
-        <button type="button" data-op="unite" title="Combine two selected filled shapes">Union</button>
-        <button type="button" data-op="subtract" title="Subtract the second selected shape from the first">Subtract</button>
-        <button type="button" data-op="intersect" title="Keep only the overlapping area">Intersect</button>
-        <button type="button" data-op="exclude" title="Keep areas that do not overlap">Exclude</button>
-      </div>
-      <div class="boolean-note">Select exactly two filled vector objects. Subtract uses first selected minus second.</div>
     </div>
     <div class="panel-title" style="padding:10px 10px 2px;">Objects / Layers</div>
     <div id="layerList"></div>
@@ -1521,7 +1515,7 @@ function runBooleanOperation(op){
   }
 }
 
-document.querySelectorAll(".boolean-grid button[data-op]").forEach(btn=>{
+document.querySelectorAll("#topbar .bool-top[data-op]").forEach(btn=>{
   btn.addEventListener("click",()=>runBooleanOperation(btn.dataset.op));
 });
 
