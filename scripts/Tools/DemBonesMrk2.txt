@@ -993,7 +993,7 @@ html, body, #app{
             <button id="btnAddDummyArea" class="secondary">Add Dummy</button> <!-- FIX v18.182_GPT -->
           </div>
           <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
-            <button id="btnUseSelectedCurve" class="secondary">Edit Selected Artwork In Place</button> <!-- DemBonesMrk2: one stage based workflow -->
+            <button id="btnUseSelectedCurve" class="secondary">Use Selected Artwork</button> <!-- FIX Claude_10-07-2026_V6: relabeled, now paired with Remove Originals checkbox -->
           </div>
           <div class="row"><label class="small" style="display:flex;align-items:center;gap:4px;min-width:0;"><input type="checkbox" id="chkUseSelectedCurveRemoveOriginals_Claude"> Remove Originals</label></div> <!-- FIX Claude_10-07-2026_V6/V8 -->
           <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
@@ -24304,10 +24304,23 @@ function installDemBonesMrk2() {
   }
   async function useCapture(capture) {
     var raw = makeSvg(capture.native), url = svgTextToDataUrl(raw);
-    var image = await loadImageFromUrl(url);
+    var previewUrl = url;
+    var image;
+    try {
+      image = await loadImageFromUrl(previewUrl);
+    } catch (svgPreviewError) {
+      // Live mode edits the native Wick paths directly. The generated SVG is
+      // only a hidden preview source, so an unsupported Paper paint or missing
+      // SVG definition must not prevent the real curves from being bound.
+      var safeWidth = Math.max(1, Number(capture.native.width) || 1);
+      var safeHeight = Math.max(1, Number(capture.native.height) || 1);
+      previewUrl = svgTextToDataUrl('<svg xmlns="http://www.w3.org/2000/svg" width="' + safeWidth + '" height="' + safeHeight + '" viewBox="0 0 ' + safeWidth + ' ' + safeHeight + '"></svg>');
+      image = await loadImageFromUrl(previewUrl);
+      log('DemBonesMrk2: native Wick curves loaded without the optional SVG image preview.');
+    }
     App.source.stagePlacementBounds = G.copy(capture.bounds);
     App.source.viewportRect = stageBoundsToViewportRect(capture.bounds);
-    applyLoadedSourceImage(url, image, { fileName: 'DemBonesMrk2.svg', mode: 'dbm2-live', label: 'Live Wick curves', uuid: 'dbm2-live',
+    applyLoadedSourceImage(previewUrl, image, { fileName: 'DemBonesMrk2.svg', mode: 'dbm2-live', label: 'Live Wick curves', uuid: 'dbm2-live',
       svgRaw: raw, svgNative: G.copy(capture.native), width: capture.bounds.w, height: capture.bounds.h });
     App.source.svgNative = G.copy(capture.native);
     App.source.width = capture.bounds.w; App.source.height = capture.bounds.h;
@@ -24577,7 +24590,7 @@ function installDemBonesMrk2() {
     if (rigVisibility().exists && !flush(true)) return;
     removeOverlay(); removeProxyOverlay(false);
     live.binding = null; live.lastPreview = '';
-    status('Finished. Only the Wick artwork remains on stage. Double-click it to edit again.');
+    status('Finished. Double-click a rigged curve in Wick to reopen its bones.');
   }
   // Reuse all the existing rig/curve controls, but render the artwork through Wick.
   var oldViewport = applyOverlayViewportForBounds;
@@ -24668,10 +24681,13 @@ function installDemBonesMrk2() {
   };
   var oldStamp = stampAnimationIntoClip;
   stampAnimationIntoClip = function () { if (live.binding) return flush(true); return oldStamp.apply(this, arguments); };
-  useSelectedWickCurveAsSourceInternal = function () {
-    // DemBonesMrk2 has one stage workflow: the selected native Wick artwork is
-    // bound and edited in place. Do not create a separate imported working copy.
-    return bind();
+  var oldSelected = useSelectedWickCurveAsSourceInternal;
+  useSelectedWickCurveAsSourceInternal = function (removeOriginal) {
+    // Preserve the established Use Selected Artwork / Remove Originals choice.
+    // Remove Originals enters the live in-place rig; the ordinary import keeps
+    // the original workflow unchanged.
+    if (removeOriginal) return bind();
+    return oldSelected.apply(this, arguments);
   };
   buildRigProjectState = function () {
     var state = baseBuildState.apply(this, arguments);
@@ -24729,7 +24745,7 @@ function installDemBonesMrk2() {
     '<div class="row rowButtonsSym_Claude cols1"><button id="dbm2Bind">Bind selected curves / Open rig</button></div>' +
     '<div class="row rowButtonsSym_Claude cols2"><button id="dbm2Resume" class="secondary">Resume updates</button><button id="dbm2Finish" class="secondary">Finish editing</button></div>' +
     '<p class="small">Select native curves on one Wick frame. Bones and curve handles update the real artwork. Animation is saved automatically within that frame’s exposure; extend the frame in Wick for a longer animation.</p>' +
-    '<p class="small">The Wick stage remains the workspace. Finishing removes DemBones overlays and helper layers, leaving only the editable Wick artwork. Double-click anywhere on that DemBones object to reopen it.</p>' +
+    '<p class="small">Double-click a rigged curve to reopen its bones. Alt + double-click uses Wick’s normal clip editing.</p>' +
     '<div id="dbm2Status" class="small" role="status" aria-live="polite">Ready to bind native Wick curves.</div>';
   var sourcePage = document.querySelector('[data-page="source"]');
   sourcePage.insertBefore(section, sourcePage.firstChild);
@@ -24746,8 +24762,6 @@ function installDemBonesMrk2() {
   });
   el('chkUseSelectedCurveRemoveOriginals_Claude').disabled = true;
   el('chkUseSelectedCurveRemoveOriginals_Claude').checked = true;
-  var removeOriginalsRow = el('chkUseSelectedCurveRemoveOriginals_Claude').closest('.row');
-  if (removeOriginalsRow) removeOriginalsRow.style.display = 'none';
   var api = { version: '2.3', bind: bind, resume: resume, flush: flush, preview: preview, finish: finish, geometryAt: geometryAt,
     clientInverse: function () { return live.binding ? G.inverse(rigClientMatrix()) : null; },
     get binding() { return live.binding; }, get state() { return live; },
