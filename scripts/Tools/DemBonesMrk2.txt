@@ -5613,9 +5613,34 @@ html, body, #app{
       var nodes = [root].concat(Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('*') : []));
       nodes.forEach(function(node){
         Array.prototype.slice.call(node.attributes || []).forEach(function(attr){
-          var v = String(attr.value || '');
-          if (/\b(?:NaN|Infinity|-Infinity|undefined|null)\b/.test(v)) node.removeAttribute(attr.name);
+          var v = String(attr.value == null ? '' : attr.value);
+          if (/\b(?:NaN|Infinity|-Infinity|undefined|null)\b/i.test(v)) {
+            node.removeAttribute(attr.name);
+            return;
+          }
+          // Remove CSS paint/filter references that resolve to invalid URLs.
+          if (/url\(\s*['"]?(?:undefined|null|NaN|Infinity)['"]?\s*\)/i.test(v)) {
+            node.removeAttribute(attr.name);
+          }
         });
+      });
+
+      // Paper/Wick exports can occasionally leave image/use nodes whose source
+      // has become undefined. Removing only the href is not enough: an empty
+      // image/use node may still try to resolve against the editor URL.
+      Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('image,use') : []).forEach(function(node){
+        var href = '';
+        try { href = node.getAttribute('href') || node.getAttributeNS('http://www.w3.org/1999/xlink','href') || node.getAttribute('xlink:href') || ''; } catch(e){}
+        href = String(href || '').trim();
+        if (!href || /^(?:undefined|null|NaN|Infinity)$/i.test(href) || /\/(?:undefined|null)(?:$|[?#])/i.test(href)) {
+          if (node.parentNode) node.parentNode.removeChild(node);
+        }
+      });
+
+      // foreignObject content can contain HTML <img src="undefined"> references.
+      // Selected Artwork is a vector ingest path, so remove foreignObject blocks.
+      Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('foreignObject') : []).forEach(function(node){
+        if (node.parentNode) node.parentNode.removeChild(node);
       });
 
       if (!root.getAttribute('xmlns')) root.setAttribute('xmlns','http://www.w3.org/2000/svg');
