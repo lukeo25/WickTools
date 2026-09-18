@@ -86,6 +86,29 @@
   ::-webkit-scrollbar-thumb:hover{background:#5b6470}
 
   @media (max-width:820px){#app{grid-template-columns:48px minmax(0,1fr) 210px}.brand{max-width:110px;overflow:hidden;text-overflow:ellipsis}#topbar{gap:3px;padding:0 5px}#topbar button{padding:0 6px}}
+
+  /* ---- Integrated LukeTools Shapes ---- */
+  #shapeDrawer{position:absolute;z-index:40;left:60px;top:56px;width:330px;max-height:calc(100vh - 95px);
+    background:#202329;border:1px solid #464d57;border-radius:8px;box-shadow:0 18px 46px rgba(0,0,0,.55);
+    display:none;flex-direction:column;overflow:hidden}
+  #shapeDrawer.open{display:flex}
+  #shapeDrawerHeader{display:flex;align-items:center;gap:6px;padding:8px;border-bottom:1px solid var(--border-soft);background:#252930}
+  #shapeDrawerTitle{font-size:11px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #shapeDrawer button{background:var(--panel-3);border:1px solid #444b55;color:var(--text);border-radius:4px;height:27px;padding:0 7px;font-size:11px;cursor:pointer}
+  #shapeDrawer button:hover{background:#3a4049}
+  #shapeGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px;overflow:auto}
+  .shape-card{height:66px!important;padding:5px!important;display:flex;align-items:center;justify-content:center;background:#17191d!important}
+  .shape-card img{max-width:45px;max-height:45px;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+  .shape-folder{height:54px!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10px!important}
+  .shape-folder span:first-child{font-size:19px}
+  #shapeStatus{padding:6px 9px;border-top:1px solid var(--border-soft);font-size:10px;color:var(--text-dim)}
+
+  /* ---- Integrated Texture Pen ---- */
+  #texturePanel{display:none}
+  #texturePanel.visible{display:block}
+  #texturePanel select{width:112px;background:var(--field);border:1px solid #414852;color:var(--text);border-radius:4px;height:25px;font-size:11px;padding:0 4px}
+  #texturePanel input[type=range]{min-width:80px}
+
 </style>
 </head>
 <body>
@@ -133,6 +156,24 @@
       <div class="row"><span>Width</span><input type="range" id="strokeWidth" min="0" max="40" value="2"><span id="strokeWidthLabel">2</span></div>
       <div class="row"><span>Opacity</span><input type="range" id="opacity" min="0" max="100" value="100"><span id="opacityLabel">100</span></div>
     </div>
+
+    <div class="panel-section" id="texturePanel">
+      <div class="panel-title">Texture Pen</div>
+      <div class="row"><span>Preset</span>
+        <select id="texPreset">
+          <option value="ink">Ink</option>
+          <option value="marker">Marker</option>
+          <option value="pencil">Pencil</option>
+          <option value="calligraphy">Calligraphy</option>
+          <option value="cleanink">Clean Ink</option>
+        </select>
+      </div>
+      <div class="row"><span>Size</span><input type="range" id="texSize" min="2" max="80" step="1" value="22"><span id="texSizeVal">22</span></div>
+      <div class="row"><span>Smooth</span><input type="range" id="texSmooth" min="0" max="1" step="0.01" value="0.60"><span id="texSmoothVal">.60</span></div>
+      <div class="row"><span>Taper</span><input type="range" id="texTaper" min="0" max="1" step="0.01" value="0.35"><span id="texTaperVal">.35</span></div>
+      <div class="row"><span>Rough</span><input type="range" id="texRough" min="0" max="1" step="0.01" value="0.10"><span id="texRoughVal">.10</span></div>
+      <div class="row"><span>Jitter</span><input type="range" id="texJitter" min="0" max="1" step="0.01" value="0.06"><span id="texJitterVal">.06</span></div>
+    </div>
     <div class="panel-section">
       <div class="panel-title">Transform</div>
       <div class="row"><span>X</span><input type="number" id="tX"></div>
@@ -162,6 +203,17 @@
     </div>
     <div class="panel-title" style="padding:10px 10px 2px;">Objects / Layers</div>
     <div id="layerList"></div>
+  </div>
+
+
+  <div id="shapeDrawer">
+    <div id="shapeDrawerHeader">
+      <button id="shapeBack" title="Back">←</button>
+      <div id="shapeDrawerTitle">LukeTools Shapes</div>
+      <button id="shapeClose" title="Close">✕</button>
+    </div>
+    <div id="shapeGrid"></div>
+    <div id="shapeStatus">Loading shapes…</div>
   </div>
 
   <div id="statusbar">
@@ -204,6 +256,8 @@ const TOOLS = [
   {id:"ellipse", label:"Ellipse (E)", icon:"circle:12,12,9"},
   {id:"line", label:"Line (L)", icon:"M4 20L20 4"},
   {id:"pen", label:"Pen / Path (P)", icon:"M4 20l4-1 11-11-3-3L5 16z"},
+  {id:"texture", label:"Texture Pen (B)", icon:"M3 21l4-1 12-12-3-3L4 17zM14 5l3 3"},
+  {id:"shapes", label:"LukeTools Shapes (S)", icon:"M4 4h7v7H4zM14 4h6v6h-6zM5 15l4-3 4 3-4 5zM16 14a3 3 0 1 0 0 6a3 3 0 0 0 0-6z"},
   {id:"text", label:"Text (T)", icon:"M5 5h14M12 5v14"},
   {id:"pan", label:"Pan (H / Space)", icon:"M12 3v18M3 12h18"}
 ];
@@ -222,9 +276,14 @@ TOOLS.forEach(t=>{
 });
 
 function setTool(id){
+  if(id === "shapes"){
+    openShapesDrawer();
+    return;
+  }
   currentTool = id;
   document.querySelectorAll(".tool-btn").forEach(b=>b.classList.toggle("active", b.dataset.tool===id));
   document.getElementById("statusTool").textContent = TOOLS.find(t=>t.id===id).label.split(" (")[0];
+  document.getElementById("texturePanel").classList.toggle("visible", id==="texture");
   if(id !== "node"){ exitNodeEdit(); }
   clearSelection();
   updateCursor();
@@ -707,6 +766,200 @@ function finishMarquee(box){
   marqueeEl = null;
 }
 
+
+// ---------- Integrated LukeTools Shapes ----------
+const SHAPE_API_ROOT = "https://api.github.com/repos/lukeo25/WickTools/contents/scripts/Panel_SVG/Shapes";
+let shapePath = "";
+const shapeDrawer = document.getElementById("shapeDrawer");
+const shapeGrid = document.getElementById("shapeGrid");
+const shapeStatus = document.getElementById("shapeStatus");
+const shapeTitle = document.getElementById("shapeDrawerTitle");
+
+function openShapesDrawer(){
+  shapeDrawer.classList.add("open");
+  loadShapeFolder(shapePath || "");
+}
+function closeShapesDrawer(){ shapeDrawer.classList.remove("open"); }
+document.getElementById("shapeClose").addEventListener("click", closeShapesDrawer);
+document.getElementById("shapeBack").addEventListener("click", ()=>{
+  if(!shapePath){ closeShapesDrawer(); return; }
+  const bits = shapePath.split("/").filter(Boolean);
+  bits.pop();
+  loadShapeFolder(bits.join("/"));
+});
+
+async function loadShapeFolder(path){
+  shapePath = path || "";
+  shapeGrid.innerHTML = "";
+  shapeTitle.textContent = shapePath ? "Shapes · " + shapePath.split("/").pop() : "LukeTools Shapes";
+  shapeStatus.textContent = "Loading…";
+  const url = SHAPE_API_ROOT + (shapePath ? "/" + shapePath.split("/").map(encodeURIComponent).join("/") : "") + "?ref=main";
+  try{
+    const r = await fetch(url,{cache:"no-store"});
+    if(!r.ok) throw new Error("GitHub HTTP " + r.status);
+    const items = await r.json();
+    const dirs = items.filter(x=>x.type==="dir").sort((a,b)=>a.name.localeCompare(b.name));
+    const svgs = items.filter(x=>x.type==="file" && /\.svg$/i.test(x.name)).sort((a,b)=>a.name.localeCompare(b.name));
+    dirs.forEach(item=>{
+      const b=document.createElement("button");
+      b.className="shape-folder";
+      b.innerHTML="<span>▣</span><span>"+item.name.replace(/[_-]+/g," ")+"</span>";
+      b.addEventListener("click",()=>loadShapeFolder(shapePath ? shapePath+"/"+item.name : item.name));
+      shapeGrid.appendChild(b);
+    });
+    svgs.forEach(item=>{
+      const b=document.createElement("button");
+      b.className="shape-card";
+      b.title=item.name.replace(/\.svg$/i,"").replace(/[_-]+/g," ");
+      const img=document.createElement("img");
+      img.src=item.download_url;
+      img.alt=b.title;
+      b.appendChild(img);
+      b.addEventListener("click",()=>insertLibraryShape(item.download_url,b.title));
+      shapeGrid.appendChild(b);
+    });
+    shapeStatus.textContent = (dirs.length+svgs.length) + " items";
+  }catch(err){
+    shapeStatus.textContent = "Could not load shapes: " + (err?.message || err);
+  }
+}
+
+async function insertLibraryShape(url,name){
+  try{
+    shapeStatus.textContent="Adding "+name+"…";
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const txt=await r.text();
+    const doc=new DOMParser().parseFromString(txt,"image/svg+xml");
+    const root=doc.documentElement;
+    if(!root || root.tagName.toLowerCase()!=="svg") throw new Error("Invalid SVG");
+    const vb=(root.getAttribute("viewBox")||"0 0 100 100").trim().split(/[\s,]+/).map(Number);
+    const w=(vb[2]||100), h=(vb[3]||100);
+    const target=150;
+    const scale=Math.min(target/w,target/h);
+    const cr=canvasWrap.getBoundingClientRect();
+    const center=screenToSvg(cr.left+cr.width/2,cr.top+cr.height/2);
+    const g=document.createElementNS(SVGNS,"g");
+    g.id=newId();
+    g.dataset.libraryShape=name;
+    g.setAttribute("transform",`translate(${center.x-(w*scale)/2} ${center.y-(h*scale)/2}) scale(${scale}) translate(${-(vb[0]||0)} ${-(vb[1]||0)})`);
+    Array.from(root.childNodes).forEach(n=>{
+      if(n.nodeType===1) g.appendChild(document.importNode(n,true));
+    });
+    drawLayer.appendChild(g);
+    setSelection([g]);
+    pushHistory();
+    shapeStatus.textContent="Added "+name;
+  }catch(err){
+    shapeStatus.textContent="Shape failed: "+(err?.message||err);
+  }
+}
+
+// ---------- Integrated Texture Pen ----------
+const TEX_PRESETS = {
+  ink:{size:22,smoothing:.60,taper:.35,roughness:.10,jitter:.06},
+  marker:{size:32,smoothing:.48,taper:.10,roughness:.04,jitter:.02},
+  pencil:{size:12,smoothing:.42,taper:.24,roughness:.22,jitter:.14},
+  calligraphy:{size:28,smoothing:.85,taper:.50,roughness:0,jitter:0},
+  cleanink:{size:24,smoothing:1,taper:.78,roughness:0,jitter:0}
+};
+const texPreset=document.getElementById("texPreset");
+const texSize=document.getElementById("texSize");
+const texSmooth=document.getElementById("texSmooth");
+const texTaper=document.getElementById("texTaper");
+const texRough=document.getElementById("texRough");
+const texJitter=document.getElementById("texJitter");
+
+function texSyncLabels(){
+  document.getElementById("texSizeVal").textContent=texSize.value;
+  document.getElementById("texSmoothVal").textContent=(+texSmooth.value).toFixed(2);
+  document.getElementById("texTaperVal").textContent=(+texTaper.value).toFixed(2);
+  document.getElementById("texRoughVal").textContent=(+texRough.value).toFixed(2);
+  document.getElementById("texJitterVal").textContent=(+texJitter.value).toFixed(2);
+}
+[texSize,texSmooth,texTaper,texRough,texJitter].forEach(x=>x.addEventListener("input",texSyncLabels));
+texPreset.addEventListener("change",()=>{
+  const p=TEX_PRESETS[texPreset.value]||TEX_PRESETS.ink;
+  texSize.value=p.size; texSmooth.value=p.smoothing; texTaper.value=p.taper; texRough.value=p.roughness; texJitter.value=p.jitter;
+  texSyncLabels();
+});
+texSyncLabels();
+
+function texSettings(){
+  return {size:+texSize.value,smoothing:+texSmooth.value,taper:+texTaper.value,roughness:+texRough.value,jitter:+texJitter.value};
+}
+function texDist(a,b){return Math.hypot(b.x-a.x,b.y-a.y)}
+function texNorm(x,y){const m=Math.hypot(x,y)||1;return{x:x/m,y:y/m}}
+function texRng(seed){let s=(seed|0)||1234567;return()=>{s=(s*1664525+1013904223)|0;return((s>>>0)/4294967296)}}
+function texTaperFactor(i,n,taper){
+  if(n<2) return 1;
+  const u=i/(n-1);
+  const edge=Math.min(u,1-u)*2;
+  return (1-taper)+taper*Math.max(.04,Math.sin(Math.PI*Math.min(1,edge)));
+}
+function buildTextureOutline(points,settings){
+  if(!points || points.length<2) return null;
+  const sm=[points[0]];
+  for(let i=1;i<points.length-1;i++){
+    const a=points[i-1],b=points[i],c=points[i+1];
+    sm.push({x:b.x+( (a.x+b.x+c.x)/3-b.x)*settings.smoothing,
+             y:b.y+( (a.y+b.y+c.y)/3-b.y)*settings.smoothing,
+             pressure:b.pressure||.5});
+  }
+  sm.push(points[points.length-1]);
+  const rng=texRng(sm.length*911+Math.round(settings.roughness*1000)*17);
+  const left=[],right=[];
+  for(let i=0;i<sm.length;i++){
+    const prv=sm[Math.max(0,i-1)],nxt=sm[Math.min(sm.length-1,i+1)];
+    const t=texNorm(nxt.x-prv.x,nxt.y-prv.y), n={x:-t.y,y:t.x};
+    const pressure=sm[i].pressure||.5;
+    let width=settings.size*(.80+.35*pressure)*texTaperFactor(i,sm.length,settings.taper)*.5;
+    const edgeNoise=settings.roughness*settings.size*(rng()-.5)*.9;
+    const center=settings.jitter*settings.size*(rng()-.5)*.55;
+    const cx=sm[i].x+n.x*center,cy=sm[i].y+n.y*center;
+    const off=Math.max(.6,width+edgeNoise);
+    left.push({x:cx+n.x*off,y:cy+n.y*off});
+    right.push({x:cx-n.x*off,y:cy-n.y*off});
+  }
+  return left.concat(right.reverse());
+}
+function texturePolyToD(poly){
+  if(!poly || !poly.length) return "";
+  return "M "+poly.map(p=>p.x.toFixed(2)+" "+p.y.toFixed(2)).join(" L ")+" Z";
+}
+let textureDrawing=false,texturePoints=[],texturePreview=null;
+function startTextureStroke(ev,p){
+  textureDrawing=true;
+  texturePoints=[{x:p.x,y:p.y,pressure:ev.pressure||.5}];
+  texturePreview=createPath("M "+p.x+" "+p.y);
+  texturePreview.setAttribute("fill",document.getElementById("fillColor").value);
+  texturePreview.setAttribute("stroke","none");
+  drawLayer.appendChild(texturePreview);
+  const onMove=mv=>{
+    const q=screenToSvg(mv.clientX,mv.clientY);
+    const last=texturePoints[texturePoints.length-1];
+    if(texDist(last,q)<1.5/zoom) return;
+    texturePoints.push({x:q.x,y:q.y,pressure:mv.pressure||.5});
+    const poly=buildTextureOutline(texturePoints,texSettings());
+    if(poly) texturePreview.setAttribute("d",texturePolyToD(poly));
+  };
+  const onUp=()=>{
+    window.removeEventListener("pointermove",onMove);
+    window.removeEventListener("pointerup",onUp);
+    textureDrawing=false;
+    if(texturePoints.length<2){texturePreview.remove();texturePreview=null;return;}
+    const poly=buildTextureOutline(texturePoints,texSettings());
+    texturePreview.setAttribute("d",texturePolyToD(poly));
+    texturePreview.setAttribute("opacity",document.getElementById("opacity").value/100);
+    const finished=texturePreview;
+    texturePreview=null; texturePoints=[];
+    setSelection([finished]);
+    pushHistory();
+  };
+  window.addEventListener("pointermove",onMove);
+  window.addEventListener("pointerup",onUp);
+}
+
 // ---------- Pointer / drawing interaction ----------
 let drawing = false, drawEl = null, drawStart = null;
 let penPoints = [], penActive = false, penPreview = null;
@@ -809,6 +1062,9 @@ canvasWrap.addEventListener("pointerdown", ev=>{
     window.addEventListener("pointermove",onMove);
     window.addEventListener("pointerup",onUp);
   }
+  else if(currentTool==="texture"){
+    startTextureStroke(ev,p);
+  }
   else if(currentTool==="pen"){
     if(!penActive){
       penActive = true; penPoints = [{type:"M", x:p.x, y:p.y}];
@@ -868,7 +1124,7 @@ window.addEventListener("keydown", ev=>{
     deleteSelected();
   }
   if(document.activeElement.tagName!=="INPUT"){
-    const map = {v:"select", n:"node", r:"rect", e:"ellipse", l:"line", p:"pen", t:"text", h:"pan"};
+    const map = {v:"select", n:"node", r:"rect", e:"ellipse", l:"line", p:"pen", b:"texture", s:"shapes", t:"text", h:"pan"};
     if(map[ev.key]) setTool(map[ev.key]);
   }
 });
@@ -978,6 +1234,7 @@ function betterMoveInit(){}
       if(el.tagName==="rect") return {el, kind:"rect", x:+el.getAttribute("x"), y:+el.getAttribute("y")};
       if(el.tagName==="ellipse") return {el, kind:"ellipse", cx:+el.getAttribute("cx"), cy:+el.getAttribute("cy")};
       if(el.tagName==="text") return {el, kind:"text", x:+el.getAttribute("x"), y:+el.getAttribute("y")};
+      if(el.tagName==="g") return {el, kind:"group", transform:el.getAttribute("transform")||""};
       return {el, kind:"other"};
     });
     const onMove = mv=>{
@@ -988,6 +1245,7 @@ function betterMoveInit(){}
         else if(o.kind==="ellipse"){ o.el.setAttribute("cx", o.cx+dx); o.el.setAttribute("cy", o.cy+dy); }
         else if(o.kind==="line"){ o.el.setAttribute("x1", o.x1+dx); o.el.setAttribute("y1", o.y1+dy); o.el.setAttribute("x2", o.x2+dx); o.el.setAttribute("y2", o.y2+dy); }
         else if(o.kind==="text"){ o.el.setAttribute("x", o.x+dx); o.el.setAttribute("y", o.y+dy); }
+        else if(o.kind==="group"){ o.el.setAttribute("transform", `translate(${dx} ${dy}) ${o.transform}`); }
         else if(o.kind==="path"){
           const pts = o.pts.map(pt=>{
             const np = Object.assign({}, pt);
@@ -1342,7 +1600,7 @@ document.getElementById("btnRedo").addEventListener("click", redo);
 window.addEventListener("resize", ()=>{ syncOverlaySize(); renderOverlay(); });
 fitToScreen();
 pushHistory();
-document.getElementById("statusHint").textContent = "V Select · N Nodes · R Rectangle · E Ellipse · L Line · P Pen · T Text · H Pan · Space drag Pan · Wheel Zoom";
+document.getElementById("statusHint").textContent = "V Select · N Nodes · R Rect · E Ellipse · L Line · P Pen · B Texture · S Shapes · T Text · H Pan · Wheel Zoom";
 })();
 </script>
 </body>
