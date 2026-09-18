@@ -104,8 +104,13 @@
   #shapeStatus{padding:6px 9px;border-top:1px solid var(--border-soft);font-size:10px;color:var(--text-dim)}
 
   /* ---- Integrated Texture Pen ---- */
-  #texturePanel{display:none}
-  #texturePanel.visible{display:block}
+  #texturePanel{display:block;background:#1b1f25;border-left:3px solid transparent;transition:.15s ease}
+  #texturePanel .texture-hint{font-size:10px;line-height:1.35;color:var(--text-dim);margin:-2px 0 8px}
+  #texturePanel.visible{background:#192535;border-left-color:var(--accent)}
+  #texturePanel.visible .panel-title{color:#8fc2ff}
+  .tool-btn[data-tool="texture"]{position:relative}
+  .tool-btn[data-tool="texture"]::after{content:"";position:absolute;right:3px;bottom:3px;width:7px;height:7px;border-radius:50%;background:#2f80ed;border:1px solid #b9d8ff}
+  .tool-btn[data-tool="texture"].active::after{background:#fff;border-color:#fff}
   #texturePanel select{width:112px;background:var(--field);border:1px solid #414852;color:var(--text);border-radius:4px;height:25px;font-size:11px;padding:0 4px}
   #texturePanel input[type=range]{min-width:80px}
 
@@ -158,7 +163,8 @@
     </div>
 
     <div class="panel-section" id="texturePanel">
-      <div class="panel-title">Texture Pen</div>
+      <div class="panel-title">Texture Pen Settings</div>
+      <div class="texture-hint">Choose the blue brush tool on the left, then draw directly on the page.</div>
       <div class="row"><span>Preset</span>
         <select id="texPreset">
           <option value="ink">Ink</option>
@@ -256,7 +262,7 @@ const TOOLS = [
   {id:"ellipse", label:"Ellipse (E)", icon:"circle:12,12,9"},
   {id:"line", label:"Line (L)", icon:"M4 20L20 4"},
   {id:"pen", label:"Pen / Path (P)", icon:"M4 20l4-1 11-11-3-3L5 16z"},
-  {id:"texture", label:"Texture Pen (B)", icon:"M3 21l4-1 12-12-3-3L4 17zM14 5l3 3"},
+  {id:"texture", label:"Texture Pen / Brush (B)", icon:"M4 20c2.5 0 4.5-.8 6-2.4l2-2-3.6-3.6-2 2C4.8 15.6 4 17.5 4 20zM9.5 11.5L17.5 3.5 21 7l-8 8z"},
   {id:"shapes", label:"LukeTools Shapes (S)", icon:"M4 4h7v7H4zM14 4h6v6h-6zM5 15l4-3 4 3-4 5zM16 14a3 3 0 1 0 0 6a3 3 0 0 0 0-6z"},
   {id:"text", label:"Text (T)", icon:"M5 5h14M12 5v14"},
   {id:"pan", label:"Pan (H / Space)", icon:"M12 3v18M3 12h18"}
@@ -289,7 +295,7 @@ function setTool(id){
   updateCursor();
 }
 function updateCursor(){
-  canvasWrap.style.cursor = currentTool==="pan" ? "grab" : (currentTool==="select"?"default":"crosshair");
+  canvasWrap.style.cursor = currentTool==="pan" ? "grab" : (currentTool==="select" ? "default" : (currentTool==="texture" ? "cell" : "crosshair"));
 }
 
 // ---------- Coordinate helpers ----------
@@ -978,9 +984,19 @@ canvasWrap.addEventListener("pointerdown", ev=>{
   const p = screenToSvg(ev.clientX, ev.clientY);
 
   if(currentTool==="select"){
+    closeShapesDrawer();
     const hitEl = pickElementAt(ev);
     if(hitEl){
-      if(!selected.includes(hitEl)) setSelection([hitEl]);
+      if(ev.shiftKey){
+        if(selected.includes(hitEl)){
+          setSelection(selected.filter(x=>x!==hitEl));
+          return;
+        } else {
+          setSelection(selected.concat([hitEl]));
+        }
+      } else if(!selected.includes(hitEl)){
+        setSelection([hitEl]);
+      }
       startDragSelection(ev);
     } else {
       startMarquee(p);
@@ -1147,7 +1163,20 @@ function finishPen(cancel){
 function pickElementAt(ev){
   const els = document.elementsFromPoint(ev.clientX, ev.clientY);
   for(const e of els){
-    if(e.parentNode===drawLayer) return e;
+    if(!e || e===drawLayer || e===svgRoot || e===pageRect || e===selOverlay) continue;
+
+    let node = e;
+    while(node && node.parentNode && node.parentNode !== drawLayer){
+      if(node === svgRoot || node === document.body || node === document.documentElement){
+        node = null;
+        break;
+      }
+      node = node.parentNode;
+    }
+
+    if(node && node.parentNode === drawLayer){
+      return node;
+    }
   }
   return null;
 }
@@ -1600,7 +1629,7 @@ document.getElementById("btnRedo").addEventListener("click", redo);
 window.addEventListener("resize", ()=>{ syncOverlaySize(); renderOverlay(); });
 fitToScreen();
 pushHistory();
-document.getElementById("statusHint").textContent = "V Select · N Nodes · R Rect · E Ellipse · L Line · P Pen · B Texture · S Shapes · T Text · H Pan · Wheel Zoom";
+document.getElementById("statusHint").textContent = "V Select · Shift multi-select · N Nodes · R Rect · E Ellipse · L Line · P Pen · B Texture Brush · S Shapes · T Text · H Pan · Wheel Zoom";
 })();
 </script>
 </body>
