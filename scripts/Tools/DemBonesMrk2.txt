@@ -6579,10 +6579,27 @@ html, body, #app{
     App.interaction.unloadHandler = null;
   }
 
-  function installParentCloseCleanup(){ // FIX v9.7
+  function demBonesHasAnimationToPreserve_v18228(){ // FIX v18.228_GPT
+    try {
+      if (!App || !App.source || !App.source.image) return false;
+      if (!App.bones || !App.bones.length) return false;
+      if (App.committedClipIdentifiers && App.committedClipIdentifiers.length) return false;
+      var hasBoneKeys = App.keyframes && Object.keys(App.keyframes).length > 0;
+      var hasPointKeys = App.pointKeys && Object.keys(App.pointKeys).length > 0;
+      var hasFrameKeys = App.frameBoneKeys && Object.keys(App.frameBoneKeys).length > 0;
+      var hasExpressionKeys = App.expressionKeys && Object.keys(App.expressionKeys).length > 0;
+      return !!(hasBoneKeys || hasPointKeys || hasFrameKeys || hasExpressionKeys);
+    } catch(e) { return false; }
+  }
+
+  function installParentCloseCleanup(){ // FIX v18.228_GPT
     try {
       var pdoc = window.parent && window.parent.document ? window.parent.document : null;
       if (!pdoc || App.interaction.parentCloseHandler) return;
+
+      App.interaction.autoCommitCloseBusy = false;
+      App.interaction.autoCommitCloseBypass = false;
+
       App.interaction.parentCloseHandler = function(evt){
         try {
           var target = evt && evt.target ? evt.target : null;
@@ -6592,6 +6609,7 @@ html, body, #app{
           var label = ((clickable.getAttribute('aria-label') || '') + ' ' + (clickable.getAttribute('title') || '') + ' ' + (clickable.textContent || '')).trim().toLowerCase();
           var looksLikeClose = label === 'x' || label === '×' || label.indexOf('close') >= 0 || label.indexOf('hide') >= 0;
           if (!looksLikeClose) return;
+
           var frame = window.frameElement;
           var panel = frame ? frame.parentElement : null;
           var nearPanel = false;
@@ -6602,14 +6620,64 @@ html, body, #app{
               break;
             }
           }
-          if (nearPanel || label.indexOf('luke') >= 0 || label.indexOf('tool') >= 0 || label === 'x' || label === '×') {
+          if (!(nearPanel || label.indexOf('luke') >= 0 || label.indexOf('tool') >= 0 || label === 'x' || label === '×')) return;
+
+          if (App.interaction.autoCommitCloseBypass) {
             setTimeout(cleanupToolOverlays, 0);
+            return;
           }
+
+          // Live Mrk2 binding already writes into Wick; just flush it.
+          try {
+            if (typeof live !== 'undefined' && live && live.binding) {
+              try { flush(true); } catch(eFlush){}
+              setTimeout(cleanupToolOverlays, 0);
+              return;
+            }
+          } catch(eLive){}
+
+          if (!demBonesHasAnimationToPreserve_v18228()) {
+            setTimeout(cleanupToolOverlays, 0);
+            return;
+          }
+
+          // Keep the iframe alive long enough to create the native Wick clip.
+          try { evt.preventDefault(); } catch(e0){}
+          try { evt.stopPropagation(); } catch(e1){}
+          try { evt.stopImmediatePropagation(); } catch(e2){}
+
+          if (App.interaction.autoCommitCloseBusy) return;
+          App.interaction.autoCommitCloseBusy = true;
+
+          Promise.resolve().then(async function(){
+            try {
+              log('Closing LukeTools: committing DemBones animation to Wick first...');
+              await stampAnimationIntoClip();
+              log('DemBones animation committed. Closing LukeTools.');
+            } catch(commitErr) {
+              App.interaction.autoCommitCloseBusy = false;
+              log('Could not commit animation before close: ' + (commitErr && commitErr.message ? commitErr.message : commitErr));
+              return;
+            }
+
+            App.interaction.autoCommitCloseBypass = true;
+            App.interaction.autoCommitCloseBusy = false;
+            try { cleanupToolOverlays(); } catch(eClean){}
+            setTimeout(function(){
+              try { clickable.click(); } catch(eClick){}
+            }, 0);
+          });
         } catch(e){}
       };
+
       pdoc.addEventListener('mousedown', App.interaction.parentCloseHandler, true);
       pdoc.addEventListener('click', App.interaction.parentCloseHandler, true);
-      App.interaction.unloadHandler = function(){ cleanupToolOverlays(); };
+      App.interaction.unloadHandler = function(){
+        try {
+          if (typeof live !== 'undefined' && live && live.binding) flush(true);
+        } catch(e){}
+        cleanupToolOverlays();
+      };
       window.addEventListener('beforeunload', App.interaction.unloadHandler, true);
       window.addEventListener('pagehide', App.interaction.unloadHandler, true);
     } catch(e){}
