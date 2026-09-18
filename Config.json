@@ -166,14 +166,6 @@
           "F_Screen": 0
         },
         {
-          "id": "SVG Layers",
-          "label": "SVG Layers",
-          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/SVGL.svg",
-          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/SVG_Layer_Importer.txt",
-          "action": "script",
-          "F_Screen": 0
-        },
-        {
           "id": "Import_SVG",
           "label": "SVG Import",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/SVG.svg",
