@@ -199,7 +199,7 @@
         },
         {
           "id": "MP4_Exporter",
-          "label": "MP4 Export",
+          "label": "Media Export",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Record.svg",
           "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/MP4_Exporter.txt",
           "action": "tool",
