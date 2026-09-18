@@ -24526,7 +24526,6 @@ function installDemBonesMrk2() {
       App.frameCount = Math.max(App.frameCount, capture.frame.end);
       App.undo.stack = []; App.undo.lastSnapshotText = '';
       App.project.selection.clear();
-      inserted.forEach(function (entry) { App.project.selection.select(entry.clip); });
       redraw(); ensureOverlay(); fitOverlayToSource(); setActiveTab('bones');
       status('Curves bound. Add bones, then use Animate. Changes save directly into Wick.');
     } catch (error) {
@@ -24571,10 +24570,6 @@ function installDemBonesMrk2() {
       App.undo.stack = []; App.undo.lastSnapshotText = '';
       // Double-clicking the stage artwork edits that existing rig in place.
       App.project.selection.clear();
-      live.binding.rows.forEach(function (row) {
-        var clip = resolve(row.clipUUID);
-        if (clip) App.project.selection.select(clip);
-      });
       ensureOverlay(); fitOverlayToSource(); setActiveTab('animate');
       status('Rig reopened • bones and animation restored. Edits update Wick automatically.');
       validate();
