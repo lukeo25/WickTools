@@ -133,14 +133,6 @@
           "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/ParallaxSlots.txt",
           "action": "script",
           "F_Screen": 1
-        },
-        {
-          "id": "Bullets_And_Field",
-          "label": "Bullets And Field",
-          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/BulletsAndField.svg",
-          "scriptUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/BulletsAndField.txt",
-          "action": "script",
-          "F_Screen": 0
         }
       ]
     },
