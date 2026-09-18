@@ -136,7 +136,7 @@
     <button class="bool-top" data-op="exclude" title="Exclude overlapping area">Exclude</button>
     <div class="sep"></div>
     <button id="btnSmooth" title="Smooth the selected vector path">Smooth</button>
-    <label title="Smoothing tolerance">Amt <input type="number" id="smoothAmount" value="2" min="0.25" max="20" step="0.25"></label>
+    <label title="Smoothing strength">Amt <input type="number" id="smoothAmount" value="1" min="0.25" max="10" step="0.25"></label>
     <div class="sep"></div>
     <button id="btnUndo" title="Undo (Ctrl+Z)">↶</button>
     <button id="btnRedo" title="Redo (Ctrl+Y)">↷</button>
@@ -1593,7 +1593,7 @@ function paperStrokeOutline(path,paper){
 
   const radius=Math.max(.25,sw/2);
   const work=path.clone({insert:false});
-  try{ work.flatten(Math.max(.6,radius*.18)); }catch(e){}
+  try{ work.flatten(Math.max(.12,Math.min(.25,radius*.02))); }catch(e){}
 
   const pts=(work.segments||[]).map(s=>paperGlobalPoint(work,s.point));
   const closed=!!work.closed;
@@ -1800,12 +1800,36 @@ document.querySelectorAll("#topbar .bool-top[data-op]").forEach(btn=>{
 function smoothPaperPaths(root,amount){
   const paths=booleanCollectPathItems(root);
   let changed=0;
+
+  // The user-facing amount is deliberately scaled down.
+  // Paper.js simplify() uses document units, so feeding 1.25 directly
+  // was aggressive enough to visibly deform small LukeTools shapes.
+  const tolerance=Math.max(.02,Math.min(1.0,Number(amount||1)*.08));
+
   paths.forEach(p=>{
     try{
-      if(typeof p.simplify==="function"){
-        const ok=p.simplify(amount);
-        if(ok!==false) changed++;
+      if(typeof p.simplify!=="function") return;
+
+      const oldBounds=p.bounds?.clone ? p.bounds.clone() : null;
+      const oldCenter=oldBounds?.center?.clone ? oldBounds.center.clone() : null;
+
+      const ok=p.simplify(tolerance);
+      if(ok===false) return;
+
+      // Keep the overall footprint stable. This makes Smooth clean facets
+      // rather than changing the designed proportions of the object.
+      if(oldBounds && oldCenter && p.bounds){
+        const nb=p.bounds;
+        const sx=(nb.width>0) ? oldBounds.width/nb.width : 1;
+        const sy=(nb.height>0) ? oldBounds.height/nb.height : 1;
+
+        if(isFinite(sx)&&isFinite(sy)&&sx>0&&sy>0){
+          try{ p.scale(sx,sy,p.bounds.center); }catch(e){}
+        }
+        try{ p.position=oldCenter; }catch(e){}
       }
+
+      changed++;
     }catch(e){}
   });
   return changed;
@@ -1851,7 +1875,7 @@ function smoothSelected(){
     return;
   }
 
-  const amount=Math.max(.25,Math.min(20,Number(document.getElementById("smoothAmount").value)||2));
+  const amount=Math.max(.25,Math.min(10,Number(document.getElementById("smoothAmount").value)||1));
   let imported=null;
   try{
     const svg=serializeOneDrawingObject(selected[0]);
