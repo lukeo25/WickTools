@@ -5962,6 +5962,28 @@ html, body, #app{
     } else log('Selected Wick curve converted to SVG source, but no native vector shapes were parsed.');
   }
 
+  function clearWickSelectionAfterArtworkUse(){ // FIX v18.226_GPT
+    refreshBridgeRefs();
+    var cleared = false;
+    try {
+      if (App.B && typeof App.B.clearSelectionNow === 'function') cleared = App.B.clearSelectionNow() !== false;
+    } catch(e0){}
+    try {
+      if (!cleared && App.project && App.project.selection && typeof App.project.selection.clear === 'function') {
+        App.project.selection.clear();
+        cleared = true;
+      }
+    } catch(e1){}
+    try {
+      if (!cleared && App.ed && App.ed.project && App.ed.project.selection && typeof App.ed.project.selection.clear === 'function') {
+        App.ed.project.selection.clear();
+        cleared = true;
+      }
+    } catch(e2){}
+    try { if (App.project && App.project.view && typeof App.project.view.render === 'function') App.project.view.render(); } catch(e3){}
+    return cleared;
+  }
+
   async function useSelectedWickCurveAsSourceInternal(removeOriginal){ // FIX v17.2
     try {
       refreshBridgeRefs();
@@ -5978,6 +6000,7 @@ html, body, #app{
         log((converted.count > 1 ? converted.count + ' selected Wick artwork objects ingested as one composite source.' : 'Selected Wick artwork ingested as source.') + ((App.selectedCurve && App.selectedCurve.originalPointsOnly) ? ' Original Wick points only mode was used.' : '') + ((App.selectedCurve && App.selectedCurve.useFillColour) ? ' Fill colour override applied.' : '') + ((App.selectedCurve && App.selectedCurve.useStrokeColour) ? ' Stroke colour override applied.' : '')); // FIX v18.207_GPT
       }
       if (converted.errors && converted.errors.length) log('Some selected objects were skipped: ' + converted.errors.join(' | ')); // FIX v17.2
+      clearWickSelectionAfterArtworkUse(); // FIX v18.226_GPT: remove Wick's green selection boxes after a successful capture.
       removeSetAreaOverlay();
       ensureOverlay();
       hideSetAreaVisualFrame();
