@@ -57,7 +57,7 @@
   .node-ctrl{fill:#ffe05a;stroke:#b08b00;stroke-width:1;cursor:pointer;pointer-events:all;r:3}
   .node-line{stroke:#ff7a3d;stroke-width:1;stroke-dasharray:2 2;pointer-events:none}
 
-  #sidepanel{grid-column:3;grid-row:2;background:var(--panel);border-left:1px solid #111318;display:flex;flex-direction:column;overflow:hidden;box-shadow:-1px 0 0 rgba(255,255,255,.03) inset}
+  #sidepanel{grid-column:3;grid-row:2;background:var(--panel);border-left:1px solid #111318;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;box-shadow:-1px 0 0 rgba(255,255,255,.03) inset}
   .panel-section{border-bottom:1px solid var(--border-soft);padding:10px}
   .panel-title{font-size:10px;text-transform:uppercase;font-weight:700;letter-spacing:.09em;color:#bcc2cc;margin-bottom:8px}
   .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;font-size:11px;color:#d6d9de}
@@ -66,7 +66,9 @@
   .row input[type=range]{flex:1;margin:0 4px}
   .panel-section button{background:var(--panel-3);border:1px solid #444b55;color:var(--text);border-radius:4px;min-height:28px;padding:4px 7px;font-size:11px;cursor:pointer}
   .panel-section button:hover{background:#39404a;border-color:#59616c}
-  #btnWickCopy{background:var(--accent)!important;border-color:#6aa9ff!important;color:#fff!important;font-weight:700;min-height:32px!important}
+  #wickStageSection{position:sticky;top:0;z-index:8;background:#172235;border-bottom:1px solid #315b8d;box-shadow:0 4px 12px rgba(0,0,0,.28)}
+  #wickStageSection .panel-title{color:#9dccff}
+  #btnWickCopy{background:var(--accent)!important;border-color:#6aa9ff!important;color:#fff!important;font-weight:800;min-height:38px!important;font-size:12px!important;box-shadow:0 0 0 1px rgba(255,255,255,.04) inset}
   #btnWickCopy:hover{background:var(--accent-hover)!important}
   #layerList{flex:1;overflow-y:auto;padding:4px 5px 8px}
   .layer-item{display:flex;align-items:center;gap:6px;padding:6px 7px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid transparent}
@@ -152,6 +154,10 @@
   </div>
 
   <div id="sidepanel">
+    <div class="panel-section" id="wickStageSection">
+      <div class="panel-title">Wick Stage</div>
+      <button id="btnWickCopy" style="width:100%;">Add Selected to Wick Stage</button>
+    </div>
     <div class="panel-section">
       <div class="panel-title">Style</div>
       <div class="row"><span>Fill</span><input type="color" id="fillColor" value="#4f8cff"></div>
@@ -202,10 +208,6 @@
         <button id="btnDup" style="flex:1;">Duplicate</button>
         <button id="btnDel" style="flex:1;color:var(--danger);">Delete</button>
       </div>
-    </div>
-    <div class="panel-section">
-      <div class="panel-title">Wick / LukeTools</div>
-      <button id="btnWickCopy" style="width:100%;">Add Selected to Wick Stage</button>
     </div>
     <div class="panel-title" style="padding:10px 10px 2px;">Objects / Layers</div>
     <div id="layerList"></div>
