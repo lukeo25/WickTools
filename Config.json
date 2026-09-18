@@ -1,6 +1,6 @@
 {
   "title": "Luke Tools",
-  "version": 6,
+  "version": 7,
   "groups": [
     {
       "id": "behaviours",
@@ -269,14 +269,6 @@
           "F_Screen": 0,
           "panelWidth": 300,
           "panelHeight": 600
-        },
-        {
-          "id": "Gradient",
-          "label": "Gradient",
-          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Gradient.svg",
-          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Gradient.txt",
-          "action": "tool",
-          "F_Screen": 0
         },
         {
           "id": "Drawing",
