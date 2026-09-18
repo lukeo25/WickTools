@@ -993,7 +993,7 @@ html, body, #app{
             <button id="btnAddDummyArea" class="secondary">Add Dummy</button> <!-- FIX v18.182_GPT -->
           </div>
           <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
-            <button id="btnUseSelectedCurve" class="secondary">Use Selected Curve</button> <!-- FIX Claude_10-07-2026_V6: relabeled, now paired with Remove Originals checkbox -->
+            <button id="btnUseSelectedCurve" class="secondary">Use Selected Artwork</button> <!-- FIX Claude_10-07-2026_V6: relabeled, now paired with Remove Originals checkbox -->
           </div>
           <div class="row"><label class="small" style="display:flex;align-items:center;gap:4px;min-width:0;"><input type="checkbox" id="chkUseSelectedCurveRemoveOriginals_Claude"> Remove Originals</label></div> <!-- FIX Claude_10-07-2026_V6/V8 -->
           <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
@@ -5601,21 +5601,72 @@ html, body, #app{
     return { x:minX, y:minY, w:maxX - minX, h:maxY - minY, cx:(minX + maxX) * 0.5, cy:(minY + maxY) * 0.5 };
   }
 
-  function selectedCurveObjectsToSvg(objects){ // FIX v17.2
+  function selectedCurveObjectsToSvg(objects){ // FIX v18.221_GPT: selected artwork is ingested as one composite source, preserving every selected path/group/SVG
     var list = (objects || []).filter(function(obj){ return !!obj; });
-    if (!list.length) throw new Error('No Wick curves are selected. Select one or more Wick curves on the stage first.');
+    if (!list.length) throw new Error('No Wick artwork is selected. Select one or more paths, SVG shapes, groups or clips on the stage first.');
+
     var parts = [];
     var errors = [];
+    var originalPointsOnly = !!(App.selectedCurve && App.selectedCurve.originalPointsOnly);
+
     list.forEach(function(obj, index){
-      try { parts.push(selectedCurveObjectToSvgPart(obj, index)); }
-      catch(e) { errors.push(e && e.message ? e.message : String(e)); }
+      try {
+        // Original-points mode deliberately keeps the older curve-specific path conversion.
+        if (originalPointsOnly) {
+          parts.push(selectedCurveObjectToSvgPart(obj, index));
+          return;
+        }
+
+        var item = selectedCurveFindPaperItem(obj);
+        var bounds = selectedCurvePaperBounds(item) || getObjectStageBounds(obj) || selectedCurveGetBounds(obj);
+        if (!bounds || bounds.w <= 0 || bounds.h <= 0) throw new Error('A selected artwork object does not expose usable bounds.');
+
+        var name = String(obj.identifier || obj.name || ('Selected_Artwork_' + (index + 1)));
+        var inner = '';
+        var rawExport = '';
+
+        // Prefer the complete Paper item export. If the object is a group/clip/imported SVG,
+        // this retains every child path instead of silently collapsing to one curve.
+        if (item && typeof item.exportSVG === 'function') {
+          try { rawExport = String(item.exportSVG({ asString:true, precision:4 }) || ''); } catch(e0){}
+          if (!rawExport) { try { rawExport = String(item.exportSVG({ asString:true }) || ''); } catch(e1){} }
+          if (rawExport) inner = selectedCurveApplyColourOverridesToSvgInner_v18207(selectedCurveExtractSvgInner(rawExport));
+        }
+
+        // Fall back to the established converter for unusual Wick objects.
+        if (!inner) {
+          parts.push(selectedCurveObjectToSvgPart(obj, index));
+          return;
+        }
+
+        parts.push({
+          inner:'<g data-luketools-selected-artwork-index="' + selectedCurveSvgEscape(index + 1) + '" data-luketools-selected-artwork-name="' + selectedCurveSvgEscape(name) + '">\n' + inner + '\n</g>',
+          bounds:bounds,
+          name:name
+        });
+      } catch(e) {
+        errors.push(e && e.message ? e.message : String(e));
+      }
     });
-    if (!parts.length) throw new Error('None of the selected objects could be converted to SVG.' + (errors.length ? ' ' + errors.join(' ') : ''));
+
+    if (!parts.length) throw new Error('None of the selected artwork could be converted to SVG.' + (errors.length ? ' ' + errors.join(' ') : ''));
+
     var bounds = selectedCurveUnionBounds(parts);
-    if (!bounds) throw new Error('Could not calculate shared bounds for the selected Wick curves.');
-    var fileName = parts.length === 1 ? makeValidIdentifier(parts[0].name, 'Selected_Wick_Curve') + '.svg' : 'Selected_Wick_Curves_' + parts.length + '.svg';
-    var label = parts.length === 1 ? 'Selected Wick Curve' : ('Selected Wick Curves (' + parts.length + ')');
-    return { svgRaw:selectedCurveWrapSvgContent(parts.map(function(p){ return p.inner; }).join('\n'), bounds, label), bounds:bounds, fileName:fileName, count:parts.length, errors:errors };
+    if (!bounds) throw new Error('Could not calculate shared bounds for the selected Wick artwork.');
+
+    var fileName = parts.length === 1
+      ? makeValidIdentifier(parts[0].name, 'Selected_Wick_Artwork') + '.svg'
+      : 'Selected_Wick_Artwork_' + parts.length + '.svg';
+
+    var label = parts.length === 1 ? 'Selected Wick Artwork' : ('Selected Wick Artwork (' + parts.length + ' objects)');
+
+    return {
+      svgRaw:selectedCurveWrapSvgContent(parts.map(function(p){ return p.inner; }).join('\n'), bounds, label),
+      bounds:bounds,
+      fileName:fileName,
+      count:parts.length,
+      errors:errors
+    };
   }
 
   function removeOriginalSelectedCurveObject(obj){ // FIX v14.5
@@ -5777,7 +5828,7 @@ html, body, #app{
       refreshBridgeRefs();
       try { if (App.B && typeof App.B.captureSelectionNow === 'function') App.B.captureSelectionNow(); } catch(e){}
       var objects = getSelectedObjects(); // FIX v17.2
-      if (!objects.length) throw new Error('No Wick curves are selected. Select one or more Wick curves on the stage first.');
+      if (!objects.length) throw new Error('No Wick artwork is selected. Select one or more paths, SVG shapes, groups or clips on the stage first.');
       var converted = selectedCurveObjectsToSvg(objects); // FIX v17.2
       rememberSelectedCurveSourceTimeline(); // FIX v14.8
       await loadSvgTextAsSource(converted.svgRaw, converted.fileName, converted.count > 1 ? 'selected-wick-curves' : 'selected-wick-curve', converted.bounds);
@@ -5785,7 +5836,7 @@ html, body, #app{
         removeOriginalSelectedCurveObjects(objects); // FIX v17.2
         log((converted.count > 1 ? converted.count + ' selected Wick curves ingested and originals removed from the Wick stage.' : 'Selected Wick curve ingested and original removed from the Wick stage.')); // FIX v17.2
       } else {
-        log((converted.count > 1 ? converted.count + ' selected Wick curves ingested as one source.' : 'Selected Wick curve ingested as source.') + ((App.selectedCurve && App.selectedCurve.originalPointsOnly) ? ' Original Wick points only mode was used.' : '') + ((App.selectedCurve && App.selectedCurve.useFillColour) ? ' Fill colour override applied.' : '') + ((App.selectedCurve && App.selectedCurve.useStrokeColour) ? ' Stroke colour override applied.' : '')); // FIX v18.207_GPT
+        log((converted.count > 1 ? converted.count + ' selected Wick artwork objects ingested as one composite source.' : 'Selected Wick artwork ingested as source.') + ((App.selectedCurve && App.selectedCurve.originalPointsOnly) ? ' Original Wick points only mode was used.' : '') + ((App.selectedCurve && App.selectedCurve.useFillColour) ? ' Fill colour override applied.' : '') + ((App.selectedCurve && App.selectedCurve.useStrokeColour) ? ' Stroke colour override applied.' : '')); // FIX v18.207_GPT
       }
       if (converted.errors && converted.errors.length) log('Some selected objects were skipped: ' + converted.errors.join(' | ')); // FIX v17.2
       removeSetAreaOverlay();
