@@ -224,7 +224,8 @@
     <div id="shapeDrawerHeader">
       <button id="shapeBack" title="Back">←</button>
       <div id="shapeDrawerTitle">LukeTools Shapes</div>
-      <button id="shapeAddFolder" title="Add a persistent personal SVG folder">+ Folder</button>
+      <button id="shapeAddFolder" title="Copy a folder of SVGs into My Shapes">+ Folder</button>
+      <button id="shapeLinkFolder" title="Link a local or Google Drive Desktop synced SVG folder">+ Link</button>
       <button id="shapeClose" title="Close">✕</button>
     </div>
     <div id="shapeGrid"></div>
@@ -833,8 +834,9 @@ function finishMarquee(box){
 // ---------- Integrated LukeTools Shapes ----------
 const SHAPE_API_ROOT = "https://api.github.com/repos/lukeo25/WickTools/contents/scripts/Panel_SVG/Shapes";
 let shapePath = "";
-let shapeSource = "builtin"; // builtin | personal
+let shapeSource = "builtin"; // builtin | personal | linked
 let personalFolderId = null;
+let linkedFolderId = null;
 
 const shapeDrawer = document.getElementById("shapeDrawer");
 const shapeGrid = document.getElementById("shapeGrid");
@@ -844,17 +846,21 @@ const shapeFolderInput = document.getElementById("shapeFolderInput");
 
 const PERSONAL_SHAPES_DB = "LukeToolsDrawingShapes";
 const PERSONAL_SHAPES_STORE = "folders";
+const LINKED_SHAPES_STORE = "linkedFolders";
 let personalShapeDbPromise = null;
 const shapePreviewUrls = new Set();
 
 function openPersonalShapesDb(){
   if(personalShapeDbPromise) return personalShapeDbPromise;
   personalShapeDbPromise = new Promise((resolve,reject)=>{
-    const req = indexedDB.open(PERSONAL_SHAPES_DB,1);
+    const req = indexedDB.open(PERSONAL_SHAPES_DB,2);
     req.onupgradeneeded = ()=>{
       const db=req.result;
       if(!db.objectStoreNames.contains(PERSONAL_SHAPES_STORE)){
         db.createObjectStore(PERSONAL_SHAPES_STORE,{keyPath:"id"});
+      }
+      if(!db.objectStoreNames.contains(LINKED_SHAPES_STORE)){
+        db.createObjectStore(LINKED_SHAPES_STORE,{keyPath:"id"});
       }
     };
     req.onsuccess=()=>resolve(req.result);
@@ -903,6 +909,74 @@ async function personalShapesDelete(id){
   });
 }
 
+async function linkedShapesGetAll(){
+  const db=await openPersonalShapesDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(LINKED_SHAPES_STORE,"readonly");
+    const req=tx.objectStore(LINKED_SHAPES_STORE).getAll();
+    req.onsuccess=()=>resolve((req.result||[]).sort((a,b)=>(a.name||"").localeCompare(b.name||"")));
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+async function linkedShapesGet(id){
+  const db=await openPersonalShapesDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(LINKED_SHAPES_STORE,"readonly");
+    const req=tx.objectStore(LINKED_SHAPES_STORE).get(id);
+    req.onsuccess=()=>resolve(req.result||null);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+async function linkedShapesPut(record){
+  const db=await openPersonalShapesDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(LINKED_SHAPES_STORE,"readwrite");
+    tx.objectStore(LINKED_SHAPES_STORE).put(record);
+    tx.oncomplete=()=>resolve(record);
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+
+async function linkedShapesDelete(id){
+  const db=await openPersonalShapesDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(LINKED_SHAPES_STORE,"readwrite");
+    tx.objectStore(LINKED_SHAPES_STORE).delete(id);
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+
+async function ensureDirectoryPermission(handle,ask){
+  if(!handle) return false;
+  try{
+    if((await handle.queryPermission({mode:"read"}))==="granted") return true;
+  }catch(e){}
+  if(ask){
+    try{
+      return (await handle.requestPermission({mode:"read"}))==="granted";
+    }catch(e){}
+  }
+  return false;
+}
+
+async function scanLinkedSvgFolder(handle,prefix=""){
+  const files=[];
+  for await (const [name,entry] of handle.entries()){
+    if(entry.kind==="file" && /\.svg$/i.test(name)){
+      const f=await entry.getFile();
+      files.push({name,path:prefix+name,svg:await f.text()});
+    }else if(entry.kind==="directory"){
+      const nested=await scanLinkedSvgFolder(entry,prefix+name+"/");
+      files.push(...nested);
+    }
+  }
+  return files;
+}
+
+
 function clearShapePreviewUrls(){
   shapePreviewUrls.forEach(url=>{ try{URL.revokeObjectURL(url);}catch(e){} });
   shapePreviewUrls.clear();
@@ -918,6 +992,7 @@ function makePersonalShapePreview(svgText){
 function openShapesDrawer(){
   shapeDrawer.classList.add("open");
   if(shapeSource==="personal" && personalFolderId) loadPersonalFolder(personalFolderId);
+  else if(shapeSource==="linked" && linkedFolderId) loadLinkedFolder(linkedFolderId,false);
   else loadShapeFolder(shapePath || "");
 }
 function closeShapesDrawer(){ shapeDrawer.classList.remove("open"); }
@@ -925,10 +1000,35 @@ function closeShapesDrawer(){ shapeDrawer.classList.remove("open"); }
 document.getElementById("shapeClose").addEventListener("click", closeShapesDrawer);
 document.getElementById("shapeAddFolder").addEventListener("click",()=>shapeFolderInput.click());
 
+document.getElementById("shapeLinkFolder").addEventListener("click",async()=>{
+  const picker=window.showDirectoryPicker || window.parent?.showDirectoryPicker;
+  if(typeof picker!=="function"){
+    shapeStatus.textContent="Linked folders need Chrome/Edge File System Access support";
+    return;
+  }
+  try{
+    const handle=await picker.call(window,{mode:"read"});
+    if(!handle) return;
+    const ok=await ensureDirectoryPermission(handle,true);
+    if(!ok) throw new Error("Folder access was not granted");
+
+    const id="linked:"+handle.name.toLowerCase().replace(/[^a-z0-9]+/g,"_");
+    await linkedShapesPut({id,name:handle.name,handle,updatedAt:Date.now()});
+    shapeSource="linked";
+    linkedFolderId=id;
+    await loadLinkedFolder(id,true);
+  }catch(err){
+    if(err?.name==="AbortError") return;
+    console.error("[Drawing Shapes] Link folder failed",err);
+    shapeStatus.textContent="Link failed: "+(err?.message||err);
+  }
+});
+
 document.getElementById("shapeBack").addEventListener("click", ()=>{
-  if(shapeSource==="personal"){
+  if(shapeSource==="personal" || shapeSource==="linked"){
     shapeSource="builtin";
     personalFolderId=null;
+    linkedFolderId=null;
     shapePath="";
     loadShapeFolder("");
     return;
@@ -999,6 +1099,28 @@ async function renderPersonalFolders(){
   }
 }
 
+async function renderLinkedFolders(){
+  try{
+    const folders=await linkedShapesGetAll();
+    folders.forEach(folder=>{
+      const b=document.createElement("button");
+      b.className="shape-folder";
+      b.title="Linked folder: "+folder.name;
+      b.innerHTML="<span>↻</span><span>"+folder.name+"</span>";
+      b.addEventListener("click",()=>{
+        shapeSource="linked";
+        linkedFolderId=folder.id;
+        loadLinkedFolder(folder.id,true);
+      });
+      shapeGrid.appendChild(b);
+    });
+    return folders.length;
+  }catch(err){
+    console.warn("[Drawing Shapes] Could not load linked folders",err);
+    return 0;
+  }
+}
+
 async function loadShapeFolder(path){
   clearShapePreviewUrls();
   shapeSource="builtin";
@@ -1009,8 +1131,10 @@ async function loadShapeFolder(path){
   shapeStatus.textContent="Loading…";
 
   let personalCount=0;
+  let linkedCount=0;
   if(!shapePath){
     personalCount=await renderPersonalFolders();
+    linkedCount=await renderLinkedFolders();
   }
 
   const url=SHAPE_API_ROOT+(shapePath ? "/"+shapePath.split("/").map(encodeURIComponent).join("/") : "")+"?ref=main";
@@ -1041,7 +1165,7 @@ async function loadShapeFolder(path){
       shapeGrid.appendChild(b);
     });
 
-    shapeStatus.textContent=(personalCount+dirs.length+svgs.length)+" items";
+    shapeStatus.textContent=(personalCount+linkedCount+dirs.length+svgs.length)+" items";
   }catch(err){
     shapeStatus.textContent="Could not load shapes: "+(err?.message||err);
   }
@@ -1088,6 +1212,73 @@ async function loadPersonalFolder(id){
   }catch(err){
     console.error("[Drawing Shapes] Personal folder load failed",err);
     shapeStatus.textContent="Could not load personal folder: "+(err?.message||err);
+  }
+}
+
+async function loadLinkedFolder(id,askPermission){
+  clearShapePreviewUrls();
+  shapeGrid.innerHTML="";
+  shapeSource="linked";
+  linkedFolderId=id;
+
+  try{
+    const folder=await linkedShapesGet(id);
+    if(!folder?.handle) throw new Error("Linked folder not found");
+
+    shapeTitle.textContent="Linked · "+folder.name;
+    const permitted=await ensureDirectoryPermission(folder.handle,!!askPermission);
+
+    if(!permitted){
+      const grant=document.createElement("button");
+      grant.className="shape-folder";
+      grant.innerHTML="<span>🔒</span><span>Grant Access</span>";
+      grant.addEventListener("click",()=>loadLinkedFolder(id,true));
+      shapeGrid.appendChild(grant);
+      shapeStatus.textContent="Click Grant Access to reconnect this folder";
+      return;
+    }
+
+    shapeStatus.textContent="Scanning linked folder…";
+    const files=await scanLinkedSvgFolder(folder.handle);
+
+    files.sort((a,b)=>a.path.localeCompare(b.path)).forEach(item=>{
+      const b=document.createElement("button");
+      b.className="shape-card";
+      b.title=item.path.replace(/\.svg$/i,"");
+      const img=document.createElement("img");
+      img.src=makePersonalShapePreview(item.svg);
+      img.alt=b.title;
+      b.appendChild(img);
+      b.addEventListener("click",()=>insertLibraryShapeText(item.svg,b.title));
+      shapeGrid.appendChild(b);
+    });
+
+    const refresh=document.createElement("button");
+    refresh.className="shape-folder";
+    refresh.innerHTML="<span>↻</span><span>Refresh</span>";
+    refresh.title="Rescan this linked folder for new or changed SVGs";
+    refresh.addEventListener("click",()=>loadLinkedFolder(id,true));
+    shapeGrid.appendChild(refresh);
+
+    const unlink=document.createElement("button");
+    unlink.className="shape-folder";
+    unlink.innerHTML="<span>×</span><span>Unlink</span>";
+    unlink.title="Remove this linked folder from Drawing without deleting any files";
+    unlink.addEventListener("click",async()=>{
+      if(!confirm("Unlink '"+folder.name+"' from Drawing?")) return;
+      await linkedShapesDelete(id);
+      shapeSource="builtin";
+      linkedFolderId=null;
+      loadShapeFolder("");
+    });
+    shapeGrid.appendChild(unlink);
+
+    folder.updatedAt=Date.now();
+    await linkedShapesPut(folder);
+    shapeStatus.textContent=files.length+" linked SVGs · Refresh rescans the source folder";
+  }catch(err){
+    console.error("[Drawing Shapes] Linked folder load failed",err);
+    shapeStatus.textContent="Linked folder error: "+(err?.message||err);
   }
 }
 
