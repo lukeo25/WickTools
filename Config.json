@@ -229,14 +229,6 @@
           "F_Screen": 0
         },
         {
-          "id": "Dem Bones",
-          "label": "Dem Bones",
-          "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/Bone.svg",
-          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBones.txt",
-          "action": "tool",
-          "F_Screen": 0
-        },
-        {
           "id": "DemBonesMrk2",
           "label": "Dem Bones Mrk2",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/DemBonesMrk2.svg",
