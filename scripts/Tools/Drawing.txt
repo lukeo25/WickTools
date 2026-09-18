@@ -135,6 +135,9 @@
     <button class="bool-top" data-op="intersect" title="Intersect two selected shapes">Intersect</button>
     <button class="bool-top" data-op="exclude" title="Exclude overlapping area">Exclude</button>
     <div class="sep"></div>
+    <button id="btnSmooth" title="Smooth the selected vector path">Smooth</button>
+    <label title="Smoothing tolerance">Amt <input type="number" id="smoothAmount" value="2" min="0.25" max="20" step="0.25"></label>
+    <div class="sep"></div>
     <button id="btnUndo" title="Undo (Ctrl+Z)">↶</button>
     <button id="btnRedo" title="Redo (Ctrl+Y)">↷</button>
     <div class="sep"></div>
@@ -1800,6 +1803,84 @@ function runBooleanOperation(op){
 document.querySelectorAll("#topbar .bool-top[data-op]").forEach(btn=>{
   btn.addEventListener("click",()=>runBooleanOperation(btn.dataset.op));
 });
+
+
+// ---------- Smooth selected vector ----------
+function smoothPaperPaths(root,amount){
+  const paths=booleanCollectPathItems(root);
+  let changed=0;
+  paths.forEach(p=>{
+    try{
+      if(typeof p.simplify==="function"){
+        const ok=p.simplify(amount);
+        if(ok!==false) changed++;
+      }
+    }catch(e){}
+  });
+  return changed;
+}
+
+function replaceSelectedWithPaperSvg(root){
+  if(!selected.length) throw new Error("Nothing selected");
+  const old=selected.slice();
+  const svgText=root.exportSVG({asString:true});
+  const doc=new DOMParser().parseFromString(svgText,"image/svg+xml");
+  let node=doc.documentElement;
+  if(!node) throw new Error("Could not export smoothed SVG");
+
+  if(node.tagName.toLowerCase()==="svg"){
+    const kids=Array.from(node.children).filter(n=>!["defs","title","desc"].includes(n.tagName.toLowerCase()));
+    if(kids.length===1){
+      node=kids[0];
+    }else{
+      const g=document.createElementNS(SVGNS,"g");
+      kids.forEach(k=>g.appendChild(document.importNode(k,true)));
+      node=g;
+    }
+  }
+
+  const imported=document.importNode(node,true);
+  imported.id=newId();
+  old.forEach(el=>el.remove());
+  drawLayer.appendChild(imported);
+  setSelection([imported]);
+  pushHistory();
+  return imported;
+}
+
+function smoothSelected(){
+  if(selected.length!==1){
+    flashStatus("Smooth: select one object");
+    return;
+  }
+
+  const paper=getBooleanPaperScope();
+  if(!paper?.project?.importSVG){
+    flashStatus("Smooth: Paper.js is not available");
+    return;
+  }
+
+  const amount=Math.max(.25,Math.min(20,Number(document.getElementById("smoothAmount").value)||2));
+  let imported=null;
+  try{
+    const svg=serializeOneDrawingObject(selected[0]);
+    imported=paper.project.importSVG(svg,{insert:false,expandShapes:true});
+    if(!imported) throw new Error("Could not import selected vector");
+
+    const changed=smoothPaperPaths(imported,amount);
+    if(!changed) throw new Error("No smoothable vector paths found");
+
+    replaceSelectedWithPaperSvg(imported);
+    flashStatus("Smoothed selected path");
+  }catch(err){
+    console.error("[Drawing] Smooth failed",err);
+    flashStatus("Smooth failed: "+(err?.message||err));
+  }finally{
+    try{imported?.remove();}catch(e){}
+  }
+}
+
+document.getElementById("btnSmooth").addEventListener("click",smoothSelected);
 
 // ---------- Layer list ----------
 function updateLayerList(){
