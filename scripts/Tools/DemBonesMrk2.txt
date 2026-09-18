@@ -24558,7 +24558,9 @@ function installDemBonesMrk2() {
   stampAnimationIntoClip = function () { if (live.binding) return flush(true); return oldStamp.apply(this, arguments); };
   var oldSelected = useSelectedWickCurveAsSourceInternal;
   useSelectedWickCurveAsSourceInternal = function () {
-    if (el('dbm2Enabled').checked) return bind();
+    // FIX v18.227_GPT: restore the original DemBones selection workflow.
+    // Use Selected Artwork ingests the complete selected artwork as a source.
+    // Live Mrk2 curve binding remains explicit via the Bind selected curves button.
     return oldSelected.apply(this, arguments);
   };
   buildRigProjectState = function () {
