@@ -826,7 +826,7 @@ async function loadShapeFolder(path){
       img.src=item.download_url;
       img.alt=b.title;
       b.appendChild(img);
-      b.addEventListener("click",()=>commitLibraryShapeToWick(item.download_url,b.title,item.name));
+      b.addEventListener("click",()=>insertLibraryShape(item.download_url,b.title));
       shapeGrid.appendChild(b);
     });
     shapeStatus.textContent = (dirs.length+svgs.length) + " items";
@@ -835,139 +835,6 @@ async function loadShapeFolder(path){
   }
 }
 
-
-function shapeListAssetUUIDs(project){
-  try{
-    const assets=project?.assets||[];
-    if(Array.isArray(assets)) return assets.map(a=>a?.uuid||a?._uuid).filter(Boolean);
-    const out=[];
-    for(const k in assets){
-      const a=assets[k];
-      const id=a?.uuid||a?._uuid;
-      if(id) out.push(id);
-    }
-    return out;
-  }catch(e){return[];}
-}
-
-function shapeFindAssetByName(project,name){
-  try{
-    const assets=project?.assets||[];
-    if(Array.isArray(assets)){
-      return assets.find(a=>a?.name===name||a?.filename===name||a?.identifier===name||a?._identifier===name)||null;
-    }
-    for(const k in assets){
-      const a=assets[k];
-      if(a?.name===name||a?.filename===name||a?.identifier===name||a?._identifier===name) return a;
-    }
-  }catch(e){}
-  return null;
-}
-
-async function shapeWaitForAsset(project,beforeIds,fileName,timeoutMs=10000){
-  const before=new Set(beforeIds||[]);
-  const start=Date.now();
-  while(Date.now()-start<timeoutMs){
-    const found=shapeFindAssetByName(project,fileName);
-    if(found) return found;
-    try{
-      const assets=project?.assets||[];
-      const arr=Array.isArray(assets)?assets:Object.values(assets);
-      const fresh=arr.find(a=>{
-        const id=a?.uuid||a?._uuid;
-        return id && !before.has(id);
-      });
-      if(fresh) return fresh;
-    }catch(e){}
-    await new Promise(r=>setTimeout(r,80));
-  }
-  throw new Error("Timed out waiting for Wick asset");
-}
-
-function shapeStageCenter(editor){
-  const p=editor?.project;
-  const w=Number(p?.width||p?.stage?.width||1280)||1280;
-  const h=Number(p?.height||p?.stage?.height||800)||800;
-  return {x:Math.round(w/2),y:Math.round(h/2)};
-}
-
-function shapeSelectWickObject(editor,obj){
-  try{
-    const sel=editor?.selection||editor?.project?.selection;
-    if(!sel) return;
-    if(typeof sel.clear==="function") sel.clear();
-    if(typeof sel.setSelectedObjects==="function"){ sel.setSelectedObjects([obj]); return; }
-    if(Array.isArray(sel.selectedObjects)) sel.selectedObjects=[obj];
-  }catch(e){}
-}
-
-function shapeCreatePathFromAsset(project,assetRecord,x,y){
-  return new Promise((resolve,reject)=>{
-    try{
-      const Wick=window.parent?.Wick||window.Wick;
-      if(!Wick?.ObjectCache?.getObjectByUUID) throw new Error("Wick ObjectCache unavailable");
-      const uuid=assetRecord?.uuid||assetRecord?._uuid;
-      if(!uuid) throw new Error("Shape asset has no UUID");
-      const assetObj=Wick.ObjectCache.getObjectByUUID(uuid);
-      if(!assetObj) throw new Error("Shape asset not found in Wick cache");
-      if(typeof project.createImagePathFromAsset!=="function") throw new Error("Wick createImagePathFromAsset unavailable");
-      project.createImagePathFromAsset(assetObj,x,y,path=>resolve(path));
-    }catch(err){reject(err);}
-  });
-}
-
-async function commitLibraryShapeToWick(url,displayName,fileName){
-  shapeStatus.textContent="Adding "+displayName+" to Wick…";
-  try{
-    const editor=getWickEditor();
-    if(!editor?.project) throw new Error("Wick editor not found");
-    const project=editor.project;
-
-    if(!getActiveWickFrame(editor)) throw new Error("No active Wick frame");
-
-    const safeFile=(fileName||displayName||"Shape").replace(/[^a-z0-9_.-]/gi,"_");
-    let asset=shapeFindAssetByName(project,safeFile);
-
-    if(!asset){
-      const r=await fetch(url,{cache:"no-store"});
-      if(!r.ok) throw new Error("Shape fetch failed: "+r.status);
-      const svgText=await r.text();
-      const file=new File([new Blob([svgText],{type:"image/svg+xml"})],safeFile,{type:"image/svg+xml"});
-      const before=shapeListAssetUUIDs(project);
-
-      if(typeof editor.createAssets==="function") await editor.createAssets([file],[]);
-      else if(typeof project.createAssets==="function") await project.createAssets([file],[]);
-      else throw new Error("No Wick asset import API");
-
-      asset=await shapeWaitForAsset(project,before,safeFile);
-    }
-
-    const c=shapeStageCenter(editor);
-    const placed=await shapeCreatePathFromAsset(project,asset,c.x,c.y);
-    if(!placed) throw new Error("Wick did not create the shape");
-
-    try{
-      if("name" in placed) placed.name=displayName;
-      if("identifier" in placed) placed.identifier=displayName.replace(/[^a-zA-Z0-9_]/g,"_");
-      if("_identifier" in placed) placed._identifier=displayName.replace(/[^a-zA-Z0-9_]/g,"_");
-    }catch(e){}
-
-    shapeSelectWickObject(editor,placed);
-
-    try{
-      if(project.markAsModified) project.markAsModified();
-      project.unsavedChanges=true;
-      if(editor.canvas?.render) editor.canvas.render();
-      if(editor.projectDidChange) editor.projectDidChange();
-      window.parent?.dispatchEvent(new Event("resize"));
-    }catch(e){}
-
-    shapeStatus.textContent="Added "+displayName+" to Wick stage";
-  }catch(err){
-    console.error("[Drawing Shapes] Add to Wick failed",err);
-    shapeStatus.textContent="Wick add failed: "+(err?.message||err);
-  }
-}
 
 async function insertLibraryShape(url,name){
   try{
@@ -994,7 +861,7 @@ async function insertLibraryShape(url,name){
     drawLayer.appendChild(g);
     setSelection([g]);
     pushHistory();
-    shapeStatus.textContent="Added "+name;
+    shapeStatus.textContent="Added "+name+" to Drawing canvas";
   }catch(err){
     shapeStatus.textContent="Shape failed: "+(err?.message||err);
   }
