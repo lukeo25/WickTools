@@ -96,7 +96,7 @@
     display:none;flex-direction:column;overflow:hidden}
   #shapeDrawer.open{display:flex}
   #shapeDrawerHeader{display:flex;align-items:center;gap:6px;padding:8px;border-bottom:1px solid var(--border-soft);background:#252930}
-  #shapeDrawerTitle{font-size:11px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #shapeDrawerTitle{font-size:11px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:70px}
   #shapeDrawer button{background:var(--panel-3);border:1px solid #444b55;color:var(--text);border-radius:4px;height:27px;padding:0 7px;font-size:11px;cursor:pointer}
   #shapeDrawer button:hover{background:#3a4049}
   #shapeGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px;overflow:auto}
@@ -224,9 +224,11 @@
     <div id="shapeDrawerHeader">
       <button id="shapeBack" title="Back">←</button>
       <div id="shapeDrawerTitle">LukeTools Shapes</div>
+      <button id="shapeAddFolder" title="Add a persistent personal SVG folder">+ Folder</button>
       <button id="shapeClose" title="Close">✕</button>
     </div>
     <div id="shapeGrid"></div>
+    <input id="shapeFolderInput" type="file" accept=".svg,image/svg+xml" webkitdirectory directory multiple style="display:none">
     <div id="shapeStatus">Loading shapes…</div>
   </div>
 
@@ -831,36 +833,194 @@ function finishMarquee(box){
 // ---------- Integrated LukeTools Shapes ----------
 const SHAPE_API_ROOT = "https://api.github.com/repos/lukeo25/WickTools/contents/scripts/Panel_SVG/Shapes";
 let shapePath = "";
+let shapeSource = "builtin"; // builtin | personal
+let personalFolderId = null;
+
 const shapeDrawer = document.getElementById("shapeDrawer");
 const shapeGrid = document.getElementById("shapeGrid");
 const shapeStatus = document.getElementById("shapeStatus");
 const shapeTitle = document.getElementById("shapeDrawerTitle");
+const shapeFolderInput = document.getElementById("shapeFolderInput");
+
+const PERSONAL_SHAPES_DB = "LukeToolsDrawingShapes";
+const PERSONAL_SHAPES_STORE = "folders";
+let personalShapeDbPromise = null;
+const shapePreviewUrls = new Set();
+
+function openPersonalShapesDb(){
+  if(personalShapeDbPromise) return personalShapeDbPromise;
+  personalShapeDbPromise = new Promise((resolve,reject)=>{
+    const req = indexedDB.open(PERSONAL_SHAPES_DB,1);
+    req.onupgradeneeded = ()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains(PERSONAL_SHAPES_STORE)){
+        db.createObjectStore(PERSONAL_SHAPES_STORE,{keyPath:"id"});
+      }
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error || new Error("Could not open personal Shapes library"));
+  });
+  return personalShapeDbPromise;
+}
+
+async function personalShapesGetAll(){
+  const db=await openPersonalShapesDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(PERSONAL_SHAPES_STORE,"readonly");
+    const req=tx.objectStore(PERSONAL_SHAPES_STORE).getAll();
+    req.onsuccess=()=>resolve((req.result||[]).sort((a,b)=>(a.name||"").localeCompare(b.name||"")));
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+async function personalShapesGet(id){
+  const db=await openPersonalShapesDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(PERSONAL_SHAPES_STORE,"readonly");
+    const req=tx.objectStore(PERSONAL_SHAPES_STORE).get(id);
+    req.onsuccess=()=>resolve(req.result||null);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+async function personalShapesPut(record){
+  const db=await openPersonalShapesDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(PERSONAL_SHAPES_STORE,"readwrite");
+    tx.objectStore(PERSONAL_SHAPES_STORE).put(record);
+    tx.oncomplete=()=>resolve(record);
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+
+async function personalShapesDelete(id){
+  const db=await openPersonalShapesDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(PERSONAL_SHAPES_STORE,"readwrite");
+    tx.objectStore(PERSONAL_SHAPES_STORE).delete(id);
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+
+function clearShapePreviewUrls(){
+  shapePreviewUrls.forEach(url=>{ try{URL.revokeObjectURL(url);}catch(e){} });
+  shapePreviewUrls.clear();
+}
+
+function makePersonalShapePreview(svgText){
+  const blob=new Blob([svgText],{type:"image/svg+xml"});
+  const url=URL.createObjectURL(blob);
+  shapePreviewUrls.add(url);
+  return url;
+}
 
 function openShapesDrawer(){
   shapeDrawer.classList.add("open");
-  loadShapeFolder(shapePath || "");
+  if(shapeSource==="personal" && personalFolderId) loadPersonalFolder(personalFolderId);
+  else loadShapeFolder(shapePath || "");
 }
 function closeShapesDrawer(){ shapeDrawer.classList.remove("open"); }
+
 document.getElementById("shapeClose").addEventListener("click", closeShapesDrawer);
+document.getElementById("shapeAddFolder").addEventListener("click",()=>shapeFolderInput.click());
+
 document.getElementById("shapeBack").addEventListener("click", ()=>{
+  if(shapeSource==="personal"){
+    shapeSource="builtin";
+    personalFolderId=null;
+    shapePath="";
+    loadShapeFolder("");
+    return;
+  }
   if(!shapePath){ closeShapesDrawer(); return; }
-  const bits = shapePath.split("/").filter(Boolean);
+  const bits=shapePath.split("/").filter(Boolean);
   bits.pop();
   loadShapeFolder(bits.join("/"));
 });
 
-async function loadShapeFolder(path){
-  shapePath = path || "";
-  shapeGrid.innerHTML = "";
-  shapeTitle.textContent = shapePath ? "Shapes · " + shapePath.split("/").pop() : "LukeTools Shapes";
-  shapeStatus.textContent = "Loading…";
-  const url = SHAPE_API_ROOT + (shapePath ? "/" + shapePath.split("/").map(encodeURIComponent).join("/") : "") + "?ref=main";
+shapeFolderInput.addEventListener("change",async ev=>{
+  const files=Array.from(ev.target.files||[]).filter(f=>/\.svg$/i.test(f.name));
+  ev.target.value="";
+  if(!files.length){
+    shapeStatus.textContent="No SVG files found in that folder";
+    return;
+  }
+
   try{
-    const r = await fetch(url,{cache:"no-store"});
-    if(!r.ok) throw new Error("GitHub HTTP " + r.status);
-    const items = await r.json();
-    const dirs = items.filter(x=>x.type==="dir").sort((a,b)=>a.name.localeCompare(b.name));
-    const svgs = items.filter(x=>x.type==="file" && /\.svg$/i.test(x.name)).sort((a,b)=>a.name.localeCompare(b.name));
+    shapeStatus.textContent="Importing personal folder…";
+    const firstPath=files[0].webkitRelativePath || files[0].name;
+    const folderName=(firstPath.split("/")[0] || "My Shapes").trim();
+    const id="personal:"+folderName.toLowerCase().replace(/[^a-z0-9]+/g,"_");
+
+    const entries=[];
+    for(const file of files){
+      const svg=await file.text();
+      const rel=(file.webkitRelativePath || file.name).split("/").slice(1).join("/") || file.name;
+      entries.push({name:file.name,path:rel,svg});
+    }
+
+    await personalShapesPut({
+      id,
+      name:folderName,
+      updatedAt:Date.now(),
+      files:entries
+    });
+
+    shapeSource="personal";
+    personalFolderId=id;
+    await loadPersonalFolder(id);
+    shapeStatus.textContent="Saved "+folderName+" permanently in My Shapes";
+  }catch(err){
+    console.error("[Drawing Shapes] Personal folder import failed",err);
+    shapeStatus.textContent="Folder import failed: "+(err?.message||err);
+  }
+});
+
+async function renderPersonalFolders(){
+  try{
+    const folders=await personalShapesGetAll();
+    folders.forEach(folder=>{
+      const b=document.createElement("button");
+      b.className="shape-folder";
+      b.title=folder.name;
+      b.innerHTML="<span>★</span><span>"+folder.name+"</span>";
+      b.addEventListener("click",()=>{
+        shapeSource="personal";
+        personalFolderId=folder.id;
+        loadPersonalFolder(folder.id);
+      });
+      shapeGrid.appendChild(b);
+    });
+    return folders.length;
+  }catch(err){
+    console.warn("[Drawing Shapes] Could not load personal folders",err);
+    return 0;
+  }
+}
+
+async function loadShapeFolder(path){
+  clearShapePreviewUrls();
+  shapeSource="builtin";
+  personalFolderId=null;
+  shapePath=path || "";
+  shapeGrid.innerHTML="";
+  shapeTitle.textContent=shapePath ? "Shapes · "+shapePath.split("/").pop() : "LukeTools Shapes";
+  shapeStatus.textContent="Loading…";
+
+  let personalCount=0;
+  if(!shapePath){
+    personalCount=await renderPersonalFolders();
+  }
+
+  const url=SHAPE_API_ROOT+(shapePath ? "/"+shapePath.split("/").map(encodeURIComponent).join("/") : "")+"?ref=main";
+  try{
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok) throw new Error("GitHub HTTP "+r.status);
+    const items=await r.json();
+    const dirs=items.filter(x=>x.type==="dir").sort((a,b)=>a.name.localeCompare(b.name));
+    const svgs=items.filter(x=>x.type==="file" && /\.svg$/i.test(x.name)).sort((a,b)=>a.name.localeCompare(b.name));
+
     dirs.forEach(item=>{
       const b=document.createElement("button");
       b.className="shape-folder";
@@ -868,6 +1028,7 @@ async function loadShapeFolder(path){
       b.addEventListener("click",()=>loadShapeFolder(shapePath ? shapePath+"/"+item.name : item.name));
       shapeGrid.appendChild(b);
     });
+
     svgs.forEach(item=>{
       const b=document.createElement("button");
       b.className="shape-card";
@@ -879,12 +1040,56 @@ async function loadShapeFolder(path){
       b.addEventListener("click",()=>insertLibraryShape(item.download_url,b.title));
       shapeGrid.appendChild(b);
     });
-    shapeStatus.textContent = (dirs.length+svgs.length) + " items";
+
+    shapeStatus.textContent=(personalCount+dirs.length+svgs.length)+" items";
   }catch(err){
-    shapeStatus.textContent = "Could not load shapes: " + (err?.message || err);
+    shapeStatus.textContent="Could not load shapes: "+(err?.message||err);
   }
 }
 
+async function loadPersonalFolder(id){
+  clearShapePreviewUrls();
+  shapeGrid.innerHTML="";
+  shapeSource="personal";
+  personalFolderId=id;
+
+  try{
+    const folder=await personalShapesGet(id);
+    if(!folder) throw new Error("Personal folder not found");
+    shapeTitle.textContent="My Shapes · "+folder.name;
+
+    const files=(folder.files||[]).slice().sort((a,b)=>(a.path||a.name).localeCompare(b.path||b.name));
+    files.forEach(item=>{
+      const b=document.createElement("button");
+      b.className="shape-card";
+      b.title=(item.path||item.name||"Shape").replace(/\.svg$/i,"");
+      const img=document.createElement("img");
+      img.src=makePersonalShapePreview(item.svg);
+      img.alt=b.title;
+      b.appendChild(img);
+      b.addEventListener("click",()=>insertLibraryShapeText(item.svg,b.title));
+      shapeGrid.appendChild(b);
+    });
+
+    const remove=document.createElement("button");
+    remove.className="shape-folder";
+    remove.title="Remove this personal folder from Drawing";
+    remove.innerHTML="<span>×</span><span>Remove Folder</span>";
+    remove.addEventListener("click",async()=>{
+      if(!confirm("Remove '"+folder.name+"' from My Shapes?")) return;
+      await personalShapesDelete(folder.id);
+      shapeSource="builtin";
+      personalFolderId=null;
+      loadShapeFolder("");
+    });
+    shapeGrid.appendChild(remove);
+
+    shapeStatus.textContent=files.length+" personal shapes";
+  }catch(err){
+    console.error("[Drawing Shapes] Personal folder load failed",err);
+    shapeStatus.textContent="Could not load personal folder: "+(err?.message||err);
+  }
+}
 
 async function insertLibraryShape(url,name){
   try{
@@ -892,6 +1097,14 @@ async function insertLibraryShape(url,name){
     const r=await fetch(url,{cache:"no-store"});
     if(!r.ok) throw new Error("HTTP "+r.status);
     const txt=await r.text();
+    insertLibraryShapeText(txt,name);
+  }catch(err){
+    shapeStatus.textContent="Shape failed: "+(err?.message||err);
+  }
+}
+
+function insertLibraryShapeText(txt,name){
+  try{
     const doc=new DOMParser().parseFromString(txt,"image/svg+xml");
     const root=doc.documentElement;
     if(!root || root.tagName.toLowerCase()!=="svg") throw new Error("Invalid SVG");
@@ -901,13 +1114,12 @@ async function insertLibraryShape(url,name){
     const scale=Math.min(target/w,target/h);
     const cr=canvasWrap.getBoundingClientRect();
     const center=screenToSvg(cr.left+cr.width/2,cr.top+cr.height/2);
+
     const g=document.createElementNS(SVGNS,"g");
     g.id=newId();
     g.dataset.libraryShape=name;
     g.setAttribute("transform",`translate(${center.x-(w*scale)/2} ${center.y-(h*scale)/2}) scale(${scale}) translate(${-(vb[0]||0)} ${-(vb[1]||0)})`);
 
-    // Preserve presentation attributes inherited from the source <svg>.
-    // Many LukeTools library icons define fill/stroke only on the root SVG.
     const inheritedAttrs=[
       "fill","stroke","stroke-width","stroke-linecap","stroke-linejoin",
       "stroke-miterlimit","stroke-dasharray","stroke-dashoffset",
@@ -918,8 +1130,6 @@ async function insertLibraryShape(url,name){
       if(v!==null && v!=="") g.setAttribute(attr,v);
     });
 
-    // LukeTools shape icons commonly use currentColor with no explicit color.
-    // On the white Drawing page they should inherit black, not the dark UI text colour.
     const rootStyleText=(root.getAttribute("style")||"")+" "+(root.getAttribute("stroke")||"")+" "+(root.getAttribute("fill")||"");
     if(/currentColor/i.test(rootStyleText) && !root.getAttribute("color")){
       g.setAttribute("color","#000000");
@@ -928,6 +1138,7 @@ async function insertLibraryShape(url,name){
     Array.from(root.childNodes).forEach(n=>{
       if(n.nodeType===1) g.appendChild(document.importNode(n,true));
     });
+
     drawLayer.appendChild(g);
     setSelection([g]);
     pushHistory();
