@@ -205,7 +205,7 @@
     </div>
     <div class="panel-section">
       <div class="panel-title">Wick / LukeTools</div>
-      <button id="btnWickCopy" style="width:100%;">Copy Selected to Wick</button>
+      <button id="btnWickCopy" style="width:100%;">Add Selected to Wick Stage</button>
     </div>
     <div class="panel-title" style="padding:10px 10px 2px;">Objects / Layers</div>
     <div id="layerList"></div>
@@ -1516,28 +1516,215 @@ function elToPathPoints(el){
   }
   return null;
 }
-function exportSelectedAsPaperJSON(){
-  if(!selected.length){ alert("Select one or more shapes first."); return; }
-  const results = selected.map(el=>{
-    const pts = elToPathPoints(el);
-    if(!pts) return null;
-    const {segments, closed} = ptsToPaperSegments(pts);
-    const props = {applyMatrix:true, segments, closed};
-    const fc = hexToRgbArr(el.getAttribute("fill")); if(fc) props.fillColor = fc;
-    const sc = hexToRgbArr(el.getAttribute("stroke")); if(sc) props.strokeColor = sc;
-    const sw = el.getAttribute("stroke-width"); if(sw && sc) props.strokeWidth = +sw;
-    return ["Path", props];
-  }).filter(Boolean);
-  if(!results.length){ alert("Nothing exportable in the current selection."); return; }
-  const json = results.length===1 ? JSON.stringify(results[0]) : JSON.stringify(["Group", {applyMatrix:true, children:results}]);
-  const done = ()=> flashStatus("Copied Paper.js curve JSON — in Wick, run: project.activeLayer.importJSON(json)");
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(json).then(done).catch(()=>prompt("Copy this Paper.js/Wick JSON:", json));
-  } else {
-    prompt("Copy this Paper.js/Wick JSON:", json);
+function getWickEditor(){
+  try { if(window.parent?.wickEditor?.project) return window.parent.wickEditor; } catch(e){}
+  try { if(window.parent?.WickEditor?.editor?.project) return window.parent.WickEditor.editor; } catch(e){}
+  try { if(window.parent?.editor?.project) return window.parent.editor; } catch(e){}
+  try { if(window.parent?.app?.project) return window.parent.app; } catch(e){}
+  try { if(window.wickEditor?.project) return window.wickEditor; } catch(e){}
+  return null;
+}
+
+function getWickPaper(){
+  try { return window.parent?.paper || window.parent?.paperScope || window.parent?.Wick?.paper || window.paper || null; }
+  catch(e){ return null; }
+}
+
+function getActiveWickFrame(editor){
+  const project = editor?.project;
+  if(!project) return null;
+
+  let frameNum = 1;
+  try {
+    if(typeof project.currentFrameNumber === "number") frameNum = Math.max(1, project.currentFrameNumber);
+    else {
+      const tl0 = project.activeTimeline || project.timeline;
+      if(tl0?.playheadPosition != null) frameNum = Math.max(1, Number(tl0.playheadPosition)||1);
+    }
+  } catch(e){}
+
+  try {
+    const focus = project.focus || project.activeObject;
+    if(focus?.classname === "Frame" || focus?._classname === "Frame") return focus;
+  } catch(e){}
+
+  try {
+    const tl = project.activeTimeline || project.timeline || project.root?.timeline;
+    if(!tl) return null;
+    if(tl.activeFrame) return tl.activeFrame;
+    if(typeof tl.getActiveFrame === "function"){
+      const f = tl.getActiveFrame();
+      if(f) return f;
+    }
+
+    let layer = tl.activeLayer;
+    if(typeof layer === "number" && tl.layers) layer = tl.layers[layer] || tl.layers[0];
+    if(!layer && tl.layers?.length) layer = tl.layers[0];
+    if(!layer) return null;
+
+    if(typeof layer.getFrame === "function"){
+      const f = layer.getFrame(frameNum);
+      if(f) return f;
+    }
+    if(typeof layer.getFrameAtPlayheadPosition === "function"){
+      const f = layer.getFrameAtPlayheadPosition(frameNum);
+      if(f) return f;
+    }
+    if(layer.activeFrame) return layer.activeFrame;
+    if(layer.frames?.length){
+      for(const f of layer.frames){
+        if(f && f.start <= frameNum && (f.end >= frameNum || f.start === frameNum)) return f;
+      }
+      return layer.frames[0];
+    }
+  } catch(e){}
+
+  return null;
+}
+
+function addWickPathToFrame(frame, obj){
+  if(typeof frame.addPath === "function"){ frame.addPath(obj); return; }
+  if(typeof frame.addObject === "function"){ frame.addObject(obj); return; }
+  if(frame.clip?.addPath){ frame.clip.addPath(obj); return; }
+  if(Array.isArray(frame.paths)){ frame.paths.push(obj); return; }
+  if(Array.isArray(frame.content)){ frame.content.push(obj); return; }
+  throw new Error("No Wick frame insertion API");
+}
+
+function selectedSvgDocument(){
+  if(!selected.length) return "";
+
+  const wrapper = document.createElementNS(SVGNS,"svg");
+  wrapper.setAttribute("xmlns",SVGNS);
+  wrapper.setAttribute("width",pageW);
+  wrapper.setAttribute("height",pageH);
+  wrapper.setAttribute("viewBox",`0 0 ${pageW} ${pageH}`);
+
+  selected.forEach(el=>{
+    wrapper.appendChild(el.cloneNode(true));
+  });
+
+  return new XMLSerializer().serializeToString(wrapper);
+}
+
+function collectPaperPaths(item){
+  const out = [];
+  function walk(node){
+    if(!node) return;
+    if(node.className === "Path" || node.className === "CompoundPath"){
+      out.push(node);
+      return;
+    }
+    if(node.children?.length){
+      Array.from(node.children).forEach(walk);
+    }
+  }
+  walk(item);
+  return out;
+}
+
+function createWickPathFromPaperItem(paperItem){
+  const Wick = window.parent?.Wick || window.Wick;
+  if(!Wick?.Path) throw new Error("Wick.Path is not available");
+
+  const json = paperItem.exportJSON({asString:false});
+  let wp = null;
+
+  try { wp = new Wick.Path({json}); }
+  catch(e1){
+    try { wp = new Wick.Path(json, paperItem); }
+    catch(e2){ wp = new Wick.Path(json); }
+  }
+
+  try { if(wp.updateJSON) wp.updateJSON(); } catch(e){}
+  return wp;
+}
+
+async function addSelectedToWickStage(){
+  const btn = document.getElementById("btnWickCopy");
+  if(!selected.length){
+    flashStatus("Select one or more Drawing objects first");
+    return;
+  }
+
+  const editor = getWickEditor();
+  const paper = getWickPaper();
+  if(!editor?.project){
+    flashStatus("Wick editor not found — open Drawing from LukeTools inside Wick");
+    return;
+  }
+  if(!paper?.project?.importSVG){
+    flashStatus("Paper.js import is not available in this Wick build");
+    return;
+  }
+
+  const frame = getActiveWickFrame(editor);
+  if(!frame){
+    flashStatus("No active Wick frame found");
+    return;
+  }
+
+  const svgText = selectedSvgDocument();
+  if(!svgText){
+    flashStatus("Nothing selected");
+    return;
+  }
+
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = "Adding…";
+
+  let imported = null;
+  try {
+    imported = paper.project.importSVG(svgText,{insert:false,expandShapes:true});
+    if(!imported) throw new Error("Paper.js could not import the selected SVG");
+
+    const project = editor.project;
+    const wickW = Number(project.width || project.stageWidth || pageW) || pageW;
+    const wickH = Number(project.height || project.stageHeight || pageH) || pageH;
+    const sx = wickW / pageW;
+    const sy = wickH / pageH;
+
+    if((Math.abs(sx-1) > 0.0001 || Math.abs(sy-1) > 0.0001) && imported.scale){
+      imported.scale(sx,sy,new paper.Point(0,0));
+    }
+
+    const paperPaths = collectPaperPaths(imported);
+    if(!paperPaths.length) throw new Error("The selection did not contain any vector paths");
+
+    let count = 0;
+    for(const pItem of paperPaths){
+      try {
+        const wickPath = createWickPathFromPaperItem(pItem);
+        addWickPathToFrame(frame,wickPath);
+        count++;
+      } catch(e){
+        console.warn("[Drawing] Wick path insert failed",e);
+      }
+    }
+
+    if(!count) throw new Error("Wick rejected the converted paths");
+
+    try {
+      if(project.markAsModified) project.markAsModified();
+      project.unsavedChanges = true;
+      if(editor.canvas?.render) editor.canvas.render();
+      if(editor.projectDidChange) editor.projectDidChange();
+      window.parent?.dispatchEvent(new Event("resize"));
+    } catch(e){}
+
+    flashStatus("Added " + count + " path" + (count===1 ? "" : "s") + " to Wick stage");
+  } catch(err){
+    console.error("[Drawing] Add to Wick failed",err);
+    flashStatus("Add to Wick failed: " + (err?.message || err));
+  } finally {
+    try { imported?.remove(); } catch(e){}
+    btn.disabled = false;
+    btn.textContent = oldText;
   }
 }
-document.getElementById("btnWickCopy").addEventListener("click", exportSelectedAsPaperJSON);
+
+document.getElementById("btnWickCopy").addEventListener("click", addSelectedToWickStage);
 
 // ---------- New / Open / Export ----------
 document.getElementById("btnNew").addEventListener("click", ()=>{
