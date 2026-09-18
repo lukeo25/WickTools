@@ -855,6 +855,26 @@ async function insertLibraryShape(url,name){
     g.id=newId();
     g.dataset.libraryShape=name;
     g.setAttribute("transform",`translate(${center.x-(w*scale)/2} ${center.y-(h*scale)/2}) scale(${scale}) translate(${-(vb[0]||0)} ${-(vb[1]||0)})`);
+
+    // Preserve presentation attributes inherited from the source <svg>.
+    // Many LukeTools library icons define fill/stroke only on the root SVG.
+    const inheritedAttrs=[
+      "fill","stroke","stroke-width","stroke-linecap","stroke-linejoin",
+      "stroke-miterlimit","stroke-dasharray","stroke-dashoffset",
+      "fill-rule","clip-rule","opacity","color","style"
+    ];
+    inheritedAttrs.forEach(attr=>{
+      const v=root.getAttribute(attr);
+      if(v!==null && v!=="") g.setAttribute(attr,v);
+    });
+
+    // LukeTools shape icons commonly use currentColor with no explicit color.
+    // On the white Drawing page they should inherit black, not the dark UI text colour.
+    const rootStyleText=(root.getAttribute("style")||"")+" "+(root.getAttribute("stroke")||"")+" "+(root.getAttribute("fill")||"");
+    if(/currentColor/i.test(rootStyleText) && !root.getAttribute("color")){
+      g.setAttribute("color","#000000");
+    }
+
     Array.from(root.childNodes).forEach(n=>{
       if(n.nodeType===1) g.appendChild(document.importNode(n,true));
     });
