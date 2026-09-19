@@ -2657,6 +2657,114 @@ function createWickPathFromPaperItem(paperItem){
   return wp;
 }
 
+function drawingColorForPaper(value){
+  value=String(value||"").trim();
+  if(!value || value==="none" || value==="transparent") return null;
+  if(value==="currentcolor" || value==="currentColor") return "#000000";
+  return value;
+}
+
+function drawingGeometryElements(root){
+  const out=[];
+  function walk(node){
+    if(!node || node.nodeType!==1) return;
+    const tag=(node.tagName||"").toLowerCase();
+    if(["path","rect","circle","ellipse","line","polyline","polygon"].includes(tag)){
+      out.push(node);
+      return;
+    }
+    Array.from(node.children||[]).forEach(walk);
+  }
+  walk(root);
+  return out;
+}
+
+function drawingElementClosed(el){
+  const tag=(el.tagName||"").toLowerCase();
+  if(["rect","circle","ellipse","polygon"].includes(tag)) return true;
+  if(tag==="path") return /z\s*$/i.test(String(el.getAttribute("d")||"").trim()) || /z/i.test(String(el.getAttribute("d")||""));
+  return false;
+}
+
+function drawingElementToPaperPath(el,paper,sx,sy){
+  if(!el || typeof el.getTotalLength!=="function" || typeof el.getPointAtLength!=="function") return null;
+  let total=0;
+  try { total=Number(el.getTotalLength())||0; } catch(e){ total=0; }
+  if(!(total>0)) return null;
+
+  const ctm=el.getCTM ? el.getCTM() : null;
+  function mapPoint(pt){
+    let x=Number(pt.x)||0, y=Number(pt.y)||0;
+    if(ctm){
+      const nx=ctm.a*x + ctm.c*y + ctm.e;
+      const ny=ctm.b*x + ctm.d*y + ctm.f;
+      x=nx; y=ny;
+    }
+    return new paper.Point(x*sx,y*sy);
+  }
+
+  const samples=Math.max(8,Math.min(320,Math.ceil(total/3)));
+  const pp=new paper.Path();
+  for(let i=0;i<=samples;i++){
+    const d=total*(i/samples);
+    let p=null;
+    try { p=el.getPointAtLength(d); } catch(e){}
+    if(!p) continue;
+    pp.add(mapPoint(p));
+  }
+  if(pp.segments && pp.segments.length<2){
+    try { pp.remove(); } catch(e){}
+    return null;
+  }
+
+  pp.closed=drawingElementClosed(el);
+
+  let cs=null;
+  try { cs=getComputedStyle(el); } catch(e){}
+  const fill=drawingColorForPaper((cs&&cs.fill)||el.getAttribute("fill"));
+  const stroke=drawingColorForPaper((cs&&cs.stroke)||el.getAttribute("stroke"));
+  let sw=parseFloat((cs&&cs.strokeWidth)||el.getAttribute("stroke-width")||"0")||0;
+  const matrixScale=ctm ? ((Math.hypot(ctm.a,ctm.b)+Math.hypot(ctm.c,ctm.d))/2) : 1;
+  const stageScale=(Math.abs(sx)+Math.abs(sy))/2;
+
+  try { pp.fillColor=fill; } catch(e){ pp.fillColor=null; }
+  try { pp.strokeColor=stroke; } catch(e){ pp.strokeColor=null; }
+  pp.strokeWidth=Math.max(0,sw*matrixScale*stageScale);
+
+  try {
+    const op=parseFloat((cs&&cs.opacity)||el.getAttribute("opacity")||"1");
+    if(isFinite(op)) pp.opacity=Math.max(0,Math.min(1,op));
+  } catch(e){}
+
+  return pp;
+}
+
+function addDrawingSelectionDirectToWick(selectedEls,paper,frame,project){
+  const wickW=Number(project.width||project.stageWidth||pageW)||pageW;
+  const wickH=Number(project.height||project.stageHeight||pageH)||pageH;
+  const sx=wickW/Math.max(1,pageW);
+  const sy=wickH/Math.max(1,pageH);
+  let count=0;
+
+  selectedEls.forEach(root=>{
+    drawingGeometryElements(root).forEach(el=>{
+      let pp=null;
+      try {
+        pp=drawingElementToPaperPath(el,paper,sx,sy);
+        if(!pp) return;
+        const wickPath=createWickPathFromPaperItem(pp);
+        addWickPathToFrame(frame,wickPath);
+        count++;
+      } catch(err){
+        console.warn("[Drawing] Direct Wick conversion skipped an element",err);
+      } finally {
+        try { pp&&pp.remove(); } catch(e){}
+      }
+    });
+  });
+  return count;
+}
+
 async function addSelectedToWickStage(){
   const btn = document.getElementById("btnWickCopy");
   if(!selected.length){
@@ -2739,9 +2847,24 @@ async function addSelectedToWickStage(){
       }
     }
 
-    // Fallback for Wick's older bundled Paper.js builds. Some of those return
-    // no Paper item for otherwise valid SVG. Wick's own importer handles the
-    // same SVG correctly and inserts it into the current project/stage.
+    // Wick 2021's bundled Paper.js can fail to import SVG text from this
+    // fullscreen iframe. In that case build Paper paths directly from the
+    // live SVG geometry, then create native Wick.Path objects exactly as
+    // LukeInk does.
+    const directCount=addDrawingSelectionDirectToWick(selected,paper,frame,project);
+    if(directCount){
+      try {
+        if(project.markAsModified) project.markAsModified();
+        project.unsavedChanges = true;
+        if(editor.canvas?.render) editor.canvas.render();
+        if(editor.projectDidChange) editor.projectDidChange();
+        window.parent?.dispatchEvent(new Event("resize"));
+      } catch(e){}
+      flashStatus("Added " + directCount + " path" + (directCount===1 ? "" : "s") + " to Wick stage");
+      return;
+    }
+
+    // Last fallback for Wick builds that expose the project SVG importer.
     if(typeof project.importSVG === "function"){
       project.importSVG(svgText);
       try {
@@ -2755,8 +2878,8 @@ async function addSelectedToWickStage(){
       return;
     }
 
-    if(paperError) throw paperError;
-    throw new Error("Paper.js could not import the selected SVG and Wick importSVG is unavailable");
+    if(paperError) console.warn("[Drawing] Paper SVG import failed before direct conversion",paperError);
+    throw new Error("Selected Drawing object could not be converted to Wick paths");
   } catch(err){
     console.error("[Drawing] Add to Wick failed",err);
     flashStatus("Add to Wick failed: " + (err?.message || err));
