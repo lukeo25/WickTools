@@ -968,6 +968,36 @@ html, body, #app{
 .sandboxResetWrap{margin-top:13px;padding-top:12px;border-top:1px solid #2a4056;}
 #btnSandboxResetRest{width:100%;background:#57243a;border-color:#e85586;color:#ffc5d8;font-weight:bold;}
 .sandboxResetHint{margin-top:6px;color:#d4a9b7;font-size:11px;}
+.sandboxWorkflowStatus{margin:0;padding:7px 12px;border-top:1px solid #26394b;border-bottom:1px solid #26394b;background:#0d1a26;color:#89dabb;font-size:11px;}
+#tabs{grid-template-columns:repeat(5,minmax(0,1fr)) !important;gap:5px !important;}
+#tabs .tabBtn{min-width:0;padding-left:5px;padding-right:5px;}
+.panelPage[data-page="source"] > .section:not(.sandboxPartMain),
+.panelPage[data-page="bones"] > .section:not(.sandboxBonesMain),
+.panelPage[data-page="expression"] > .section:not(.sandboxGizmoMain){display:none !important;}
+.sandboxSimpleHeader{margin:0 0 5px;color:#8fd5ff;font-size:18px;}
+.sandboxSimpleHelp{margin:0 0 12px;color:#aebfd0;font-size:12px;line-height:1.35;}
+.sandboxPrimaryAction{width:100%;min-height:42px;background:#154b75 !important;border-color:#45acf0 !important;color:#fff !important;font-weight:bold;}
+.sandboxActionGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.sandboxActionGrid.one{grid-template-columns:1fr;}
+.sandboxReadout{margin-top:10px;padding:9px 10px;border-left:3px solid #1ee29a;border-radius:5px;background:#091522;color:#bdd2e2;font-size:12px;}
+.sandboxBoneTypeGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:10px;}
+.sandboxBoneTypeGrid button.active{border-color:#45acf0;background:#244662;color:#fff;}
+#sandboxBoneList{margin-top:10px;display:grid;gap:6px;}
+.sandboxBoneRow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 9px;border:1px solid #304b62;border-radius:7px;background:#122236;color:#dce8f2;text-align:left;cursor:pointer;}
+.sandboxBoneRow.active{border-color:#1ee29a;background:#17382f;}
+.sandboxBoneRow span{color:#9eb2c4;font-size:11px;}
+.sandboxGizmoFrames{margin-top:10px;}
+.sandboxGizmoFrames .softReadout{margin-top:8px;}
+#myCharacterPanel{padding-top:10px !important;}
+#myCharacterPanel h3{color:#8fd5ff;font-size:18px;}
+#myCharacterPanel .mcTopActions{grid-template-columns:1fr 1fr !important;}
+#myCharacterPanel #mcAddPart{display:none !important;}
+#myCharacterPanel .mcPartBody{display:grid !important;grid-template-columns:1fr 1fr;gap:7px;padding-top:8px;}
+#myCharacterPanel .mcPartBody .mcLoadedTag{grid-column:1/-1;}
+#myCharacterPanel .mcPartBody .mcBigBtn{min-height:34px;}
+#myCharacterPanel .mcTitleRow{grid-template-columns:auto minmax(0,1fr) 28px !important;}
+.mcStackButton{min-height:34px;}
+.mcPinPlain.active{border-color:#f4bf42;background:#4b3b13;}
 @media(max-width:380px){.sandboxPoseGrid{grid-template-columns:1fr}.sandboxAnimateActions{grid-template-columns:1fr}.sandboxPoseSave{grid-template-columns:1fr}}
 </style>
 </head>
@@ -975,26 +1005,24 @@ html, body, #app{
 <div id="app">
   <div id="topbar">
     <div id="tabs">
-      <button class="tabBtn active" data-tab="character">Build Character</button>
-      <button class="tabBtn" data-tab="source">Build Parts</button>
+      <button class="tabBtn active" data-tab="source">Part</button>
       <button class="tabBtn" data-tab="bones">Bones</button>
-      <button class="tabBtn" data-tab="editbone">Edit Bn</button>
       <button class="tabBtn" data-tab="animate">Animate</button>
-      <button class="tabBtn" data-tab="animatepoints">Curves</button> <!-- FIX v18.54_AnimatePoints -->
+      <button class="tabBtn" data-tab="character">Character</button>
       <button class="tabBtn" data-tab="expression">Gizmo</button> <!-- FIX v18.220_GPT: user-facing Expressions workflow is now Gizmo -->
-      <button class="tabBtn" data-tab="stamp">Commit</button>
-      <button class="tabBtn" data-tab="help">Help</button>
     </div>
+    <div class="sandboxWorkflowStatus">Live · changes are saved to the current Wick project</div>
   </div>
   <div id="body">
     <div id="panel">
-      <div class="panelPage active" data-page="character">
+      <div class="panelPage" data-page="character">
         <div id="myCharacterPanel" class="section softSection">
-          <h3>MyCharacter</h3>
+          <h3>Character</h3>
+          <div class="sandboxSimpleHelp">Assemble parts, pin them to parents, animate them, or change their order in the character stack.</div>
           <div class="mcTopActions">
             <button id="mcAddPart" type="button" class="mcBtn" data-mc-top-action="add" onclick="try{ if(window.MyCharacterAddPart){ return window.MyCharacterAddPart(event); } }catch(e){ console.error(e); } return false;">Add Part</button>
-            <button id="mcSaveCharacter" type="button" class="mcBtn" data-mc-top-action="save">Save</button>
-            <button id="mcLoadCharacter" type="button" class="mcBtn" data-mc-top-action="load">Load</button>
+            <button id="mcSaveCharacter" type="button" class="mcBtn" data-mc-top-action="save">Save Character</button>
+            <button id="mcLoadCharacter" type="button" class="mcBtn" data-mc-top-action="load">Load Character</button>
           </div>
           <div id="mcCards" class="mcCards"></div>
           <div class="mcStatusLine" id="mcStatus">Ready</div>
@@ -1003,7 +1031,20 @@ html, body, #app{
         </div>
       </div>
 
-      <div class="panelPage" data-page="source">
+      <div class="panelPage active" data-page="source">
+        <div class="section softSection sandboxPartMain">
+          <h3 class="sandboxSimpleHeader">Part</h3>
+          <div class="sandboxSimpleHelp">Select artwork already on the Wick stage, or import SVG/PNG artwork, then add bones.</div>
+          <button id="btnSandboxUseArtwork" class="sandboxPrimaryAction" type="button">Use Selected Artwork</button>
+          <div class="sandboxActionGrid">
+            <button id="btnSandboxImportArtwork" class="softBtn softBtnSecondary" type="button">Import SVG / PNG</button>
+            <button id="btnSandboxOpenBones" class="softBtn softBtnSecondary" type="button">Add Bones</button>
+            <button id="btnSandboxSavePart" class="softBtn softBtnSecondary" type="button">Save Part</button>
+            <button id="btnSandboxLoadPart" class="softBtn softBtnSecondary" type="button">Load Part</button>
+          </div>
+          <div class="sandboxActionGrid one"><button id="btnSandboxAddCharacter" class="softBtn softBtnAccent" type="button">Add To Character</button></div>
+          <div id="sandboxPartStatus" class="sandboxReadout">Ready for selected Wick artwork.</div>
+        </div>
         <div class="section softSection"> <!-- FIX v13.6: project save/load is first visible item -->
           <h3>Project</h3>
           <div class="softActionRow">
@@ -1068,6 +1109,24 @@ html, body, #app{
       </div>
 
       <div class="panelPage" data-page="bones">
+        <div class="section softSection sandboxBonesMain">
+          <h3 class="sandboxSimpleHeader">Bones</h3>
+          <div class="sandboxSimpleHelp">Choose a bone type, then drag on the artwork. Adjust envelopes directly with their nodes.</div>
+          <div class="sandboxBoneTypeGrid">
+            <button type="button" class="active" data-sandbox-bone="normal">Normal</button>
+            <button type="button" data-sandbox-bone="stretchy">Stretchy</button>
+            <button type="button" data-sandbox-bone="chain">Chain</button>
+            <button type="button" data-sandbox-bone="dummy">Dummy</button>
+          </div>
+          <div class="sandboxActionGrid">
+            <button id="btnSandboxAutoSize" class="softBtn softBtnSecondary" type="button">Auto Size</button>
+            <button id="btnSandboxEditBone" class="softBtn softBtnSecondary" type="button">Edit Selected</button>
+            <button id="btnSandboxDeleteBone" class="softBtn softBtnWarn" type="button">Delete Selected</button>
+            <button id="btnSandboxClearBones" class="softBtn softBtnWarn" type="button">Clear All</button>
+          </div>
+          <div id="sandboxBoneStatus" class="sandboxReadout">No bone selected.</div>
+          <div id="sandboxBoneList"></div>
+        </div>
         <div class="section">
           <h3>Bone creation</h3>
           <div class="notice">The Bones tab is always in Add Bone mode. Drag empty overlay space to create the selected bone type. Click a bone to select it. Deleting a bone returns straight back to Add Bone mode. Lip_Bone and Frame_Bone can now be created from a blank Set Area first, without loading an SVG or shape. After creation you stay here to adjust their scale or rotation before opening Gizmo. Select a Lip_Bone or Frame_Bone on the overlay, then drag the corner square to scale or the round handle above it to rotate. <!-- FIX v18.220_GPT --></div>
@@ -1493,6 +1552,17 @@ html, body, #app{
       </div>
 
       <div class="panelPage" data-page="expression"> <!-- Internal page id retained for saved-part compatibility. FIX v18.220_GPT -->
+        <div class="section softSection sandboxGizmoMain">
+          <h3 class="sandboxSimpleHeader">Gizmo</h3>
+          <div class="sandboxSimpleHelp">Attach a selected stage Gizmo to the selected parent bone. Gizmo frame changes create keys automatically while Animate is on.</div>
+          <button id="btnSandboxUseGizmo" class="sandboxPrimaryAction" type="button">Use Selected Gizmo</button>
+          <div class="sandboxActionGrid">
+            <button id="btnSandboxLoadLipOutput" class="softBtn softBtnSecondary" type="button">Load Lip Service Output</button>
+            <button id="btnSandboxLoadGizmoImages" class="softBtn softBtnSecondary" type="button">Load Gizmo Images</button>
+          </div>
+          <div id="sandboxGizmoStatus" class="sandboxReadout">Select a parent bone, then choose a Gizmo on the Wick stage.</div>
+          <div id="sandboxGizmoFrames" class="sandboxGizmoFrames"></div>
+        </div>
         <div class="section softSection">
           <h3>Gizmo Bones</h3>
           <div class="notice">Attach a selected stage Gizmo to the selected parent bone, or keep using Lip Service and Eye Service Gizmos. Clicking a Gizmo frame keys it on the real Wick timeline. Existing saved Expression data remains compatible. <!-- FIX v18.220_GPT --></div>
@@ -1705,7 +1775,7 @@ html, body, #app{
   'use strict';
 
   var App = {
-    activeTab: 'character',
+    activeTab: 'source',
     editBoneMode: 'bone',
     newBoneType: 'normal', // FIX v17.0 // FIX v16.6: Edit Bone tab has explicit non-keying edit modes.
     B: null,
@@ -2239,6 +2309,8 @@ html, body, #app{
   }
 
   function boneTypeLabel(bone){ // FIX v18.0
+    if (bone && bone.isDummy) return 'Dummy';
+    if (bone && bone.isChain) return 'Chain';
     if (isStretchyBone(bone)) return 'Stretchy Bone';
     if (isLipBone(bone)) return 'Lip Bone';
     if (isWinkBone(bone)) return 'Frame_Bone';
@@ -8529,8 +8601,11 @@ html, body, #app{
       envStart: defaultEnvelope, // FIX v7.7
       envEnd: defaultEnvelope, // FIX v7.7
       strength: 1,
-      type: normaliseBoneType(App.newBoneType) // FIX v17.0
+      type: normaliseBoneType(App.newBoneType), // FIX v17.0
+      isDummy: App.sandboxBoneKind === 'dummy',
+      isChain: App.sandboxBoneKind === 'chain'
     };
+    if (bone.isDummy) bone.strength = 0;
     App.bones.push(bone);
     App.selectedBoneId = bone.id;
     if (isExpressionBone(bone)) ensureExpressionProfileForBone(bone); // FIX v18.0
@@ -16152,52 +16227,33 @@ html, body, #app{
     var host = el('mcCards');
     if (host) {
       if (!mc.parts.length) {
-        host.innerHTML = '<div class="small">No parts. Click Add Part.</div>';
+        host.innerHTML = '<div class="small">No parts yet. Add a finished part from the Part panel.</div>';
       } else {
         host.innerHTML = mc.parts.map(function(raw, idx){
           var p = mcNormalizePartMode(raw);
           var active = p.id === mc.selectedId ? ' active' : '';
           var assemble = p.mode === 'assemble' ? 'active' : '';
           var animate = p.mode === 'animate' ? 'active' : '';
-          var bone = p.mode === 'animate' && p.editTarget !== 'node' ? 'active' : '';
-          var node = p.mode === 'animate' && p.editTarget === 'node' ? 'active' : '';
           var pin = mc.pinPickSourceId === p.id ? ' active' : '';
           var collapsed = p.collapsed ? ' collapsed' : ''; // FIX v18.150_GPT
           var toggleIcon = p.collapsed ? '▸' : '▾'; // FIX v18.150_GPT
-          var t = p.transform || {x:50,y:50,w:300,h:200,rotation:0};
           var loaded = p.state ? 'Loaded RotoBones JSON' : 'No RotoBones JSON loaded';
           if (p.parentPin) loaded += '  pinned';
           return '' +
             '<div class="mcPartCard' + active + collapsed + '" data-id="' + p.id + '">' +
               '<div class="mcTitleRow">' +
-                '<button type="button" class="mcAccordionBtn" data-action="togglePart" data-id="' + p.id + '" title="Open or close this part">' + toggleIcon + '</button>' +
-                '<button type="button" class="mcPinBtn' + pin + '" data-action="pin" data-id="' + p.id + '" title="Pin this part"></button>' +
-                '<label class="mcLabel">Part Name:</label>' +
+                '<label class="mcLabel">Part:</label>' +
                 '<input class="mcNameInput" data-action="name" data-id="' + p.id + '" type="text" value="' + htmlEscape(String(p.name || ('Part ' + p.id))) + '">' +
                 '<button type="button" class="mcDeleteTop" data-action="remove" data-id="' + p.id + '" title="Delete this item">×</button>' +
               '</div>' +
               '<div class="mcPartBody">' +
                 mcButton('Assemble', assemble, 'assemble', p.id) +
                 mcButton('Animate', animate, 'animate', p.id) +
-                mcButton('Load Bone Json', '', 'loadPart', p.id) +
-                mcButton('Bone Mode', bone, 'bone', p.id) +
-                '<div class="mcArrowBox" data-action="arrow" data-id="' + p.id + '" title="Move item up or down in the stack and z order">' +
-                  '<div class="mcArrowHalf mcArrowUp" data-action="up" data-id="' + p.id + '"></div>' +
-                  '<div class="mcArrowHalf mcArrowDown" data-action="down" data-id="' + p.id + '"></div>' +
-                '</div>' +
-                mcButton('Node Mode', node, 'node', p.id) +
-                mcButton('Delete key', '', 'deleteKey', p.id) +
-                mcButton('Clear All', '', 'clearKeys', p.id) +
+                '<button type="button" class="mcBigBtn mcStackButton" data-action="up" data-id="' + p.id + '">Move Up</button>' +
+                '<button type="button" class="mcBigBtn mcStackButton" data-action="down" data-id="' + p.id + '">Move Down</button>' +
+                (p.parentPin ? '<button type="button" class="mcBigBtn mcUnpinBtn" data-action="unpin" data-id="' + p.id + '">Unpin</button>' : '<button type="button" class="mcBigBtn mcPinPlain' + pin + '" data-action="pin" data-id="' + p.id + '">Pin To Parent</button>') +
                 '<div class="mcLoadedTag">' + htmlEscape(loaded) + '</div>' +
-                '<div class="mcPinInfo"><span class="mcPinText">' + htmlEscape(mcPinNameFor(p)) + '</span><button type="button" class="mcBigBtn mcUnpinBtn" data-action="unpin" data-id="' + p.id + '">Unpin</button></div>' +
-                '<div class="mcTransformRow">' +
-                  '<input data-action="x" data-id="' + p.id + '" type="number" step="1" title="X" value="' + Math.round(Number(t.x || 0)) + '">' +
-                  '<input data-action="y" data-id="' + p.id + '" type="number" step="1" title="Y" value="' + Math.round(Number(t.y || 0)) + '">' +
-                  '<input data-action="w" data-id="' + p.id + '" type="number" step="1" title="Width" value="' + Math.round(Number(t.w || 1)) + '">' +
-                  '<input data-action="h" data-id="' + p.id + '" type="number" step="1" title="Height" value="' + Math.round(Number(t.h || 1)) + '">' +
-                  '<input data-action="rot" data-id="' + p.id + '" type="number" step="1" title="Rotation" value="' + Math.round(Number(t.rotation || 0)) + '">' +
-                  '<button type="button" class="mcBigBtn mcApplyTransform" data-action="applyTransform" data-id="' + p.id + '">Apply</button>' +
-                '</div>' +
+                '<div class="mcLoadedTag">' + htmlEscape(mcPinNameFor(p)) + '</div>' +
               '</div>' +
             '</div>';
         }).join('');
@@ -25328,6 +25384,90 @@ function installDemBonesMrk2() {
     markDirty();
   }
 
+  /* Simplified five-panel sandbox UI. The mature controls stay in the DOM for compatibility. */
+  function dbSimplifiedRender(){
+    var sourceStatus = el('sandboxPartStatus');
+    if (sourceStatus) {
+      var hasSource = !!(App.source && (App.source.image || App.source.svgNative || (App.source.dummy && App.source.dummy.active)));
+      sourceStatus.textContent = hasSource ? ('Artwork ready · ' + String(App.source.fileName || App.source.selectedIdentifier || 'selected artwork')) : 'Ready for selected Wick artwork.';
+    }
+    var boneStatus = el('sandboxBoneStatus');
+    var selected = getSelectedBone();
+    if (boneStatus) boneStatus.textContent = selected ? (selected.name + ' · ' + boneTypeLabel(selected) + ' · parent ' + getBoneName(selected.parentId)) : 'No bone selected.';
+    var list = el('sandboxBoneList');
+    if (list) {
+      list.innerHTML = '';
+      if (!(App.bones || []).length) list.innerHTML = '<div class="small">No bones yet.</div>';
+      (App.bones || []).forEach(function(bone){
+        var row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'sandboxBoneRow' + (bone.id === App.selectedBoneId ? ' active' : '');
+        row.innerHTML = '<strong>' + escapeHtml(bone.name) + '</strong><span>' + escapeHtml(boneTypeLabel(bone)) + '</span>';
+        row.addEventListener('click', function(){ selectBoneById(bone.id, true); dbSimplifiedRender(); });
+        list.appendChild(row);
+      });
+    }
+    var gizmoStatus = el('sandboxGizmoStatus');
+    if (gizmoStatus) gizmoStatus.textContent = selected ? ('Parent bone · ' + selected.name) : 'Select a parent bone, then choose a Gizmo on the Wick stage.';
+  }
+
+  function dbSimplifiedChooseBone(kind){
+    kind = String(kind || 'normal');
+    App.sandboxBoneKind = kind;
+    App.newBoneType = kind === 'stretchy' ? 'stretchy' : 'normal';
+    App.rig.mode = kind === 'chain' ? 'chainIk' : 'fk';
+    if (el('selBoneType')) el('selBoneType').value = App.newBoneType;
+    if (el('selRigMode')) el('selRigMode').value = App.rig.mode;
+    qa('[data-sandbox-bone]').forEach(function(button){ button.classList.toggle('active', button.getAttribute('data-sandbox-bone') === kind); });
+    App.interaction.addBoneMode = true;
+    dbSimplifiedRender();
+  }
+
+  function dbSimplifiedProxy(id){
+    var target = el(id);
+    if (target) target.click();
+  }
+
+  function dbSimplifiedUiInstall(){
+    App.sandboxBoneKind = App.sandboxBoneKind || 'normal';
+    if (el('chkUseSelectedCurveRemoveOriginals_Claude')) el('chkUseSelectedCurveRemoveOriginals_Claude').checked = true;
+    if (el('btnSandboxUseArtwork')) el('btnSandboxUseArtwork').addEventListener('click', function(){ dbSimplifiedProxy('btnUseSelectedCurve'); });
+    if (el('btnSandboxImportArtwork')) el('btnSandboxImportArtwork').addEventListener('click', function(){
+      try {
+        if (!App.source.viewportRect) {
+          var fit = getFittedStageRect();
+          createBlankSourceAreaAtViewport(fit.x, fit.y, fit.width, fit.height, 'import-area', 'Imported artwork');
+        }
+        var input = el('fileImageLoader');
+        if (input) input.accept = '.svg,image/svg+xml,.png,image/png';
+        promptLocalImageFile();
+      } catch(error) { log('Import artwork failed: ' + (error && error.message ? error.message : error)); }
+    });
+    if (el('btnSandboxOpenBones')) el('btnSandboxOpenBones').addEventListener('click', function(){ setActiveTab('bones'); });
+    if (el('btnSandboxSavePart')) el('btnSandboxSavePart').addEventListener('click', function(){ dbSimplifiedProxy('btnSaveRigProject'); });
+    if (el('btnSandboxLoadPart')) el('btnSandboxLoadPart').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadRigProject'); });
+    if (el('btnSandboxAddCharacter')) el('btnSandboxAddCharacter').addEventListener('click', function(){ dbSimplifiedProxy('btnMcAddPartAndReset_Claude'); });
+    qa('[data-sandbox-bone]').forEach(function(button){ button.addEventListener('click', function(){ dbSimplifiedChooseBone(button.getAttribute('data-sandbox-bone')); }); });
+    if (el('btnSandboxAutoSize')) el('btnSandboxAutoSize').addEventListener('click', function(){ dbSimplifiedProxy('btnAutoEnvelopeSelected'); });
+    if (el('btnSandboxEditBone')) el('btnSandboxEditBone').addEventListener('click', function(){
+      if (!getSelectedBone()) { log('Select a bone first.'); return; }
+      App.interaction.addBoneMode = false;
+      if (el('sandboxBoneStatus')) el('sandboxBoneStatus').textContent = 'Edit selected bone and envelope directly with its stage nodes.';
+      renderOverlay();
+    });
+    if (el('btnSandboxDeleteBone')) el('btnSandboxDeleteBone').addEventListener('click', function(){ dbSimplifiedProxy('btnDeleteBone'); });
+    if (el('btnSandboxClearBones')) el('btnSandboxClearBones').addEventListener('click', function(){ dbSimplifiedProxy('btnClearBones'); });
+    if (el('btnSandboxUseGizmo')) el('btnSandboxUseGizmo').addEventListener('click', function(){ dbSimplifiedProxy('btnImportSelectedGizmoAsExpression'); });
+    if (el('btnSandboxLoadLipOutput')) el('btnSandboxLoadLipOutput').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadLipExpressionJson'); });
+    if (el('btnSandboxLoadGizmoImages')) el('btnSandboxLoadGizmoImages').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadLipExpressionImages'); });
+    var gizmoFrames = el('sandboxGizmoFrames');
+    ['importedGizmoInfo','importedGizmoSlots','lipExpressionSlots'].forEach(function(id){ var node = el(id); if (gizmoFrames && node) gizmoFrames.appendChild(node); });
+    var baseUpdateUI = updateUI;
+    updateUI = function(){ var result = baseUpdateUI.apply(this, arguments); dbSimplifiedRender(); return result; };
+    dbSimplifiedChooseBone(App.sandboxBoneKind);
+    dbSimplifiedRender();
+  }
+
   function dbPoseLibraryInstall(){
     App.poseLibrary = Array.isArray(App.poseLibrary) ? App.poseLibrary : [];
     if (el('btnSandboxPoseLibrary')) el('btnSandboxPoseLibrary').addEventListener('click', function(){
@@ -25350,6 +25490,7 @@ function installDemBonesMrk2() {
 
   installDemBonesMrk2();
   dbPoseLibraryInstall();
+  dbSimplifiedUiInstall();
   if (el('btnImportSelectedGizmoAsPart')) el('btnImportSelectedGizmoAsPart').addEventListener('click', dbm2ImportSelectedGizmoAsPart_v18220);
   if (el('btnImportSelectedGizmoAsExpression')) el('btnImportSelectedGizmoAsExpression').addEventListener('click', dbm2ImportSelectedGizmoAsExpression_v18220);
 
