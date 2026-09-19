@@ -9413,9 +9413,30 @@ html, body, #app{
   } // FIX v18.29
 
   function autoSizeAllEnvelopes(){ // FIX v18.29
-    var bones = (App.bones || []).filter(function(b){ return !isExpressionBone(b); }); // FIX v18.29
+    var bones = (App.bones || []).filter(function(b){ return !isExpressionBone(b) && !b.isDummy; }); // FIX GPT_19-09-2026_AutoSizeAll
     autoSizeEnvelopeForBoneSet(bones); // FIX v18.29
-  } // FIX v18.29
+
+    // Keep existing keyed poses in step with the new measured envelopes.
+    var byId = {};
+    bones.forEach(function(b){ byId[String(b.id)] = b; });
+    Object.keys(App.keyframes || {}).forEach(function(frameKey){
+      var pose = App.keyframes[frameKey];
+      if (!pose || typeof pose !== 'object') return;
+      Object.keys(byId).forEach(function(id){
+        var keyed = pose[id];
+        var bone = byId[id];
+        if (!keyed || !bone) return;
+        keyed.envStart = getBoneEnvStart(bone);
+        keyed.envEnd = getBoneEnvEnd(bone);
+        keyed.radius = Math.max(keyed.envStart, keyed.envEnd);
+      });
+    });
+    try { mcPersistActivePartKeys(); } catch(ePersistAutoSize){}
+    updateUI();
+    renderOverlay();
+    try { markDirty(); } catch(eDirtyAutoSize){}
+    log('Auto Size applied to all deforming bones and existing animation keys.');
+  } // FIX GPT_19-09-2026_AutoSizeAll
 
   function normalize(v){
     var len = Math.sqrt(v.x*v.x + v.y*v.y) || 1;
@@ -25434,7 +25455,7 @@ function installDemBonesMrk2() {
     if (el('btnSandboxLoadPart')) el('btnSandboxLoadPart').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadRigProject'); });
     if (el('btnSandboxAddCharacter')) el('btnSandboxAddCharacter').addEventListener('click', function(){ dbSimplifiedProxy('btnMcAddPartAndReset_Claude'); });
     if (el('selSandboxBoneKind')) el('selSandboxBoneKind').addEventListener('change', function(){ dbSimplifiedChooseBone(this.value); });
-    if (el('btnSandboxAutoSize')) el('btnSandboxAutoSize').addEventListener('click', function(){ dbSimplifiedProxy('btnAutoEnvelopeSelected'); });
+    if (el('btnSandboxAutoSize')) el('btnSandboxAutoSize').addEventListener('click', function(){ autoSizeAllEnvelopes(); }); // FIX GPT_19-09-2026_AutoSizeAll
     if (el('btnSandboxEditBone')) el('btnSandboxEditBone').addEventListener('click', function(){
       if (!getSelectedBone()) { log('Select a bone first.'); return; }
       App.interaction.addBoneMode = false;
