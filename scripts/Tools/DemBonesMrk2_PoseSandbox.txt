@@ -25575,9 +25575,26 @@ function installDemBonesMrk2() {
     var hasSource = !!(App.source && (App.source.image || App.source.svgNative || (App.source.dummy && App.source.dummy.active)));
     if (!hasSource) { log('Add To Character: create or load a part first.'); return; }
 
+    // FIX GPT_19-09-2026_CharacterConsumesLiveRig: Character takes ownership of a live DemBones rig.
+    // Save the live Wick result first, remember its managed stage clips, then detach live mode
+    // before MyCharacter is created. This prevents live-mode validation from fighting Character.
+    var liveApi = null;
+    var liveBindingForTransfer = null;
+    try {
+      liveApi = window.DemBonesMrk2 || null;
+      if (liveApi && liveApi.binding) {
+        try { liveApi.flush(true); } catch(eFlush){}
+        liveBindingForTransfer = mcSafeClone(liveApi.binding);
+      }
+    } catch(eLiveCapture){}
+
     var snapshot;
     try { snapshot = buildRigProjectState(); }
     catch(error) { log('Add To Character failed: ' + (error && error.message ? error.message : error)); return; }
+
+    if (liveApi && liveBindingForTransfer) {
+      try { liveApi.finish(); } catch(eFinishLive){}
+    }
 
     var mc = mcEnsure();
     var previousSelectedId = mc.selectedId;
@@ -25620,6 +25637,25 @@ function installDemBonesMrk2() {
     mc.selectedId = id;
     mc.pendingLoadPartId = null;
     mc.loading = false;
+
+    // FIX GPT_19-09-2026_CharacterConsumesLiveRig: the managed live-rig clips are the
+    // second stage object. Once their rig state is inside MyCharacter, remove those exact
+    // Wick clips so only the Character instance remains visible.
+    if (liveBindingForTransfer && liveBindingForTransfer.rows && liveBindingForTransfer.rows.length) {
+      try {
+        liveBindingForTransfer.rows.forEach(function(row){
+          var clip = null;
+          try { clip = App.Wick && App.Wick.ObjectCache ? App.Wick.ObjectCache.getObjectByUUID(row.clipUUID) : null; } catch(eResolveClip){}
+          if (clip && clip.parent && typeof clip.parent.removeChild === 'function') {
+            try { clip.parent.removeChild(clip); } catch(eRemoveClip){}
+          }
+        });
+        try { if (App.ed && typeof App.ed.syncInterfaces === 'function') App.ed.syncInterfaces(); } catch(eSync){}
+        try { if (App.project && App.project.view && typeof App.project.view.render === 'function') App.project.view.render(); } catch(eRenderProject){}
+      } catch(eConsumeLiveRig) {
+        console.error('[DemBones Sandbox] could not remove transferred live rig artwork', eConsumeLiveRig);
+      }
+    }
 
     // FIX GPT_19-09-2026_CharacterConsumesSource: once the selected Wick stage artwork
     // becomes a Character part, remove that original so only the Character instance remains.
