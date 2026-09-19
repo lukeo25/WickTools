@@ -992,8 +992,9 @@ html, body, #app{
             <button id="btnLoadImage" class="secondary">Load SVG</button>
             <button id="btnAddDummyArea" class="secondary">Add Dummy</button> <!-- FIX v18.182_GPT -->
           </div>
-          <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
-            <button id="btnUseSelectedCurve" class="secondary">Use Selected Artwork</button> <!-- FIX Claude_10-07-2026_V6: relabeled, now paired with Remove Originals checkbox -->
+                    <div class="row rowButtonsSym_Claude cols2"> <!-- FIX GPT_20-09-2026_DrawingToDemBones -->
+            <button id="btnUseSelectedCurve" class="secondary">Use Selected Artwork</button>
+            <button id="btnOpenDrawingForDemBones" class="secondary">Draw</button>
           </div>
           <div class="row"><label class="small" style="display:flex;align-items:center;gap:4px;min-width:0;"><input type="checkbox" id="chkUseSelectedCurveRemoveOriginals_Claude"> Remove Originals</label></div> <!-- FIX Claude_10-07-2026_V6/V8 -->
           <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
@@ -15122,6 +15123,69 @@ html, body, #app{
     }
   }
 
+  function openDrawingForDemBones(){ // FIX GPT_20-09-2026_DrawingToDemBones
+    try {
+      var pwin = window.parent || window;
+      var pdoc = pwin.document || document;
+      var id = 'luketools_dembones_drawing_panel';
+      var existing = pdoc.getElementById(id);
+      if (existing) { existing.style.display='flex'; existing.style.zIndex='2147483646'; return; }
+      var shell = pdoc.createElement('div');
+      shell.id=id;
+      shell.style.cssText='position:fixed;left:5vw;top:5vh;width:90vw;height:88vh;z-index:2147483646;background:#16181c;border:1px solid rgba(255,255,255,.22);border-radius:10px;box-shadow:0 18px 60px rgba(0,0,0,.65);overflow:hidden;display:flex;flex-direction:column';
+      var bar=pdoc.createElement('div');
+      bar.style.cssText='height:36px;flex:0 0 36px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;background:#202329;border-bottom:1px solid #111318;color:#f2f4f7;font:600 12px Arial,sans-serif;cursor:move;user-select:none';
+      var title=pdoc.createElement('div'); title.textContent='LukeTools · Drawing';
+      var close=pdoc.createElement('button'); close.type='button'; close.textContent='×'; close.title='Close Drawing'; close.style.cssText='width:28px;height:28px;border:1px solid rgba(255,255,255,.16);border-radius:7px;background:#30353d;color:#fff;font-size:18px;cursor:pointer';
+      var frame=pdoc.createElement('iframe'); frame.title='LukeTools Drawing'; frame.style.cssText='flex:1 1 auto;width:100%;min-height:0;border:0;background:#16181c';
+      bar.appendChild(title); bar.appendChild(close); shell.appendChild(bar); shell.appendChild(frame); (pdoc.body||pdoc.documentElement).appendChild(shell);
+      close.addEventListener('click',function(ev){ try{ev.preventDefault();ev.stopPropagation();}catch(e){} try{shell.remove();}catch(e2){} });
+      var drag=null;
+      bar.addEventListener('pointerdown',function(ev){ if(ev.target===close)return; var rect=shell.getBoundingClientRect(); drag={x:ev.clientX,y:ev.clientY,left:rect.left,top:rect.top}; try{bar.setPointerCapture(ev.pointerId);}catch(e){} });
+      bar.addEventListener('pointermove',function(ev){ if(!drag)return; var nx=Math.max(0,Math.min(drag.left+ev.clientX-drag.x,pwin.innerWidth-shell.offsetWidth)); var ny=Math.max(0,Math.min(drag.top+ev.clientY-drag.y,pwin.innerHeight-shell.offsetHeight)); shell.style.left=Math.round(nx)+'px'; shell.style.top=Math.round(ny)+'px'; });
+      function stopDrag(ev){ drag=null; try{bar.releasePointerCapture(ev.pointerId);}catch(e){} }
+      bar.addEventListener('pointerup',stopDrag); bar.addEventListener('pointercancel',stopDrag);
+      fetch('https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Drawing.txt?t='+Date.now(),{cache:'no-store'})
+        .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.text(); })
+        .then(function(html){
+          var inject='<script>window.__LT_DRAWING_CONTEXT="dembones";<\/script>';
+          if (/<head[^>]*>/i.test(html)) html=html.replace(/<head([^>]*)>/i,'<head$1>'+inject);
+          else html=inject+html;
+          frame.srcdoc=html;
+        })
+        .catch(function(err){ frame.srcdoc='<!doctype html><html><body style="background:#16181c;color:#fff;font-family:Arial;padding:20px">Drawing failed to load: '+String(err&&err.message?err.message:err)+'</body></html>'; });
+    } catch(err) { log('Could not open Drawing: '+(err&&err.message?err.message:err)); }
+  }
+
+  async function receiveDrawingSelectionForDemBones(event){ // FIX GPT_20-09-2026_DrawingToDemBones
+    var data=event&&event.data;
+    if(!data || data.type!=='LukeToolsDemBonesDrawingSelection' || !data.svgText) return;
+    try {
+      var svgText=String(data.svgText||'');
+      var fileName=String(data.fileName||'Drawing Selection.svg');
+      var w=180,h=180;
+      try {
+        var doc=new DOMParser().parseFromString(svgText,'image/svg+xml');
+        var root=doc.documentElement;
+        var vb=String(root.getAttribute('viewBox')||'').trim().split(/[ ,]+/).map(Number);
+        if(vb.length===4 && isFinite(vb[2]) && isFinite(vb[3]) && vb[2]>0 && vb[3]>0){ w=vb[2]; h=vb[3]; }
+        else { w=parseFloat(root.getAttribute('width'))||w; h=parseFloat(root.getAttribute('height'))||h; }
+      } catch(eParse){}
+      if(!App.source.viewportRect){
+        var vp=parentViewportForDummyArea();
+        var scale=Math.min(1,Math.min((vp.width*0.60)/Math.max(1,w),(vp.height*0.60)/Math.max(1,h)));
+        var vw=Math.max(40,w*scale), vh=Math.max(40,h*scale);
+        createBlankSourceAreaAtViewport((vp.width-vw)*0.5,(vp.height-vh)*0.5,vw,vh,'drawing-area','Drawing selection');
+      }
+      try { if(window.DemBonesMrk2 && window.DemBonesMrk2.binding) window.DemBonesMrk2.finish(); } catch(eFinish){}
+      await loadSvgTextAsSource(svgText,fileName,'drawing-selection',null);
+      App.source.selectedIdentifier='Drawing selection';
+      App.source.selectedUUID='drawing-selection';
+      removeSetAreaOverlay(); ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource();
+      setActiveTab('source'); updateUI(); renderOverlay(); markDirty();
+      log('Drawing selection added directly to the current DemBones Part. Add bones when ready.');
+    } catch(err){ log('Drawing to DemBones failed: '+(err&&err.message?err.message:err)); }
+  }
   function bindEvents(){
     var panelEl = el('panel'); // FIX v8.2
     if (panelEl) { // FIX v8.2
@@ -15129,6 +15193,7 @@ html, body, #app{
       panelEl.addEventListener('touchmove', function(ev){ ev.stopPropagation(); }, { passive:true }); // FIX v8.2
     }
     installUndoHandlers(); // FIX v18.29
+    try { if (window.parent && !App.interaction.drawingToDemBonesBound) { window.parent.addEventListener('message', receiveDrawingSelectionForDemBones, false); App.interaction.drawingToDemBonesBound=true; } } catch(eDrawMsg){} // FIX GPT_20-09-2026_DrawingToDemBones
 
     qa('.tabBtn').forEach(function(btn){
       btn.addEventListener('click', function(){ setActiveTab(btn.getAttribute('data-tab')); });
@@ -15148,6 +15213,7 @@ html, body, #app{
     if (el('btnAddDummyArea')) el('btnAddDummyArea').addEventListener('click', addDummyArea); // FIX v18.182_GPT
     el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } promptLocalImageFile(); }); // FIX v6.0
     if (el('btnUseSelectedCurve')) el('btnUseSelectedCurve').addEventListener('click', useSelectedWickCurveAsSource); // FIX v14.4
+    if (el('btnOpenDrawingForDemBones')) el('btnOpenDrawingForDemBones').addEventListener('click', openDrawingForDemBones); // FIX GPT_20-09-2026_DrawingToDemBones
     if (el('btnUseSelectedCurveRemove')) el('btnUseSelectedCurveRemove').addEventListener('click', useSelectedWickCurveAsSourceAndRemoveOriginal); // FIX v14.5
     el('fileImageLoader').addEventListener('change', onImageFileChosen); // FIX v6.0
     if (el('btnRefreshOverlay')) el('btnRefreshOverlay').addEventListener('click', function(){ if (!App.source.image && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') { updateUI(); return; } ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); renderOverlay(); updateUI(); }); // FIX v18.182_GPT // FIX Claude_10-07-2026_V6: guarded, button removed from UI
