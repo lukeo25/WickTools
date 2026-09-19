@@ -337,6 +337,98 @@ function svgToScreen(x,y){
 function snapshot(){
   return drawLayer.innerHTML;
 }
+// ---------- Last session persistence ----------
+const DRAWING_SESSION_DB = "LukeToolsDrawingSession";
+const DRAWING_SESSION_STORE = "session";
+const DRAWING_SESSION_KEY = "last";
+let drawingSessionDbPromise = null;
+let drawingSessionSaveTimer = null;
+
+function openDrawingSessionDb(){
+  if(drawingSessionDbPromise) return drawingSessionDbPromise;
+  drawingSessionDbPromise = new Promise((resolve,reject)=>{
+    const req = indexedDB.open(DRAWING_SESSION_DB,1);
+    req.onupgradeneeded = ()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains(DRAWING_SESSION_STORE)){
+        db.createObjectStore(DRAWING_SESSION_STORE,{keyPath:"id"});
+      }
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error || new Error("Could not open Drawing session storage"));
+  });
+  return drawingSessionDbPromise;
+}
+
+async function drawingSessionPut(record){
+  const db=await openDrawingSessionDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(DRAWING_SESSION_STORE,"readwrite");
+    tx.objectStore(DRAWING_SESSION_STORE).put(record);
+    tx.oncomplete=()=>resolve(record);
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+
+async function drawingSessionGet(){
+  const db=await openDrawingSessionDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(DRAWING_SESSION_STORE,"readonly");
+    const req=tx.objectStore(DRAWING_SESSION_STORE).get(DRAWING_SESSION_KEY);
+    req.onsuccess=()=>resolve(req.result||null);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function scheduleDrawingSessionSave(){
+  clearTimeout(drawingSessionSaveTimer);
+  drawingSessionSaveTimer=setTimeout(()=>{
+    drawingSessionPut({
+      id:DRAWING_SESSION_KEY,
+      savedAt:Date.now(),
+      pageW:Number(pageW)||1280,
+      pageH:Number(pageH)||800,
+      drawing:drawLayer.innerHTML,
+      zoom:Number(zoom)||1,
+      panX:Number(panX)||0,
+      panY:Number(panY)||0
+    }).catch(err=>console.warn("[Drawing] Could not save last session",err));
+  },120);
+}
+
+async function restoreDrawingSession(){
+  try{
+    const saved=await drawingSessionGet();
+    if(!saved || typeof saved.drawing!=="string") return false;
+
+    pageW=Math.max(10,Number(saved.pageW)||1280);
+    pageH=Math.max(10,Number(saved.pageH)||800);
+    document.getElementById("pageW").value=pageW;
+    document.getElementById("pageH").value=pageH;
+    pageRect.setAttribute("width",pageW);
+    pageRect.setAttribute("height",pageH);
+    svgRoot.setAttribute("viewBox",`0 0 ${pageW} ${pageH}`);
+    drawLayer.innerHTML=saved.drawing;
+
+    zoom=isFinite(Number(saved.zoom)) ? Math.max(.05,Math.min(16,Number(saved.zoom))) : 1;
+    panX=isFinite(Number(saved.panX)) ? Number(saved.panX) : 60;
+    panY=isFinite(Number(saved.panY)) ? Number(saved.panY) : 40;
+    applyStageTransform();
+
+    clearSelection();
+    history=[];
+    historyIndex=-1;
+    history.push(snapshot());
+    historyIndex=0;
+    updateLayerList();
+    updateStatusCount();
+    return true;
+  }catch(err){
+    console.warn("[Drawing] Could not restore last session",err);
+    return false;
+  }
+}
+
 function pushHistory(){
   history = history.slice(0, historyIndex+1);
   history.push(snapshot());
@@ -344,6 +436,7 @@ function pushHistory(){
   historyIndex = history.length-1;
   updateLayerList();
   updateStatusCount();
+  scheduleDrawingSessionSave();
 }
 function undo(){
   if(historyIndex<=0) return;
@@ -352,6 +445,7 @@ function undo(){
   clearSelection();
   updateLayerList();
   updateStatusCount();
+  scheduleDrawingSessionSave();
 }
 function redo(){
   if(historyIndex>=history.length-1) return;
@@ -360,6 +454,7 @@ function redo(){
   clearSelection();
   updateLayerList();
   updateStatusCount();
+  scheduleDrawingSessionSave();
 }
 
 // ---------- Style state ----------
@@ -2729,8 +2824,14 @@ document.getElementById("btnRedo").addEventListener("click", redo);
 
 // ---------- Init ----------
 window.addEventListener("resize", ()=>{ syncOverlaySize(); renderOverlay(); });
-fitToScreen();
-pushHistory();
+restoreDrawingSession().then(restored=>{
+  if(!restored){
+    fitToScreen();
+    pushHistory();
+  }
+});
+window.addEventListener("pagehide", scheduleDrawingSessionSave);
+window.addEventListener("beforeunload", scheduleDrawingSessionSave);
 document.getElementById("statusHint").textContent = "V Select · Shift multi-select · N Nodes · R Rect · E Ellipse · L Line · P Pen · B Texture Brush · S Shapes · T Text · H Pan · Wheel Zoom";
 })();
 </script>
