@@ -991,8 +991,7 @@ html, body, #app{
 .sandboxGizmoFrames .softReadout{margin-top:8px;}
 #myCharacterPanel{padding-top:10px !important;}
 #myCharacterPanel h3{color:#8fd5ff;font-size:18px;}
-#myCharacterPanel .mcTopActions{grid-template-columns:1fr 1fr !important;}
-#myCharacterPanel #mcAddPart{display:none !important;}
+#myCharacterPanel .mcTopActions{grid-template-columns:repeat(3,minmax(0,1fr)) !important;}
 #myCharacterPanel .mcPartBody{display:grid !important;grid-template-columns:1fr 1fr;gap:7px;padding-top:8px;}
 #myCharacterPanel .mcPartBody .mcLoadedTag{grid-column:1/-1;}
 #myCharacterPanel .mcPartBody .mcBigBtn{min-height:34px;}
@@ -1021,7 +1020,7 @@ html, body, #app{
           <h3>Character</h3>
           <div class="sandboxSimpleHelp">Assemble parts, pin them to parents, animate them, or change their order in the character stack.</div>
           <div class="mcTopActions">
-            <button id="mcAddPart" type="button" class="mcBtn" data-mc-top-action="add" onclick="try{ if(window.MyCharacterAddPart){ return window.MyCharacterAddPart(event); } }catch(e){ console.error(e); } return false;">Add Part</button>
+            <button id="mcLoadPartToCharacter" type="button" class="mcBtn" data-mc-top-action="loadPart">Load Part</button>
             <button id="mcSaveCharacter" type="button" class="mcBtn" data-mc-top-action="save">Save Character</button>
             <button id="mcLoadCharacter" type="button" class="mcBtn" data-mc-top-action="load">Load Character</button>
           </div>
@@ -1040,8 +1039,9 @@ html, body, #app{
           <div class="sandboxActionGrid">
             <button id="btnSandboxImportArtwork" class="softBtn softBtnSecondary" type="button">Import SVG / PNG</button>
             <button id="btnSandboxOpenBones" class="softBtn softBtnSecondary" type="button">Add Bones</button>
+          </div>
+          <div class="sandboxActionGrid one">
             <button id="btnSandboxSavePart" class="softBtn softBtnSecondary" type="button">Save Part</button>
-            <button id="btnSandboxLoadPart" class="softBtn softBtnSecondary" type="button">Load Part</button>
           </div>
           <div class="sandboxActionGrid one"><button id="btnSandboxAddCharacter" class="softBtn softBtnAccent" type="button">Add To Character</button></div>
           <div id="sandboxPartStatus" class="sandboxReadout">Ready for selected Wick artwork.</div>
@@ -16689,7 +16689,7 @@ html, body, #app{
         e.stopPropagation();
         if (e.stopImmediatePropagation) e.stopImmediatePropagation();
         var topAction = topActionNode.getAttribute('data-mc-top-action');
-        if (topAction === 'add') mcAddPart();
+        if (topAction === 'loadPart') dbLoadPartIntoOpenCharacter();
         else if (topAction === 'save') mcSaveCharacter();
         else if (topAction === 'load') { var loadInput = el('mcCharacterFile'); if (loadInput) { try { loadInput.value = ''; } catch(e1){} loadInput.click(); } }
         return;
@@ -16984,8 +16984,17 @@ html, body, #app{
     mcInstallGlobalClickFallback();
     mcInstallPinCursorFollower(); // FIX v_022
     mcInstallParentStagePinPicker(); // FIX v_034
-    if (el('mcAddPart')) el('mcAddPart').addEventListener('click', function(e){ mcAddPart(e); });
-    if (el('mcPartFile')) el('mcPartFile').addEventListener('change', function(){ mcLoadPartFile(this.files && this.files[0]); });
+    if (el('mcLoadPartToCharacter')) el('mcLoadPartToCharacter').addEventListener('click', dbLoadPartIntoOpenCharacter); // FIX GPT_19-09-2026_CharacterPartFlow
+    if (el('mcPartFile')) el('mcPartFile').addEventListener('change', function(){
+      var file = this.files && this.files[0];
+      if (!file) { mcEnsure().loadPartCreatesNew = false; return; }
+      var mc = mcEnsure();
+      if (mc.loadPartCreatesNew) {
+        mc.loadPartCreatesNew = false;
+        mcAddPart();
+      }
+      mcLoadPartFile(file);
+    }); // FIX GPT_19-09-2026_CharacterPartFlow
     if (el('mcSaveCharacter')) el('mcSaveCharacter').addEventListener('click', mcSaveCharacter);
     if (el('mcLoadCharacter')) el('mcLoadCharacter').addEventListener('click', function(){ var i = el('mcCharacterFile'); if (i) { try { i.value = ''; } catch(e){} i.click(); } });
     if (el('mcCharacterFile')) el('mcCharacterFile').addEventListener('change', function(){ mcLoadCharacterFile(this.files && this.files[0]); });
@@ -25484,6 +25493,54 @@ function installDemBonesMrk2() {
     if (target) target.click();
   }
 
+  function dbAddCurrentPartToOpenCharacter(){ // FIX GPT_19-09-2026_CharacterPartFlow
+    var hasSource = !!(App.source && (App.source.image || App.source.svgNative || (App.source.dummy && App.source.dummy.active)));
+    if (!hasSource) { log('Add To Character: create or load a part first.'); return; }
+    var snapshot;
+    try { snapshot = buildRigProjectState(); }
+    catch(error) { log('Add To Character failed: ' + (error && error.message ? error.message : error)); return; }
+
+    var mc = mcEnsure();
+    var previousSelectedId = mc.selectedId;
+    var id = mc.nextId++;
+    var insertIndex = mc.parts.length;
+    for (var i = 0; i < mc.parts.length; i += 1) {
+      if (Number(mc.parts[i] && mc.parts[i].id || 0) === Number(previousSelectedId || 0)) { insertIndex = i; break; }
+    }
+    var t = mcReadTransform() || { x:50, y:50, w:Math.max(1,Number(App.source.width||300)), h:Math.max(1,Number(App.source.height||200)), rotation:0 };
+    var rawName = String((App.source && (App.source.fileName || App.source.selectedIdentifier)) || ('Part ' + id))
+      .replace(/\.[^.]+$/, '').replace(/__mc_part_.*$/, '');
+    var part = {
+      id:id,
+      uid:mcNewPartUid(id),
+      name:rawName || ('Part ' + id),
+      state:null,
+      transform:mcSafeClone(t),
+      visible:true,
+      collapsed:false,
+      parentPin:null,
+      mode:'assemble',
+      editTarget:'bone'
+    };
+    part.state = mcMakeIndependentRigState(snapshot, part);
+    mc.parts.splice(insertIndex, 0, part);
+    mc.selectedId = id;
+    mc.pendingLoadPartId = null;
+    try { mcRenderPanel(); } catch(ePanel){}
+    try { mcRenderStageParts(); } catch(eStage){}
+    try { mcLog('Added "' + part.name + '" to the current character.'); } catch(eLog){}
+    try { mcOpenTab('character'); } catch(eTab){}
+  }
+
+  function dbLoadPartIntoOpenCharacter(){ // FIX GPT_19-09-2026_CharacterPartFlow
+    var input = el('mcPartFile');
+    if (!input) return;
+    var mc = mcEnsure();
+    mc.loadPartCreatesNew = true;
+    try { input.value = ''; } catch(e){}
+    input.click();
+  }
+
   function dbSimplifiedUiInstall(){
     App.sandboxBoneKind = App.sandboxBoneKind || 'normal';
     if (el('chkUseSelectedCurveRemoveOriginals_Claude')) el('chkUseSelectedCurveRemoveOriginals_Claude').checked = true;
@@ -25501,8 +25558,7 @@ function installDemBonesMrk2() {
     });
     if (el('btnSandboxOpenBones')) el('btnSandboxOpenBones').addEventListener('click', function(){ setActiveTab('bones'); });
     if (el('btnSandboxSavePart')) el('btnSandboxSavePart').addEventListener('click', function(){ dbSimplifiedProxy('btnSaveRigProject'); });
-    if (el('btnSandboxLoadPart')) el('btnSandboxLoadPart').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadRigProject'); });
-    if (el('btnSandboxAddCharacter')) el('btnSandboxAddCharacter').addEventListener('click', function(){ dbSimplifiedProxy('btnMcAddPartAndReset_Claude'); });
+    if (el('btnSandboxAddCharacter')) el('btnSandboxAddCharacter').addEventListener('click', dbAddCurrentPartToOpenCharacter); // FIX GPT_19-09-2026_CharacterPartFlow
     if (el('selSandboxBoneKind')) el('selSandboxBoneKind').addEventListener('change', function(){ dbSimplifiedChooseBone(this.value); });
     if (el('btnSandboxAutoSize')) el('btnSandboxAutoSize').addEventListener('click', function(){ autoSizeAllEnvelopes(); }); // FIX GPT_19-09-2026_AutoSizeAll
     if (el('btnSandboxEditBone')) el('btnSandboxEditBone').addEventListener('click', function(){
