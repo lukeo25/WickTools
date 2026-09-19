@@ -25493,7 +25493,7 @@ function installDemBonesMrk2() {
     if (target) target.click();
   }
 
-  function dbAddCurrentPartToOpenCharacter(){ // FIX GPT_19-09-2026_CharacterPartFlow
+  async function dbAddCurrentPartToOpenCharacter(){ // FIX GPT_19-09-2026_CharacterPartFlowMove
     var hasSource = !!(App.source && (App.source.image || App.source.svgNative || (App.source.dummy && App.source.dummy.active)));
     if (!hasSource) { log('Add To Character: create or load a part first.'); return; }
     var snapshot;
@@ -25522,13 +25522,26 @@ function installDemBonesMrk2() {
       mode:'assemble',
       editTarget:'bone'
     };
+
+    // Transfer ownership of the live Part into My Character.
+    // The Part workspace is then cleared, so there is only one visible copy.
     part.state = mcMakeIndependentRigState(snapshot, part);
     mc.parts.splice(insertIndex, 0, part);
-    mc.selectedId = id;
     mc.pendingLoadPartId = null;
+
+    try {
+      mc.selectedId = null;
+      await loadRigProjectState({});
+    } catch(eReset) {
+      log('Added to Character, but clearing the Part workspace failed: ' + (eReset && eReset.message ? eReset.message : eReset));
+    }
+
+    try { clearSelection && clearSelection(); } catch(eSel){}
+    try { updateFrameBoneUI(); } catch(eFrame){}
+    try { updateUI(); renderOverlay(); } catch(eUi){}
     try { mcRenderPanel(); } catch(ePanel){}
     try { mcRenderStageParts(); } catch(eStage){}
-    try { mcLog('Added "' + part.name + '" to the current character.'); } catch(eLog){}
+    try { mcLog('Moved "' + part.name + '" into the current character.'); } catch(eLog){}
     try { mcOpenTab('character'); } catch(eTab){}
   }
 
