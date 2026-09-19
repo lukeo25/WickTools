@@ -407,7 +407,11 @@ async function restoreDrawingSession(){
     document.getElementById("pageH").value=pageH;
     pageRect.setAttribute("width",pageW);
     pageRect.setAttribute("height",pageH);
+    svgRoot.setAttribute("width",pageW);
+    svgRoot.setAttribute("height",pageH);
     svgRoot.setAttribute("viewBox",`0 0 ${pageW} ${pageH}`);
+    stage.style.width=pageW+"px";
+    stage.style.height=pageH+"px";
     drawLayer.innerHTML=saved.drawing;
 
     zoom=isFinite(Number(saved.zoom)) ? Math.max(.05,Math.min(16,Number(saved.zoom))) : 1;
@@ -2441,6 +2445,9 @@ document.getElementById("btnApplyPage").addEventListener("click", ()=>{
   pageRect.setAttribute("height", pageH);
   svgRoot.setAttribute("width", pageW);
   svgRoot.setAttribute("height", pageH);
+  svgRoot.setAttribute("viewBox", `0 0 ${pageW} ${pageH}`);
+  stage.style.width = pageW+"px";
+  stage.style.height = pageH+"px";
   fitToScreen();
 });
 
@@ -2761,6 +2768,9 @@ document.getElementById("fileInput").addEventListener("change", ev=>{
     document.getElementById("pageW").value = pageW;
     document.getElementById("pageH").value = pageH;
     pageRect.setAttribute("width", pageW); pageRect.setAttribute("height", pageH);
+    svgRoot.setAttribute("width", pageW); svgRoot.setAttribute("height", pageH);
+    svgRoot.setAttribute("viewBox", `0 0 ${pageW} ${pageH}`);
+    stage.style.width = pageW+"px"; stage.style.height = pageH+"px";
     Array.from(loadedSvg.children).forEach(child=>{
       if(child.tagName==="rect" && child.id==="pageRect") return;
       const imported = document.importNode(child, true);
@@ -2826,6 +2836,11 @@ document.getElementById("btnRedo").addEventListener("click", redo);
 window.addEventListener("resize", ()=>{ syncOverlaySize(); renderOverlay(); });
 restoreDrawingSession().then(restored=>{
   if(!restored){
+    svgRoot.setAttribute("width",pageW);
+    svgRoot.setAttribute("height",pageH);
+    svgRoot.setAttribute("viewBox",`0 0 ${pageW} ${pageH}`);
+    stage.style.width=pageW+"px";
+    stage.style.height=pageH+"px";
     fitToScreen();
     pushHistory();
   }
