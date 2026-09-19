@@ -982,6 +982,7 @@ html, body, #app{
 .sandboxReadout{margin-top:10px;padding:9px 10px;border-left:3px solid #1ee29a;border-radius:5px;background:#091522;color:#bdd2e2;font-size:12px;}
 .sandboxBoneTypeGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:10px;}
 .sandboxBoneTypeGrid button.active{border-color:#45acf0;background:#244662;color:#fff;}
+#selSandboxBoneKind{flex:1 1 auto;width:100%;min-width:0;}
 #sandboxBoneList{margin-top:10px;display:grid;gap:6px;}
 .sandboxBoneRow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 9px;border:1px solid #304b62;border-radius:7px;background:#122236;color:#dce8f2;text-align:left;cursor:pointer;}
 .sandboxBoneRow.active{border-color:#1ee29a;background:#17382f;}
@@ -1112,11 +1113,14 @@ html, body, #app{
         <div class="section softSection sandboxBonesMain">
           <h3 class="sandboxSimpleHeader">Bones</h3>
           <div class="sandboxSimpleHelp">Choose a bone type, then drag on the artwork. Adjust envelopes directly with their nodes.</div>
-          <div class="sandboxBoneTypeGrid">
-            <button type="button" class="active" data-sandbox-bone="normal">Normal</button>
-            <button type="button" data-sandbox-bone="stretchy">Stretchy</button>
-            <button type="button" data-sandbox-bone="chain">Chain</button>
-            <button type="button" data-sandbox-bone="dummy">Dummy</button>
+          <div class="row">
+            <label for="selSandboxBoneKind">Bone Type</label>
+            <select id="selSandboxBoneKind">
+              <option value="normal">Normal</option>
+              <option value="stretchy">Stretchy</option>
+              <option value="chain">Chain</option>
+              <option value="dummy">Dummy</option>
+            </select>
           </div>
           <div class="sandboxActionGrid">
             <button id="btnSandboxAutoSize" class="softBtn softBtnSecondary" type="button">Auto Size</button>
@@ -6105,24 +6109,27 @@ html, body, #app{
 
   function clearWickSelectionAfterArtworkUse(){ // FIX v18.226_GPT
     refreshBridgeRefs();
-    var cleared = false;
-    try {
-      if (App.B && typeof App.B.clearSelectionNow === 'function') cleared = App.B.clearSelectionNow() !== false;
-    } catch(e0){}
-    try {
-      if (!cleared && App.project && App.project.selection && typeof App.project.selection.clear === 'function') {
-        App.project.selection.clear();
-        cleared = true;
-      }
-    } catch(e1){}
-    try {
-      if (!cleared && App.ed && App.ed.project && App.ed.project.selection && typeof App.ed.project.selection.clear === 'function') {
-        App.ed.project.selection.clear();
-        cleared = true;
-      }
-    } catch(e2){}
-    try { if (App.project && App.project.view && typeof App.project.view.render === 'function') App.project.view.render(); } catch(e3){}
-    return cleared;
+    function clearOnce(){
+      var cleared = false;
+      try { if (App.B && typeof App.B.clearSelectionNow === 'function') cleared = App.B.clearSelectionNow() !== false || cleared; } catch(e0){}
+      try { if (App.project && App.project.selection && typeof App.project.selection.clear === 'function') { App.project.selection.clear(); cleared = true; } } catch(e1){}
+      try { if (App.ed && App.ed.project && App.ed.project.selection && typeof App.ed.project.selection.clear === 'function') { App.ed.project.selection.clear(); cleared = true; } } catch(e2){}
+      try { if (App.ed && App.ed.selection && typeof App.ed.selection.clear === 'function') { App.ed.selection.clear(); cleared = true; } } catch(e3){}
+      try {
+        var paperProject = App.project && App.project.view && App.project.view.paper && App.project.view.paper.project;
+        var selectedItems = paperProject && paperProject.selectedItems ? paperProject.selectedItems.slice() : [];
+        selectedItems.forEach(function(item){ try { item.selected = false; } catch(eItem){} });
+      } catch(e4){}
+      try { if (App.ed && typeof App.ed.syncInterfaces === 'function') App.ed.syncInterfaces(); } catch(e5){}
+      try { if (App.project && App.project.view && typeof App.project.view.render === 'function') App.project.view.render(); } catch(e6){}
+      try { var paper = App.project && App.project.view && App.project.view.paper; if (paper && paper.view) paper.view.update(); } catch(e7){}
+      return cleared;
+    }
+    var result = clearOnce();
+    setTimeout(clearOnce, 0);
+    setTimeout(clearOnce, 80);
+    setTimeout(clearOnce, 240);
+    return result;
   }
 
   async function useSelectedWickCurveAsSourceInternal(removeOriginal){ // FIX v17.2
@@ -6791,46 +6798,14 @@ html, body, #app{
             return;
           }
 
-          // Live Mrk2 binding already writes into Wick; just flush it.
+          // The Sandbox is a live-rig workflow. Closing saves the rig in place
+          // and must never bake a second committed stage object.
           try {
-            if (typeof live !== 'undefined' && live && live.binding) {
-              try { flush(true); } catch(eFlush){}
-              setTimeout(cleanupToolOverlays, 0);
-              return;
-            }
+            var liveApi = window.DemBonesMrk2;
+            if (liveApi && liveApi.binding && typeof liveApi.flush === 'function') liveApi.flush(true);
           } catch(eLive){}
-
-          if (!demBonesHasAnimationToPreserve_v18228()) {
-            setTimeout(cleanupToolOverlays, 0);
-            return;
-          }
-
-          // Keep the iframe alive long enough to create the native Wick clip.
-          try { evt.preventDefault(); } catch(e0){}
-          try { evt.stopPropagation(); } catch(e1){}
-          try { evt.stopImmediatePropagation(); } catch(e2){}
-
-          if (App.interaction.autoCommitCloseBusy) return;
-          App.interaction.autoCommitCloseBusy = true;
-
-          Promise.resolve().then(async function(){
-            try {
-              log('Closing LukeTools: committing DemBones animation to Wick first...');
-              await stampAnimationIntoClip();
-              log('DemBones animation committed. Closing LukeTools.');
-            } catch(commitErr) {
-              App.interaction.autoCommitCloseBusy = false;
-              log('Could not commit animation before close: ' + (commitErr && commitErr.message ? commitErr.message : commitErr));
-              return;
-            }
-
-            App.interaction.autoCommitCloseBypass = true;
-            App.interaction.autoCommitCloseBusy = false;
-            try { cleanupToolOverlays(); } catch(eClean){}
-            setTimeout(function(){
-              try { clickable.click(); } catch(eClick){}
-            }, 0);
-          });
+          setTimeout(cleanupToolOverlays, 0);
+          return;
         } catch(e){}
       };
 
@@ -23942,8 +23917,8 @@ function installDemBonesMrk2Host(host, html) {
     if (html) host.DemBonesMrk2Host.html = html;
     return host.DemBonesMrk2Host;
   }
-  var service = { html: html || '', pending: null, panel: null, opening: false,
-    sourceUrl: 'https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2.txt' };
+  var service = { html: html || '', pending: null, panel: null, opening: false, hostVersion: '3.0-sandbox-live',
+    sourceUrl: 'https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_PoseSandbox.txt?v=live-reopen-3' };
   host.DemBonesMrk2Host = service;
   service.read = function (object) {
     var scripts = object && object.scripts || [];
@@ -24190,6 +24165,16 @@ function installDemBonesMrk2() {
   var parentWindow = window.parent || window;
   var host = parentWindow.DemBonesMrk2Host;
   var html = '<!doctype html>\n' + document.documentElement.outerHTML;
+  if (host && host.hostVersion !== '3.0-sandbox-live') {
+    try {
+      if (host.handle) {
+        parentWindow.document.removeEventListener('mousedown', host.handle, true);
+        parentWindow.document.removeEventListener('dblclick', host.handle, true);
+      }
+    } catch(eOldHost){}
+    try { parentWindow.DemBonesMrk2Host = null; } catch(eDropHost){}
+    host = null;
+  }
   if (!host) {
     // Construct the host in the parent realm so closing this iframe does not remove its listeners.
     host = parentWindow.Function('html', 'return (' + installDemBonesMrk2Host.toString() + ')(window, html);')(html);
@@ -24675,7 +24660,7 @@ function installDemBonesMrk2() {
       App.currentFrame = clamp(Number(capture.frame.parentTimeline.playheadPosition || capture.frame.start), capture.frame.start, capture.frame.end);
       App.frameCount = Math.max(App.frameCount, capture.frame.end);
       App.undo.stack = []; App.undo.lastSnapshotText = '';
-      App.project.selection.clear();
+      clearWickSelectionAfterArtworkUse();
       redraw(); ensureOverlay(); fitOverlayToSource(); setActiveTab('bones');
       status('Curves bound. Add bones, then use Animate. Changes save directly into Wick.');
     } catch (error) {
@@ -24686,7 +24671,7 @@ function installDemBonesMrk2() {
       });
       live.binding = null; fail(error); redraw();
     } finally { live.restoring = false; }
-    if (live.binding) { flush(true); renderOverlay(); }
+    if (live.binding) { flush(true); clearWickSelectionAfterArtworkUse(); renderOverlay(); }
   }
   async function resume(rig) {
     if (live.restoring) return;
@@ -24719,7 +24704,7 @@ function installDemBonesMrk2() {
       live.lastSignature = stateSignature(); live.lastPreview = ''; live.error = '';
       App.undo.stack = []; App.undo.lastSnapshotText = '';
       // Double-clicking the stage artwork edits that existing rig in place.
-      App.project.selection.clear();
+      clearWickSelectionAfterArtworkUse();
       ensureOverlay(); fitOverlayToSource(); setActiveTab('animate');
       status('Rig reopened • bones and animation restored. Edits update Wick automatically.');
       validate();
@@ -24727,6 +24712,7 @@ function installDemBonesMrk2() {
     finally { App.mcCommitSuppressProxySync = false; live.restoring = false; }
     if (!live.suspended) restoreKeyRows();
     checkRigVisibility();
+    clearWickSelectionAfterArtworkUse();
     renderOverlay();
   }
   function finish() {
@@ -25418,7 +25404,7 @@ function installDemBonesMrk2() {
     App.rig.mode = kind === 'chain' ? 'chainIk' : 'fk';
     if (el('selBoneType')) el('selBoneType').value = App.newBoneType;
     if (el('selRigMode')) el('selRigMode').value = App.rig.mode;
-    qa('[data-sandbox-bone]').forEach(function(button){ button.classList.toggle('active', button.getAttribute('data-sandbox-bone') === kind); });
+    if (el('selSandboxBoneKind')) el('selSandboxBoneKind').value = kind;
     App.interaction.addBoneMode = true;
     dbSimplifiedRender();
   }
@@ -25447,7 +25433,7 @@ function installDemBonesMrk2() {
     if (el('btnSandboxSavePart')) el('btnSandboxSavePart').addEventListener('click', function(){ dbSimplifiedProxy('btnSaveRigProject'); });
     if (el('btnSandboxLoadPart')) el('btnSandboxLoadPart').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadRigProject'); });
     if (el('btnSandboxAddCharacter')) el('btnSandboxAddCharacter').addEventListener('click', function(){ dbSimplifiedProxy('btnMcAddPartAndReset_Claude'); });
-    qa('[data-sandbox-bone]').forEach(function(button){ button.addEventListener('click', function(){ dbSimplifiedChooseBone(button.getAttribute('data-sandbox-bone')); }); });
+    if (el('selSandboxBoneKind')) el('selSandboxBoneKind').addEventListener('change', function(){ dbSimplifiedChooseBone(this.value); });
     if (el('btnSandboxAutoSize')) el('btnSandboxAutoSize').addEventListener('click', function(){ dbSimplifiedProxy('btnAutoEnvelopeSelected'); });
     if (el('btnSandboxEditBone')) el('btnSandboxEditBone').addEventListener('click', function(){
       if (!getSelectedBone()) { log('Select a bone first.'); return; }
