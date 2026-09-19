@@ -1038,6 +1038,9 @@ html, body, #app{
           <button id="btnSandboxUseArtwork" class="sandboxPrimaryAction" type="button">Use Selected Artwork</button>
           <div class="sandboxActionGrid">
             <button id="btnSandboxImportArtwork" class="softBtn softBtnSecondary" type="button">Import SVG / PNG</button>
+            <button id="btnSandboxOpenDrawing" class="softBtn softBtnSecondary" type="button">Draw</button>
+          </div>
+          <div class="sandboxActionGrid one">
             <button id="btnSandboxOpenBones" class="softBtn softBtnSecondary" type="button">Add Bones</button>
           </div>
           <div class="sandboxActionGrid one">
@@ -25719,10 +25722,92 @@ function installDemBonesMrk2() {
     input.click();
   }
 
+  function dbOpenDrawingSeparatePanel(){ // FIX GPT_19-09-2026_DrawingCompanionPanel
+    var pwin = window.parent || window;
+    var pdoc = pwin.document || document;
+    var panelId = 'luketools_dembones_drawing_panel';
+    var existing = pdoc.getElementById(panelId);
+    if (existing) {
+      existing.style.display = 'block';
+      try { existing.style.zIndex = '2147483646'; } catch(eZ){}
+      return;
+    }
+
+    var shell = pdoc.createElement('div');
+    shell.id = panelId;
+    shell.setAttribute('data-luketools-dembones-companion', 'drawing');
+    shell.style.cssText = [
+      'position:fixed','left:6vw','top:6vh','width:88vw','height:86vh',
+      'min-width:640px','min-height:420px','z-index:2147483646',
+      'background:#16181c','border:1px solid rgba(255,255,255,.22)',
+      'border-radius:10px','box-shadow:0 18px 60px rgba(0,0,0,.65)',
+      'overflow:hidden','display:flex','flex-direction:column'
+    ].join(';');
+
+    var bar = pdoc.createElement('div');
+    bar.style.cssText = 'height:36px;flex:0 0 36px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;background:#202329;border-bottom:1px solid #111318;color:#f2f4f7;font:600 12px Arial,sans-serif;cursor:move;user-select:none;';
+    var title = pdoc.createElement('div');
+    title.textContent = 'LukeTools · Drawing';
+    var dismiss = pdoc.createElement('button');
+    dismiss.type = 'button';
+    dismiss.setAttribute('aria-label', 'Dismiss Drawing');
+    dismiss.setAttribute('title', 'Dismiss Drawing');
+    dismiss.textContent = '×';
+    dismiss.style.cssText = 'width:28px;height:28px;border:1px solid rgba(255,255,255,.16);border-radius:7px;background:#30353d;color:#fff;font-size:18px;line-height:24px;cursor:pointer;';
+    bar.appendChild(title);
+    bar.appendChild(dismiss);
+
+    var frame = pdoc.createElement('iframe');
+    frame.setAttribute('title', 'LukeTools Drawing');
+    frame.style.cssText = 'flex:1 1 auto;width:100%;min-height:0;border:0;background:#16181c;display:block;';
+
+    shell.appendChild(bar);
+    shell.appendChild(frame);
+    (pdoc.body || pdoc.documentElement).appendChild(shell);
+
+    dismiss.addEventListener('click', function(ev){
+      try { ev.preventDefault(); ev.stopPropagation(); } catch(eStop){}
+      try { if (shell && shell.parentNode) shell.parentNode.removeChild(shell); } catch(eRemove){}
+    });
+
+    var drag = null;
+    bar.addEventListener('pointerdown', function(ev){
+      if (ev.target === dismiss) return;
+      var rect = shell.getBoundingClientRect();
+      drag = { x:ev.clientX, y:ev.clientY, left:rect.left, top:rect.top };
+      try { bar.setPointerCapture(ev.pointerId); } catch(eCapture){}
+      try { ev.preventDefault(); } catch(ePrevent){}
+    });
+    bar.addEventListener('pointermove', function(ev){
+      if (!drag) return;
+      var nx = drag.left + (ev.clientX - drag.x);
+      var ny = drag.top + (ev.clientY - drag.y);
+      nx = Math.max(0, Math.min(nx, Math.max(0, pwin.innerWidth - shell.offsetWidth)));
+      ny = Math.max(0, Math.min(ny, Math.max(0, pwin.innerHeight - shell.offsetHeight)));
+      shell.style.left = Math.round(nx) + 'px';
+      shell.style.top = Math.round(ny) + 'px';
+    });
+    function endDrag(ev){
+      drag = null;
+      try { bar.releasePointerCapture(ev.pointerId); } catch(eRelease){}
+    }
+    bar.addEventListener('pointerup', endDrag);
+    bar.addEventListener('pointercancel', endDrag);
+
+    fetch('https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Drawing.txt?t=' + Date.now(), { cache:'no-store' })
+      .then(function(response){ if (!response.ok) throw new Error('HTTP ' + response.status); return response.text(); })
+      .then(function(html){
+        frame.srcdoc = String(html || '');
+      })
+      .catch(function(error){
+        frame.srcdoc = '<!doctype html><html><body style="background:#16181c;color:#fff;font-family:Arial;padding:20px">Drawing failed to load: ' + String(error && error.message ? error.message : error).replace(/[&<>]/g,function(ch){ return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[ch]; }) + '</body></html>';
+      });
+  }
   function dbSimplifiedUiInstall(){
     App.sandboxBoneKind = App.sandboxBoneKind || 'normal';
     if (el('chkUseSelectedCurveRemoveOriginals_Claude')) el('chkUseSelectedCurveRemoveOriginals_Claude').checked = true;
     if (el('btnSandboxUseArtwork')) el('btnSandboxUseArtwork').addEventListener('click', function(){ dbSimplifiedProxy('btnUseSelectedCurve'); });
+    if (el('btnSandboxOpenDrawing')) el('btnSandboxOpenDrawing').addEventListener('click', dbOpenDrawingSeparatePanel); // FIX GPT_19-09-2026_DrawingCompanionPanel
     if (el('btnSandboxImportArtwork')) el('btnSandboxImportArtwork').addEventListener('click', function(){
       try {
         if (!App.source.viewportRect) {
