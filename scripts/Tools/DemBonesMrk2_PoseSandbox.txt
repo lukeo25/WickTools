@@ -6156,11 +6156,15 @@ html, body, #app{
       try { if (App.B && typeof App.B.captureSelectionNow === 'function') App.B.captureSelectionNow(); } catch(e){}
       var objects = getSelectedObjects(); // FIX v17.2
       if (!objects.length) throw new Error('No Wick artwork is selected. Select one or more paths, SVG shapes, groups or clips on the stage first.');
+      // FIX GPT_19-09-2026_CharacterConsumesSource: remember the exact Wick objects used for this part.
+      // They remain visible while rigging, then Add To Character consumes/removes them.
+      App.sandboxSelectedSourceObjects = objects.slice();
       var converted = selectedCurveObjectsToSvg(objects); // FIX v17.2
       rememberSelectedCurveSourceTimeline(); // FIX v14.8
       await loadSvgTextAsSource(converted.svgRaw, converted.fileName, converted.count > 1 ? 'selected-wick-curves' : 'selected-wick-curve', converted.bounds);
       if (removeOriginal) {
         removeOriginalSelectedCurveObjects(objects); // FIX v17.2
+        App.sandboxSelectedSourceObjects = []; // FIX GPT_19-09-2026_CharacterConsumesSource
         log((converted.count > 1 ? converted.count + ' selected Wick curves ingested and originals removed from the Wick stage.' : 'Selected Wick curve ingested and original removed from the Wick stage.')); // FIX v17.2
       } else {
         log((converted.count > 1 ? converted.count + ' selected Wick artwork objects ingested as one composite source.' : 'Selected Wick artwork ingested as source.') + ((App.selectedCurve && App.selectedCurve.originalPointsOnly) ? ' Original Wick points only mode was used.' : '') + ((App.selectedCurve && App.selectedCurve.useFillColour) ? ' Fill colour override applied.' : '') + ((App.selectedCurve && App.selectedCurve.useStrokeColour) ? ' Stroke colour override applied.' : '')); // FIX v18.207_GPT
@@ -25616,6 +25620,19 @@ function installDemBonesMrk2() {
     mc.selectedId = id;
     mc.pendingLoadPartId = null;
     mc.loading = false;
+
+    // FIX GPT_19-09-2026_CharacterConsumesSource: once the selected Wick stage artwork
+    // becomes a Character part, remove that original so only the Character instance remains.
+    try {
+      var sourceMode = String(snapshot && snapshot.source && snapshot.source.captureMode || '');
+      if (sourceMode.indexOf('selected-wick-curve') === 0 && App.sandboxSelectedSourceObjects && App.sandboxSelectedSourceObjects.length) {
+        removeOriginalSelectedCurveObjects(App.sandboxSelectedSourceObjects.slice());
+        App.sandboxSelectedSourceObjects = [];
+        clearWickSelectionAfterArtworkUse();
+      }
+    } catch(eConsumeSource) {
+      console.error('[DemBones Sandbox] could not remove transferred source artwork', eConsumeSource);
+    }
 
     // Keep the live overlay as the selected Character part. mcRenderStageParts
     // deliberately skips selectedId, so there is only one visible instance.
