@@ -6798,6 +6798,31 @@ html, body, #app{
             return;
           }
 
+          if (!App.interaction.characterClosePromptBusy && mcCharacterNeedsSavePrompt()) { // FIX GPT_19-09-2026_SavePrompt
+            App.interaction.characterClosePromptBusy = true;
+            try {
+              if (evt) {
+                evt.preventDefault();
+                evt.stopPropagation();
+                if (evt.stopImmediatePropagation) evt.stopImmediatePropagation();
+              }
+            } catch(eStop){}
+            var saveBeforeClose = false;
+            try {
+              saveBeforeClose = window.confirm('This character contains a part that has not been named or saved. Save the character before closing?');
+            } catch(eConfirm){}
+            if (saveBeforeClose) {
+              try { mcSaveCharacter(); }
+              catch(eSaveClose){ mcLog('Save before close failed: ' + (eSaveClose && eSaveClose.message ? eSaveClose.message : eSaveClose)); }
+            }
+            App.interaction.autoCommitCloseBypass = true;
+            setTimeout(function(){
+              try { clickable.click(); }
+              catch(eClick){ try { cleanupToolOverlays(); } catch(eClean){} }
+            }, 0);
+            return;
+          }
+
           // The Sandbox is a live-rig workflow. Closing saves the rig in place
           // and must never bake a second committed stage object.
           try {
@@ -16553,6 +16578,35 @@ html, body, #app{
     mcRenderPanel();
   }
 
+  function mcCharacterSaveSignature(){ // FIX GPT_19-09-2026_SavePrompt
+    var mc = mcEnsure();
+    try { mcCaptureActivePart(); } catch(eCapture){}
+    try {
+      return JSON.stringify({
+        nextId:Number(mc.nextId || 1),
+        parts:mcSafeClone(mc.parts || []),
+        poseLibrary:mcSafeClone(App.poseLibrary || [])
+      });
+    } catch(e) {
+      return '';
+    }
+  }
+
+  function mcCharacterHasUnnamedPart(){ // FIX GPT_19-09-2026_SavePrompt
+    var mc = mcEnsure();
+    return (mc.parts || []).some(function(p){
+      var name = String((p && p.name) || '').trim();
+      return !name || /^Part\s+\d+$/i.test(name);
+    });
+  }
+
+  function mcCharacterNeedsSavePrompt(){ // FIX GPT_19-09-2026_SavePrompt
+    var mc = mcEnsure();
+    if (!(mc.parts || []).length) return false;
+    var sig = mcCharacterSaveSignature();
+    return !mc.lastSavedSignature || sig !== mc.lastSavedSignature || mcCharacterHasUnnamedPart();
+  }
+
   function mcBuildCharacterState(){
     mcCaptureActivePart();
     var mc = mcEnsure();
@@ -16562,6 +16616,7 @@ html, body, #app{
   function mcSaveCharacter(){
     var data = mcBuildCharacterState();
     downloadTextFile('MyCharacter_v_049.json', JSON.stringify(data, null, 2), 'application/json');
+    try { mcEnsure().lastSavedSignature = mcCharacterSaveSignature(); } catch(eSavedSig){}
     mcLog('Saved character.');
   }
 
@@ -16578,6 +16633,7 @@ html, body, #app{
       mc.nextId = Number(data.nextId || (mc.parts.length + 1)) || 1;
       mc.selectedId = data.selectedId || (mc.parts[0] ? mc.parts[0].id : null);
       if (mc.selectedId) await mcActivatePart(mc.selectedId);
+      try { mc.lastSavedSignature = mcCharacterSaveSignature(); } catch(eLoadedSig){}
       mcRenderPanel();
       mcLog('Loaded character.');
     } catch(e) { mcLog('Character load failed: ' + (e && e.message ? e.message : e)); }
@@ -25541,6 +25597,7 @@ function installDemBonesMrk2() {
     try { updateUI(); renderOverlay(); } catch(eUi){}
     try { mcRenderPanel(); } catch(ePanel){}
     try { mcRenderStageParts(); } catch(eStage){}
+    try { mc.lastSavedSignature = null; } catch(eDirtyCharacter){} // FIX GPT_19-09-2026_SavePrompt
     try { mcLog('Moved "' + part.name + '" into the current character.'); } catch(eLog){}
     try { mcOpenTab('character'); } catch(eTab){}
   }
