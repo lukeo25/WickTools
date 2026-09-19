@@ -24635,7 +24635,8 @@ function installDemBonesMrk2() {
     var binding = live.binding;
     if (!binding || !App.source.svgNative) throw new Error('No live curve rig is open.');
     if (App.source.captureMode !== 'dbm2-live') throw new Error('The source changed. Open or bind a live rig again.');
-    if ((App.myCharacter.parts || []).length) throw new Error('Live curve mode edits a single rig. Finish it before using MyCharacter.');
+    // FIX GPT_19-09-2026_MultiIngest: existing Character parts may remain assembled while a new
+    // stage object is ingested and rigged. The live rig is isolated from stored Character parts.
     if ((App.frameBones || []).length) throw new Error('Frame Bones use separate artwork. Use ordinary or stretchy bones in live curve mode.');
     var frame = resolve(binding.frameUUID);
     if (!frame) throw new Error('The original Wick frame was removed or undone. Reopen the rig from the stage.');
@@ -24799,7 +24800,20 @@ function installDemBonesMrk2() {
     live.suspended = false; live.restoring = true;
     var capture, inserted = [];
     try {
-      if (App.myCharacter && App.myCharacter.parts && App.myCharacter.parts.length) throw new Error('Open a fresh DemBonesMrk2 panel to bind a curve rig.');
+      // FIX GPT_19-09-2026_MultiIngest: permit repeated ingestion into the same Sandbox.
+      // Store the current Character part, then disengage it from the live App rig before
+      // binding the newly selected Wick artwork. Existing Character parts remain visible.
+      if (App.myCharacter && App.myCharacter.parts && App.myCharacter.parts.length) {
+        try { mcCaptureActivePart(); } catch(eCaptureCharacter){}
+        try {
+          var mcForNewIngest = mcEnsure();
+          mcForNewIngest.selectedId = null;
+          mcForNewIngest.pendingLoadPartId = null;
+          mcForNewIngest.loading = false;
+          mcRenderPanel();
+          mcRenderStageParts();
+        } catch(eDetachCharacter){}
+      }
       capture = collect(selected);
       if (capture.frame.parent.locked) throw new Error('Unlock the selected layer first.');
       App.bones = []; App.keyframes = {}; App.pointKeys = {}; App.frameBones = []; App.frameBoneKeys = {};
