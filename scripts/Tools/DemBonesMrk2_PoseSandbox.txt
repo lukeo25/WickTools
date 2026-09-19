@@ -25549,9 +25549,10 @@ function installDemBonesMrk2() {
     if (target) target.click();
   }
 
-  async function dbAddCurrentPartToOpenCharacter(){ // FIX GPT_19-09-2026_CharacterPartFlowMove
+  async function dbAddCurrentPartToOpenCharacter(){ // FIX GPT_19-09-2026_CharacterTransferNoDuplicate
     var hasSource = !!(App.source && (App.source.image || App.source.svgNative || (App.source.dummy && App.source.dummy.active)));
     if (!hasSource) { log('Add To Character: create or load a part first.'); return; }
+
     var snapshot;
     try { snapshot = buildRigProjectState(); }
     catch(error) { log('Add To Character failed: ' + (error && error.message ? error.message : error)); return; }
@@ -25563,9 +25564,19 @@ function installDemBonesMrk2() {
     for (var i = 0; i < mc.parts.length; i += 1) {
       if (Number(mc.parts[i] && mc.parts[i].id || 0) === Number(previousSelectedId || 0)) { insertIndex = i; break; }
     }
-    var t = mcReadTransform() || { x:50, y:50, w:Math.max(1,Number(App.source.width||300)), h:Math.max(1,Number(App.source.height||200)), rotation:0 };
+
+    // Preserve the exact live part transform and source state. Do not rebuild,
+    // clear, reload or render a second copy when transferring it to Character.
+    var t = mcReadTransform() || {
+      x:50, y:50,
+      w:Math.max(1,Number(App.source.width||300)),
+      h:Math.max(1,Number(App.source.height||200)),
+      rotation:0
+    };
+
     var rawName = String((App.source && (App.source.fileName || App.source.selectedIdentifier)) || ('Part ' + id))
       .replace(/\.[^.]+$/, '').replace(/__mc_part_.*$/, '');
+
     var part = {
       id:id,
       uid:mcNewPartUid(id),
@@ -25579,25 +25590,38 @@ function installDemBonesMrk2() {
       editTarget:'bone'
     };
 
-    // Transfer ownership of the live Part into My Character.
-    // The Part workspace is then cleared, so there is only one visible copy.
+    // Character takes ownership of the current live rig. Keep the exact state
+    // that is already on screen rather than reloading it through the saved
+    // preview path (which can alter SVG stroke appearance and dimensions).
     part.state = mcMakeIndependentRigState(snapshot, part);
     mc.parts.splice(insertIndex, 0, part);
+    mc.selectedId = id;
     mc.pendingLoadPartId = null;
+    mc.loading = false;
 
+    // Keep the live overlay as the selected Character part. mcRenderStageParts
+    // deliberately skips selectedId, so there is only one visible instance.
+    try { mcApplyTransformToApp(part.transform); } catch(eTransform){}
     try {
-      mc.selectedId = null;
-      await loadRigProjectState({});
-    } catch(eReset) {
-      log('Added to Character, but clearing the Part workspace failed: ' + (eReset && eReset.message ? eReset.message : eReset));
-    }
+      if (el('inpClipName')) el('inpClipName').value = part.name;
+      if (App.source) App.source.fileName = part.name;
+    } catch(eName){}
 
-    try { clearSelection && clearSelection(); } catch(eSel){}
-    try { updateFrameBoneUI(); } catch(eFrame){}
-    try { updateUI(); renderOverlay(); } catch(eUi){}
+    // Remove any stale non-live Character preview DOM left by the previous
+    // transfer implementation before rebuilding the Character stage view.
+    try {
+      var pdoc = window.parent && window.parent.document ? window.parent.document : null;
+      if (pdoc) {
+        Array.prototype.slice.call(pdoc.querySelectorAll('[data-luketools-bonewarp-kind="mc-stage-parts"]')).forEach(function(node){
+          try { if (node && node.parentNode) node.parentNode.removeChild(node); } catch(eRemove){}
+        });
+      }
+    } catch(eStale){}
+
+    try { mc.lastSavedSignature = null; } catch(eDirtyCharacter){}
     try { mcRenderPanel(); } catch(ePanel){}
     try { mcRenderStageParts(); } catch(eStage){}
-    try { mc.lastSavedSignature = null; } catch(eDirtyCharacter){} // FIX GPT_19-09-2026_SavePrompt
+    try { updateUI(); renderOverlay(); } catch(eUi){}
     try { mcLog('Moved "' + part.name + '" into the current character.'); } catch(eLog){}
     try { mcOpenTab('character'); } catch(eTab){}
   }
