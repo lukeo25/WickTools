@@ -24385,7 +24385,12 @@ function installDemBonesMrk2() {
       if (!clip) throw new Error('A rig curve was removed. Reopen the rig from the stage.');
       // Keep geometry and keys in their binding coordinates. Wick owns the
       // outer affine transform; the overlay and pointer use that same transform.
-      var delta = G.multiply(matrixOf(clip.view.group || clip.view.item), G.inverse(row.frameMatrix));
+      // Compare the managed clip against its own baseline matrix, not the
+      // original parent-path matrix. Different curves can have different intrinsic
+      // clip matrices even when they have never been moved, which previously made
+      // a reopened multi-curve rig look transformed and shifted the bones.
+      var baseline = row.clipMatrix || row.frameMatrix || [1,0,0,1,0,0];
+      var delta = G.multiply(matrixOf(clip.view.group || clip.view.item), G.inverse(baseline));
       G.inverse(delta);
       if (common && delta.some(function (v, i) { return Math.abs(v-common[i]) > 1e-5; }))
         throw new Error('This rig contains several curves. Select and transform all of its curves together, then choose Resume updates.');
@@ -24674,7 +24679,8 @@ function installDemBonesMrk2() {
         inserted.push({ clip: clip, row: row });
         binding.rows.push({ clipUUID: clip.uuid, originalUUID: row.object.uuid, originalJson: row.originalJson,
           name: row.name, index: row.index, template: row.template, style: row.style,
-          frameMatrix: row.frameMatrix, inverseMatrix: row.inverseMatrix, inverseMatrices: row.inverseMatrices });
+          frameMatrix: row.frameMatrix, clipMatrix: matrixOf(clip.view.group || clip.view.item),
+          inverseMatrix: row.inverseMatrix, inverseMatrices: row.inverseMatrices });
       });
       live.binding = binding; live.lastSignature = ''; live.error = ''; live.changed = true;
       linkClosingAnchors();
@@ -24708,6 +24714,13 @@ function installDemBonesMrk2() {
     live.restoring = true; live.suspended = false;
     try {
       live.binding = G.copy(data.binding);
+      // Migrate older live rigs that did not save each managed clip's baseline
+      // matrix. Without this, reopening a multi-curve rig can offset the bones.
+      (live.binding.rows || []).forEach(function(row){
+        if (row.clipMatrix) return;
+        var clip = resolve(row.clipUUID);
+        if (clip) row.clipMatrix = matrixOf(clip.view.group || clip.view.item);
+      });
       var frame = resolve(live.binding.frameUUID);
       if (!frame) throw new Error('The saved rig frame cannot be found in this project.');
       if (App.project.focus !== frame.parentClip) App.project.focus = frame.parentClip;
