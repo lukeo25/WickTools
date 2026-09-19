@@ -2648,8 +2648,26 @@ function selectedSvgDocumentForDemBones(){
 }
 
 function drawingCalledFromDemBones(){
-  try { return String(window.__LT_DRAWING_CONTEXT||"").toLowerCase()==="dembones"; }
-  catch(e){ return false; }
+  try {
+    if(String(window.__LT_DRAWING_CONTEXT||"").toLowerCase()==="dembones") return true;
+  } catch(e0){}
+  try {
+    const fe=window.frameElement;
+    const host=fe && fe.parentElement ? fe.parentElement : null;
+    if(host && (
+      host.id==="luketools_dembones_drawing_panel" ||
+      String(host.getAttribute("data-luketools-dembones-companion")||"").toLowerCase()==="drawing"
+    )) return true;
+  } catch(e1){}
+  try {
+    const pd=window.parent && window.parent.document ? window.parent.document : null;
+    if(pd && pd.getElementById("luketools_dembones_drawing_panel")) {
+      const fe=window.frameElement;
+      const shell=pd.getElementById("luketools_dembones_drawing_panel");
+      if(fe && shell && shell.contains(fe)) return true;
+    }
+  } catch(e2){}
+  return false;
 }
 
 function addSelectedToDemBonesPart(){
