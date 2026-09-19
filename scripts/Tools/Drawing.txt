@@ -2693,44 +2693,70 @@ async function addSelectedToWickStage(){
 
   let imported = null;
   try {
-    imported = paper.project.importSVG(svgText,{insert:false,expandShapes:true});
-    if(!imported) throw new Error("Paper.js could not import the selected SVG");
-
     const project = editor.project;
-    const wickW = Number(project.width || project.stageWidth || pageW) || pageW;
-    const wickH = Number(project.height || project.stageHeight || pageH) || pageH;
-    const sx = wickW / pageW;
-    const sy = wickH / pageH;
+    let paperError = null;
 
-    if((Math.abs(sx-1) > 0.0001 || Math.abs(sy-1) > 0.0001) && imported.scale){
-      imported.scale(sx,sy,new paper.Point(0,0));
+    // Preferred route: convert the Drawing selection into native Wick.Path objects.
+    try {
+      imported = paper.project.importSVG(svgText,{insert:false,expandShapes:true});
+    } catch(ePaperImport) {
+      paperError = ePaperImport;
+      imported = null;
     }
 
-    const paperPaths = collectPaperPaths(imported);
-    if(!paperPaths.length) throw new Error("The selection did not contain any vector paths");
+    if(imported){
+      const wickW = Number(project.width || project.stageWidth || pageW) || pageW;
+      const wickH = Number(project.height || project.stageHeight || pageH) || pageH;
+      const sx = wickW / pageW;
+      const sy = wickH / pageH;
 
-    let count = 0;
-    for(const pItem of paperPaths){
-      try {
-        const wickPath = createWickPathFromPaperItem(pItem);
-        addWickPathToFrame(frame,wickPath);
-        count++;
-      } catch(e){
-        console.warn("[Drawing] Wick path insert failed",e);
+      if((Math.abs(sx-1) > 0.0001 || Math.abs(sy-1) > 0.0001) && imported.scale){
+        imported.scale(sx,sy,new paper.Point(0,0));
+      }
+
+      const paperPaths = collectPaperPaths(imported);
+      let count = 0;
+      for(const pItem of paperPaths){
+        try {
+          const wickPath = createWickPathFromPaperItem(pItem);
+          addWickPathToFrame(frame,wickPath);
+          count++;
+        } catch(e){
+          console.warn("[Drawing] Wick path insert failed",e);
+        }
+      }
+
+      if(count){
+        try {
+          if(project.markAsModified) project.markAsModified();
+          project.unsavedChanges = true;
+          if(editor.canvas?.render) editor.canvas.render();
+          if(editor.projectDidChange) editor.projectDidChange();
+          window.parent?.dispatchEvent(new Event("resize"));
+        } catch(e){}
+        flashStatus("Added " + count + " path" + (count===1 ? "" : "s") + " to Wick stage");
+        return;
       }
     }
 
-    if(!count) throw new Error("Wick rejected the converted paths");
+    // Fallback for Wick's older bundled Paper.js builds. Some of those return
+    // no Paper item for otherwise valid SVG. Wick's own importer handles the
+    // same SVG correctly and inserts it into the current project/stage.
+    if(typeof project.importSVG === "function"){
+      project.importSVG(svgText);
+      try {
+        if(project.markAsModified) project.markAsModified();
+        project.unsavedChanges = true;
+        if(editor.canvas?.render) editor.canvas.render();
+        if(editor.projectDidChange) editor.projectDidChange();
+        window.parent?.dispatchEvent(new Event("resize"));
+      } catch(e){}
+      flashStatus("Added selection to Wick stage");
+      return;
+    }
 
-    try {
-      if(project.markAsModified) project.markAsModified();
-      project.unsavedChanges = true;
-      if(editor.canvas?.render) editor.canvas.render();
-      if(editor.projectDidChange) editor.projectDidChange();
-      window.parent?.dispatchEvent(new Event("resize"));
-    } catch(e){}
-
-    flashStatus("Added " + count + " path" + (count===1 ? "" : "s") + " to Wick stage");
+    if(paperError) throw paperError;
+    throw new Error("Paper.js could not import the selected SVG and Wick importSVG is unavailable");
   } catch(err){
     console.error("[Drawing] Add to Wick failed",err);
     flashStatus("Add to Wick failed: " + (err?.message || err));
