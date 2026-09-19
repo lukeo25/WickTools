@@ -16600,20 +16600,31 @@ html, body, #app{
     mcRenderPanel();
   }
 
-  function mcCharacterSaveSignature(){ // FIX GPT_19-09-2026_SavePrompt
+  function mcCharacterSaveSignature(){ // FIX GPT_19-09-2026_SavePromptStable
     var mc = mcEnsure();
     try { mcCaptureActivePart(); } catch(eCapture){}
     try {
+      // buildRigProjectState writes a fresh savedAt timestamp every time the active part is captured.
+      // That timestamp is not a user edit and must not make a just-saved Character look dirty.
+      function stableClone(value){
+        if (Array.isArray(value)) return value.map(stableClone);
+        if (!value || typeof value !== 'object') return value;
+        var out = {};
+        Object.keys(value).sort().forEach(function(key){
+          if (key === 'savedAt') return;
+          out[key] = stableClone(value[key]);
+        });
+        return out;
+      }
       return JSON.stringify({
         nextId:Number(mc.nextId || 1),
-        parts:mcSafeClone(mc.parts || []),
-        poseLibrary:mcSafeClone(App.poseLibrary || [])
+        parts:stableClone(mc.parts || []),
+        poseLibrary:stableClone(App.poseLibrary || [])
       });
     } catch(e) {
       return '';
     }
   }
-
   function mcCharacterHasUnnamedPart(){ // FIX GPT_19-09-2026_SavePrompt
     var mc = mcEnsure();
     return (mc.parts || []).some(function(p){
@@ -16622,11 +16633,13 @@ html, body, #app{
     });
   }
 
-  function mcCharacterNeedsSavePrompt(){ // FIX GPT_19-09-2026_SavePrompt
+  function mcCharacterNeedsSavePrompt(){ // FIX GPT_19-09-2026_SavePromptStable
     var mc = mcEnsure();
     if (!(mc.parts || []).length) return false;
     var sig = mcCharacterSaveSignature();
-    return !mc.lastSavedSignature || sig !== mc.lastSavedSignature || mcCharacterHasUnnamedPart();
+    // Once the user has explicitly saved the current Character state, closing must not
+    // ask again merely because a part uses a default name. Prompt only for real unsaved changes.
+    return !mc.lastSavedSignature || sig !== mc.lastSavedSignature;
   }
 
   function mcBuildCharacterState(){
