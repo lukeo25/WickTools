@@ -5438,20 +5438,35 @@ html, body, #app{
     return Math.max(2, Math.round(42 - (density * 0.40)));
   }
 
-  function selectedCurveStyleAttributesFromPaperItem(item){ // FIX v18.217_GPT: recognises Wick curve fill/stroke alpha and item opacity.
+  function selectedCurveStyleAttributesFromPaperItem(item){ // FIX GPT_20-09-2026_PreserveNoStroke
     var fillInfo = selectedCurveFinalFillStyle_v18217(item, 'none');
-    var strokeInfo = selectedCurveFinalStrokeStyle_v18217(item, '#000000');
-    var strokeWidth = 1;
+    var strokeInfo = selectedCurveFinalStrokeStyle_v18217(item, 'none');
+    var strokeWidth = 0;
     var opacity = selectedCurveObjectOpacity_v18217(item);
-    try { strokeWidth = selectedCurveNumber(item && item.strokeWidth, 1); } catch(e){}
-    if (!strokeInfo.hex || strokeInfo.hex === 'none') strokeInfo.hex = '#000000';
-    var attrs = ' fill="' + selectedCurveSvgEscape(fillInfo.hex || 'none') + '" stroke="' + selectedCurveSvgEscape(strokeInfo.hex || '#000000') + '" stroke-width="' + selectedCurveSvgEscape(strokeWidth) + '" stroke-linecap="round" stroke-linejoin="round"';
+    try {
+      var rawStrokeWidth = item && item.strokeWidth;
+      strokeWidth = rawStrokeWidth == null || rawStrokeWidth === '' ? 0 : Math.max(0, selectedCurveNumber(rawStrokeWidth, 0));
+    } catch(e){ strokeWidth = 0; }
+    var fillHex = fillInfo && fillInfo.hex ? String(fillInfo.hex) : 'none';
+    var strokeHex = strokeInfo && strokeInfo.hex ? String(strokeInfo.hex) : 'none';
+    var hasStroke = !!strokeHex && strokeHex.toLowerCase() !== 'none' && strokeHex.toLowerCase() !== 'transparent' && strokeWidth > 0;
+    var attrs = ' fill="' + selectedCurveSvgEscape(fillHex || 'none') + '"';
+    if (hasStroke) {
+      attrs += ' stroke="' + selectedCurveSvgEscape(strokeHex) + '" stroke-width="' + selectedCurveSvgEscape(strokeWidth) + '"';
+      try {
+        var cap = item && item.strokeCap ? String(item.strokeCap) : '';
+        var join = item && item.strokeJoin ? String(item.strokeJoin) : '';
+        if (cap) attrs += ' stroke-linecap="' + selectedCurveSvgEscape(cap) + '"';
+        if (join) attrs += ' stroke-linejoin="' + selectedCurveSvgEscape(join) + '"';
+      } catch(eStyle){}
+    } else {
+      attrs += ' stroke="none" stroke-width="0"';
+    }
     if (isFinite(fillInfo.alpha) && fillInfo.alpha >= 0 && fillInfo.alpha < 1) attrs += ' fill-opacity="' + selectedCurveSvgEscape(round(fillInfo.alpha)) + '"';
-    if (isFinite(strokeInfo.alpha) && strokeInfo.alpha >= 0 && strokeInfo.alpha < 1) attrs += ' stroke-opacity="' + selectedCurveSvgEscape(round(strokeInfo.alpha)) + '"';
+    if (hasStroke && isFinite(strokeInfo.alpha) && strokeInfo.alpha >= 0 && strokeInfo.alpha < 1) attrs += ' stroke-opacity="' + selectedCurveSvgEscape(round(strokeInfo.alpha)) + '"';
     if (isFinite(opacity) && opacity >= 0 && opacity < 1) attrs += ' opacity="' + selectedCurveSvgEscape(round(opacity)) + '"';
     return attrs;
   }
-
   function selectedCurveHasHandle(handle){ // FIX v14.7
     var h = selectedCurvePointXY(handle || { x:0, y:0 });
     return Math.abs(h.x) > 0.0001 || Math.abs(h.y) > 0.0001;
@@ -22186,75 +22201,86 @@ html, body, #app{
         return false;
       }
 
-      async function rbAddPartToCharacterAndReset_Claude_20260710_V1(){
+      async function rbAddPartToCharacterAndReset_Claude_20260710_V1(){ // FIX GPT_20-09-2026_MultiIngestTransfer
         if (!rbHasBuildableContent_Claude_V1()) {
           log('Add To Character: nothing to add yet. Set an area, load an SVG, or use a curve first.');
           return;
         }
+
+        var liveApi = null;
+        var liveBindingForTransfer = null;
+        try {
+          liveApi = window.DemBonesMrk2 || null;
+          if (liveApi && liveApi.binding) {
+            try { liveApi.flush(true); } catch(eFlush){}
+            liveBindingForTransfer = mcSafeClone(liveApi.binding);
+          }
+        } catch(eLiveCapture){}
+
         var snapshot = null;
         try { snapshot = buildRigProjectState(); } catch(eSnap) {
           log('Add To Character failed: could not read the current build.');
           return;
         }
-        var mc = mcEnsure();
-        var beforeCount = mc.parts.length;
-        try { mcAddPart(); } catch(eAdd) {
-          log('Add To Character failed: could not create a new part card.');
-          return;
-        }
-        var target = mcSelectedPart();
-        if (!target || mc.parts.length <= beforeCount) {
-          log('Add To Character failed: new part card not found.');
-          return;
-        }
-        try {
-          target.state = mcMakeIndependentRigState(snapshot, target);
-          var t = mcReadTransform();
-          if (t) target.transform = t;
-          var rawName = (App.source && (App.source.fileName || App.source.selectedIdentifier)) || '';
-          rawName = String(rawName).replace(/\.[^.]+$/, '').replace(/__mc_part_.*$/, '');
-          if (rawName) target.name = rawName;
-        } catch(eFill) {
-          log('Add To Character: part created, but copying the build in failed: ' + (eFill && eFill.message ? eFill.message : eFill));
-        }
-        try { mcRenderPanel(); } catch(e){}
-        try {
-          mc.selectedId = null; // FIX Claude_10-07-2026_V2: mcRenderStageParts_v052 skips drawing whichever part.id === mc.selectedId
-          // (it assumes the selected part is being live-edited and shown via the edit overlay instead). A freshly
-          // committed part is not being live-edited, so it must be deselected or it stays invisible in the
-          // character composite until some other part later takes over the selection.
-        } catch(eDeselect){}
-        try { mcRenderPanel(); } catch(e){}
-        try { if (typeof mcRenderStageParts === 'function') mcRenderStageParts(); } catch(eStage){}
-        try {
-          await loadRigProjectState({}); // FIX Claude_10-07-2026_V1: same blank-project path Load Project already uses for an empty file.
-        } catch(eReset) {
-          log('Added to MyCharacter, but resetting Build Parts failed: ' + (eReset && eReset.message ? eReset.message : eReset));
-          return;
-        }
-        try { updateFrameBoneUI(); } catch(e){}
-        try { updateUI(); renderOverlay(); } catch(e){}
-        try { if (typeof mcRenderStageParts === 'function') mcRenderStageParts(); } catch(eStage2){}
-        mcLog('Added "' + (target.name || ('Part ' + target.id)) + '" to MyCharacter. Build Parts reset for the next curve.');
-        // FIX Claude_10-07-2026_V4: naming prompt runs LAST, after the part is fully committed, transformed,
-        // deselected, drawn in the stage composite, and the Build Parts rig has already been reset. Nothing
-        // above this point depends on the prompt or runs after it, so the blocking dialog cannot interfere
-        // with state capture, transform, or the composite render (which is what V3 risked by prompting
-        // in the middle of that sequence).
-        try {
-          var defaultName_V4 = target.name || ('Part ' + target.id);
-          var chosenName_V4 = null;
-          try { chosenName_V4 = window.prompt('Name this part:', defaultName_V4); } catch(ePrompt4){ chosenName_V4 = null; }
-          if (chosenName_V4 !== null) {
-            chosenName_V4 = String(chosenName_V4).trim();
-            if (chosenName_V4) target.name = chosenName_V4;
-          }
-          mcRenderPanel(); // only refreshes the card list text; does not touch state, transform, or the stage composite.
-        } catch(eName4){
-          log('Add To Character: naming step failed, part name unchanged: ' + (eName4 && eName4.message ? eName4.message : eName4));
-        }
-      }
 
+        if (liveApi && liveBindingForTransfer) {
+          try { liveApi.finish(); } catch(eFinishLive){}
+        }
+
+        var mc = mcEnsure();
+        var previousSelectedId = mc.selectedId;
+        var id = mc.nextId++;
+        var insertIndex = mc.parts.length;
+        for (var ii = 0; ii < mc.parts.length; ii++) {
+          if (Number(mc.parts[ii] && mc.parts[ii].id || 0) === Number(previousSelectedId || 0)) { insertIndex = ii; break; }
+        }
+        var t = mcReadTransform() || {
+          x:50, y:50,
+          w:Math.max(1,Number(App.source && App.source.width || 300)),
+          h:Math.max(1,Number(App.source && App.source.height || 200)),
+          rotation:0
+        };
+        var rawName = String((App.source && (App.source.fileName || App.source.selectedIdentifier)) || ('Part ' + id))
+          .replace(/\.[^.]+$/, '').replace(/__mc_part_.*$/, '');
+        var target = {
+          id:id, uid:mcNewPartUid(id), name:rawName || ('Part ' + id),
+          state:null, transform:mcSafeClone(t), visible:true, collapsed:false,
+          parentPin:null, mode:'assemble', editTarget:'bone'
+        };
+        target.state = mcMakeIndependentRigState(snapshot, target);
+        mc.parts.splice(insertIndex, 0, target);
+        mc.pendingLoadPartId = null;
+        mc.loading = false;
+
+        // Consume the exact managed live-rig clips. They are the duplicate stage copy.
+        if (liveBindingForTransfer && liveBindingForTransfer.rows && liveBindingForTransfer.rows.length) {
+          liveBindingForTransfer.rows.forEach(function(row){
+            var clip = null;
+            try { clip = App.Wick && App.Wick.ObjectCache ? App.Wick.ObjectCache.getObjectByUUID(row.clipUUID) : null; } catch(eResolve){}
+            if (clip && clip.parent && typeof clip.parent.removeChild === 'function') {
+              try { clip.parent.removeChild(clip); } catch(eRemove){}
+            }
+          });
+        }
+
+        // The committed Character part is now stored. Deselect it so its composite remains visible
+        // and the next selected Wick object can become a new live rig in this same panel.
+        mc.selectedId = null;
+        try { mcRenderPanel(); } catch(ePanel){}
+        try { if (typeof mcRenderStageParts === 'function') mcRenderStageParts(); } catch(eStage){}
+        try { if (App.ed && typeof App.ed.syncInterfaces === 'function') App.ed.syncInterfaces(); } catch(eSync){}
+        try { if (App.project && App.project.view && typeof App.project.view.render === 'function') App.project.view.render(); } catch(eRender){}
+        try { removeOverlay(); removeProxyOverlay(false); } catch(eOverlay){}
+        try { clearWickSelectionAfterArtworkUse(); } catch(eClear){}
+        try { setActiveTab('source'); updateUI(); } catch(eUi){}
+
+        try {
+          var chosenName = window.prompt('Name this part:', target.name || ('Part ' + target.id));
+          if (chosenName !== null && String(chosenName).trim()) target.name = String(chosenName).trim();
+        } catch(ePrompt){}
+        try { mcRenderPanel(); } catch(ePanel2){}
+        mcLog('Added "' + (target.name || ('Part ' + target.id)) + '" to MyCharacter. Select another Wick object to ingest the next part.');
+      }
       function rbBindAddToCharacterButton_Claude_20260710_V1(){
         var btn = el('btnMcAddPartAndReset_Claude');
         if (!btn || btn.dataset.rbBoundClaudeV1) return;
@@ -24358,7 +24384,7 @@ function installDemBonesMrk2() {
     var binding = live.binding;
     if (!binding || !App.source.svgNative) throw new Error('No live curve rig is open.');
     if (App.source.captureMode !== 'dbm2-live') throw new Error('The source changed. Open or bind a live rig again.');
-    if ((App.myCharacter.parts || []).length) throw new Error('Live curve mode edits a single rig. Finish it before using MyCharacter.');
+    // FIX GPT_20-09-2026_MultiIngest: existing Character parts do not block editing the current live rig.
     if ((App.frameBones || []).length) throw new Error('Frame Bones use separate artwork. Use ordinary or stretchy bones in live curve mode.');
     var frame = resolve(binding.frameUUID);
     if (!frame) throw new Error('The original Wick frame was removed or undone. Reopen the rig from the stage.');
@@ -24522,7 +24548,7 @@ function installDemBonesMrk2() {
     live.suspended = false; live.restoring = true;
     var capture, inserted = [];
     try {
-      if (App.myCharacter && App.myCharacter.parts && App.myCharacter.parts.length) throw new Error('Open a fresh DemBonesMrk2 panel to bind a curve rig.');
+      // FIX GPT_20-09-2026_MultiIngest: existing Character parts are stored data and do not block a new live ingest.
       capture = collect(selected);
       if (capture.frame.parent.locked) throw new Error('Unlock the selected layer first.');
       App.bones = []; App.keyframes = {}; App.pointKeys = {}; App.frameBones = []; App.frameBoneKeys = {};
