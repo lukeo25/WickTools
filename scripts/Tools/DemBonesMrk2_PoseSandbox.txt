@@ -11486,6 +11486,7 @@ html, body, #app{
       var makeKey = isAnimateKeyContext(); // FIX v16.6
       var restEdit = isRestBoneEditContext(); // FIX v16.6
       var fullPoseAtFrame = makeKey ? getPoseForFrame(App.currentFrame) : null; // FIX v16.6
+      App.interaction.startResolvedPose = makeKey ? clone(fullPoseAtFrame) : null; // FIX GPT_19-09-2026_AllBoneKeys
       App.interaction.startPose = makeKey ? ensureEditablePoseAtCurrentFrame() : null; // FIX v16.6
       var bone = getSelectedBone();
       var curPose = makeKey ? ensureEditableBoneKeyAtCurrentFrame(hit.boneId, fullPoseAtFrame) : null; // FIX v16.6: only Animate creates a key.
@@ -11623,7 +11624,26 @@ html, body, #app{
       } else if (isAnimateKeyContext()) { // FIX v16.6
         var ikPose = getPoseForFrame(App.currentFrame); // FIX v12.4
         solveIKOnPose(ikPose, bone.id, cur);
-        ensureEditablePoseAtCurrentFrame()[bone.id] = clone(ikPose[bone.id]); // FIX v12.4: only commit the moved end bone key
+        var ikFramePose = ensureEditablePoseAtCurrentFrame();
+        var ikStartPose = App.interaction.startResolvedPose || {};
+        Object.keys(ikPose).forEach(function(idStr){
+          var id = Number(idStr);
+          var solved = ikPose[id];
+          var before = ikStartPose[id];
+          if (!solved || !solved.head || !solved.tail) return;
+          var changed = !before ||
+            dist(solved.head, before.head) > 0.001 ||
+            dist(solved.tail, before.tail) > 0.001 ||
+            Math.abs(getBoneEnvStart(solved) - getBoneEnvStart(before)) > 0.001 ||
+            Math.abs(getBoneEnvEnd(solved) - getBoneEnvEnd(before)) > 0.001;
+          if (!changed) return;
+          var solvedBone = getBoneById(id);
+          ikFramePose[id] = clone(solved);
+          if (solvedBone) {
+            copyEnvAndAngleFallback(ikFramePose[id], solvedBone);
+            writeLocalAngleForBoneItem(solvedBone, ikFramePose[id], ikPose);
+          }
+        }); // FIX GPT_19-09-2026_AllBoneKeys
       } else return; // FIX v16.6
       renderOverlay();
       return;
@@ -11690,6 +11710,28 @@ html, body, #app{
     renderOverlay();
   }
 
+  function keyAllBonesChangedByAnimateDrag(){ // FIX GPT_19-09-2026_AllBoneKeys
+    if (!isAnimateKeyContext() || !App.interaction.startResolvedPose) return;
+    var before = App.interaction.startResolvedPose;
+    var after = getPoseForFrame(App.currentFrame);
+    var framePose = ensureEditablePoseAtCurrentFrame();
+    (App.bones || []).forEach(function(bone){
+      if (!bone || isExpressionBone(bone)) return;
+      var a = before[bone.id];
+      var b = after[bone.id];
+      if (!b || !b.head || !b.tail) return;
+      var changed = !a ||
+        dist(a.head, b.head) > 0.001 ||
+        dist(a.tail, b.tail) > 0.001 ||
+        Math.abs(getBoneEnvStart(a) - getBoneEnvStart(b)) > 0.001 ||
+        Math.abs(getBoneEnvEnd(a) - getBoneEnvEnd(b)) > 0.001;
+      if (!changed) return;
+      framePose[bone.id] = clone(b);
+      copyEnvAndAngleFallback(framePose[bone.id], bone);
+      writeLocalAngleForBoneItem(bone, framePose[bone.id], after);
+    });
+  }
+
   function onOverlayMouseUp(e){
     if (!App.interaction.dragging) return;
     if (App.activeTab === 'bones' && App.interaction.dragType === 'createBone') {
@@ -11700,20 +11742,13 @@ html, body, #app{
     if (App.interaction.dragType === 'maybeCreateBoneFromExisting') {
       // FIX v4.7: selecting an existing bone in add mode does not create a new bone unless the user drags away.
     }
-    // FIX v12.4: after animated drag, keep only existing keys plus the one bone the user actually moved.
-    if (isAnimateKeyContext() && App.keyframes[App.currentFrame]) { // FIX v16.6
-      var movedBoneId = App.interaction.boneId;
-      var preKeyed = App.interaction.preKeyedBoneIds || [];
-      var wasPreExisting = App.interaction.preExistingKeyFrame;
-      Object.keys(App.keyframes[App.currentFrame]).forEach(function(idStr){
-        var id = Number(idStr);
-        var wasKeyed = preKeyed.indexOf(id) !== -1;
-        var wasMoved = (id === movedBoneId);
-        if (!wasKeyed && !wasMoved) delete App.keyframes[App.currentFrame][id];
-      });
-      if (!wasPreExisting && Object.keys(App.keyframes[App.currentFrame]).length === 0) delete App.keyframes[App.currentFrame];
-      mcPersistActivePartKeys(); // FIX v_067
-      mcShowSelectedPartKeyRows(); // FIX v_067
+    // In Animate, every bone that visibly changed during this drag gets a key.
+    // This includes connected descendants and every bone moved by IK.
+    if (isAnimateKeyContext()) { // FIX GPT_19-09-2026_AllBoneKeys
+      keyAllBonesChangedByAnimateDrag();
+      if (App.keyframes[App.currentFrame] && Object.keys(App.keyframes[App.currentFrame]).length === 0) delete App.keyframes[App.currentFrame];
+      mcPersistActivePartKeys();
+      mcShowSelectedPartKeyRows();
     }
     if (App.interaction.dragType === 'autoBezierControl' && App.interaction.autoBezierClickCandidate) { // FIX v18.69_NodeClickNoJumpShapePreserve
       var c = App.interaction.autoBezierClickCandidate;
@@ -11732,6 +11767,7 @@ html, body, #app{
     App.interaction.startDummyArea = null; // FIX v18.183_GPT
     App.interaction.startLocal = null;
     App.interaction.startPose = null;
+    App.interaction.startResolvedPose = null; // FIX GPT_19-09-2026_AllBoneKeys
     App.interaction.startBone = null;
     App.interaction.startDescendants = [];
     App.interaction.lastPaintLocal = null;
