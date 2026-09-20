@@ -25396,42 +25396,132 @@ function installDemBonesMrk2() {
     return dummyAreaCenterPoint();
   }
 
+  async function dbm2ImportGizmoClip_v18240(clip){ // FIX GPT_20-09-2026_CanonicalGizmoArchitecture
+    if (!clip || !dbm2IsClip_v18220(clip)) throw new Error('A Wick Clip was not supplied.');
+
+    var marked = dbm2GizmoScriptSource_v18220(clip).indexOf('/*LUKE_FRAME_GIZMO:1*/') >= 0;
+    var stops = dbm2GizmoStops_v18220(clip);
+    if (!marked && stops.length < 2) throw new Error('The Clip is not a LukeTools Gizmo.');
+
+    var parentBone = getSelectedBone();
+    var captures = await dbm2CaptureGizmoFrames_v18220(clip, false);
+    if (!captures.length) throw new Error('The Gizmo has no importable frames.');
+
+    if ((!App.source || (!App.source.image && !App.source.svgNative && !(App.source.dummy && App.source.dummy.active))) && !parentBone) {
+      var firstBounds = captures[0].bounds;
+      var vp = stageBoundsToViewportRect(firstBounds) || { x:80, y:80, width:firstBounds.w, height:firstBounds.h };
+      createBlankSourceAreaAtViewport(
+        vp.x,
+        vp.y,
+        Math.max(40, vp.width),
+        Math.max(40, vp.height),
+        'dummy-area',
+        'Gizmo rig area'
+      );
+    }
+
+    var point = parentBone ? clone(parentBone.tail) : dbm2LocalPointForStageBounds_v18220(captures[0].bounds);
+    var fb = addFrameBoneAtPoint(point, parentBone ? parentBone.id : null);
+    if (!fb) throw new Error('DemBones could not create the Gizmo attachment.');
+
+    var clipName = String(clip.identifier || clip.name || 'Gizmo');
+    fb.name = clipName + ' Gizmo';
+    fb.gizmoImported = true;
+    fb.gizmoSourceUUID = String(clip.uuid || '');
+    fb.gizmoSourceName = clipName;
+    fb.frameCount = captures.length;
+    fb.frames = {};
+
+    captures.forEach(function(capture, index){
+      var slot = index + 1;
+      fb.frames[slot] = {
+        fileName:capture.label + '.svg',
+        label:capture.label,
+        expressionKey:capture.label,
+        raw:capture.svgRaw,
+        dataUrl:capture.dataUrl,
+        width:capture.width,
+        height:capture.height,
+        gizmoFrameNumber:capture.frame,
+        gizmoSourceUUID:fb.gizmoSourceUUID
+      };
+      ensureFrameBoneImageCache(fb.frames[slot]);
+    });
+
+    App.selectedFrameBoneId = fb.id;
+    setActiveTab('expression');
+    App.selectedFrameBoneId = fb.id;
+    updateFrameBoneUI();
+    renderExpressionUI();
+    renderOverlay();
+    markDirty();
+
+    if (el('sandboxGizmoStatus')) {
+      el('sandboxGizmoStatus').textContent =
+        clipName + ' · ' + captures.length + ' Gizmo frame' + (captures.length === 1 ? '' : 's') +
+        (parentBone ? ' · attached to ' + parentBone.name : '');
+    }
+
+    log('Imported LukeTools Gizmo “' + clipName + '” with ' + captures.length +
+      ' frame' + (captures.length === 1 ? '' : 's') +
+      (parentBone ? ' attached to ' + parentBone.name : ' into the Gizmo rig area') + '.');
+
+    return { ok:true, frameBoneId:fb.id, name:fb.name };
+  }
+
   async function dbm2ImportSelectedGizmoAsExpression_v18220(){
     try {
-      var parentBone = getSelectedBone();
       var clip = dbm2SelectedGizmoClip_v18220();
-      var captures = await dbm2CaptureGizmoFrames_v18220(clip, false);
-      if (!captures.length) throw new Error('The selected Gizmo has no importable frames.');
-      if ((!App.source || (!App.source.image && !App.source.svgNative && !(App.source.dummy && App.source.dummy.active))) && !parentBone) {
-        var firstBounds = captures[0].bounds;
-        var vp = stageBoundsToViewportRect(firstBounds) || { x:80, y:80, width:firstBounds.w, height:firstBounds.h };
-        createBlankSourceAreaAtViewport(vp.x, vp.y, Math.max(40, vp.width), Math.max(40, vp.height), 'dummy-area', 'Gizmo rig area');
-      }
-      var point = parentBone ? clone(parentBone.tail) : dbm2LocalPointForStageBounds_v18220(captures[0].bounds);
-      var fb = addFrameBoneAtPoint(point, parentBone ? parentBone.id : null);
-      var clipName = String(clip.identifier || clip.name || 'Gizmo');
-      fb.name = clipName + ' Gizmo';
-      fb.gizmoImported = true;
-      fb.gizmoSourceUUID = String(clip.uuid || '');
-      fb.gizmoSourceName = clipName;
-      fb.frameCount = captures.length;
-      fb.frames = {};
-      captures.forEach(function(capture, index){
-        var slot = index + 1;
-        fb.frames[slot] = {
-          fileName:capture.label + '.svg', label:capture.label, expressionKey:capture.label,
-          raw:capture.svgRaw, dataUrl:capture.dataUrl, width:capture.width, height:capture.height,
-          gizmoFrameNumber:capture.frame, gizmoSourceUUID:fb.gizmoSourceUUID
-        };
-        ensureFrameBoneImageCache(fb.frames[slot]);
-      });
-      App.selectedFrameBoneId = fb.id;
-      setActiveTab('expression');
-      App.selectedFrameBoneId = fb.id;
-      updateFrameBoneUI(); renderExpressionUI(); renderOverlay(); markDirty();
-      log('Imported Gizmo “' + clipName + '” with ' + captures.length + ' frame' + (captures.length === 1 ? '' : 's') + (parentBone ? ' attached immediately to ' + parentBone.name : ' added immediately to the Gizmo rig area') + '. No commit is required. Click a frame in Gizmo to key it on the Wick timeline.');
-    } catch(err) { log('Import Selected Gizmo failed: ' + (err && err.message ? err.message : err)); }
+      return await dbm2ImportGizmoClip_v18240(clip);
+    } catch(err) {
+      var msg = err && err.message ? err.message : String(err);
+      log('Import Selected Gizmo failed: ' + msg);
+      return { ok:false, error:msg };
+    }
   }
+
+  function dbm2FindClipByUuid_v18240(uuid){
+    uuid = String(uuid || '');
+    if (!uuid) return null;
+
+    try {
+      var W = (window.parent && window.parent.Wick) || window.Wick;
+      var cache = W && W.ObjectCache;
+      if (cache && typeof cache.getObjectByUUID === 'function') {
+        var object = cache.getObjectByUUID(uuid);
+        if (object && dbm2IsClip_v18220(object)) return object;
+      }
+    } catch(eCache){}
+
+    return null;
+  }
+
+  async function dbm2ImportNativeGizmoByUuid_v18240(data){
+    data = data && data.data ? data.data : data;
+    var uuid = String(data && data.uuid || '');
+    if (!uuid) return { ok:false, error:'No Gizmo Clip UUID was supplied.' };
+
+    try {
+      var clip = dbm2FindClipByUuid_v18240(uuid);
+      if (!clip) throw new Error('The native LukeTools Gizmo Clip could not be resolved in Wick.');
+
+      var result = await dbm2ImportGizmoClip_v18240(clip);
+
+      if (data.removeSource === true) {
+        try { dbRemoveWickObjectForCharacterTransfer(clip); } catch(eRemove){}
+        try { clearWickSelectionAfterArtworkUse(); } catch(eClear){}
+        try { if (App.ed && typeof App.ed.syncInterfaces === 'function') App.ed.syncInterfaces(); } catch(eSync){}
+        try { dbm2RenderWick_v18220(); } catch(eRender){}
+      }
+
+      return result;
+    } catch(err) {
+      var msg = err && err.message ? err.message : String(err);
+      log('Native Gizmo import failed: ' + msg);
+      return { ok:false, error:msg };
+    }
+  }
+
 
   function dbm2RenderImportedGizmo_v18220(){
     var info = el('importedGizmoInfo');
@@ -26352,6 +26442,9 @@ function installDemBonesMrk2() {
       if (window.parent) {
         window.parent.__LukeToolsDemBonesReceiveDrawing = function(data){
           return dbReceiveDrawingSelectionForSandbox(data);
+        };
+        window.parent.__LukeToolsDemBonesImportNativeGizmo = function(data){
+          return dbm2ImportNativeGizmoByUuid_v18240(data);
         };
         window.parent.__LukeToolsDemBonesReceiveDrawGizmo = function(data){
           return dbReceiveDrawGizmoForSandbox(data);
