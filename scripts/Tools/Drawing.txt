@@ -71,18 +71,36 @@
   #topbar .bool-top{font-weight:700}
   #topbar .bool-top[data-op="subtract"]{border-color:#815a42}
   #topbar .bool-top:hover{background:#35485f}
-  /* ---- Drawing Frames / Draw Gizmo ---- */
-  #drawingFramesSection{background:#1b1f25;border-top:1px solid #111318;border-bottom:1px solid var(--border-soft)}
-  #drawingFramesList{display:flex;flex-direction:column;gap:5px;max-height:190px;overflow:auto;margin:7px 0}
-  .drawing-frame-card{display:grid;grid-template-columns:34px minmax(0,1fr) 24px;align-items:center;gap:6px;padding:5px;border:1px solid #3b424c;border-radius:5px;background:#252930;cursor:pointer}
-  .drawing-frame-card:hover{border-color:#59616c;background:#2b3037}
-  .drawing-frame-card.active{border-color:var(--accent);background:var(--accent-dim);box-shadow:inset 3px 0 0 var(--accent)}
-  .drawing-frame-number{font:10px Consolas,monospace;color:#aeb7c2;text-align:center}
-  .drawing-frame-card input{width:100%;min-width:0;height:25px;padding:3px 5px;background:#15181c;border:1px solid #414852;border-radius:4px;color:#fff;font-size:10px}
-  .drawing-frame-card button{width:24px!important;min-width:24px!important;height:24px!important;min-height:24px!important;padding:0!important;color:#ff9a9a!important}
-  #drawGizmoName{width:100%;height:26px;padding:4px 6px;background:#15181c;border:1px solid #414852;border-radius:4px;color:#fff;font-size:11px}
-  #btnMakeDrawGizmo{width:100%;background:#246a4a!important;border-color:#48b87e!important;font-weight:800}
-  #btnMakeDrawGizmo:hover{background:#2f845e!important}
+  /* ---- Draw Gizmo timeline ---- */
+  #btnNewGizmo{background:#246a4a!important;border-color:#48b87e!important;color:#fff!important;font-weight:800}
+  #btnNewGizmo:hover{background:#2f845e!important}
+  #gizmoTimeline{
+    position:absolute;left:12px;right:12px;bottom:12px;z-index:35;
+    display:none;align-items:stretch;gap:8px;padding:8px;
+    background:rgba(20,23,28,.97);border:1px solid #4a515b;border-radius:8px;
+    box-shadow:0 10px 28px rgba(0,0,0,.45)
+  }
+  #gizmoTimeline.open{display:flex}
+  #gizmoTimelineFrames{display:flex;gap:5px;overflow-x:auto;overflow-y:hidden;flex:1;min-width:0;padding:1px 0}
+  .gizmo-frame{
+    flex:0 0 64px;height:54px;border:1px solid #4b525c;border-radius:5px;
+    background:#292e35;color:#dfe4ea;cursor:pointer;padding:4px 3px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:10px;line-height:1.15
+  }
+  .gizmo-frame:hover{background:#343a43;border-color:#6a7480}
+  .gizmo-frame.active{background:var(--accent-dim);border-color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
+  .gizmo-frame .num{font:700 13px Consolas,monospace;color:#fff}
+  .gizmo-frame .lbl{max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b9c2cc}
+  #gizmoTimelineControls{display:flex;gap:5px;align-items:center;flex:0 0 auto}
+  #gizmoTimelineControls button,#gizmoTimelineControls input{
+    height:30px;border-radius:5px;border:1px solid #4a505a;background:#30353d;color:#fff;font-size:11px
+  }
+  #gizmoTimelineControls button{padding:0 9px;cursor:pointer;font-weight:700}
+  #gizmoTimelineControls button:hover{background:#3c434d}
+  #gizmoTimelineControls input{width:112px;padding:0 7px;background:#17191d}
+  #btnTimelineMakeGizmo{background:#246a4a!important;border-color:#48b87e!important}
+  #btnTimelineDeleteFrame{color:#ffaaaa!important}
   #layerList{flex:1;overflow-y:auto;padding:4px 5px 8px}
   .layer-item{display:flex;align-items:center;gap:6px;padding:6px 7px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid transparent}
   .layer-item:hover{background:var(--panel-2);border-color:#363c45}
@@ -141,6 +159,7 @@
     <button id="btnSave" title="Export SVG">SVG</button>
     <button id="btnPNG" title="Export PNG">PNG</button>
     <button id="btnWickCopy" title="Add selected Drawing objects directly to the current Wick stage">Add to Wick Stage</button>
+    <button id="btnNewGizmo" title="Start a new Draw Gizmo timeline">New Gizmo</button>
     <div class="sep"></div>
     <button class="bool-top" data-op="unite" title="Union two selected shapes">Union</button>
     <button class="bool-top" data-op="subtract" title="Subtract second selected shape from first">Subtract</button>
@@ -173,6 +192,15 @@
       </svg>
     </div>
     <svg id="selOverlay"></svg>
+    <div id="gizmoTimeline">
+      <div id="gizmoTimelineFrames"></div>
+      <div id="gizmoTimelineControls">
+        <input id="drawGizmoName" type="text" maxlength="64" value="DrawGizmo" spellcheck="false" title="Gizmo name">
+        <button id="btnTimelineAddFrame" type="button">+ Frame</button>
+        <button id="btnTimelineDeleteFrame" type="button">Delete</button>
+        <button id="btnTimelineMakeGizmo" type="button">Make Gizmo</button>
+      </div>
+    </div>
   </div>
 
   <div id="sidepanel">
@@ -227,18 +255,6 @@
         <button id="btnDel" style="flex:1;color:var(--danger);">Delete</button>
       </div>
     </div>
-    <div class="panel-section" id="drawingFramesSection">
-      <div class="panel-title">Drawing Frames</div>
-      <div class="row" style="gap:4px;">
-        <button id="btnDrawFrameDuplicate" style="flex:1;" title="Duplicate the current drawing into a new frame">+ Duplicate</button>
-        <button id="btnDrawFrameBlank" style="flex:1;" title="Add an empty drawing frame">+ Blank</button>
-      </div>
-      <div id="drawingFramesList"></div>
-      <div class="row" style="margin-top:7px;"><span style="font-size:10px;color:var(--text-dim)">Gizmo name</span></div>
-      <input id="drawGizmoName" type="text" maxlength="64" value="DrawGizmo" spellcheck="false">
-      <button id="btnMakeDrawGizmo" type="button" style="margin-top:7px;">Make Draw Gizmo</button>
-      <div id="drawGizmoStatus" style="margin-top:6px;font-size:10px;line-height:1.35;color:var(--text-dim)">Each Drawing frame becomes one internal Gizmo frame.</div>
-    </div>
     <div class="panel-title" style="padding:10px 10px 2px;">Objects / Layers</div>
     <div id="layerList"></div>
   </div>
@@ -291,6 +307,7 @@ let nodeEditIndex = -1;
 let drawingFrames = [{id:1,label:"Frame 1",drawing:""}]; // FIX GPT_20-09-2026_DrawGizmoFrames
 let drawingFrameIndex = 0;
 let drawingFrameNextId = 2;
+let drawingGizmoMode = false; // FIX GPT_20-09-2026_DrawGizmoTimeline
 
 // ---------- Tool definitions ----------
 const TOOLS = [
@@ -422,6 +439,7 @@ function scheduleDrawingSessionSave(){
       })(),
       drawingFrameIndex:Number(drawingFrameIndex)||0,
       drawingFrameNextId:Number(drawingFrameNextId)||2,
+      drawingGizmoMode:!!drawingGizmoMode,
       zoom:Number(zoom)||1,
       panX:Number(panX)||0,
       panY:Number(panY)||0
@@ -460,6 +478,7 @@ async function restoreDrawingSession(){
       drawingFrameNextId=2;
       drawLayer.innerHTML=saved.drawing;
     }
+    drawingGizmoMode=!!saved.drawingGizmoMode;
 
     zoom=isFinite(Number(saved.zoom)) ? Math.max(.05,Math.min(16,Number(saved.zoom))) : 1;
     panX=isFinite(Number(saved.panX)) ? Number(saved.panX) : 60;
@@ -3292,6 +3311,21 @@ function setDrawingFrame(index){
   flashStatus("Drawing frame "+(index+1)+" · "+drawingFrames[index].label);
 }
 
+function startNewDrawingGizmo(){
+  captureCurrentDrawingFrame();
+  const current=drawLayer.innerHTML;
+  drawingFrames=[{id:1,label:"Frame 1",drawing:current}];
+  drawingFrameIndex=0;
+  drawingFrameNextId=2;
+  drawingGizmoMode=true;
+  const name=document.getElementById("drawGizmoName");
+  if(name)name.value="DrawGizmo";
+  resetDrawingHistoryForFrame();
+  renderDrawingFrames();
+  scheduleDrawingSessionSave();
+  flashStatus("New Draw Gizmo · Frame 1");
+}
+
 function addDrawingFrame(copyCurrent){
   captureCurrentDrawingFrame();
   const drawing=copyCurrent ? drawLayer.innerHTML : "";
@@ -3302,7 +3336,7 @@ function addDrawingFrame(copyCurrent){
   resetDrawingHistoryForFrame();
   renderDrawingFrames();
   scheduleDrawingSessionSave();
-  flashStatus(copyCurrent ? "Duplicated Drawing frame" : "Added blank Drawing frame");
+  flashStatus(copyCurrent ? "Duplicated Drawing frame" : "Added Gizmo frame "+(index+1));
 }
 
 function deleteDrawingFrame(index){
@@ -3330,47 +3364,46 @@ function drawGizmoIdentifier(value,fallback){
 }
 
 function renderDrawingFrames(){
-  const host=document.getElementById("drawingFramesList");
-  if(!host) return;
+  const timeline=document.getElementById("gizmoTimeline");
+  const host=document.getElementById("gizmoTimelineFrames");
+  if(!timeline||!host) return;
+  timeline.classList.toggle("open",!!drawingGizmoMode);
+  if(!drawingGizmoMode){
+    host.innerHTML="";
+    return;
+  }
+
   captureCurrentDrawingFrame();
   host.innerHTML="";
   drawingFrames.forEach((frame,index)=>{
-    const card=document.createElement("div");
-    card.className="drawing-frame-card"+(index===drawingFrameIndex?" active":"");
-    card.dataset.index=String(index);
-
-    const number=document.createElement("div");
-    number.className="drawing-frame-number";
-    number.textContent=String(index+1);
-
-    const label=document.createElement("input");
-    label.type="text";
-    label.maxLength=64;
-    label.value=String(frame.label||("Frame "+(index+1)));
-    label.title="Gizmo frame label";
-    label.addEventListener("click",event=>event.stopPropagation());
-    label.addEventListener("input",()=>{
-      frame.label=label.value;
-      scheduleDrawingSessionSave();
-    });
-
-    const remove=document.createElement("button");
-    remove.type="button";
-    remove.textContent="×";
-    remove.title="Delete Drawing frame";
-    remove.disabled=drawingFrames.length<=1;
-    remove.addEventListener("click",event=>{
+    const button=document.createElement("button");
+    button.type="button";
+    button.className="gizmo-frame"+(index===drawingFrameIndex?" active":"");
+    button.title="Frame "+(index+1)+" · double-click to rename";
+    const num=document.createElement("span");
+    num.className="num";
+    num.textContent=String(index+1);
+    const label=document.createElement("span");
+    label.className="lbl";
+    label.textContent=String(frame.label||("Frame "+(index+1)));
+    button.appendChild(num);
+    button.appendChild(label);
+    button.addEventListener("click",()=>setDrawingFrame(index));
+    button.addEventListener("dblclick",event=>{
       event.preventDefault();
       event.stopPropagation();
-      deleteDrawingFrame(index);
+      const next=window.prompt("Frame label",String(frame.label||("Frame "+(index+1))));
+      if(next!==null){
+        frame.label=String(next).trim()||("Frame "+(index+1));
+        renderDrawingFrames();
+        scheduleDrawingSessionSave();
+      }
     });
-
-    card.appendChild(number);
-    card.appendChild(label);
-    card.appendChild(remove);
-    card.addEventListener("click",()=>setDrawingFrame(index));
-    host.appendChild(card);
+    host.appendChild(button);
   });
+
+  const del=document.getElementById("btnTimelineDeleteFrame");
+  if(del)del.disabled=drawingFrames.length<=1;
 }
 
 function drawingWickNamespace(){
@@ -3455,14 +3488,12 @@ function drawingMarkProjectDirty(editor,project,label){
 }
 
 async function makeDrawGizmo(){
-  const button=document.getElementById("btnMakeDrawGizmo");
-  const status=document.getElementById("drawGizmoStatus");
+  const button=document.getElementById("btnTimelineMakeGizmo");
   captureCurrentDrawingFrame();
 
   const nonEmpty=drawingFrames.filter(frame=>String(frame.drawing||"").trim());
   if(!nonEmpty.length){
     flashStatus("Draw at least one frame before making a Gizmo");
-    if(status)status.textContent="No Drawing frame contains artwork.";
     return;
   }
 
@@ -3472,7 +3503,6 @@ async function makeDrawGizmo(){
   const W=drawingWickNamespace();
   if(!project||!W?.Clip||!W?.Frame||!paper){
     flashStatus("Wick Clip/Frame API is unavailable");
-    if(status)status.textContent="Could not access Wick Clip/Frame APIs.";
     return;
   }
 
@@ -3482,9 +3512,8 @@ async function makeDrawGizmo(){
     return;
   }
 
-  const oldText=button?.textContent||"Make Draw Gizmo";
+  const oldText=button?.textContent||"Make Gizmo";
   if(button){button.disabled=true;button.textContent="Building…";}
-  if(status)status.textContent="Building Draw Gizmo frames…";
 
   let clip=null;
   try{
@@ -3545,16 +3574,16 @@ async function makeDrawGizmo(){
     flashStatus("Created Draw Gizmo “"+requestedName+"” with "+drawingFrames.length+" frame"+(drawingFrames.length===1?"":"s"));
   }catch(err){
     console.error("[Drawing] Make Draw Gizmo failed",err);
-    if(status)status.textContent="Draw Gizmo failed: "+(err?.message||err);
     flashStatus("Draw Gizmo failed: "+(err?.message||err));
   }finally{
     if(button){button.disabled=false;button.textContent=oldText;}
   }
 }
 
-document.getElementById("btnDrawFrameDuplicate")?.addEventListener("click",()=>addDrawingFrame(true));
-document.getElementById("btnDrawFrameBlank")?.addEventListener("click",()=>addDrawingFrame(false));
-document.getElementById("btnMakeDrawGizmo")?.addEventListener("click",makeDrawGizmo);
+document.getElementById("btnNewGizmo")?.addEventListener("click",startNewDrawingGizmo);
+document.getElementById("btnTimelineAddFrame")?.addEventListener("click",()=>addDrawingFrame(false));
+document.getElementById("btnTimelineDeleteFrame")?.addEventListener("click",()=>deleteDrawingFrame(drawingFrameIndex));
+document.getElementById("btnTimelineMakeGizmo")?.addEventListener("click",makeDrawGizmo);
 renderDrawingFrames();
 
 // ---------- New / Open / Export ----------
@@ -3564,6 +3593,7 @@ document.getElementById("btnNew").addEventListener("click", ()=>{
   drawingFrames=[{id:1,label:"Frame 1",drawing:""}];
   drawingFrameIndex=0;
   drawingFrameNextId=2;
+  drawingGizmoMode=false;
   clearSelection();
   history = []; historyIndex = -1;
   pushHistory();
@@ -3583,6 +3613,7 @@ document.getElementById("fileInput").addEventListener("change", ev=>{
     drawingFrames=[{id:1,label:"Frame 1",drawing:""}];
     drawingFrameIndex=0;
     drawingFrameNextId=2;
+    drawingGizmoMode=false;
     const vb = loadedSvg.getAttribute("viewBox");
     if(vb){ const parts = vb.split(/\s+/).map(Number); pageW = parts[2]; pageH = parts[3]; }
     else { pageW = parseFloat(loadedSvg.getAttribute("width"))||1280; pageH = parseFloat(loadedSvg.getAttribute("height"))||800; }
