@@ -25722,6 +25722,65 @@ function installDemBonesMrk2() {
     try { mcRenderStageParts(); } catch(eStage){}
   }
 
+  function dbResetRigForFreshDrawingPart(){ // FIX GPT_20-09-2026_DrawingBlankRig
+    // A Drawing handoff represents a brand-new part. Nothing from the previous
+    // part's deformation rig is allowed to carry into it.
+    try { stop(); } catch(eStop){}
+    try { removeProxyOverlay(false); } catch(eProxy){}
+
+    App.bones = [];
+    App.nextBoneId = 1;
+    App.selectedBoneId = null;
+
+    App.frameBones = [];
+    App.nextFrameBoneId = 1;
+    App.selectedFrameBoneId = null;
+
+    App.keyframes = {};
+    App.pointKeys = {};
+    App.frameBoneKeys = {};
+    App.expressionKeys = {};
+    App.expressionProfiles = {};
+
+    App.currentFrame = 1;
+    App.selectedCurvePointId = null;
+
+    if (App.pointAnimation) {
+      App.pointAnimation.selectedPointId = '';
+      App.pointAnimation.selectedBezier = null;
+      App.pointAnimation.openBezier = null;
+      App.pointAnimation.showPoints = false;
+    }
+
+    if (App.interaction) {
+      App.interaction.dragging = false;
+      App.interaction.dragType = '';
+      App.interaction.boneId = null;
+      App.interaction.hoverBoneId = null;
+      App.interaction.hoverHandle = '';
+      App.interaction.pointId = null;
+      App.interaction.startPoint = null;
+      App.interaction.addBoneMode = false;
+    }
+
+    try {
+      if (App.undo) {
+        App.undo.stack = [];
+        App.undo.lastSnapshotText = '';
+        App.undo.isRestoring = false;
+      }
+    } catch(eUndo){}
+
+    try {
+      if (App.paint) {
+        App.paint.enabled = false;
+        App.paint.showOverlay = false;
+      }
+    } catch(ePaint){}
+
+    try { syncProxyLayersToBones(true); } catch(eProxySync){}
+  }
+
   function dbMakeTransferredCharacterStateIndependent(state){ // FIX GPT_20-09-2026_CharacterTransferOwnership
     var out = mcSafeClone(state || {});
     try { delete out.demBonesMrk2; } catch(eBinding){}
@@ -25898,6 +25957,10 @@ function installDemBonesMrk2() {
       // If an unrelated live DemBones binding exists, finish it before ingesting
       // the new Drawing source.
       try { if (window.DemBonesMrk2 && window.DemBonesMrk2.binding) window.DemBonesMrk2.finish(); } catch(eFinish){}
+
+      // Start a genuinely blank DemBones Part. The previous Character part has
+      // already been captured above, so clearing the editor rig cannot alter it.
+      dbResetRigForFreshDrawingPart();
 
       var converted = selectedCurveObjectsToSvg(objects);
       rememberSelectedCurveSourceTimeline();
