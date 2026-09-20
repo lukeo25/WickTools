@@ -3282,6 +3282,11 @@ async function addSelectedToWickStage(){
 
 const wickCopyBtn=document.getElementById("btnWickCopy");
 if(drawingCalledFromDemBones()){
+  const gizmoButton=document.getElementById("btnTimelineMakeGizmo");
+  if(gizmoButton){
+    gizmoButton.textContent="Add Gizmo To DemBones";
+    gizmoButton.title="Send this Draw Gizmo directly back to DemBones without adding a Wick stage Clip";
+  }
   wickCopyBtn.textContent="Add to DemBones Part";
   wickCopyBtn.title="Add selected Drawing objects directly to the current DemBones Part";
   wickCopyBtn.addEventListener("click", addSelectedToDemBonesPart);
@@ -3570,6 +3575,49 @@ function drawingMarkProjectDirty(editor,project,label){
   try{window.parent?.dispatchEvent(new Event("resize"));}catch(e){}
 }
 
+function drawingFrameSvgPayload(frame){
+  const drawing=String(frame && frame.drawing || "");
+  const svgText='<svg xmlns="'+SVGNS+'" width="'+pageW+'" height="'+pageH+'" viewBox="0 0 '+pageW+' '+pageH+'">'+drawing+'</svg>';
+  return {
+    label:String(frame && frame.label || "Frame"),
+    svgText:svgText,
+    width:pageW,
+    height:pageH
+  };
+}
+
+async function sendDrawGizmoDirectToDemBones(name){
+  const payload={
+    type:"LukeToolsDemBonesDrawGizmo",
+    name:String(name||"DrawGizmo"),
+    width:pageW,
+    height:pageH,
+    frames:drawingFrames.map(drawingFrameSvgPayload)
+  };
+
+  let result=null;
+  if(window.parent && typeof window.parent.__LukeToolsDemBonesReceiveDrawGizmo==="function"){
+    result=window.parent.__LukeToolsDemBonesReceiveDrawGizmo(payload);
+  }else if(window.top && typeof window.top.__LukeToolsDemBonesReceiveDrawGizmo==="function"){
+    result=window.top.__LukeToolsDemBonesReceiveDrawGizmo(payload);
+  }else{
+    throw new Error("DemBones Draw Gizmo receiver is not available");
+  }
+
+  if(result && typeof result.then==="function") result=await result;
+  if(result===false || (result && result.ok===false)){
+    throw new Error(result && result.error ? result.error : "DemBones did not accept the Draw Gizmo");
+  }
+
+  try{
+    const pd=window.parent && window.parent.document ? window.parent.document : null;
+    const shell=pd && pd.getElementById("luketools_dembones_drawing_panel");
+    if(shell && shell.parentNode) shell.parentNode.removeChild(shell);
+  }catch(e){}
+
+  return result;
+}
+
 async function makeDrawGizmo(){
   const button=document.getElementById("btnTimelineMakeGizmo");
   captureCurrentDrawingFrame();
@@ -3577,6 +3625,23 @@ async function makeDrawGizmo(){
   const nonEmpty=drawingFrames.filter(frame=>String(frame.drawing||"").trim());
   if(!nonEmpty.length){
     flashStatus("Draw at least one frame before making a Gizmo");
+    return;
+  }
+
+  const requestedName=drawGizmoIdentifier(document.getElementById("drawGizmoName")?.value,"DrawGizmo");
+
+  if(drawingCalledFromDemBones()){
+    const oldText=button?.textContent||"Make Gizmo";
+    if(button){button.disabled=true;button.textContent="Adding to DemBones…";}
+    try{
+      await sendDrawGizmoDirectToDemBones(requestedName);
+      flashStatus("Added Draw Gizmo “"+requestedName+"” directly to DemBones");
+    }catch(err){
+      console.error("[Drawing] Direct Draw Gizmo to DemBones failed",err);
+      flashStatus("Draw Gizmo failed: "+(err?.message||err));
+    }finally{
+      if(button){button.disabled=false;button.textContent=oldText;}
+    }
     return;
   }
 
@@ -3603,7 +3668,6 @@ async function makeDrawGizmo(){
     try{clip=new W.Clip({project});}catch(e1){try{clip=new W.Clip();}catch(e2){}}
     if(!clip) throw new Error("Could not create Wick Clip");
 
-    const requestedName=drawGizmoIdentifier(document.getElementById("drawGizmoName")?.value,"DrawGizmo");
     try{clip.identifier=requestedName;}catch(e){}
     try{clip.name=requestedName;}catch(e){}
     try{clip._identifier=requestedName;}catch(e){}
