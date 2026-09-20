@@ -6,7 +6,7 @@
 <script>
 (function(){
   'use strict';
-  var SOURCE='https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_PoseSandbox.txt?v=drawing-preserve-geometry-1';
+  var SOURCE='https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_PoseSandbox.txt?v=drawing-direct-vector-only-1';
   function fail(msg){var e=document.getElementById('ltLoadStatus');if(e)e.textContent='Dem Bones Pose Sandbox patch failed: '+msg;}
   function replaceOne(s,oldText,newText,label){
     var i=s.indexOf(oldText);
