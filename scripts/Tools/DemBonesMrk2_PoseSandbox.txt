@@ -16018,11 +16018,20 @@ html, body, #app{
     try { host.style.pointerEvents = mc.pinPickSourceId ? 'auto' : 'none'; } catch(eHostPointer){} // FIX v_038
     var hostRect = updateOverlayClipHost() || { left:0, top:0 };
     var selectedId = Number(mc.selectedId || 0);
+    var selectedRenderedByEditor = false; // FIX GPT_20-09-2026_SelectedCharacterVisibility
+    try {
+      selectedRenderedByEditor = !!(
+        (window.DemBonesMrk2 && window.DemBonesMrk2.binding) ||
+        (App.overlay && App.overlay.active && App.overlay.root)
+      );
+    } catch(eSelectedRenderer){}
     var html = '';
     for (var i = 0; i < mc.parts.length; i += 1) {
       var part = mcNormalizePartMode(mc.parts[i]);
       if (!part || !part.state || part.visible === false) continue;
-      if (Number(part.id) === selectedId) continue;
+      // While the selected part is actively being edited, the editor overlay owns its pixels.
+      // After a live DemBones rig is transferred/detached, the Character stack must draw it.
+      if (Number(part.id) === selectedId && selectedRenderedByEditor) continue;
       var t = part.transform || { x:50, y:50, w:300, h:200, rotation:0 };
       var rect = stageBoundsToViewportRect({ x:Number(t.x || 0), y:Number(t.y || 0), w:Math.max(1, Number(t.w || 1)), h:Math.max(1, Number(t.h || 1)) });
       if (!rect) continue;
