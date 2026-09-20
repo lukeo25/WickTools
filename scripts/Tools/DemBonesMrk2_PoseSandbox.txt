@@ -16324,7 +16324,9 @@ html, body, #app{
       } else {
         host.innerHTML = mc.parts.map(function(raw, idx){
           var p = mcNormalizePartMode(raw);
-          var active = p.id === mc.selectedId ? ' active' : '';
+          var isSelected = Number(p.id || 0) === Number(mc.selectedId || 0);
+          p.collapsed = !isSelected; // FIX GPT_20-09-2026_CharacterAutoConcertina
+          var active = isSelected ? ' active' : '';
           var assemble = p.mode === 'assemble' ? 'active' : '';
           var animate = p.mode === 'animate' ? 'active' : '';
           var pin = mc.pinPickSourceId === p.id ? ' active' : '';
@@ -17978,18 +17980,7 @@ html, body, #app{
 
   // FIX v_050: In Build Character, fade non selected stage parts while the selected part is being animated.
   function mcShouldFadeInactiveParts_v050(){
-    try {
-      var mc = mcEnsure();
-      var selected = mcFindPart(mc.selectedId);
-      if (!selected) return false;
-      selected = mcNormalizePartMode(selected);
-      var mode = String(selected.mode || '').toLowerCase();
-      var edit = String(selected.editMode || '').toLowerCase();
-      if (mode === 'animate') return true;
-      if (edit === 'bone' || edit === 'node') return true;
-      if (App.interaction && App.interaction.dragging) return true;
-    } catch(e){}
-    return false;
+    return false; // FIX GPT_20-09-2026_CharacterPartsStayOpaque
   }
 
   function mcRenderStageParts_v050(){
