@@ -16393,8 +16393,6 @@ html, body, #app{
       if (target.state) {
         await loadRigProjectState(mcSafeClone(target.state));
         mcApplyTransformToApp(target.transform || {});
-        if (App.flags) App.flags.showBones = true; // FIX GPT_20-09-2026_AssembleActivatesStoredRig
-        try { clearWickSelectionAfterArtworkUse(); } catch(eClearWickSelection){} // FIX GPT_20-09-2026_AssembleActivatesStoredRig
         if (el('inpClipName') && target.name) el('inpClipName').value = String(target.name);
         updateUI();
         renderOverlay();
@@ -16634,14 +16632,38 @@ html, body, #app{
     renderOverlay();
   }
 
-  async function mcSetAssembleModeFor(id){
+  async function mcSetAssembleModeFor(id){ // FIX GPT_21-09-2026_RestoreAssembleMode
     await mcActivatePart(id);
     var p = mcFindPart(id);
-    if (p) { p.mode = 'assemble'; p.editTarget = p.editTarget || 'bone'; if (p.state) p.state = buildRigProjectState(); }
-    if (App.flags) App.flags.showBones = true; // FIX GPT_20-09-2026_AssembleActivatesStoredRig
-    try { clearWickSelectionAfterArtworkUse(); } catch(eClearWickSelection){} // FIX GPT_20-09-2026_AssembleActivatesStoredRig
+    if (p) {
+      p.mode = 'assemble';
+      p.editTarget = p.editTarget || 'bone';
+      if (p.state) p.state = buildRigProjectState();
+    }
+
+    // Assemble is the Character placement mode. It must not turn the stored
+    // DemBones rig into the active editing view. Bones are opened explicitly
+    // through Add Bones; rig animation is opened explicitly through Animate.
+    if (App.flags) {
+      App.flags.showBones = false;
+      App.flags.showMesh = false;
+    }
+    if (App.interaction) {
+      App.interaction.addBoneMode = false;
+      App.interaction.dragging = false;
+      App.interaction.dragType = '';
+      App.interaction.boneId = null;
+      App.interaction.hoverBoneId = null;
+      App.interaction.hoverHandle = '';
+    }
+    try { removeProxyOverlay(false); } catch(eProxyAssemble){}
+    try { clearWickSelectionAfterArtworkUse(); } catch(eClearWickSelection){}
+
     mcShowCharacterPanelWhileRuntimeMode('character');
+    try { mcRenderStageParts(); } catch(eStageAssemble){}
+    try { renderOverlay(); } catch(eOverlayAssemble){}
     mcRenderPanel();
+    mcLog('Assemble: move or scale the selected Character part.');
   }
 
   async function mcSetAnimateModeFor(id){
