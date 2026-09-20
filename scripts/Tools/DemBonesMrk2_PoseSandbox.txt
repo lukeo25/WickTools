@@ -1561,13 +1561,13 @@ html, body, #app{
       <div class="panelPage" data-page="expression"> <!-- Internal page id retained for saved-part compatibility. FIX v18.220_GPT -->
         <div class="section softSection sandboxGizmoMain">
           <h3 class="sandboxSimpleHeader">Gizmo</h3>
-          <div class="sandboxSimpleHelp">Attach a selected stage Gizmo to the selected parent bone. Gizmo frame changes create keys automatically while Animate is on.</div>
-          <button id="btnSandboxUseGizmo" class="sandboxPrimaryAction" type="button">Use Selected Gizmo</button>
+          <div class="sandboxSimpleHelp">Choose Gizmo On Stage hides DemBones so you can create or select a Wick Gizmo Clip, then return it to the Character as a normal part.</div>
+          <button id="btnSandboxUseGizmo" class="sandboxPrimaryAction" type="button">Choose Gizmo On Stage</button>
           <div class="sandboxActionGrid">
             <button id="btnSandboxLoadLipOutput" class="softBtn softBtnSecondary" type="button">Load Lip Service Output</button>
             <button id="btnSandboxLoadGizmoImages" class="softBtn softBtnSecondary" type="button">Load Gizmo Images</button>
           </div>
-          <div id="sandboxGizmoStatus" class="sandboxReadout">Select a parent bone, then choose a Gizmo on the Wick stage.</div>
+          <div id="sandboxGizmoStatus" class="sandboxReadout">Click Choose Gizmo On Stage. DemBones will hide while you work directly on the Wick stage.</div>
           <div id="sandboxGizmoFrames" class="sandboxGizmoFrames"></div>
         </div>
         <div class="section softSection">
@@ -25271,6 +25271,77 @@ function installDemBonesMrk2() {
     return captures;
   }
 
+  function dbm2StartStageGizmoPick_v18221(){ // FIX GPT_20-09-2026_GizmoStageAccess
+    var pwin = window.parent || window;
+    var pdoc = pwin.document || document;
+    var frame = null;
+    var panel = null;
+    try { frame = window.frameElement || null; } catch(eFrame){}
+    try {
+      var node = frame;
+      while (node && node !== pdoc.body) {
+        if (node.id && /^luke_tools_panel_/i.test(String(node.id))) { panel = node; break; }
+        node = node.parentElement;
+      }
+    } catch(ePanel){}
+
+    var oldDisplay = panel ? panel.style.display : '';
+    var pickId = 'luketools_dembones_gizmo_stage_pick';
+    var old = pdoc.getElementById(pickId);
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+
+    var bar = pdoc.createElement('div');
+    bar.id = pickId;
+    bar.style.cssText = [
+      'position:fixed','right:18px','top:18px','z-index:2147483647',
+      'display:flex','align-items:center','gap:8px','padding:10px',
+      'background:rgba(18,18,18,.96)','border:1px solid rgba(255,255,255,.22)',
+      'border-radius:10px','box-shadow:0 8px 30px rgba(0,0,0,.5)',
+      'font:12px Arial,sans-serif','color:#fff'
+    ].join(';');
+
+    var msg = pdoc.createElement('span');
+    msg.textContent = 'Create or select one Gizmo Clip on the Wick stage, then click Use Gizmo.';
+    msg.style.cssText = 'max-width:320px;line-height:1.3;';
+
+    var use = pdoc.createElement('button');
+    use.type = 'button';
+    use.textContent = 'Use Gizmo';
+    use.style.cssText = 'padding:8px 12px;border-radius:8px;border:1px solid #4da8ff;background:#12365f;color:#fff;font-weight:700;cursor:pointer;';
+
+    var cancel = pdoc.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = 'Cancel';
+    cancel.style.cssText = 'padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#333;color:#fff;cursor:pointer;';
+
+    function restore(){
+      try { if (panel) panel.style.display = oldDisplay || 'block'; } catch(eShow){}
+      try { if (bar && bar.parentNode) bar.parentNode.removeChild(bar); } catch(eRemove){}
+    }
+
+    use.addEventListener('click', async function(ev){
+      try { ev.preventDefault(); ev.stopPropagation(); } catch(eStop){}
+      // Capture the Wick selection while DemBones is still hidden and the stage is active.
+      try { refreshBridgeRefs(); } catch(eRefresh){}
+      try { if (App.B && typeof App.B.captureSelectionNow === 'function') App.B.captureSelectionNow(); } catch(eCapture){}
+      restore();
+      try { await dbm2ImportSelectedGizmoAsPart_v18220(); } catch(eImport) { log('Use Gizmo failed: ' + (eImport && eImport.message ? eImport.message : eImport)); }
+    });
+    cancel.addEventListener('click', function(ev){
+      try { ev.preventDefault(); ev.stopPropagation(); } catch(eStop){}
+      restore();
+    });
+
+    bar.appendChild(msg);
+    bar.appendChild(use);
+    bar.appendChild(cancel);
+    (pdoc.body || pdoc.documentElement).appendChild(bar);
+
+    if (panel) panel.style.display = 'none';
+    try { clearWickSelectionAfterArtworkUse(); } catch(eClear){}
+    try { if (App.ed && typeof App.ed.syncInterfaces === 'function') App.ed.syncInterfaces(); } catch(eSync){}
+  }
+
   async function dbm2ImportSelectedGizmoAsPart_v18220(){ // FIX GPT_20-09-2026_GizmoCharacterPartFlow
     try {
       var clip = dbm2SelectedGizmoClip_v18220();
@@ -26204,7 +26275,7 @@ function installDemBonesMrk2() {
     });
     if (el('btnSandboxDeleteBone')) el('btnSandboxDeleteBone').addEventListener('click', function(){ dbSimplifiedProxy('btnDeleteBone'); });
     if (el('btnSandboxClearBones')) el('btnSandboxClearBones').addEventListener('click', function(){ dbSimplifiedProxy('btnClearBones'); });
-    if (el('btnSandboxUseGizmo')) el('btnSandboxUseGizmo').addEventListener('click', function(){ dbm2ImportSelectedGizmoAsPart_v18220(); }); // FIX GPT_20-09-2026_GizmoCharacterPartFlow
+    if (el('btnSandboxUseGizmo')) el('btnSandboxUseGizmo').addEventListener('click', dbm2StartStageGizmoPick_v18221); // FIX GPT_20-09-2026_GizmoStageAccess
     if (el('btnSandboxLoadLipOutput')) el('btnSandboxLoadLipOutput').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadLipExpressionJson'); });
     if (el('btnSandboxLoadGizmoImages')) el('btnSandboxLoadGizmoImages').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadLipExpressionImages'); });
     var gizmoFrames = el('sandboxGizmoFrames');
