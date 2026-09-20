@@ -2624,8 +2624,44 @@ function selectedSvgDocument(){
   return new XMLSerializer().serializeToString(wrapper);
 }
 
+function prepareDrawingCloneForDemBones(sourceEl){
+  const clone=sourceEl.cloneNode(true);
+
+  // Remove editor-only XML blocks that have no visual meaning in DemBones and
+  // commonly contain application-specific namespace attributes.
+  try{
+    const remove=[];
+    if(clone.querySelectorAll){
+      clone.querySelectorAll("sodipodi\\:namedview,namedview,metadata").forEach(node=>remove.push(node));
+    }
+    remove.forEach(node=>{
+      try{ node.remove(); }
+      catch(e){ try{ node.parentNode&&node.parentNode.removeChild(node); }catch(e2){} }
+    });
+  }catch(e){}
+
+  return clone;
+}
+
+function addDemBonesSvgNamespaces(wrapper){
+  const XMLNS="http://www.w3.org/2000/xmlns/";
+  const namespaces={
+    "xmlns:inkscape":"http://www.inkscape.org/namespaces/inkscape",
+    "xmlns:sodipodi":"http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd",
+    "xmlns:xlink":"http://www.w3.org/1999/xlink",
+    "xmlns:dc":"http://purl.org/dc/elements/1.1/",
+    "xmlns:cc":"http://creativecommons.org/ns#",
+    "xmlns:rdf":"http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  };
+  Object.entries(namespaces).forEach(([name,value])=>{
+    try{ wrapper.setAttributeNS(XMLNS,name,value); }
+    catch(e){ try{ wrapper.setAttribute(name,value); }catch(e2){} }
+  });
+}
+
 function selectedSvgDocumentForDemBones(){
   if(!selected.length) return "";
+
   let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
   selected.forEach(el=>{
     const bb=getVisualBBox(el);
@@ -2634,16 +2670,34 @@ function selectedSvgDocumentForDemBones(){
     maxX=Math.max(maxX,bb.x+bb.width);
     maxY=Math.max(maxY,bb.y+bb.height);
   });
-  if(!isFinite(minX)||!isFinite(minY)||!isFinite(maxX)||!isFinite(maxY)) return selectedSvgDocument();
+
+  if(!isFinite(minX)||!isFinite(minY)||!isFinite(maxX)||!isFinite(maxY)){
+    minX=0;
+    minY=0;
+    maxX=Math.max(1,pageW);
+    maxY=Math.max(1,pageH);
+  }
+
   const pad=2;
-  minX-=pad; minY-=pad; maxX+=pad; maxY+=pad;
-  const w=Math.max(1,maxX-minX), h=Math.max(1,maxY-minY);
+  minX-=pad;
+  minY-=pad;
+  maxX+=pad;
+  maxY+=pad;
+
+  const w=Math.max(1,maxX-minX);
+  const h=Math.max(1,maxY-minY);
+
   const wrapper=document.createElementNS(SVGNS,"svg");
   wrapper.setAttribute("xmlns",SVGNS);
+  addDemBonesSvgNamespaces(wrapper);
   wrapper.setAttribute("width",w);
   wrapper.setAttribute("height",h);
   wrapper.setAttribute("viewBox",`${minX} ${minY} ${w} ${h}`);
-  selected.forEach(el=>wrapper.appendChild(el.cloneNode(true)));
+
+  selected.forEach(el=>{
+    wrapper.appendChild(prepareDrawingCloneForDemBones(el));
+  });
+
   return new XMLSerializer().serializeToString(wrapper);
 }
 
