@@ -2679,13 +2679,24 @@ function addSelectedToDemBonesPart(){
   const oldText=btn.textContent;
   btn.textContent="Adding…";
   try{
-    window.parent.postMessage({
+    const payload={
       type:"LukeToolsDemBonesDrawingSelection",
       svgText,
       fileName:"Drawing Selection.svg",
       source:"LukeToolsDrawing"
-    },"*");
-    flashStatus("Sent selected Drawing object to DemBones Part");
+    };
+    let delivered=false;
+    try{
+      if(window.parent && typeof window.parent.__LukeToolsDemBonesReceiveDrawing==="function"){
+        const result=window.parent.__LukeToolsDemBonesReceiveDrawing(payload);
+        delivered=true;
+        if(result && typeof result.then==="function") result.catch(err=>console.error("[Drawing] DemBones direct handoff failed",err));
+      }
+    }catch(eDirect){
+      console.warn("[Drawing] Direct DemBones bridge unavailable, using postMessage",eDirect);
+    }
+    if(!delivered) window.parent.postMessage(payload,"*");
+    flashStatus("Added selected Drawing object to DemBones Part");
   }catch(err){
     console.error("[Drawing] Add to DemBones failed",err);
     flashStatus("Add to DemBones failed: "+(err?.message||err));
