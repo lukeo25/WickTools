@@ -3513,16 +3513,57 @@ function drawingAddClipToFrame(frame,clip){
   return false;
 }
 
+function drawingBuildNativeFrameSvg(snapshotHtml){ // FIX GPT_20-09-2026_NativeGizmoNamespaceSafe
+  const drawing=String(snapshotHtml||"");
+  if(!drawing.trim()) return "";
+
+  // Build a real SVG DOM wrapper with all namespaces that Drawing/imported
+  // artwork may legitimately contain. The previous bare string wrapper caused
+  // Paper.js importSVG to reject frames containing prefixed SVG attributes.
+  const wrapper=document.createElementNS(SVGNS,"svg");
+  wrapper.setAttribute("xmlns",SVGNS);
+  addDemBonesSvgNamespaces(wrapper);
+  wrapper.setAttribute("width",String(pageW));
+  wrapper.setAttribute("height",String(pageH));
+  wrapper.setAttribute("viewBox","0 0 "+pageW+" "+pageH);
+
+  const holder=document.createElementNS(SVGNS,"g");
+  holder.innerHTML=drawing;
+
+  // Remove only non-visual editor metadata. Do not alter paths, transforms,
+  // fills, strokes or Bezier data.
+  try{
+    const remove=[];
+    holder.querySelectorAll("metadata,namedview,sodipodi\\:namedview").forEach(node=>remove.push(node));
+    remove.forEach(node=>{
+      try{node.remove();}
+      catch(e){try{node.parentNode&&node.parentNode.removeChild(node);}catch(e2){}}
+    });
+  }catch(e){}
+
+  while(holder.firstChild) wrapper.appendChild(holder.firstChild);
+
+  return new XMLSerializer().serializeToString(wrapper);
+}
+
 function drawingAddSnapshotToWickFrame(snapshotHtml,wickFrame,paper,project){
   const drawing=String(snapshotHtml||"");
   if(!drawing.trim()) return 0;
   if(!paper?.project?.importSVG) throw new Error("Paper.js SVG import is unavailable");
 
-  const svgText='<svg xmlns="'+SVGNS+'" width="'+pageW+'" height="'+pageH+'" viewBox="0 0 '+pageW+' '+pageH+'">'+drawing+'</svg>';
+  const svgText=drawingBuildNativeFrameSvg(drawing);
+  if(!svgText) return 0;
+
   let imported=null;
 
   try{
-    imported=paper.project.importSVG(svgText,{insert:false,expandShapes:true});
+    try{
+      imported=paper.project.importSVG(svgText,{insert:false,expandShapes:true});
+    }catch(importError){
+      console.error("[Drawing Native Gizmo] Paper import failed",importError,svgText.slice(0,800));
+      throw new Error("Paper.js could not import this Drawing frame");
+    }
+
     if(!imported) throw new Error("Paper.js could not import this Drawing frame");
 
     const wickW=Number(project.width||project.stageWidth||pageW)||pageW;
