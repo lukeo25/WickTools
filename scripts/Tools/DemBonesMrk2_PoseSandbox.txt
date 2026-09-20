@@ -1579,7 +1579,7 @@ html, body, #app{
           <div class="softActionRow" style="margin-top:10px;">
             <button id="btnImportSelectedGizmoAsExpression" class="softBtn softBtnAccent">Import Selected Gizmo</button>
           </div>
-          <div id="importedGizmoInfo" class="softReadout">Select a Gizmo Clip on the Wick stage and a parent bone, then import it here.</div>
+          <div id="importedGizmoInfo" class="softReadout">Select or create a Gizmo Clip. Gizmos are independent until pinned later in Character.</div>
           <div id="importedGizmoSlots" class="frameSlotGrid"></div>
           <div class="row" style="margin-top:10px;">
             <label>Selected Gizmo bone</label>
@@ -15987,6 +15987,16 @@ html, body, #app{
     var w = Math.max(1, Number(src.width || 300));
     var h = Math.max(1, Number(src.height || 200));
     var dataUrl = src.dataUrl || src.embeddedDataUrl || '';
+    try {
+      if (src.gizmo && Array.isArray(src.gizmo.frames) && src.gizmo.frames.length) {
+        var frameIndex = Math.max(0, Math.min(
+          src.gizmo.frames.length - 1,
+          Number(src.gizmo.defaultFrame || 1) - 1
+        ));
+        var gizmoFrame = src.gizmo.frames[frameIndex];
+        if (gizmoFrame && gizmoFrame.dataUrl) dataUrl = gizmoFrame.dataUrl;
+      }
+    } catch(eGizmoFrame){}
     if (dataUrl) {
       return '<img src="' + htmlEscape(dataUrl) + '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:fill;pointer-events:none;" draggable="false">';
     }
@@ -25396,78 +25406,105 @@ function installDemBonesMrk2() {
     return dummyAreaCenterPoint();
   }
 
-  async function dbm2ImportGizmoClip_v18240(clip){ // FIX GPT_20-09-2026_CanonicalGizmoArchitecture
+  async function dbm2ImportGizmoClip_v18240(clip){ // FIX GPT_20-09-2026_GizmoIndependentPart
     if (!clip || !dbm2IsClip_v18220(clip)) throw new Error('A Wick Clip was not supplied.');
 
     var marked = dbm2GizmoScriptSource_v18220(clip).indexOf('/*LUKE_FRAME_GIZMO:1*/') >= 0;
     var stops = dbm2GizmoStops_v18220(clip);
     if (!marked && stops.length < 2) throw new Error('The Clip is not a LukeTools Gizmo.');
 
-    var parentBone = getSelectedBone();
+    // Product rule: Gizmos enter DemBones as independent Parts.
+    // They are NEVER attached to a bone here. Character Pin To Parent is the
+    // only place a Gizmo becomes attached to another part's bone.
     var captures = await dbm2CaptureGizmoFrames_v18220(clip, false);
     if (!captures.length) throw new Error('The Gizmo has no importable frames.');
 
-    if ((!App.source || (!App.source.image && !App.source.svgNative && !(App.source.dummy && App.source.dummy.active))) && !parentBone) {
-      var firstBounds = captures[0].bounds;
-      var vp = stageBoundsToViewportRect(firstBounds) || { x:80, y:80, width:firstBounds.w, height:firstBounds.h };
-      createBlankSourceAreaAtViewport(
-        vp.x,
-        vp.y,
-        Math.max(40, vp.width),
-        Math.max(40, vp.height),
-        'dummy-area',
-        'Gizmo rig area'
-      );
-    }
-
-    var point = parentBone ? clone(parentBone.tail) : dbm2LocalPointForStageBounds_v18220(captures[0].bounds);
-    var fb = addFrameBoneAtPoint(point, parentBone ? parentBone.id : null);
-    if (!fb) throw new Error('DemBones could not create the Gizmo attachment.');
+    try { dbReleaseFinishedCharacterBeforeNewDrawing(); } catch(eReleaseCharacter){}
+    try {
+      if (window.DemBonesMrk2 && window.DemBonesMrk2.binding) window.DemBonesMrk2.finish();
+    } catch(eFinish){}
+    try { dbResetRigForFreshDrawingPart(); } catch(eResetRig){}
 
     var clipName = String(clip.identifier || clip.name || 'Gizmo');
-    fb.name = clipName + ' Gizmo';
-    fb.gizmoImported = true;
-    fb.gizmoSourceUUID = String(clip.uuid || '');
-    fb.gizmoSourceName = clipName;
-    fb.frameCount = captures.length;
-    fb.frames = {};
+    var first = captures[0];
 
-    captures.forEach(function(capture, index){
-      var slot = index + 1;
-      fb.frames[slot] = {
-        fileName:capture.label + '.svg',
-        label:capture.label,
-        expressionKey:capture.label,
-        raw:capture.svgRaw,
-        dataUrl:capture.dataUrl,
-        width:capture.width,
-        height:capture.height,
-        gizmoFrameNumber:capture.frame,
-        gizmoSourceUUID:fb.gizmoSourceUUID
-      };
-      ensureFrameBoneImageCache(fb.frames[slot]);
-    });
+    await loadSvgTextAsSource(
+      first.svgRaw,
+      clipName + '_' + first.label + '.svg',
+      'selected-gizmo-part',
+      first.bounds
+    );
 
-    App.selectedFrameBoneId = fb.id;
-    setActiveTab('expression');
-    App.selectedFrameBoneId = fb.id;
-    updateFrameBoneUI();
-    renderExpressionUI();
+    App.source.selectedIdentifier = clipName;
+    App.source.selectedUUID = String(clip.uuid || 'selected-gizmo-part');
+    App.source.gizmo = {
+      kind:'LukeToolsFrameGizmo',
+      marker:'LUKE_FRAME_GIZMO',
+      sourceUUID:String(clip.uuid || ''),
+      sourceName:clipName,
+      frameCount:captures.length,
+      defaultFrame:1,
+      frames:captures.map(function(capture, index){
+        return {
+          slot:index + 1,
+          gizmoFrameNumber:Number(capture.frame || index + 1),
+          label:String(capture.label || ('Frame ' + (index + 1))),
+          raw:String(capture.svgRaw || ''),
+          dataUrl:String(capture.dataUrl || ''),
+          width:Math.max(1, Number(capture.width || 1)),
+          height:Math.max(1, Number(capture.height || 1)),
+          bounds:mcSafeClone(capture.bounds || null)
+        };
+      })
+    };
+
+    // Keep the native stage Gizmo until Character takes ownership.
+    App.sandboxSelectedSourceObjects = clip ? [clip] : [];
+
+    // A Gizmo Part itself has no DemBones bone relationship.
+    App.bones = [];
+    App.nextBoneId = 1;
+    App.selectedBoneId = null;
+    App.frameBones = [];
+    App.nextFrameBoneId = 1;
+    App.selectedFrameBoneId = null;
+    App.keyframes = {};
+    App.pointKeys = {};
+    App.frameBoneKeys = {};
+
+    removeSetAreaOverlay();
+    ensureOverlay();
+    hideSetAreaVisualFrame();
+    fitOverlayToSource();
+    setActiveTab('source');
+    updateUI();
     renderOverlay();
     markDirty();
 
     if (el('sandboxGizmoStatus')) {
       el('sandboxGizmoStatus').textContent =
-        clipName + ' · ' + captures.length + ' Gizmo frame' + (captures.length === 1 ? '' : 's') +
-        (parentBone ? ' · attached to ' + parentBone.name : '');
+        clipName + ' · independent Gizmo Part · ' + captures.length +
+        ' frame' + (captures.length === 1 ? '' : 's') +
+        ' · add to Character, then Pin To Parent if required.';
     }
 
-    log('Imported LukeTools Gizmo “' + clipName + '” with ' + captures.length +
-      ' frame' + (captures.length === 1 ? '' : 's') +
-      (parentBone ? ' attached to ' + parentBone.name : ' into the Gizmo rig area') + '.');
+    if (el('sandboxPartStatus')) {
+      el('sandboxPartStatus').textContent =
+        'Gizmo “' + clipName + '” ready as an independent Part · no bone attachment.';
+    }
 
-    return { ok:true, frameBoneId:fb.id, name:fb.name };
+    log('Loaded LukeTools Gizmo “' + clipName + '” as an independent Part with ' +
+      captures.length + ' frame' + (captures.length === 1 ? '' : 's') +
+      '. Add it to Character first; pinning is done only in Character.');
+
+    return {
+      ok:true,
+      kind:'gizmo-part',
+      name:clipName,
+      frameCount:captures.length
+    };
   }
+
 
   async function dbm2ImportSelectedGizmoAsExpression_v18220(){
     try {
@@ -25479,6 +25516,7 @@ function installDemBonesMrk2() {
       return { ok:false, error:msg };
     }
   }
+
 
   function dbm2FindClipByUuid_v18240(uuid){
     uuid = String(uuid || '');
@@ -25507,11 +25545,10 @@ function installDemBonesMrk2() {
 
       var result = await dbm2ImportGizmoClip_v18240(clip);
 
+      // Do not consume the native Gizmo here. Character takes ownership only
+      // when Add To Character is used, which is also when parentPin starts as null.
       if (data.removeSource === true) {
-        try { dbRemoveWickObjectForCharacterTransfer(clip); } catch(eRemove){}
-        try { clearWickSelectionAfterArtworkUse(); } catch(eClear){}
-        try { if (App.ed && typeof App.ed.syncInterfaces === 'function') App.ed.syncInterfaces(); } catch(eSync){}
-        try { dbm2RenderWick_v18220(); } catch(eRender){}
+        App.sandboxSelectedSourceObjects = clip ? [clip] : [];
       }
 
       return result;
@@ -26084,7 +26121,8 @@ function installDemBonesMrk2() {
       collapsed:false,
       parentPin:null,
       mode:'assemble',
-      editTarget:'bone'
+      editTarget:'bone',
+      kind:(snapshot && snapshot.source && snapshot.source.gizmo) ? 'gizmo' : 'part'
     };
 
     // Character takes ownership of the current live rig. Keep the exact state
