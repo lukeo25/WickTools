@@ -11400,31 +11400,58 @@ html, body, #app{
     try { e.preventDefault(); e.stopPropagation(); } catch(eStop){}
   }
 
-  function mcCompletePinToBone(source, target, bone, evt){ // FIX v_038: complete pin from a direct stage bone click or coordinate hit test.
+  function mcChildAttachmentPointLocal_v18241(part){ // FIX GPT_20-09-2026_GizmoAnchorPin
+    try {
+      var src = part && part.state && part.state.source ? part.state.source : null;
+      var gizmo = src && src.gizmo ? src.gizmo : null;
+      if (gizmo && gizmo.anchor &&
+          isFinite(Number(gizmo.anchor.x)) &&
+          isFinite(Number(gizmo.anchor.y))) {
+        return { x:Number(gizmo.anchor.x), y:Number(gizmo.anchor.y), kind:'gizmo-anchor' };
+      }
+    } catch(eGizmo){}
+    try {
+      var root = mcRootBoneInState(part && part.state);
+      if (root && root.head) {
+        return { x:Number(root.head.x||0), y:Number(root.head.y||0), kind:'root-bone', boneId:root.id };
+      }
+    } catch(eRoot){}
+    return null;
+  }
+
+  function mcCompletePinToBone(source, target, bone, evt){ // FIX GPT_20-09-2026_GizmoAnchorPin
     var mc = mcEnsure();
     if (!source || !target || !bone) { mcLog('Click a visible bone on the part you want to pin to.'); return true; }
-    var childRoot = mcRootBoneInState(source.state);
-    if (!bone || !childRoot || !childRoot.head) { mcLog('Pin failed. The child part or target bone is missing.'); return true; }
+
+    var childAttach = mcChildAttachmentPointLocal_v18241(source);
+    if (!childAttach) { mcLog('Pin failed. The child part has no root bone or Gizmo Anchor.'); return true; }
+
     var targetStage = mcPartStagePointForBone(target, bone.id, App.currentFrame || 1, 'head');
     if (!targetStage) { mcLog('Pin failed. Target bone position is missing.'); return true; }
+
     var oldT = mcSafeClone(source.transform || {x:0,y:0,w:1,h:1,rotation:0});
     var childSrc = source.state && source.state.source ? source.state.source : {};
     var childSx = Math.max(0.0001, Number(oldT.w || childSrc.width || 1) / Math.max(1, Number(childSrc.width || oldT.w || 1)));
     var childSy = Math.max(0.0001, Number(oldT.h || childSrc.height || 1) / Math.max(1, Number(childSrc.height || oldT.h || 1)));
+
     source.parentPin = {
       targetPartId:target.id,
       boneId:bone.id,
       attachPoint:'head',
-      childRootBoneId:childRoot.id,
+      childRootBoneId:childAttach.boneId || null,
+      childAttachKind:childAttach.kind,
+      childAttachLocal:{ x:Number(childAttach.x||0), y:Number(childAttach.y||0) },
       offset:{ x:0, y:0, rotation:Number(oldT.rotation || 0) - Number(target.transform && target.transform.rotation || 0) }
     };
+
     source.transform = {
-      x:Number(targetStage.x || 0) - Number(childRoot.head.x || 0) * childSx,
-      y:Number(targetStage.y || 0) - Number(childRoot.head.y || 0) * childSy,
+      x:Number(targetStage.x || 0) - Number(childAttach.x || 0) * childSx,
+      y:Number(targetStage.y || 0) - Number(childAttach.y || 0) * childSy,
       w:Math.max(1, Number(oldT.w || 1)),
       h:Math.max(1, Number(oldT.h || 1)),
       rotation:Number(oldT.rotation || 0)
     };
+
     mc.selectedId = source.id;
     mc.pinPickSourceId = null;
     mcSetPinCursor(false);
@@ -19474,25 +19501,50 @@ html, body, #app{
   function mcPinnedTransformForFrame_v066(child, parts, frame){
     child = mcNormalizePartMode(child || {});
     if (!child || !child.parentPin || !child.parentPin.boneId || !child.state) return null;
+
     var parent = mcFindPartInList(parts || mcEnsure().parts || [], child.parentPin.targetPartId);
     if (!parent || !parent.state) return null;
+
     var pin = child.parentPin || {};
-    var childRoot = mcPinnedRootBoneForPart_v066(child);
-    if (!childRoot || !childRoot.head) return null;
+    var childAttach = pin.childAttachLocal &&
+      isFinite(Number(pin.childAttachLocal.x)) &&
+      isFinite(Number(pin.childAttachLocal.y))
+        ? { x:Number(pin.childAttachLocal.x), y:Number(pin.childAttachLocal.y) }
+        : mcChildAttachmentPointLocal_v18241(child);
+    if (!childAttach) return null;
+
     frame = Math.max(1, Math.round(Number(frame || App.currentFrame || 1) || 1));
     var targetStage = mcPartStagePointForBone(parent, pin.boneId, frame, pin.attachPoint || 'head');
     if (!targetStage) return null;
+
     var targetBoneAngle = 0;
-    try { targetBoneAngle = mcPinBoneStageAngleDegForCommit_v047 ? mcPinBoneStageAngleDegForCommit_v047(parent, pin.boneId, frame) : mcPinBoneStageAngleDeg_v042(parent, pin.boneId, frame); } catch(eAngle) { targetBoneAngle = 0; }
+    try {
+      targetBoneAngle = mcPinBoneStageAngleDegForCommit_v047
+        ? mcPinBoneStageAngleDegForCommit_v047(parent, pin.boneId, frame)
+        : mcPinBoneStageAngleDeg_v042(parent, pin.boneId, frame);
+    } catch(eAngle) { targetBoneAngle = 0; }
+
     var off = pin.offset || { x:0, y:0, rotation:0 };
-    var localOff = pin.offsetLocal ? { x:Number(pin.offsetLocal.x || 0), y:Number(pin.offsetLocal.y || 0) } : { x:Number(off.x || 0), y:Number(off.y || 0) };
-    var rotatedOffset = (off.mode === 'boneLocal' || pin.offsetLocal) ? mcRotatePoint_v042(localOff, Number(targetBoneAngle || 0)) : localOff;
-    var desiredRootStage = {
+    var localOff = pin.offsetLocal
+      ? { x:Number(pin.offsetLocal.x || 0), y:Number(pin.offsetLocal.y || 0) }
+      : { x:Number(off.x || 0), y:Number(off.y || 0) };
+    var rotatedOffset = (off.mode === 'boneLocal' || pin.offsetLocal)
+      ? mcRotatePoint_v042(localOff, Number(targetBoneAngle || 0))
+      : localOff;
+
+    var desiredAttachStage = {
       x:Number(targetStage.x || 0) + Number(rotatedOffset.x || 0),
       y:Number(targetStage.y || 0) + Number(rotatedOffset.y || 0)
     };
     var finalRotation = Number(targetBoneAngle || 0) + mcPinnedOrientationOffset_v066(pin);
-    return mcPinnedRootTransformForStage_v066(child, childRoot.head, desiredRootStage, finalRotation, child.transform);
+
+    return mcPinnedRootTransformForStage_v066(
+      child,
+      childAttach,
+      desiredAttachStage,
+      finalRotation,
+      child.transform
+    );
   }
 
   var mcLocalPointToPartStage_Base_v066 = mcLocalPointToPartStage;
@@ -19559,12 +19611,14 @@ html, body, #app{
 
   function mcPinnedCssOriginForPart_v066(part){
     try {
-      var root = mcPinnedRootBoneForPart_v066(part);
+      var attach = part && part.parentPin && part.parentPin.childAttachLocal
+        ? part.parentPin.childAttachLocal
+        : mcChildAttachmentPointLocal_v18241(part);
       var src = part && part.state && part.state.source ? part.state.source : {};
-      if (!root || !root.head || !src) return '50% 50%';
+      if (!attach || !src) return '50% 50%';
       var sw = Math.max(1, Number(src.width || (part.transform && part.transform.w) || 1));
       var sh = Math.max(1, Number(src.height || (part.transform && part.transform.h) || 1));
-      return (Number(root.head.x || 0) / sw * 100) + '% ' + (Number(root.head.y || 0) / sh * 100) + '%';
+      return (Number(attach.x || 0) / sw * 100) + '% ' + (Number(attach.y || 0) / sh * 100) + '%';
     } catch(eOrigin) { return '50% 50%'; }
   }
 
