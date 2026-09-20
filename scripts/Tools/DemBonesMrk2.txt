@@ -15193,7 +15193,15 @@ html, body, #app{
       panelEl.addEventListener('touchmove', function(ev){ ev.stopPropagation(); }, { passive:true }); // FIX v8.2
     }
     installUndoHandlers(); // FIX v18.29
-    try { if (window.parent && !App.interaction.drawingToDemBonesBound) { window.parent.addEventListener('message', receiveDrawingSelectionForDemBones, false); App.interaction.drawingToDemBonesBound=true; } } catch(eDrawMsg){} // FIX GPT_20-09-2026_DrawingToDemBones
+    try {
+      if (window.parent && !App.interaction.drawingToDemBonesBound) {
+        window.parent.addEventListener('message', receiveDrawingSelectionForDemBones, false);
+        window.parent.__LukeToolsDemBonesReceiveDrawing = function(data){
+          return receiveDrawingSelectionForDemBones({ data:data || {} });
+        };
+        App.interaction.drawingToDemBonesBound=true;
+      }
+    } catch(eDrawMsg){} // FIX GPT_20-09-2026_DrawingDirectBridge
 
     qa('.tabBtn').forEach(function(btn){
       btn.addEventListener('click', function(){ setActiveTab(btn.getAttribute('data-tab')); });
