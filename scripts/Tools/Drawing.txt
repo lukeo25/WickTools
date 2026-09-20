@@ -2670,35 +2670,142 @@ function drawingCalledFromDemBones(){
   return false;
 }
 
-function addSelectedToDemBonesPart(){
+function createDrawingSelectionWickPathsForDemBones(){
+  if(!selected.length) throw new Error("Select one or more Drawing objects first");
+
+  const editor=getWickEditor();
+  const paper=getWickPaper();
+  if(!editor?.project) throw new Error("Wick editor not found");
+  if(!paper?.project?.importSVG) throw new Error("Paper.js import is not available in this Wick build");
+
+  const frame=getActiveWickFrame(editor);
+  if(!frame) throw new Error("No active Wick frame found");
+
+  const svgText=selectedSvgDocument();
+  if(!svgText) throw new Error("Nothing selected");
+
+  const project=editor.project;
+  const created=[];
+  let imported=null;
+  let paperError=null;
+
+  try{
+    try{
+      imported=paper.project.importSVG(svgText,{insert:false,expandShapes:true});
+    }catch(ePaperImport){
+      paperError=ePaperImport;
+      imported=null;
+    }
+
+    if(imported){
+      const wickW=Number(project.width||project.stageWidth||pageW)||pageW;
+      const wickH=Number(project.height||project.stageHeight||pageH)||pageH;
+      const sx=wickW/Math.max(1,pageW);
+      const sy=wickH/Math.max(1,pageH);
+
+      if((Math.abs(sx-1)>0.0001||Math.abs(sy-1)>0.0001)&&imported.scale){
+        imported.scale(sx,sy,new paper.Point(0,0));
+      }
+
+      const paperPaths=collectPaperPaths(imported);
+      for(const pItem of paperPaths){
+        try{
+          const wickPath=createWickPathFromPaperItem(pItem);
+          addWickPathToFrame(frame,wickPath);
+          created.push(wickPath);
+        }catch(ePath){
+          console.warn("[Drawing] DemBones Wick path insert skipped an item",ePath);
+        }
+      }
+    }
+
+    if(!created.length){
+      const wickW=Number(project.width||project.stageWidth||pageW)||pageW;
+      const wickH=Number(project.height||project.stageHeight||pageH)||pageH;
+      const sx=wickW/Math.max(1,pageW);
+      const sy=wickH/Math.max(1,pageH);
+
+      selected.forEach(root=>{
+        drawingGeometryElements(root).forEach(el=>{
+          let pp=null;
+          try{
+            pp=drawingElementToPaperPath(el,paper,sx,sy);
+            if(!pp) return;
+            const wickPath=createWickPathFromPaperItem(pp);
+            addWickPathToFrame(frame,wickPath);
+            created.push(wickPath);
+          }catch(eDirect){
+            console.warn("[Drawing] DemBones direct Wick conversion skipped an element",eDirect);
+          }finally{
+            try{ if(pp) pp.remove(); }catch(eRemove){}
+          }
+        });
+      });
+    }
+
+    if(!created.length){
+      if(paperError) console.warn("[Drawing] Paper SVG import failed before direct DemBones conversion",paperError);
+      throw new Error("Selected Drawing objects could not be converted to Wick paths");
+    }
+
+    try{
+      if(project.markAsModified) project.markAsModified();
+      project.unsavedChanges=true;
+      if(editor.canvas?.render) editor.canvas.render();
+      if(editor.projectDidChange) editor.projectDidChange();
+      window.parent?.dispatchEvent(new Event("resize"));
+    }catch(eRefresh){}
+
+    return created;
+  }finally{
+    try{ if(imported) imported.remove(); }catch(eRemoveImported){}
+  }
+}
+
+async function addSelectedToDemBonesPart(){
   const btn=document.getElementById("btnWickCopy");
   if(!selected.length){ flashStatus("Select one or more Drawing objects first"); return; }
-  const svgText=selectedSvgDocumentForDemBones();
-  if(!svgText){ flashStatus("Nothing selected"); return; }
+
   btn.disabled=true;
   const oldText=btn.textContent;
   btn.textContent="Adding…";
+
+  let created=[];
   try{
+    created=createDrawingSelectionWickPathsForDemBones();
+
     const payload={
       type:"LukeToolsDemBonesDrawingSelection",
-      svgText,
+      wickObjects:created,
       fileName:"Drawing Selection.svg",
       source:"LukeToolsDrawing"
     };
+
     let delivered=false;
-    try{
-      if(window.parent && typeof window.parent.__LukeToolsDemBonesReceiveDrawing==="function"){
-        const result=window.parent.__LukeToolsDemBonesReceiveDrawing(payload);
-        delivered=true;
-        if(result && typeof result.then==="function") result.catch(err=>console.error("[Drawing] DemBones direct handoff failed",err));
-      }
-    }catch(eDirect){
-      console.warn("[Drawing] Direct DemBones bridge unavailable, using postMessage",eDirect);
+    let result=null;
+    if(window.parent && typeof window.parent.__LukeToolsDemBonesReceiveDrawing==="function"){
+      result=window.parent.__LukeToolsDemBonesReceiveDrawing(payload);
+      delivered=true;
+    }else{
+      throw new Error("DemBones Sandbox receiver is not available");
     }
-    if(!delivered) window.parent.postMessage(payload,"*");
-    flashStatus("Added selected Drawing object to DemBones Part");
+
+    if(result && typeof result.then==="function") result=await result;
+    if(result===false) throw new Error("DemBones did not accept the Drawing selection");
+
+    flashStatus("Added "+created.length+" selected curve"+(created.length===1?"":"s")+" to DemBones Part");
   }catch(err){
     console.error("[Drawing] Add to DemBones failed",err);
+
+    // If DemBones rejects the handoff, do not leave temporary Drawing-created
+    // Wick paths behind on the stage.
+    created.forEach(obj=>{
+      try{
+        if(obj&&typeof obj.remove==="function") obj.remove();
+        else if(obj?.parent&&typeof obj.parent.removeChild==="function") obj.parent.removeChild(obj);
+      }catch(eCleanup){}
+    });
+
     flashStatus("Add to DemBones failed: "+(err?.message||err));
   }finally{
     btn.disabled=false;
