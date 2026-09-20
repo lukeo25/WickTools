@@ -2807,7 +2807,9 @@ async function addSelectedToDemBonesPart(){
     }
 
     if(result && typeof result.then==="function") result=await result;
-    if(result===false) throw new Error("DemBones did not accept the Drawing selection");
+    if(result===false || (result && result.ok===false)){
+      throw new Error(result && result.error ? result.error : "DemBones did not accept the Drawing selection");
+    }
 
     flashStatus("Added "+selected.length+" selected Drawing object"+(selected.length===1?"":"s")+" to DemBones Part");
   }catch(err){
