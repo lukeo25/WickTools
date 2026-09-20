@@ -25842,40 +25842,39 @@ function installDemBonesMrk2() {
     input.click();
   }
 
-  async function dbReceiveDrawingSelectionForSandbox(data){ // FIX GPT_20-09-2026_PoseDrawingReceive
+  async function dbReceiveDrawingSelectionForSandbox(data){ // FIX GPT_20-09-2026_DrawingUsesSelectedWickPath
     data = data && data.data ? data.data : data;
-    if (!data || data.type !== 'LukeToolsDemBonesDrawingSelection' || !data.svgText) return false;
-    try {
-      var svgText = String(data.svgText || '');
-      var fileName = String(data.fileName || 'Drawing Selection.svg');
-      var w = 180, h = 180;
-      try {
-        var doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
-        var root = doc.documentElement;
-        var vb = String(root.getAttribute('viewBox') || '').trim().split(/[ ,]+/).map(Number);
-        if (vb.length === 4 && isFinite(vb[2]) && isFinite(vb[3]) && vb[2] > 0 && vb[3] > 0) { w = vb[2]; h = vb[3]; }
-        else { w = parseFloat(root.getAttribute('width')) || w; h = parseFloat(root.getAttribute('height')) || h; }
-      } catch(eParse){}
+    if (!data || data.type !== 'LukeToolsDemBonesDrawingSelection') return false;
 
-      // Drawing becomes the current Part source directly. No intermediate Wick-stage copy.
+    var objects = Array.isArray(data.wickObjects) ? data.wickObjects.filter(function(obj){ return !!obj; }) : [];
+    if (!objects.length) {
+      log('Drawing to DemBones failed: no Wick curve objects were supplied.');
+      return false;
+    }
+
+    try {
+      // Use the exact same conversion route as desktop-selected Wick artwork.
+      // Drawing creates temporary native Wick.Path objects, then DemBones ingests
+      // those objects with selectedCurveObjectsToSvg just like Use Selected Artwork.
       try { if (window.DemBonesMrk2 && window.DemBonesMrk2.binding) window.DemBonesMrk2.finish(); } catch(eFinish){}
-      if (!App.source.viewportRect) {
-        var fit = getFittedStageRect();
-        var maxW = Math.max(80, fit.width * 0.65);
-        var maxH = Math.max(80, fit.height * 0.65);
-        var scale = Math.min(1, Math.min(maxW / Math.max(1,w), maxH / Math.max(1,h)));
-        var vw = Math.max(40, w * scale);
-        var vh = Math.max(40, h * scale);
-        createBlankSourceAreaAtViewport(
-          fit.x + (fit.width - vw) * 0.5,
-          fit.y + (fit.height - vh) * 0.5,
-          vw, vh, 'drawing-area', 'Drawing selection'
-        );
-      }
-      await loadSvgTextAsSource(svgText, fileName, 'drawing-selection', null);
-      App.source.selectedIdentifier = 'Drawing selection';
-      App.source.selectedUUID = 'drawing-selection';
+
+      App.sandboxSelectedSourceObjects = objects.slice();
+      var converted = selectedCurveObjectsToSvg(objects);
+      rememberSelectedCurveSourceTimeline();
+
+      await loadSvgTextAsSource(
+        converted.svgRaw,
+        converted.fileName || String(data.fileName || 'Drawing Selection.svg'),
+        converted.count > 1 ? 'selected-wick-curves' : 'selected-wick-curve',
+        converted.bounds
+      );
+
+      // These Wick objects exist only to reuse the normal desktop selected-curve
+      // importer, so remove them immediately after the source has been captured.
+      removeOriginalSelectedCurveObjects(objects);
       App.sandboxSelectedSourceObjects = [];
+
+      clearWickSelectionAfterArtworkUse();
       removeSetAreaOverlay();
       ensureOverlay();
       hideSetAreaVisualFrame();
@@ -25884,14 +25883,30 @@ function installDemBonesMrk2() {
       updateUI();
       renderOverlay();
       markDirty();
-      if (el('sandboxPartStatus')) el('sandboxPartStatus').textContent = 'Drawing selection added · ready for bones.';
-      log('Drawing selection added directly to the current DemBones Pose Part.');
+
+      if (el('sandboxPartStatus')) {
+        el('sandboxPartStatus').textContent =
+          (converted.count > 1 ? converted.count + ' Drawing curves' : 'Drawing curve') +
+          ' added · ready for bones.';
+      }
+
+      if (converted.errors && converted.errors.length) {
+        log('Drawing added to DemBones. Some objects were skipped: ' + converted.errors.join(' | '));
+      } else {
+        log(converted.count > 1
+          ? converted.count + ' Drawing curves added to the current DemBones Part.'
+          : 'Drawing curve added to the current DemBones Part.');
+      }
       return true;
     } catch(error) {
-      log('Drawing to DemBones Pose failed: ' + (error && error.message ? error.message : error));
+      // Clean up any temporary Wick objects if capture failed.
+      try { removeOriginalSelectedCurveObjects(objects); } catch(eCleanup){}
+      App.sandboxSelectedSourceObjects = [];
+      log('Drawing to DemBones failed: ' + (error && error.message ? error.message : error));
       return false;
     }
   }
+
   function dbOpenDrawingSeparatePanel(){ // FIX GPT_19-09-2026_DrawingCompanionPanel
     var pwin = window.parent || window;
     var pdoc = pwin.document || document;
