@@ -26150,6 +26150,73 @@ function installDemBonesMrk2() {
     }
   }
 
+  async function dbReceiveDrawGizmoForSandbox(data){ // FIX GPT_20-09-2026_DirectDrawGizmo
+    data = data && data.data ? data.data : data;
+    if (!data || data.type !== 'LukeToolsDemBonesDrawGizmo') return false;
+
+    var frames = Array.isArray(data.frames) ? data.frames : [];
+    if (!frames.length) return { ok:false, error:'No Draw Gizmo frames were supplied.' };
+
+    try {
+      var parentBone = getSelectedBone();
+      var first = frames[0] || {};
+      var point = parentBone ? clone(parentBone.tail) : dummyAreaCenterPoint();
+      var fb = addFrameBoneAtPoint(point, parentBone ? parentBone.id : null);
+      var gizmoName = String(data.name || 'DrawGizmo');
+
+      fb.name = gizmoName;
+      fb.gizmoImported = true;
+      fb.gizmoSourceUUID = 'drawing-direct-' + Date.now();
+      fb.gizmoSourceName = gizmoName;
+      fb.frameCount = frames.length;
+      fb.frames = {};
+
+      frames.forEach(function(frame, index){
+        var slot = index + 1;
+        var raw = String(frame && frame.svgText || '');
+        if (!raw || !/^\s*<svg[\s>]/i.test(raw)) throw new Error('Draw Gizmo frame ' + slot + ' did not contain valid SVG.');
+        var width = Math.max(1, Number(frame.width || data.width || 1));
+        var height = Math.max(1, Number(frame.height || data.height || 1));
+        var label = String(frame.label || ('Frame ' + slot));
+        fb.frames[slot] = {
+          fileName: label + '.svg',
+          label: label,
+          expressionKey: label,
+          raw: raw,
+          dataUrl: svgTextToDataUrl(raw),
+          width: width,
+          height: height,
+          gizmoFrameNumber: slot,
+          gizmoSourceUUID: fb.gizmoSourceUUID
+        };
+        ensureFrameBoneImageCache(fb.frames[slot]);
+      });
+
+      App.selectedFrameBoneId = fb.id;
+      setActiveTab('expression');
+      App.selectedFrameBoneId = fb.id;
+      updateFrameBoneUI();
+      renderExpressionUI();
+      renderOverlay();
+      markDirty();
+
+      if (el('sandboxGizmoStatus')) {
+        el('sandboxGizmoStatus').textContent =
+          'Draw Gizmo “' + gizmoName + '” added directly to DemBones · ' +
+          frames.length + ' frame' + (frames.length === 1 ? '' : 's') +
+          (parentBone ? ' · pinned to ' + parentBone.name : '');
+      }
+
+      log('Draw Gizmo “' + gizmoName + '” received directly from Drawing with original SVG curves preserved.');
+      return { ok:true, frameBoneId:fb.id };
+    } catch(error) {
+      var msg = error && error.message ? error.message : String(error);
+      log('Draw Gizmo to DemBones failed: ' + msg);
+      try { if (window.parent && window.parent.console) window.parent.console.error('[DemBones Draw Gizmo Receive]', error); } catch(eConsole){}
+      return { ok:false, error:msg };
+    }
+  }
+
   function dbOpenDrawingSeparatePanel(){ // FIX GPT_19-09-2026_DrawingCompanionPanel
     var pwin = window.parent || window;
     var pdoc = pwin.document || document;
@@ -26243,6 +26310,9 @@ function installDemBonesMrk2() {
       if (window.parent) {
         window.parent.__LukeToolsDemBonesReceiveDrawing = function(data){
           return dbReceiveDrawingSelectionForSandbox(data);
+        };
+        window.parent.__LukeToolsDemBonesReceiveDrawGizmo = function(data){
+          return dbReceiveDrawGizmoForSandbox(data);
         };
         if (!App.interaction.poseDrawingMessageBound) {
           window.parent.addEventListener('message', dbReceiveDrawingSelectionForSandbox, false);
