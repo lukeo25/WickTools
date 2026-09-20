@@ -25271,20 +25271,44 @@ function installDemBonesMrk2() {
     return captures;
   }
 
-  async function dbm2ImportSelectedGizmoAsPart_v18220(){
+  async function dbm2ImportSelectedGizmoAsPart_v18220(){ // FIX GPT_20-09-2026_GizmoCharacterPartFlow
     try {
       var clip = dbm2SelectedGizmoClip_v18220();
       var captured = (await dbm2CaptureGizmoFrames_v18220(clip, true))[0];
       if (!captured) throw new Error('No Gizmo frame was captured.');
+
+      // A selected stage Gizmo becomes a brand-new DemBones Part. Preserve the
+      // current Character state, then clear rig state so old bones cannot leak in.
+      try { dbReleaseFinishedCharacterBeforeNewDrawing(); } catch(eReleaseCharacter){}
       try { if (window.DemBonesMrk2 && window.DemBonesMrk2.binding) window.DemBonesMrk2.finish(); } catch(eFinish){}
+      try { dbResetRigForFreshDrawingPart(); } catch(eResetRig){}
+
       var clipName = String(clip.identifier || clip.name || 'Gizmo');
       await loadSvgTextAsSource(captured.svgRaw, clipName + '_' + captured.label + '.svg', 'selected-gizmo-part', captured.bounds);
       App.source.selectedIdentifier = clipName + ' · ' + captured.label;
       App.source.selectedUUID = String(clip.uuid || 'selected-gizmo-part');
-      removeSetAreaOverlay(); ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource();
-      setActiveTab('source'); updateUI(); renderOverlay(); markDirty();
-      log('Imported Gizmo “' + clipName + '” frame “' + captured.label + '” as Build Parts artwork. Add bones, then Save Part or Add To Character as usual.');
-    } catch(err) { log('Import Gizmo As Part failed: ' + (err && err.message ? err.message : err)); }
+
+      // Keep the exact selected Wick Gizmo so Add To Character transfers ownership
+      // and removes the original stage object instead of leaving a duplicate.
+      App.sandboxSelectedSourceObjects = clip ? [clip] : [];
+
+      removeSetAreaOverlay();
+      ensureOverlay();
+      hideSetAreaVisualFrame();
+      fitOverlayToSource();
+      setActiveTab('source');
+      updateUI();
+      renderOverlay();
+      markDirty();
+
+      if (el('sandboxPartStatus')) {
+        el('sandboxPartStatus').textContent = 'Gizmo “' + clipName + '” loaded as a Character-ready Part · add bones if needed, then Add To Character.';
+      }
+      log('Selected stage Gizmo “' + clipName + '” loaded as a DemBones Part. It now uses the normal Character card, stack order and Pin To Parent workflow.');
+    } catch(err) {
+      App.sandboxSelectedSourceObjects = [];
+      log('Import Gizmo As Part failed: ' + (err && err.message ? err.message : err));
+    }
   }
 
   function dbm2LocalPointForStageBounds_v18220(bounds){
@@ -25922,7 +25946,10 @@ function installDemBonesMrk2() {
     // becomes a Character part, remove that original so only the Character instance remains.
     try {
       var sourceMode = String(snapshot && snapshot.source && snapshot.source.captureMode || '');
-      if (sourceMode.indexOf('selected-wick-curve') === 0 && App.sandboxSelectedSourceObjects && App.sandboxSelectedSourceObjects.length) {
+      var shouldConsumeSelectedSource =
+        sourceMode.indexOf('selected-wick-curve') === 0 ||
+        sourceMode === 'selected-gizmo-part'; // FIX GPT_20-09-2026_GizmoCharacterPartFlow
+      if (shouldConsumeSelectedSource && App.sandboxSelectedSourceObjects && App.sandboxSelectedSourceObjects.length) {
         removeOriginalSelectedCurveObjects(App.sandboxSelectedSourceObjects.slice());
         App.sandboxSelectedSourceObjects = [];
         clearWickSelectionAfterArtworkUse();
@@ -26177,7 +26204,7 @@ function installDemBonesMrk2() {
     });
     if (el('btnSandboxDeleteBone')) el('btnSandboxDeleteBone').addEventListener('click', function(){ dbSimplifiedProxy('btnDeleteBone'); });
     if (el('btnSandboxClearBones')) el('btnSandboxClearBones').addEventListener('click', function(){ dbSimplifiedProxy('btnClearBones'); });
-    if (el('btnSandboxUseGizmo')) el('btnSandboxUseGizmo').addEventListener('click', function(){ dbSimplifiedProxy('btnImportSelectedGizmoAsExpression'); });
+    if (el('btnSandboxUseGizmo')) el('btnSandboxUseGizmo').addEventListener('click', function(){ dbm2ImportSelectedGizmoAsPart_v18220(); }); // FIX GPT_20-09-2026_GizmoCharacterPartFlow
     if (el('btnSandboxLoadLipOutput')) el('btnSandboxLoadLipOutput').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadLipExpressionJson'); });
     if (el('btnSandboxLoadGizmoImages')) el('btnSandboxLoadGizmoImages').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadLipExpressionImages'); });
     var gizmoFrames = el('sandboxGizmoFrames');
