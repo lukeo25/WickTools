@@ -16282,6 +16282,8 @@ html, body, #app{
       if (target.state) {
         await loadRigProjectState(mcSafeClone(target.state));
         mcApplyTransformToApp(target.transform || {});
+        if (App.flags) App.flags.showBones = true; // FIX GPT_20-09-2026_AssembleActivatesStoredRig
+        try { clearWickSelectionAfterArtworkUse(); } catch(eClearWickSelection){} // FIX GPT_20-09-2026_AssembleActivatesStoredRig
         if (el('inpClipName') && target.name) el('inpClipName').value = String(target.name);
         updateUI();
         renderOverlay();
@@ -16522,6 +16524,8 @@ html, body, #app{
     await mcActivatePart(id);
     var p = mcFindPart(id);
     if (p) { p.mode = 'assemble'; p.editTarget = p.editTarget || 'bone'; if (p.state) p.state = buildRigProjectState(); }
+    if (App.flags) App.flags.showBones = true; // FIX GPT_20-09-2026_AssembleActivatesStoredRig
+    try { clearWickSelectionAfterArtworkUse(); } catch(eClearWickSelection){} // FIX GPT_20-09-2026_AssembleActivatesStoredRig
     mcShowCharacterPanelWhileRuntimeMode('character');
     mcRenderPanel();
   }
@@ -24910,6 +24914,24 @@ function installDemBonesMrk2() {
     live.binding = null; live.lastPreview = '';
     status('Finished. Double-click a rigged curve in Wick to reopen its bones.');
   }
+  function detachForCharacterTransfer() { // FIX GPT_20-09-2026_CharacterTransferOwnership
+    if (!live.binding) return null;
+    var binding = G.copy(live.binding);
+    try { flush(true); } catch(eFlush){}
+    clearTimeout(live.timer); live.timer = null;
+    try { if (live.raf) cancelAnimationFrame(live.raf); } catch(eRaf){}
+    live.raf = null;
+    removeOverlay();
+    removeProxyOverlay(false);
+    live.binding = null;
+    live.lastPreview = '';
+    live.lastSignature = '';
+    live.changed = false;
+    live.missing = false;
+    live.visible = false;
+    status('Part transferred to MyCharacter. Select another Wick object to build the next part.');
+    return binding;
+  }
   // Reuse all the existing rig/curve controls, but render the artwork through Wick.
   var oldViewport = applyOverlayViewportForBounds;
   applyOverlayViewportForBounds = function (bounds) {
@@ -25080,7 +25102,7 @@ function installDemBonesMrk2() {
   });
   el('chkUseSelectedCurveRemoveOriginals_Claude').disabled = true;
   el('chkUseSelectedCurveRemoveOriginals_Claude').checked = true;
-  var api = { version: '2.3', bind: bind, resume: resume, flush: flush, preview: preview, finish: finish, geometryAt: geometryAt,
+  var api = { version: '2.4', bind: bind, resume: resume, flush: flush, preview: preview, finish: finish, detachForCharacterTransfer: detachForCharacterTransfer, geometryAt: geometryAt,
     clientInverse: function () { return live.binding ? G.inverse(rigClientMatrix()) : null; },
     get binding() { return live.binding; }, get state() { return live; },
     project: function () { return App.project; },
@@ -25601,6 +25623,71 @@ function installDemBonesMrk2() {
     if (target) target.click();
   }
 
+  function dbResolveWickObjectForCharacterTransfer(ref){ // FIX GPT_20-09-2026_CharacterTransferOwnership
+    if (!ref) return null;
+    if (typeof ref === 'object') return ref;
+    try {
+      if (App.Wick && App.Wick.ObjectCache && typeof App.Wick.ObjectCache.getObjectByUUID === 'function') {
+        return App.Wick.ObjectCache.getObjectByUUID(String(ref)) || null;
+      }
+    } catch(eResolve){}
+    return null;
+  }
+
+  function dbRemoveWickObjectForCharacterTransfer(ref){ // FIX GPT_20-09-2026_CharacterTransferOwnership
+    var object = dbResolveWickObjectForCharacterTransfer(ref);
+    if (!object) return true;
+    var parent = null;
+    try { parent = object.parent || null; } catch(eParent){}
+    var removed = false;
+    if (parent) {
+      try { if (typeof parent.removeChild === 'function') { parent.removeChild(object); removed = true; } } catch(eRemoveChild){}
+      if (!removed) {
+        try { if (object.classname === 'Path' && typeof parent.removePath === 'function') { parent.removePath(object); removed = true; } } catch(eRemovePath){}
+      }
+      if (!removed) {
+        try { if (object.classname === 'Clip' && typeof parent.removeClip === 'function') { parent.removeClip(object); removed = true; } } catch(eRemoveClip){}
+      }
+      if (!removed) {
+        try {
+          var children = typeof parent.getChildren === 'function' ? parent.getChildren() : null;
+          var index = children && children.indexOf ? children.indexOf(object) : -1;
+          if (index >= 0 && typeof parent.removeChild === 'function') { parent.removeChild(object); removed = true; }
+        } catch(eChildren){}
+      }
+    }
+    if (!removed) {
+      try { if (typeof object.remove === 'function') { object.remove(); removed = true; } } catch(eRemoveSelf){}
+    }
+    try { if (!object.parent) removed = true; } catch(eDetached){}
+    return removed;
+  }
+
+  function dbConsumeLiveBindingForCharacterTransfer(binding){ // FIX GPT_20-09-2026_CharacterTransferOwnership
+    var failed = [];
+    var seen = {};
+    (binding && binding.rows || []).forEach(function(row){
+      var uuid = String(row && row.clipUUID || '');
+      if (!uuid || seen[uuid]) return;
+      seen[uuid] = true;
+      if (!dbRemoveWickObjectForCharacterTransfer(uuid)) failed.push(uuid);
+    });
+    return failed;
+  }
+
+  function dbMakeTransferredCharacterStateIndependent(state){ // FIX GPT_20-09-2026_CharacterTransferOwnership
+    var out = mcSafeClone(state || {});
+    try { delete out.demBonesMrk2; } catch(eBinding){}
+    if (out.source) {
+      out.source = mcSafeClone(out.source);
+      if (String(out.source.captureMode || '') === 'dbm2-live') out.source.captureMode = 'mycharacter-part';
+      try { delete out.source.sourceTimeline; } catch(eTimeline){}
+      try { delete out.source.sourceLayer; } catch(eLayer){}
+      try { delete out.source.sourceFrame; } catch(eFrame){}
+    }
+    return out;
+  }
+
   async function dbAddCurrentPartToOpenCharacter(){ // FIX GPT_19-09-2026_CharacterTransferNoDuplicate
     var hasSource = !!(App.source && (App.source.image || App.source.svgNative || (App.source.dummy && App.source.dummy.active)));
     if (!hasSource) { log('Add To Character: create or load a part first.'); return; }
@@ -25623,7 +25710,16 @@ function installDemBonesMrk2() {
     catch(error) { log('Add To Character failed: ' + (error && error.message ? error.message : error)); return; }
 
     if (liveApi && liveBindingForTransfer) {
-      try { liveApi.finish(); } catch(eFinishLive){}
+      try {
+        if (typeof liveApi.detachForCharacterTransfer === 'function') {
+          liveBindingForTransfer = liveApi.detachForCharacterTransfer() || liveBindingForTransfer;
+        } else {
+          liveApi.finish();
+        }
+      } catch(eFinishLive){
+        log('Add To Character failed while detaching the live Wick rig: ' + (eFinishLive && eFinishLive.message ? eFinishLive.message : eFinishLive));
+        return;
+      }
     }
 
     var mc = mcEnsure();
@@ -25662,7 +25758,7 @@ function installDemBonesMrk2() {
     // Character takes ownership of the current live rig. Keep the exact state
     // that is already on screen rather than reloading it through the saved
     // preview path (which can alter SVG stroke appearance and dimensions).
-    part.state = mcMakeIndependentRigState(snapshot, part);
+    part.state = mcMakeIndependentRigState(dbMakeTransferredCharacterStateIndependent(snapshot), part);
     mc.parts.splice(insertIndex, 0, part);
     mc.selectedId = id;
     mc.pendingLoadPartId = null;
@@ -25672,18 +25768,9 @@ function installDemBonesMrk2() {
     // second stage object. Once their rig state is inside MyCharacter, remove those exact
     // Wick clips so only the Character instance remains visible.
     if (liveBindingForTransfer && liveBindingForTransfer.rows && liveBindingForTransfer.rows.length) {
-      try {
-        liveBindingForTransfer.rows.forEach(function(row){
-          var clip = null;
-          try { clip = App.Wick && App.Wick.ObjectCache ? App.Wick.ObjectCache.getObjectByUUID(row.clipUUID) : null; } catch(eResolveClip){}
-          if (clip && clip.parent && typeof clip.parent.removeChild === 'function') {
-            try { clip.parent.removeChild(clip); } catch(eRemoveClip){}
-          }
-        });
-        try { if (App.ed && typeof App.ed.syncInterfaces === 'function') App.ed.syncInterfaces(); } catch(eSync){}
-        try { if (App.project && App.project.view && typeof App.project.view.render === 'function') App.project.view.render(); } catch(eRenderProject){}
-      } catch(eConsumeLiveRig) {
-        console.error('[DemBones Sandbox] could not remove transferred live rig artwork', eConsumeLiveRig);
+      var failedLiveRemovals = dbConsumeLiveBindingForCharacterTransfer(liveBindingForTransfer);
+      if (failedLiveRemovals.length) {
+        log('Add To Character kept the Character part, but could not remove ' + failedLiveRemovals.length + ' transferred Wick item' + (failedLiveRemovals.length === 1 ? '' : 's') + '.');
       }
     }
 
@@ -25697,11 +25784,21 @@ function installDemBonesMrk2() {
         clearWickSelectionAfterArtworkUse();
       }
     } catch(eConsumeSource) {
-      console.error('[DemBones Sandbox] could not remove transferred source artwork', eConsumeSource);
+      var remainingSourceObjects = (App.sandboxSelectedSourceObjects || []).filter(function(sourceObject){
+        return !dbRemoveWickObjectForCharacterTransfer(sourceObject);
+      });
+      App.sandboxSelectedSourceObjects = remainingSourceObjects;
+      if (remainingSourceObjects.length) log('Add To Character kept the Character part, but could not remove ' + remainingSourceObjects.length + ' original Wick item' + (remainingSourceObjects.length === 1 ? '' : 's') + '.');
     }
 
-    // Keep the live overlay as the selected Character part. mcRenderStageParts
-    // deliberately skips selectedId, so there is only one visible instance.
+    App.sandboxSelectedSourceObjects = []; // Never let an earlier part's source leak into the next ingestion.
+    try { clearWickSelectionAfterArtworkUse(); } catch(eClearSelection){}
+    try { if (App.ed && typeof App.ed.syncInterfaces === 'function') App.ed.syncInterfaces(); } catch(eSync){}
+    try { if (App.project && App.project.view && typeof App.project.view.render === 'function') App.project.view.render(); } catch(eRenderProject){}
+    try { markDirty(); } catch(eDirtyProject){}
+
+    // The selected Character artwork is rendered by the Character stack and its bones/handles
+    // are rendered by the editing overlay. The consumed Wick rig is no longer a second stage item.
     try { mcApplyTransformToApp(part.transform); } catch(eTransform){}
     try {
       if (el('inpClipName')) el('inpClipName').value = part.name;
