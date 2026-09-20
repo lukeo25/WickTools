@@ -3289,7 +3289,7 @@ if(drawingCalledFromDemBones()){
   const gizmoButton=document.getElementById("btnTimelineMakeGizmo");
   if(gizmoButton){
     gizmoButton.textContent="Add Gizmo To DemBones";
-    gizmoButton.title="Send this Draw Gizmo directly back to DemBones without adding a Wick stage Clip";
+    gizmoButton.title="Build the standard LukeTools Gizmo Clip and hand it directly to DemBones";
   }
   wickCopyBtn.textContent="Add to DemBones Part";
   wickCopyBtn.title="Add selected Drawing objects directly to the current DemBones Part";
@@ -3516,55 +3516,38 @@ function drawingAddClipToFrame(frame,clip){
 function drawingAddSnapshotToWickFrame(snapshotHtml,wickFrame,paper,project){
   const drawing=String(snapshotHtml||"");
   if(!drawing.trim()) return 0;
+  if(!paper?.project?.importSVG) throw new Error("Paper.js SVG import is unavailable");
 
   const svgText='<svg xmlns="'+SVGNS+'" width="'+pageW+'" height="'+pageH+'" viewBox="0 0 '+pageW+' '+pageH+'">'+drawing+'</svg>';
   let imported=null;
 
-  // Preferred route: let Paper parse the original SVG commands. This keeps
-  // Bezier handles/curves instead of flattening them into sampled straight lines.
   try{
     imported=paper.project.importSVG(svgText,{insert:false,expandShapes:true});
-    if(imported){
-      const wickW=Number(project.width||project.stageWidth||pageW)||pageW;
-      const wickH=Number(project.height||project.stageHeight||pageH)||pageH;
-      const sx=wickW/Math.max(1,pageW);
-      const sy=wickH/Math.max(1,pageH);
-      if((Math.abs(sx-1)>0.0001||Math.abs(sy-1)>0.0001)&&typeof imported.scale==="function"){
-        imported.scale(sx,sy,new paper.Point(0,0));
-      }
+    if(!imported) throw new Error("Paper.js could not import this Drawing frame");
 
-      const paperPaths=collectPaperPaths(imported);
-      let count=0;
-      paperPaths.forEach(pItem=>{
-        try{
-          const wickPath=createWickPathFromPaperItem(pItem);
-          addWickPathToFrame(wickFrame,wickPath);
-          count++;
-        }catch(err){
-          console.warn("[Drawing] Exact Draw Gizmo path conversion skipped one path",err);
-        }
-      });
-      if(count>0) return count;
+    const wickW=Number(project.width||project.stageWidth||pageW)||pageW;
+    const wickH=Number(project.height||project.stageHeight||pageH)||pageH;
+    const sx=wickW/Math.max(1,pageW);
+    const sy=wickH/Math.max(1,pageH);
+
+    if((Math.abs(sx-1)>0.0001||Math.abs(sy-1)>0.0001)&&typeof imported.scale==="function"){
+      imported.scale(sx,sy,new paper.Point(0,0));
     }
-  }catch(err){
-    console.warn("[Drawing] Exact SVG curve import failed; using geometry fallback",err);
+
+    const paperPaths=collectPaperPaths(imported);
+    if(!paperPaths.length) throw new Error("Drawing frame contains no native vector paths");
+
+    let count=0;
+    paperPaths.forEach(pItem=>{
+      const wickPath=createWickPathFromPaperItem(pItem);
+      addWickPathToFrame(wickFrame,wickPath);
+      count++;
+    });
+
+    if(!count) throw new Error("Drawing frame could not be converted to native Wick paths");
+    return count;
   }finally{
     try{imported?.remove();}catch(e){}
-  }
-
-  // Compatibility fallback for Wick/Paper builds that reject SVG import.
-  const temp=document.createElementNS(SVGNS,"svg");
-  temp.setAttribute("xmlns",SVGNS);
-  temp.setAttribute("width",pageW);
-  temp.setAttribute("height",pageH);
-  temp.setAttribute("viewBox",`0 0 ${pageW} ${pageH}`);
-  temp.style.cssText="position:fixed;left:-100000px;top:-100000px;width:"+pageW+"px;height:"+pageH+"px;visibility:hidden;pointer-events:none;";
-  temp.innerHTML=drawing;
-  document.body.appendChild(temp);
-  try{
-    return addDrawingSelectionDirectToWick(Array.from(temp.children||[]),paper,wickFrame,project);
-  }finally{
-    temp.remove();
   }
 }
 
@@ -3579,205 +3562,8 @@ function drawingMarkProjectDirty(editor,project,label){
   try{window.parent?.dispatchEvent(new Event("resize"));}catch(e){}
 }
 
-function drawingFrameBounds(frame){
-  const drawing=String(frame && frame.drawing || "");
-  if(!drawing.trim()) return null;
 
-  const temp=document.createElementNS(SVGNS,"svg");
-  temp.setAttribute("xmlns",SVGNS);
-  temp.setAttribute("width",pageW);
-  temp.setAttribute("height",pageH);
-  temp.setAttribute("viewBox","0 0 "+pageW+" "+pageH);
-  temp.style.cssText="position:fixed;left:-100000px;top:-100000px;width:"+pageW+"px;height:"+pageH+"px;visibility:hidden;pointer-events:none;";
-  const group=document.createElementNS(SVGNS,"g");
-  group.innerHTML=drawing;
-  temp.appendChild(group);
-  document.body.appendChild(temp);
-
-  try{
-    const bb=group.getBBox();
-    if(!bb || !isFinite(bb.x)||!isFinite(bb.y)||!isFinite(bb.width)||!isFinite(bb.height)||bb.width<=0||bb.height<=0) return null;
-    return {x:Number(bb.x),y:Number(bb.y),w:Number(bb.width),h:Number(bb.height)};
-  }catch(err){
-    console.warn("[Drawing Draw Gizmo] frame bounds failed",err);
-    return null;
-  }finally{
-    temp.remove();
-  }
-}
-
-function drawingGizmoSharedBounds(){
-  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-  drawingFrames.forEach(frame=>{
-    const bb=drawingFrameBounds(frame);
-    if(!bb) return;
-    minX=Math.min(minX,bb.x);
-    minY=Math.min(minY,bb.y);
-    maxX=Math.max(maxX,bb.x+bb.w);
-    maxY=Math.max(maxY,bb.y+bb.h);
-  });
-
-  if(!isFinite(minX)||!isFinite(minY)||!isFinite(maxX)||!isFinite(maxY)){
-    return {x:0,y:0,w:Math.max(1,pageW),h:Math.max(1,pageH)};
-  }
-
-  // Enough room for wide strokes, antialiasing and transformed edge geometry.
-  const pad=8;
-  minX-=pad;
-  minY-=pad;
-  maxX+=pad;
-  maxY+=pad;
-
-  return {
-    x:minX,
-    y:minY,
-    w:Math.max(1,maxX-minX),
-    h:Math.max(1,maxY-minY)
-  };
-}
-
-function drawingFrameSvgPayload(frame,sharedBounds){
-  const drawing=String(frame && frame.drawing || "");
-  const b=sharedBounds||drawingGizmoSharedBounds();
-
-  // Build the SVG as a real DOM document so prefixed attributes from imported
-  // artwork (inkscape:, sodipodi:, xlink:, etc.) have valid namespace bindings.
-  // This is the same protection used by Drawing -> DemBones Part.
-  const wrapper=document.createElementNS(SVGNS,"svg");
-  wrapper.setAttribute("xmlns",SVGNS);
-  addDemBonesSvgNamespaces(wrapper);
-
-  const backingScale=3;
-  const pixelW=Math.max(1,Math.ceil(b.w*backingScale));
-  const pixelH=Math.max(1,Math.ceil(b.h*backingScale));
-  wrapper.setAttribute("width",String(pixelW));
-  wrapper.setAttribute("height",String(pixelH));
-  wrapper.setAttribute("viewBox",b.x+" "+b.y+" "+b.w+" "+b.h);
-  wrapper.setAttribute("preserveAspectRatio","xMidYMid meet");
-
-  const holder=document.createElementNS(SVGNS,"g");
-  holder.innerHTML=drawing;
-
-  // Strip non-visual editor metadata that can introduce invalid namespace
-  // references or unsupported XML content when the SVG is loaded as an Image.
-  try{
-    const remove=[];
-    holder.querySelectorAll("metadata,namedview,sodipodi\\:namedview").forEach(node=>remove.push(node));
-    remove.forEach(node=>{ try{node.remove();}catch(e){ try{node.parentNode&&node.parentNode.removeChild(node);}catch(e2){} } });
-  }catch(e){}
-
-  // Remove duplicate IDs because the same Drawing objects are repeated across
-  // multiple Gizmo frames and some SVG image decoders become unreliable with
-  // repeated editor IDs / references.
-  try{
-    holder.querySelectorAll("[id]").forEach(node=>{
-      const id=String(node.getAttribute("id")||"");
-      if(/^obj\d+$/i.test(id) || /^drawing/i.test(id)) node.removeAttribute("id");
-    });
-  }catch(e){}
-
-  while(holder.firstChild) wrapper.appendChild(holder.firstChild);
-
-  const svgText=new XMLSerializer().serializeToString(wrapper);
-
-  return {
-    label:String(frame && frame.label || "Frame"),
-    svgText:svgText,
-    width:b.w,
-    height:b.h,
-    pixelWidth:pixelW,
-    pixelHeight:pixelH,
-    sourceBounds:{x:b.x,y:b.y,w:b.w,h:b.h}
-  };
-}
-
-async function sendDrawGizmoDirectToDemBones(name){
-  const requestId="drawgizmo_"+Date.now()+"_"+Math.floor(Math.random()*1000000);
-  const sharedBounds=drawingGizmoSharedBounds();
-  const payload={
-    type:"LukeToolsDemBonesDrawGizmo",
-    requestId,
-    name:String(name||"DrawGizmo"),
-    width:sharedBounds.w,
-    height:sharedBounds.h,
-    sourceBounds:sharedBounds,
-    frames:drawingFrames.map(frame=>drawingFrameSvgPayload(frame,sharedBounds))
-  };
-
-  console.log("[Drawing Draw Gizmo] sending",requestId,payload.name,payload.frames.length);
-
-  // First try the same-parent direct receiver when the browser permits it.
-  try{
-    if(window.parent && typeof window.parent.__LukeToolsDemBonesReceiveDrawGizmo==="function"){
-      const direct=window.parent.__LukeToolsDemBonesReceiveDrawGizmo(payload);
-      const result=direct && typeof direct.then==="function" ? await direct : direct;
-      if(result && result.ok){
-        console.log("[Drawing Draw Gizmo] direct receiver accepted",result);
-        try{
-          if(window.parent.__LukeToolsDrawingLaunchContext) window.parent.__LukeToolsDrawingLaunchContext=null;
-          const pd=window.parent.document;
-          const shell=pd && pd.getElementById("luketools_dembones_drawing_panel");
-          if(shell && shell.parentNode) shell.parentNode.removeChild(shell);
-        }catch(e){}
-        return result;
-      }
-      if(result && result.ok===false) throw new Error(result.error||"DemBones rejected the Draw Gizmo");
-    }
-  }catch(directError){
-    console.warn("[Drawing Draw Gizmo] direct receiver unavailable/failed, using postMessage",directError);
-  }
-
-  // Reliable sibling/fullscreen route: request + acknowledgement over postMessage.
-  const target=(window.parent && window.parent!==window) ? window.parent : window.top;
-  if(!target || typeof target.postMessage!=="function"){
-    throw new Error("No parent window is available for DemBones messaging");
-  }
-
-  const ack=await new Promise((resolve,reject)=>{
-    let settled=false;
-    const timer=setTimeout(()=>{
-      if(settled) return;
-      settled=true;
-      window.removeEventListener("message",onMessage,false);
-      reject(new Error("DemBones did not acknowledge the Draw Gizmo"));
-    },4000);
-
-    function onMessage(event){
-      const data=event && event.data ? event.data : null;
-      if(!data || data.type!=="LukeToolsDemBonesDrawGizmoAck" || String(data.requestId||"")!==requestId) return;
-      if(settled) return;
-      settled=true;
-      clearTimeout(timer);
-      window.removeEventListener("message",onMessage,false);
-      if(data.ok) resolve(data);
-      else reject(new Error(data.error||"DemBones rejected the Draw Gizmo"));
-    }
-
-    window.addEventListener("message",onMessage,false);
-    try{
-      target.postMessage(payload,"*");
-      console.log("[Drawing Draw Gizmo] postMessage dispatched",requestId);
-    }catch(err){
-      clearTimeout(timer);
-      window.removeEventListener("message",onMessage,false);
-      reject(err);
-    }
-  });
-
-  console.log("[Drawing Draw Gizmo] acknowledgement",ack);
-
-  try{
-    if(window.parent && window.parent.__LukeToolsDrawingLaunchContext) window.parent.__LukeToolsDrawingLaunchContext=null;
-    const pd=window.parent && window.parent.document ? window.parent.document : null;
-    const shell=pd && pd.getElementById("luketools_dembones_drawing_panel");
-    if(shell && shell.parentNode) shell.parentNode.removeChild(shell);
-  }catch(e){}
-
-  return ack;
-}
-
-
-async function makeDrawGizmo(){
+async function makeDrawGizmo(){ // FIX GPT_20-09-2026_CanonicalFrameGizmo
   const button=document.getElementById("btnTimelineMakeGizmo");
   captureCurrentDrawingFrame();
 
@@ -3787,29 +3573,13 @@ async function makeDrawGizmo(){
     return;
   }
 
-  const requestedName=drawGizmoIdentifier(document.getElementById("drawGizmoName")?.value,"DrawGizmo");
-
-  if(drawingCalledFromDemBones()){
-    const oldText=button?.textContent||"Make Gizmo";
-    if(button){button.disabled=true;button.textContent="Adding to DemBones…";}
-    try{
-      await sendDrawGizmoDirectToDemBones(requestedName);
-      flashStatus("Added Draw Gizmo “"+requestedName+"” directly to DemBones");
-    }catch(err){
-      console.error("[Drawing] Direct Draw Gizmo to DemBones failed",err);
-      flashStatus("Draw Gizmo failed: "+(err?.message||err));
-    }finally{
-      if(button){button.disabled=false;button.textContent=oldText;}
-    }
-    return;
-  }
-
   const editor=getWickEditor();
   const paper=getWickPaper();
   const project=editor?.project;
   const W=drawingWickNamespace();
-  if(!project||!W?.Clip||!W?.Frame||!paper){
-    flashStatus("Wick Clip/Frame API is unavailable");
+
+  if(!project||!W?.Clip||!W?.Frame||!paper?.project?.importSVG){
+    flashStatus("Native Wick Clip/Frame/Paper APIs are unavailable");
     return;
   }
 
@@ -3819,70 +3589,183 @@ async function makeDrawGizmo(){
     return;
   }
 
+  const requestedName=drawGizmoIdentifier(
+    document.getElementById("drawGizmoName")?.value,
+    "DrawGizmo"
+  );
+
   const oldText=button?.textContent||"Make Gizmo";
-  if(button){button.disabled=true;button.textContent="Building…";}
+  if(button){
+    button.disabled=true;
+    button.textContent=drawingCalledFromDemBones() ? "Building native Gizmo…" : "Building…";
+  }
 
   let clip=null;
+  let addedToStage=false;
+
   try{
-    try{clip=new W.Clip({project});}catch(e1){try{clip=new W.Clip();}catch(e2){}}
-    if(!clip) throw new Error("Could not create Wick Clip");
+    try{clip=new W.Clip({project});}
+    catch(e1){try{clip=new W.Clip();}catch(e2){}}
+    if(!clip) throw new Error("Could not create native Wick Clip");
 
     try{clip.identifier=requestedName;}catch(e){}
     try{clip.name=requestedName;}catch(e){}
     try{clip._identifier=requestedName;}catch(e){}
 
     const layer=drawingCreateInternalLayer(clip,project);
-    if(!layer) throw new Error("Could not create the Draw Gizmo internal layer");
+    if(!layer) throw new Error("Could not create the Gizmo internal layer");
     drawingRemoveInternalFrames(layer);
 
     let totalPaths=0;
+
     drawingFrames.forEach((drawingFrame,index)=>{
-      const wickFrame=new W.Frame({start:index+1,length:1,project});
-      const label=drawGizmoIdentifier(drawingFrame.label,"Frame_"+(index+1));
+      const wickFrame=new W.Frame({
+        start:index+1,
+        length:1,
+        project
+      });
+
+      const label=drawGizmoIdentifier(
+        drawingFrame.label,
+        "Frame_"+(index+1)
+      );
+
       try{wickFrame.identifier=label;}catch(e){}
       try{wickFrame.name=label;}catch(e){}
-      if(typeof layer.addFrame!=="function") throw new Error("Wick layer.addFrame is unavailable");
+
+      if(typeof layer.addFrame!=="function"){
+        throw new Error("Wick layer.addFrame is unavailable");
+      }
+
       layer.addFrame(wickFrame);
-      totalPaths+=drawingAddSnapshotToWickFrame(drawingFrame.drawing,wickFrame,paper,project);
+
+      // Canonical rule: Draw Gizmo frames are native Wick paths created from
+      // exact Paper SVG geometry. Never fall back to sampled line geometry.
+      totalPaths+=drawingAddSnapshotToWickFrame(
+        drawingFrame.drawing,
+        wickFrame,
+        paper,
+        project
+      );
     });
 
-    if(totalPaths<=0) throw new Error("Drawing frames contained no Wick-compatible vector paths");
+    if(totalPaths<=0){
+      throw new Error("Drawing frames contained no native Wick paths");
+    }
 
-    const familyId="drawgizmo_"+Date.now()+"_"+Math.floor(Math.random()*1000000);
-    const marker="/*LUKE_FRAME_GIZMO:1*/\n/*LUKE_FRAME_GIZMO_ID:"+familyId+"*/";
+    // This is the exact marker used by LukeTools FrameGizmo.
+    const familyId=String(clip.uuid||"").replace(/[^A-Za-z0-9_-]/g,"") ||
+      ("gizmo_"+Date.now()+"_"+Math.floor(Math.random()*1000000));
+    const marker=
+      "/*LUKE_FRAME_GIZMO:1*/\n"+
+      "/*LUKE_FRAME_GIZMO_ID:"+familyId+"*/";
+
     try{
-      if(typeof clip.addScript==="function")clip.addScript("default",marker);
-      else{
-        if(!Array.isArray(clip.scripts))clip.scripts=[];
+      if(typeof clip.addScript==="function"){
+        clip.addScript("default",marker);
+      }else{
+        if(!Array.isArray(clip.scripts)) clip.scripts=[];
         clip.scripts.push({name:"default",src:marker});
       }
     }catch(e){
-      if(!Array.isArray(clip.scripts))clip.scripts=[];
+      if(!Array.isArray(clip.scripts)) clip.scripts=[];
       clip.scripts.push({name:"default",src:marker});
     }
 
+    // Same default playback state as an ordinary LukeTools Gizmo.
     try{clip.isSynced=false;}catch(e){}
     try{clip.animationType="single";}catch(e){}
     try{clip.singleFrameNumber=1;}catch(e){}
-    try{if(clip.timeline)clip.timeline.playheadPosition=1;}catch(e){}
+    try{if(clip.timeline) clip.timeline.playheadPosition=1;}catch(e){}
 
-    if(!drawingAddClipToFrame(stageFrame,clip)) throw new Error("Could not add Draw Gizmo to the current Wick frame");
+    if(!drawingAddClipToFrame(stageFrame,clip)){
+      throw new Error("Could not place the native Gizmo Clip on the Wick frame");
+    }
+    addedToStage=true;
 
-    drawingMarkProjectDirty(editor,project,"Create Draw Gizmo");
+    drawingMarkProjectDirty(editor,project,"Create LukeTools Gizmo");
+
+    // Let Wick build the Clip view before FrameGizmo/DemBones reads it.
+    try{if(project.view?.render) project.view.render();}catch(e){}
+    try{if(editor.canvas?.render) editor.canvas.render();}catch(e){}
+    await new Promise(resolve=>{
+      const raf=window.parent?.requestAnimationFrame||window.requestAnimationFrame;
+      if(typeof raf==="function") raf(()=>raf(resolve));
+      else setTimeout(resolve,40);
+    });
+
     try{
       const bridge=window.LukeToolsBridge||window.parent?.LukeToolsBridge;
       if(bridge?.selectObjectByInfo){
-        bridge.selectObjectByInfo({uuid:String(clip.uuid||""),identifier:String(clip.identifier||requestedName),name:String(clip.name||requestedName)});
+        bridge.selectObjectByInfo({
+          uuid:String(clip.uuid||""),
+          identifier:String(clip.identifier||requestedName),
+          name:String(clip.name||requestedName)
+        });
       }
     }catch(e){}
 
+    if(drawingCalledFromDemBones()){
+      const receiver=window.parent && window.parent.__LukeToolsDemBonesImportNativeGizmo;
+      if(typeof receiver!=="function"){
+        throw new Error("DemBones canonical Gizmo importer is not available");
+      }
 
-    flashStatus("Created Draw Gizmo “"+requestedName+"” with "+drawingFrames.length+" frame"+(drawingFrames.length===1?"":"s"));
+      let result=receiver({
+        uuid:String(clip.uuid||""),
+        removeSource:true
+      });
+
+      if(result&&typeof result.then==="function") result=await result;
+
+      if(!result||result.ok===false){
+        throw new Error(
+          result&&result.error ?
+            result.error :
+            "DemBones did not accept the native Gizmo"
+        );
+      }
+
+      try{
+        if(window.parent.__LukeToolsDrawingLaunchContext){
+          window.parent.__LukeToolsDrawingLaunchContext=null;
+        }
+      }catch(e){}
+
+      try{
+        const pd=window.parent?.document;
+        const shell=pd?.getElementById("luketools_dembones_drawing_panel");
+        if(shell?.parentNode) shell.parentNode.removeChild(shell);
+      }catch(e){}
+
+      flashStatus("Native Gizmo added to DemBones");
+      return;
+    }
+
+    flashStatus(
+      "Created LukeTools Gizmo “"+requestedName+"” with "+
+      drawingFrames.length+" frame"+(drawingFrames.length===1?"":"s")
+    );
   }catch(err){
-    console.error("[Drawing] Make Draw Gizmo failed",err);
-    flashStatus("Draw Gizmo failed: "+(err?.message||err));
+    console.error("[Drawing] Make native LukeTools Gizmo failed",err);
+
+    // Keep a successfully-created stage Clip only for independent Drawing.
+    // When called from DemBones a failed handoff must not leave residue.
+    if(drawingCalledFromDemBones()&&clip&&addedToStage){
+      try{
+        if(typeof clip.remove==="function") clip.remove();
+        else if(clip.parentFrame?.removeClip) clip.parentFrame.removeClip(clip);
+        else if(clip.parentFrame?.removeObject) clip.parentFrame.removeObject(clip);
+      }catch(eRemove){}
+      drawingMarkProjectDirty(editor,project,"Remove failed Draw Gizmo");
+    }
+
+    flashStatus("Gizmo failed: "+(err?.message||err));
   }finally{
-    if(button){button.disabled=false;button.textContent=oldText;}
+    if(button){
+      button.disabled=false;
+      button.textContent=oldText;
+    }
   }
 }
 
