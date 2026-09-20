@@ -3640,24 +3640,53 @@ function drawingFrameSvgPayload(frame,sharedBounds){
   const drawing=String(frame && frame.drawing || "");
   const b=sharedBounds||drawingGizmoSharedBounds();
 
-  // Rasterisation of an SVG Image onto DemBones' Canvas happens at the SVG's
-  // intrinsic pixel size. Give it a 3x backing size while keeping the logical
-  // Gizmo dimensions at b.w × b.h for a much cleaner Canvas preview.
+  // Build the SVG as a real DOM document so prefixed attributes from imported
+  // artwork (inkscape:, sodipodi:, xlink:, etc.) have valid namespace bindings.
+  // This is the same protection used by Drawing -> DemBones Part.
+  const wrapper=document.createElementNS(SVGNS,"svg");
+  wrapper.setAttribute("xmlns",SVGNS);
+  addDemBonesSvgNamespaces(wrapper);
+
   const backingScale=3;
   const pixelW=Math.max(1,Math.ceil(b.w*backingScale));
   const pixelH=Math.max(1,Math.ceil(b.h*backingScale));
+  wrapper.setAttribute("width",String(pixelW));
+  wrapper.setAttribute("height",String(pixelH));
+  wrapper.setAttribute("viewBox",b.x+" "+b.y+" "+b.w+" "+b.h);
+  wrapper.setAttribute("preserveAspectRatio","xMidYMid meet");
 
-  const svgText=
-    '<svg xmlns="'+SVGNS+'" width="'+pixelW+'" height="'+pixelH+'" viewBox="'+
-    b.x+' '+b.y+' '+b.w+' '+b.h+'" preserveAspectRatio="xMidYMid meet">'+
-    drawing+
-    '</svg>';
+  const holder=document.createElementNS(SVGNS,"g");
+  holder.innerHTML=drawing;
+
+  // Strip non-visual editor metadata that can introduce invalid namespace
+  // references or unsupported XML content when the SVG is loaded as an Image.
+  try{
+    const remove=[];
+    holder.querySelectorAll("metadata,namedview,sodipodi\\:namedview").forEach(node=>remove.push(node));
+    remove.forEach(node=>{ try{node.remove();}catch(e){ try{node.parentNode&&node.parentNode.removeChild(node);}catch(e2){} } });
+  }catch(e){}
+
+  // Remove duplicate IDs because the same Drawing objects are repeated across
+  // multiple Gizmo frames and some SVG image decoders become unreliable with
+  // repeated editor IDs / references.
+  try{
+    holder.querySelectorAll("[id]").forEach(node=>{
+      const id=String(node.getAttribute("id")||"");
+      if(/^obj\d+$/i.test(id) || /^drawing/i.test(id)) node.removeAttribute("id");
+    });
+  }catch(e){}
+
+  while(holder.firstChild) wrapper.appendChild(holder.firstChild);
+
+  const svgText=new XMLSerializer().serializeToString(wrapper);
 
   return {
     label:String(frame && frame.label || "Frame"),
     svgText:svgText,
     width:b.w,
     height:b.h,
+    pixelWidth:pixelW,
+    pixelHeight:pixelH,
     sourceBounds:{x:b.x,y:b.y,w:b.w,h:b.h}
   };
 }
