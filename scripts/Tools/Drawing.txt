@@ -2781,6 +2781,10 @@ function selectedSvgDocumentForDemBones(){
 
 function drawingCalledFromDemBones(){
   try {
+    const ctx=window.parent && window.parent.__LukeToolsDrawingLaunchContext;
+    if(ctx && String(ctx.source||"").toLowerCase()==="dembones" && String(ctx.mode||"").toLowerCase()==="gizmo") return true;
+  } catch(eContext){}
+  try {
     if(String(window.__LT_DRAWING_CONTEXT||"").toLowerCase()==="dembones") return true;
   } catch(e0){}
   try {
@@ -3587,36 +3591,88 @@ function drawingFrameSvgPayload(frame){
 }
 
 async function sendDrawGizmoDirectToDemBones(name){
+  const requestId="drawgizmo_"+Date.now()+"_"+Math.floor(Math.random()*1000000);
   const payload={
     type:"LukeToolsDemBonesDrawGizmo",
+    requestId,
     name:String(name||"DrawGizmo"),
     width:pageW,
     height:pageH,
     frames:drawingFrames.map(drawingFrameSvgPayload)
   };
 
-  let result=null;
-  if(window.parent && typeof window.parent.__LukeToolsDemBonesReceiveDrawGizmo==="function"){
-    result=window.parent.__LukeToolsDemBonesReceiveDrawGizmo(payload);
-  }else if(window.top && typeof window.top.__LukeToolsDemBonesReceiveDrawGizmo==="function"){
-    result=window.top.__LukeToolsDemBonesReceiveDrawGizmo(payload);
-  }else{
-    throw new Error("DemBones Draw Gizmo receiver is not available");
+  console.log("[Drawing Draw Gizmo] sending",requestId,payload.name,payload.frames.length);
+
+  // First try the same-parent direct receiver when the browser permits it.
+  try{
+    if(window.parent && typeof window.parent.__LukeToolsDemBonesReceiveDrawGizmo==="function"){
+      const direct=window.parent.__LukeToolsDemBonesReceiveDrawGizmo(payload);
+      const result=direct && typeof direct.then==="function" ? await direct : direct;
+      if(result && result.ok){
+        console.log("[Drawing Draw Gizmo] direct receiver accepted",result);
+        try{
+          if(window.parent.__LukeToolsDrawingLaunchContext) window.parent.__LukeToolsDrawingLaunchContext=null;
+          const pd=window.parent.document;
+          const shell=pd && pd.getElementById("luketools_dembones_drawing_panel");
+          if(shell && shell.parentNode) shell.parentNode.removeChild(shell);
+        }catch(e){}
+        return result;
+      }
+      if(result && result.ok===false) throw new Error(result.error||"DemBones rejected the Draw Gizmo");
+    }
+  }catch(directError){
+    console.warn("[Drawing Draw Gizmo] direct receiver unavailable/failed, using postMessage",directError);
   }
 
-  if(result && typeof result.then==="function") result=await result;
-  if(result===false || (result && result.ok===false)){
-    throw new Error(result && result.error ? result.error : "DemBones did not accept the Draw Gizmo");
+  // Reliable sibling/fullscreen route: request + acknowledgement over postMessage.
+  const target=(window.parent && window.parent!==window) ? window.parent : window.top;
+  if(!target || typeof target.postMessage!=="function"){
+    throw new Error("No parent window is available for DemBones messaging");
   }
+
+  const ack=await new Promise((resolve,reject)=>{
+    let settled=false;
+    const timer=setTimeout(()=>{
+      if(settled) return;
+      settled=true;
+      window.removeEventListener("message",onMessage,false);
+      reject(new Error("DemBones did not acknowledge the Draw Gizmo"));
+    },4000);
+
+    function onMessage(event){
+      const data=event && event.data ? event.data : null;
+      if(!data || data.type!=="LukeToolsDemBonesDrawGizmoAck" || String(data.requestId||"")!==requestId) return;
+      if(settled) return;
+      settled=true;
+      clearTimeout(timer);
+      window.removeEventListener("message",onMessage,false);
+      if(data.ok) resolve(data);
+      else reject(new Error(data.error||"DemBones rejected the Draw Gizmo"));
+    }
+
+    window.addEventListener("message",onMessage,false);
+    try{
+      target.postMessage(payload,"*");
+      console.log("[Drawing Draw Gizmo] postMessage dispatched",requestId);
+    }catch(err){
+      clearTimeout(timer);
+      window.removeEventListener("message",onMessage,false);
+      reject(err);
+    }
+  });
+
+  console.log("[Drawing Draw Gizmo] acknowledgement",ack);
 
   try{
+    if(window.parent && window.parent.__LukeToolsDrawingLaunchContext) window.parent.__LukeToolsDrawingLaunchContext=null;
     const pd=window.parent && window.parent.document ? window.parent.document : null;
     const shell=pd && pd.getElementById("luketools_dembones_drawing_panel");
     if(shell && shell.parentNode) shell.parentNode.removeChild(shell);
   }catch(e){}
 
-  return result;
+  return ack;
 }
+
 
 async function makeDrawGizmo(){
   const button=document.getElementById("btnTimelineMakeGizmo");
