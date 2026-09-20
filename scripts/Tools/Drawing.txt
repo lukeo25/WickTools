@@ -71,6 +71,18 @@
   #topbar .bool-top{font-weight:700}
   #topbar .bool-top[data-op="subtract"]{border-color:#815a42}
   #topbar .bool-top:hover{background:#35485f}
+  /* ---- Drawing Frames / Draw Gizmo ---- */
+  #drawingFramesSection{background:#1b1f25;border-top:1px solid #111318;border-bottom:1px solid var(--border-soft)}
+  #drawingFramesList{display:flex;flex-direction:column;gap:5px;max-height:190px;overflow:auto;margin:7px 0}
+  .drawing-frame-card{display:grid;grid-template-columns:34px minmax(0,1fr) 24px;align-items:center;gap:6px;padding:5px;border:1px solid #3b424c;border-radius:5px;background:#252930;cursor:pointer}
+  .drawing-frame-card:hover{border-color:#59616c;background:#2b3037}
+  .drawing-frame-card.active{border-color:var(--accent);background:var(--accent-dim);box-shadow:inset 3px 0 0 var(--accent)}
+  .drawing-frame-number{font:10px Consolas,monospace;color:#aeb7c2;text-align:center}
+  .drawing-frame-card input{width:100%;min-width:0;height:25px;padding:3px 5px;background:#15181c;border:1px solid #414852;border-radius:4px;color:#fff;font-size:10px}
+  .drawing-frame-card button{width:24px!important;min-width:24px!important;height:24px!important;min-height:24px!important;padding:0!important;color:#ff9a9a!important}
+  #drawGizmoName{width:100%;height:26px;padding:4px 6px;background:#15181c;border:1px solid #414852;border-radius:4px;color:#fff;font-size:11px}
+  #btnMakeDrawGizmo{width:100%;background:#246a4a!important;border-color:#48b87e!important;font-weight:800}
+  #btnMakeDrawGizmo:hover{background:#2f845e!important}
   #layerList{flex:1;overflow-y:auto;padding:4px 5px 8px}
   .layer-item{display:flex;align-items:center;gap:6px;padding:6px 7px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid transparent}
   .layer-item:hover{background:var(--panel-2);border-color:#363c45}
@@ -215,6 +227,18 @@
         <button id="btnDel" style="flex:1;color:var(--danger);">Delete</button>
       </div>
     </div>
+    <div class="panel-section" id="drawingFramesSection">
+      <div class="panel-title">Drawing Frames</div>
+      <div class="row" style="gap:4px;">
+        <button id="btnDrawFrameDuplicate" style="flex:1;" title="Duplicate the current drawing into a new frame">+ Duplicate</button>
+        <button id="btnDrawFrameBlank" style="flex:1;" title="Add an empty drawing frame">+ Blank</button>
+      </div>
+      <div id="drawingFramesList"></div>
+      <div class="row" style="margin-top:7px;"><span style="font-size:10px;color:var(--text-dim)">Gizmo name</span></div>
+      <input id="drawGizmoName" type="text" maxlength="64" value="DrawGizmo" spellcheck="false">
+      <button id="btnMakeDrawGizmo" type="button" style="margin-top:7px;">Make Draw Gizmo</button>
+      <div id="drawGizmoStatus" style="margin-top:6px;font-size:10px;line-height:1.35;color:var(--text-dim)">Each Drawing frame becomes one internal Gizmo frame.</div>
+    </div>
     <div class="panel-title" style="padding:10px 10px 2px;">Objects / Layers</div>
     <div id="layerList"></div>
   </div>
@@ -264,6 +288,9 @@ let history = [], historyIndex = -1;
 let isPanning = false, spaceDown = false;
 let nodeEditTarget = null; // path element being node-edited
 let nodeEditIndex = -1;
+let drawingFrames = [{id:1,label:"Frame 1",drawing:""}]; // FIX GPT_20-09-2026_DrawGizmoFrames
+let drawingFrameIndex = 0;
+let drawingFrameNextId = 2;
 
 // ---------- Tool definitions ----------
 const TOOLS = [
@@ -389,6 +416,12 @@ function scheduleDrawingSessionSave(){
       pageW:Number(pageW)||1280,
       pageH:Number(pageH)||800,
       drawing:drawLayer.innerHTML,
+      drawingFrames:(()=>{
+        try{ captureCurrentDrawingFrame(); }catch(e){}
+        return drawingFrames.map(frame=>({id:frame.id,label:frame.label,drawing:frame.drawing}));
+      })(),
+      drawingFrameIndex:Number(drawingFrameIndex)||0,
+      drawingFrameNextId:Number(drawingFrameNextId)||2,
       zoom:Number(zoom)||1,
       panX:Number(panX)||0,
       panY:Number(panY)||0
@@ -412,7 +445,21 @@ async function restoreDrawingSession(){
     svgRoot.setAttribute("viewBox",`0 0 ${pageW} ${pageH}`);
     stage.style.width=pageW+"px";
     stage.style.height=pageH+"px";
-    drawLayer.innerHTML=saved.drawing;
+    if(Array.isArray(saved.drawingFrames) && saved.drawingFrames.length){
+      drawingFrames=saved.drawingFrames.map((frame,index)=>({
+        id:Number(frame&&frame.id)||index+1,
+        label:String(frame&&frame.label||("Frame "+(index+1))),
+        drawing:String(frame&&frame.drawing||"")
+      }));
+      drawingFrameIndex=Math.max(0,Math.min(drawingFrames.length-1,Number(saved.drawingFrameIndex)||0));
+      drawingFrameNextId=Math.max(Number(saved.drawingFrameNextId)||2,drawingFrames.reduce((m,f)=>Math.max(m,Number(f.id)||0),0)+1);
+      drawLayer.innerHTML=drawingFrames[drawingFrameIndex].drawing;
+    }else{
+      drawingFrames=[{id:1,label:"Frame 1",drawing:String(saved.drawing||"")}];
+      drawingFrameIndex=0;
+      drawingFrameNextId=2;
+      drawLayer.innerHTML=saved.drawing;
+    }
 
     zoom=isFinite(Number(saved.zoom)) ? Math.max(.05,Math.min(16,Number(saved.zoom))) : 1;
     panX=isFinite(Number(saved.panX)) ? Number(saved.panX) : 60;
@@ -426,6 +473,7 @@ async function restoreDrawingSession(){
     historyIndex=0;
     updateLayerList();
     updateStatusCount();
+    renderDrawingFrames();
     return true;
   }catch(err){
     console.warn("[Drawing] Could not restore last session",err);
@@ -3212,13 +3260,314 @@ if(drawingCalledFromDemBones()){
 }
 
 
+// ---------- Drawing Frames / Draw Gizmo ----------
+function captureCurrentDrawingFrame(){
+  if(!drawingFrames.length){
+    drawingFrames=[{id:drawingFrameNextId++,label:"Frame 1",drawing:""}];
+    drawingFrameIndex=0;
+  }
+  const frame=drawingFrames[drawingFrameIndex];
+  if(frame) frame.drawing=drawLayer.innerHTML;
+}
+
+function resetDrawingHistoryForFrame(){
+  clearSelection();
+  history=[];
+  historyIndex=-1;
+  history.push(snapshot());
+  historyIndex=0;
+  updateLayerList();
+  updateStatusCount();
+}
+
+function setDrawingFrame(index){
+  index=Math.max(0,Math.min(drawingFrames.length-1,Number(index)||0));
+  if(index===drawingFrameIndex) return;
+  captureCurrentDrawingFrame();
+  drawingFrameIndex=index;
+  drawLayer.innerHTML=String(drawingFrames[index]?.drawing||"");
+  resetDrawingHistoryForFrame();
+  renderDrawingFrames();
+  scheduleDrawingSessionSave();
+  flashStatus("Drawing frame "+(index+1)+" · "+drawingFrames[index].label);
+}
+
+function addDrawingFrame(copyCurrent){
+  captureCurrentDrawingFrame();
+  const drawing=copyCurrent ? drawLayer.innerHTML : "";
+  const index=drawingFrames.length;
+  drawingFrames.push({id:drawingFrameNextId++,label:"Frame "+(index+1),drawing});
+  drawingFrameIndex=index;
+  drawLayer.innerHTML=drawing;
+  resetDrawingHistoryForFrame();
+  renderDrawingFrames();
+  scheduleDrawingSessionSave();
+  flashStatus(copyCurrent ? "Duplicated Drawing frame" : "Added blank Drawing frame");
+}
+
+function deleteDrawingFrame(index){
+  if(drawingFrames.length<=1){
+    flashStatus("Drawing needs at least one frame");
+    return;
+  }
+  captureCurrentDrawingFrame();
+  index=Math.max(0,Math.min(drawingFrames.length-1,Number(index)||0));
+  drawingFrames.splice(index,1);
+  if(drawingFrameIndex>=drawingFrames.length) drawingFrameIndex=drawingFrames.length-1;
+  else if(index<drawingFrameIndex) drawingFrameIndex--;
+  drawingFrames.forEach((frame,i)=>{ if(!String(frame.label||"").trim()) frame.label="Frame "+(i+1); });
+  drawLayer.innerHTML=String(drawingFrames[drawingFrameIndex]?.drawing||"");
+  resetDrawingHistoryForFrame();
+  renderDrawingFrames();
+  scheduleDrawingSessionSave();
+}
+
+function drawGizmoIdentifier(value,fallback){
+  let s=String(value||"").trim().replace(/[^A-Za-z0-9_$]+/g,"_").replace(/^_+|_+$/g,"");
+  if(!s) s=fallback||"DrawGizmo";
+  if(!/^[A-Za-z_$]/.test(s)) s="Draw_"+s;
+  return s;
+}
+
+function renderDrawingFrames(){
+  const host=document.getElementById("drawingFramesList");
+  if(!host) return;
+  captureCurrentDrawingFrame();
+  host.innerHTML="";
+  drawingFrames.forEach((frame,index)=>{
+    const card=document.createElement("div");
+    card.className="drawing-frame-card"+(index===drawingFrameIndex?" active":"");
+    card.dataset.index=String(index);
+
+    const number=document.createElement("div");
+    number.className="drawing-frame-number";
+    number.textContent=String(index+1);
+
+    const label=document.createElement("input");
+    label.type="text";
+    label.maxLength=64;
+    label.value=String(frame.label||("Frame "+(index+1)));
+    label.title="Gizmo frame label";
+    label.addEventListener("click",event=>event.stopPropagation());
+    label.addEventListener("input",()=>{
+      frame.label=label.value;
+      scheduleDrawingSessionSave();
+    });
+
+    const remove=document.createElement("button");
+    remove.type="button";
+    remove.textContent="×";
+    remove.title="Delete Drawing frame";
+    remove.disabled=drawingFrames.length<=1;
+    remove.addEventListener("click",event=>{
+      event.preventDefault();
+      event.stopPropagation();
+      deleteDrawingFrame(index);
+    });
+
+    card.appendChild(number);
+    card.appendChild(label);
+    card.appendChild(remove);
+    card.addEventListener("click",()=>setDrawingFrame(index));
+    host.appendChild(card);
+  });
+}
+
+function drawingWickNamespace(){
+  try{return window.parent?.Wick||window.Wick||null;}catch(e){return null;}
+}
+
+function drawingCreateInternalLayer(clip,project){
+  let layer=null;
+  try{
+    const layers=clip?.timeline?.layers||clip?.timeline?._children||[];
+    layer=layers[0]||null;
+  }catch(e){}
+  if(layer) return layer;
+  const W=drawingWickNamespace();
+  try{
+    if(W?.Layer && clip?.timeline && typeof clip.timeline.addLayer==="function"){
+      layer=new W.Layer({project});
+      clip.timeline.addLayer(layer);
+      return layer;
+    }
+  }catch(e){}
+  return null;
+}
+
+function drawingRemoveInternalFrames(layer){
+  let frames=[];
+  try{frames=Array.from(layer?.frames||layer?._children||[]);}catch(e){}
+  for(let i=frames.length-1;i>=0;i--){
+    const frame=frames[i];
+    try{
+      if(typeof layer.removeFrame==="function"){ layer.removeFrame(frame); continue; }
+    }catch(e){}
+    try{
+      if(typeof frame.remove==="function"){ frame.remove(); continue; }
+    }catch(e){}
+    try{
+      const list=layer.frames||layer._children;
+      const at=list.indexOf(frame);
+      if(at>=0) list.splice(at,1);
+    }catch(e){}
+  }
+}
+
+function drawingAddClipToFrame(frame,clip){
+  if(!frame||!clip) return false;
+  try{if(typeof frame.addClip==="function"){frame.addClip(clip);return true;}}catch(e){}
+  try{if(typeof frame.addObject==="function"){frame.addObject(clip);return true;}}catch(e){}
+  try{if(typeof frame.addChild==="function"){frame.addChild(clip);return true;}}catch(e){}
+  try{
+    const list=frame._children||frame.children;
+    if(Array.isArray(list)){list.push(clip);try{clip._parent=frame;}catch(e){}return true;}
+  }catch(e){}
+  return false;
+}
+
+function drawingAddSnapshotToWickFrame(snapshotHtml,wickFrame,paper,project){
+  const temp=document.createElementNS(SVGNS,"svg");
+  temp.setAttribute("xmlns",SVGNS);
+  temp.setAttribute("width",pageW);
+  temp.setAttribute("height",pageH);
+  temp.setAttribute("viewBox",`0 0 ${pageW} ${pageH}`);
+  temp.style.cssText="position:fixed;left:-100000px;top:-100000px;width:"+pageW+"px;height:"+pageH+"px;visibility:hidden;pointer-events:none;";
+  temp.innerHTML=String(snapshotHtml||"");
+  document.body.appendChild(temp);
+  try{
+    const roots=Array.from(temp.children||[]);
+    return addDrawingSelectionDirectToWick(roots,paper,wickFrame,project);
+  }finally{
+    temp.remove();
+  }
+}
+
+function drawingMarkProjectDirty(editor,project,label){
+  try{if(project?.markAsModified)project.markAsModified();}catch(e){}
+  try{if(project)project.unsavedChanges=true;}catch(e){}
+  try{if(editor?.canvas?.render)editor.canvas.render();}catch(e){}
+  try{
+    if(editor?.projectDidChange)editor.projectDidChange({actionName:label||"Create Draw Gizmo"});
+  }catch(e){try{if(editor?.projectDidChange)editor.projectDidChange();}catch(e2){}}
+  try{if(editor?.syncInterfaces)editor.syncInterfaces();}catch(e){}
+  try{window.parent?.dispatchEvent(new Event("resize"));}catch(e){}
+}
+
+async function makeDrawGizmo(){
+  const button=document.getElementById("btnMakeDrawGizmo");
+  const status=document.getElementById("drawGizmoStatus");
+  captureCurrentDrawingFrame();
+
+  const nonEmpty=drawingFrames.filter(frame=>String(frame.drawing||"").trim());
+  if(!nonEmpty.length){
+    flashStatus("Draw at least one frame before making a Gizmo");
+    if(status)status.textContent="No Drawing frame contains artwork.";
+    return;
+  }
+
+  const editor=getWickEditor();
+  const paper=getWickPaper();
+  const project=editor?.project;
+  const W=drawingWickNamespace();
+  if(!project||!W?.Clip||!W?.Frame||!paper){
+    flashStatus("Wick Clip/Frame API is unavailable");
+    if(status)status.textContent="Could not access Wick Clip/Frame APIs.";
+    return;
+  }
+
+  const stageFrame=getActiveWickFrame(editor);
+  if(!stageFrame){
+    flashStatus("No active Wick frame found");
+    return;
+  }
+
+  const oldText=button?.textContent||"Make Draw Gizmo";
+  if(button){button.disabled=true;button.textContent="Building…";}
+  if(status)status.textContent="Building Draw Gizmo frames…";
+
+  let clip=null;
+  try{
+    try{clip=new W.Clip({project});}catch(e1){try{clip=new W.Clip();}catch(e2){}}
+    if(!clip) throw new Error("Could not create Wick Clip");
+
+    const requestedName=drawGizmoIdentifier(document.getElementById("drawGizmoName")?.value,"DrawGizmo");
+    try{clip.identifier=requestedName;}catch(e){}
+    try{clip.name=requestedName;}catch(e){}
+    try{clip._identifier=requestedName;}catch(e){}
+
+    const layer=drawingCreateInternalLayer(clip,project);
+    if(!layer) throw new Error("Could not create the Draw Gizmo internal layer");
+    drawingRemoveInternalFrames(layer);
+
+    let totalPaths=0;
+    drawingFrames.forEach((drawingFrame,index)=>{
+      const wickFrame=new W.Frame({start:index+1,length:1,project});
+      const label=drawGizmoIdentifier(drawingFrame.label,"Frame_"+(index+1));
+      try{wickFrame.identifier=label;}catch(e){}
+      try{wickFrame.name=label;}catch(e){}
+      if(typeof layer.addFrame!=="function") throw new Error("Wick layer.addFrame is unavailable");
+      layer.addFrame(wickFrame);
+      totalPaths+=drawingAddSnapshotToWickFrame(drawingFrame.drawing,wickFrame,paper,project);
+    });
+
+    if(totalPaths<=0) throw new Error("Drawing frames contained no Wick-compatible vector paths");
+
+    const familyId="drawgizmo_"+Date.now()+"_"+Math.floor(Math.random()*1000000);
+    const marker="/*LUKE_FRAME_GIZMO:1*/\n/*LUKE_FRAME_GIZMO_ID:"+familyId+"*/";
+    try{
+      if(typeof clip.addScript==="function")clip.addScript("default",marker);
+      else{
+        if(!Array.isArray(clip.scripts))clip.scripts=[];
+        clip.scripts.push({name:"default",src:marker});
+      }
+    }catch(e){
+      if(!Array.isArray(clip.scripts))clip.scripts=[];
+      clip.scripts.push({name:"default",src:marker});
+    }
+
+    try{clip.isSynced=false;}catch(e){}
+    try{clip.animationType="single";}catch(e){}
+    try{clip.singleFrameNumber=1;}catch(e){}
+    try{if(clip.timeline)clip.timeline.playheadPosition=1;}catch(e){}
+
+    if(!drawingAddClipToFrame(stageFrame,clip)) throw new Error("Could not add Draw Gizmo to the current Wick frame");
+
+    drawingMarkProjectDirty(editor,project,"Create Draw Gizmo");
+    try{
+      const bridge=window.LukeToolsBridge||window.parent?.LukeToolsBridge;
+      if(bridge?.selectObjectByInfo){
+        bridge.selectObjectByInfo({uuid:String(clip.uuid||""),identifier:String(clip.identifier||requestedName),name:String(clip.name||requestedName)});
+      }
+    }catch(e){}
+
+    if(status)status.textContent="Created "+requestedName+" · "+drawingFrames.length+" frame"+(drawingFrames.length===1?"":"s")+" · "+totalPaths+" path"+(totalPaths===1?"":"s")+".";
+    flashStatus("Created Draw Gizmo “"+requestedName+"” with "+drawingFrames.length+" frame"+(drawingFrames.length===1?"":"s"));
+  }catch(err){
+    console.error("[Drawing] Make Draw Gizmo failed",err);
+    if(status)status.textContent="Draw Gizmo failed: "+(err?.message||err);
+    flashStatus("Draw Gizmo failed: "+(err?.message||err));
+  }finally{
+    if(button){button.disabled=false;button.textContent=oldText;}
+  }
+}
+
+document.getElementById("btnDrawFrameDuplicate")?.addEventListener("click",()=>addDrawingFrame(true));
+document.getElementById("btnDrawFrameBlank")?.addEventListener("click",()=>addDrawingFrame(false));
+document.getElementById("btnMakeDrawGizmo")?.addEventListener("click",makeDrawGizmo);
+renderDrawingFrames();
+
 // ---------- New / Open / Export ----------
 document.getElementById("btnNew").addEventListener("click", ()=>{
   if(!confirm("Clear the canvas and start a new document?")) return;
   drawLayer.innerHTML = "";
+  drawingFrames=[{id:1,label:"Frame 1",drawing:""}];
+  drawingFrameIndex=0;
+  drawingFrameNextId=2;
   clearSelection();
   history = []; historyIndex = -1;
   pushHistory();
+  renderDrawingFrames();
 });
 document.getElementById("btnOpen").addEventListener("click", ()=>document.getElementById("fileInput").click());
 document.getElementById("fileInput").addEventListener("change", ev=>{
@@ -3231,6 +3580,9 @@ document.getElementById("fileInput").addEventListener("change", ev=>{
     const loadedSvg = doc.documentElement;
     if(loadedSvg.tagName!=="svg"){ alert("Not a valid SVG file."); return; }
     drawLayer.innerHTML = "";
+    drawingFrames=[{id:1,label:"Frame 1",drawing:""}];
+    drawingFrameIndex=0;
+    drawingFrameNextId=2;
     const vb = loadedSvg.getAttribute("viewBox");
     if(vb){ const parts = vb.split(/\s+/).map(Number); pageW = parts[2]; pageH = parts[3]; }
     else { pageW = parseFloat(loadedSvg.getAttribute("width"))||1280; pageH = parseFloat(loadedSvg.getAttribute("height"))||800; }
@@ -3250,6 +3602,8 @@ document.getElementById("fileInput").addEventListener("change", ev=>{
     fitToScreen();
     history=[]; historyIndex=-1;
     pushHistory();
+    captureCurrentDrawingFrame();
+    renderDrawingFrames();
   };
   reader.readAsText(file);
   ev.target.value = "";
@@ -3312,6 +3666,8 @@ restoreDrawingSession().then(restored=>{
     stage.style.height=pageH+"px";
     fitToScreen();
     pushHistory();
+    captureCurrentDrawingFrame();
+    renderDrawingFrames();
   }
 });
 window.addEventListener("pagehide", scheduleDrawingSessionSave);
