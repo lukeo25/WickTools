@@ -25736,6 +25736,56 @@ function installDemBonesMrk2() {
     input.click();
   }
 
+  async function dbReceiveDrawingSelectionForSandbox(data){ // FIX GPT_20-09-2026_PoseDrawingReceive
+    data = data && data.data ? data.data : data;
+    if (!data || data.type !== 'LukeToolsDemBonesDrawingSelection' || !data.svgText) return false;
+    try {
+      var svgText = String(data.svgText || '');
+      var fileName = String(data.fileName || 'Drawing Selection.svg');
+      var w = 180, h = 180;
+      try {
+        var doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+        var root = doc.documentElement;
+        var vb = String(root.getAttribute('viewBox') || '').trim().split(/[ ,]+/).map(Number);
+        if (vb.length === 4 && isFinite(vb[2]) && isFinite(vb[3]) && vb[2] > 0 && vb[3] > 0) { w = vb[2]; h = vb[3]; }
+        else { w = parseFloat(root.getAttribute('width')) || w; h = parseFloat(root.getAttribute('height')) || h; }
+      } catch(eParse){}
+
+      // Drawing becomes the current Part source directly. No intermediate Wick-stage copy.
+      try { if (window.DemBonesMrk2 && window.DemBonesMrk2.binding) window.DemBonesMrk2.finish(); } catch(eFinish){}
+      if (!App.source.viewportRect) {
+        var fit = getFittedStageRect();
+        var maxW = Math.max(80, fit.width * 0.65);
+        var maxH = Math.max(80, fit.height * 0.65);
+        var scale = Math.min(1, Math.min(maxW / Math.max(1,w), maxH / Math.max(1,h)));
+        var vw = Math.max(40, w * scale);
+        var vh = Math.max(40, h * scale);
+        createBlankSourceAreaAtViewport(
+          fit.x + (fit.width - vw) * 0.5,
+          fit.y + (fit.height - vh) * 0.5,
+          vw, vh, 'drawing-area', 'Drawing selection'
+        );
+      }
+      await loadSvgTextAsSource(svgText, fileName, 'drawing-selection', null);
+      App.source.selectedIdentifier = 'Drawing selection';
+      App.source.selectedUUID = 'drawing-selection';
+      App.sandboxSelectedSourceObjects = [];
+      removeSetAreaOverlay();
+      ensureOverlay();
+      hideSetAreaVisualFrame();
+      fitOverlayToSource();
+      setActiveTab('source');
+      updateUI();
+      renderOverlay();
+      markDirty();
+      if (el('sandboxPartStatus')) el('sandboxPartStatus').textContent = 'Drawing selection added · ready for bones.';
+      log('Drawing selection added directly to the current DemBones Pose Part.');
+      return true;
+    } catch(error) {
+      log('Drawing to DemBones Pose failed: ' + (error && error.message ? error.message : error));
+      return false;
+    }
+  }
   function dbOpenDrawingSeparatePanel(){ // FIX GPT_19-09-2026_DrawingCompanionPanel
     var pwin = window.parent || window;
     var pdoc = pwin.document || document;
@@ -25811,7 +25861,11 @@ function installDemBonesMrk2() {
     fetch('https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/Drawing.txt?t=' + Date.now(), { cache:'no-store' })
       .then(function(response){ if (!response.ok) throw new Error('HTTP ' + response.status); return response.text(); })
       .then(function(html){
-        frame.srcdoc = String(html || '');
+        html = String(html || '');
+        var inject = '<script>window.__LT_DRAWING_CONTEXT="dembones";<\/script>';
+        if (/<head[^>]*>/i.test(html)) html = html.replace(/<head([^>]*)>/i, '<head$1>' + inject);
+        else html = inject + html;
+        frame.srcdoc = html;
       })
       .catch(function(error){
         frame.srcdoc = '<!doctype html><html><body style="background:#16181c;color:#fff;font-family:Arial;padding:20px">Drawing failed to load: ' + String(error && error.message ? error.message : error).replace(/[&<>]/g,function(ch){ return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[ch]; }) + '</body></html>';
@@ -25819,6 +25873,20 @@ function installDemBonesMrk2() {
   }
   function dbSimplifiedUiInstall(){
     App.sandboxBoneKind = App.sandboxBoneKind || 'normal';
+    // FIX GPT_20-09-2026_PoseDrawingReceive: Drawing and Pose Sandbox are sibling iframes.
+    // Register the active Pose Sandbox as the direct recipient on the Wick parent window.
+    try {
+      if (window.parent) {
+        window.parent.__LukeToolsDemBonesReceiveDrawing = function(data){
+          return dbReceiveDrawingSelectionForSandbox(data);
+        };
+        if (!App.interaction.poseDrawingMessageBound) {
+          window.parent.addEventListener('message', dbReceiveDrawingSelectionForSandbox, false);
+          App.interaction.poseDrawingMessageBound = true;
+        }
+      }
+    } catch(eDrawingBridge){}
+
     if (el('chkUseSelectedCurveRemoveOriginals_Claude')) el('chkUseSelectedCurveRemoveOriginals_Claude').checked = true;
     if (el('btnSandboxUseArtwork')) el('btnSandboxUseArtwork').addEventListener('click', function(){ dbSimplifiedProxy('btnUseSelectedCurve'); });
     if (el('btnSandboxOpenDrawing')) el('btnSandboxOpenDrawing').addEventListener('click', dbOpenDrawingSeparatePanel); // FIX GPT_19-09-2026_DrawingCompanionPanel
