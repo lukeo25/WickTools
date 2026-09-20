@@ -8011,6 +8011,7 @@ html, body, #app{
         fileName: App.source.fileName || '', captureMode: App.source.captureMode || 'local-file', selectedIdentifier: App.source.selectedIdentifier || '', selectedUUID: App.source.selectedUUID || '',
         width: Number(App.source.width || 0), height: Number(App.source.height || 0), svgRaw: App.source.svgRaw || '', dataUrl: App.source.dataUrl || App.source.embeddedDataUrl || '',
         svgNative: safeJsonClone(App.source.svgNative || null), // FIX v_006: preserve exact parsed RotoBones curve detail instead of rebuilding lower detail paths
+        gizmo: safeJsonClone(App.source.gizmo || null), // FIX GPT_21-09-2026_GizmoCharacterState
         stagePlacementBounds: safeJsonClone(App.source.stagePlacementBounds), viewportRect: safeJsonClone(App.source.viewportRect), alphaThreshold: Number(App.source.alphaThreshold || 254), dummy: safeJsonClone(App.source.dummy || null)
       },
       flags: safeJsonClone(App.flags), rig: safeJsonClone(App.rig), smooth: safeJsonClone(App.smooth), selectedCurve: safeJsonClone(App.selectedCurve), grid: safeJsonClone(App.grid), // FIX v14.6
@@ -8241,6 +8242,7 @@ html, body, #app{
       App.source.stagePlacementBounds = safeJsonClone(src.stagePlacementBounds) || App.source.stagePlacementBounds;
       App.source.viewportRect = safeJsonClone(src.viewportRect) || App.source.viewportRect;
       App.source.alphaThreshold = Number(src.alphaThreshold || App.source.alphaThreshold || 254);
+      App.source.gizmo = safeJsonClone(src.gizmo || null); // FIX GPT_21-09-2026_GizmoCharacterState
       buildAlphaMask();
     } else if (src.dummy && src.dummy.active) { // FIX v18.182_GPT
       App.source.dataUrl = ''; App.source.embeddedDataUrl = ''; App.source.image = null;
@@ -8248,10 +8250,11 @@ html, body, #app{
       App.source.height = Math.max(40, Number(src.height || (src.dummy && src.dummy.height) || 220));
       App.source.fileName = src.fileName || 'Dummy area'; App.source.captureMode = src.captureMode || 'dummy-area';
       App.source.svgRaw = ''; App.source.svgNative = null; App.source.selectedIdentifier = src.selectedIdentifier || 'Dummy area'; App.source.selectedUUID = src.selectedUUID || 'dummy-area';
+      App.source.gizmo = safeJsonClone(src.gizmo || null); // FIX GPT_21-09-2026_GizmoCharacterState
       App.source.dummy = safeJsonClone(src.dummy);
       ensureOverlay(); fitOverlayToSource();
     } else {
-      removeOverlay(); App.source.dataUrl = ''; App.source.embeddedDataUrl = ''; App.source.image = null; App.source.width = 0; App.source.height = 0; App.source.fileName = ''; App.source.captureMode = ''; App.source.svgRaw = ''; App.source.svgNative = null; App.source.dummy = null; App.source.selectedIdentifier = ''; App.source.selectedUUID = '';
+      removeOverlay(); App.source.dataUrl = ''; App.source.embeddedDataUrl = ''; App.source.image = null; App.source.width = 0; App.source.height = 0; App.source.fileName = ''; App.source.captureMode = ''; App.source.svgRaw = ''; App.source.svgNative = null; App.source.gizmo = null; App.source.dummy = null; App.source.selectedIdentifier = ''; App.source.selectedUUID = '';
     }
     App.bones = normaliseLoadedBoneArray(safeJsonClone(data.bones || [])); // FIX v17.0 // FIX v_068: do not lose stretchy bone type/restLength data when loading a MyCharacter part.
     App.nextBoneId = Number(data.nextBoneId || ((App.bones || []).reduce(function(maxId, item){ return Math.max(maxId, Number(item.id || 0)); }, 0) + 1) || 1);
@@ -16443,6 +16446,7 @@ html, body, #app{
               '<div class="mcPartBody">' +
                 mcButton('Assemble', assemble, 'assemble', p.id) +
                 mcButton('Animate', animate, 'animate', p.id) +
+                mcButton('Add Bones', '', 'addbones', p.id) + // FIX GPT_21-09-2026_GizmoAddBones
                 '<button type="button" class="mcBigBtn mcStackButton" data-action="up" data-id="' + p.id + '">Move Up</button>' +
                 '<button type="button" class="mcBigBtn mcStackButton" data-action="down" data-id="' + p.id + '">Move Down</button>' +
                 (p.parentPin ? '<button type="button" class="mcBigBtn mcUnpinBtn" data-action="unpin" data-id="' + p.id + '">Unpin</button>' : '<button type="button" class="mcBigBtn mcPinPlain' + pin + '" data-action="pin" data-id="' + p.id + '">Pin To Parent</button>') +
@@ -16867,6 +16871,30 @@ html, body, #app{
       mcSetAssembleModeFor(id);
     } else if (action === 'animate') {
       mcSetAnimateModeFor(id);
+    } else if (action === 'addbones') { // FIX GPT_21-09-2026_GizmoAddBones
+      var bonePart = mcFindPart(id);
+      if (!bonePart || !bonePart.state) {
+        mcLog('Add Bones: this Character item has no loaded Part state.');
+      } else {
+        Promise.resolve(mcActivatePart(id)).then(function(){
+          try {
+            var selectedBonePart = mcFindPart(id);
+            if (selectedBonePart && selectedBonePart.state) {
+              mc.selectedId = id;
+              selectedBonePart.mode = 'assemble';
+              selectedBonePart.editTarget = 'bone';
+            }
+            setActiveTab('bones');
+            App.interaction.addBoneMode = true;
+            updateUI();
+            renderOverlay();
+            mcRenderPanel();
+            mcLog('Add Bones: drag on the selected Part to create bones.');
+          } catch(eAddBonesOpen) {
+            mcLog('Add Bones failed: ' + (eAddBonesOpen && eAddBonesOpen.message ? eAddBonesOpen.message : eAddBonesOpen));
+          }
+        });
+      }
     } else if (action === 'bone') {
       mcSetBoneModeFor(id);
     } else if (action === 'node') {
@@ -21278,6 +21306,163 @@ html, body, #app{
     }
   })();
 
+
+
+  // FIX GPT_21-09-2026_GizmoAnchorFinalPin: final pin path accepts either a root bone or a Drawing Gizmo Set Anchor.
+  (function installGizmoAnchorFinalPin_v18242_GPT(){
+    try {
+      mcCompletePinToBone = function(source, target, bone, evt){
+        var mc = mcEnsure();
+        if (!source || !target || !bone) {
+          mcLog('Click a visible bone on the part you want to pin to.');
+          return true;
+        }
+        if (!source.state || !target.state) {
+          mcLog('Pin failed. Source or target part JSON is missing.');
+          return true;
+        }
+
+        var childAttach = mcChildAttachmentPointLocal_v18241(source);
+        if (!childAttach) {
+          mcLog('Pin failed. The part being pinned has no root bone or Gizmo Set Anchor.');
+          return true;
+        }
+
+        var attachPoint = 'head';
+        try {
+          var node = evt && evt.target ? mcFindPinDataNode_v041(evt.target) : null;
+          if (node && node.getAttribute('data-mc-pin-attach') === 'tail') attachPoint = 'tail';
+        } catch(eAttach242){}
+        if (bone && bone._mcPinAttachPoint) attachPoint = bone._mcPinAttachPoint;
+
+        var frameNow = App.currentFrame || 1;
+        try {
+          syncFrameFromWick();
+          frameNow = App.currentFrame || frameNow;
+        } catch(eSyncPin242){}
+
+        var targetStage = mcPartStagePointForBone(target, bone.id, frameNow, attachPoint);
+        if (!targetStage) {
+          mcLog('Pin failed. Target bone position is missing.');
+          return true;
+        }
+
+        var oldT = mcSafeClone(source.transform || { x:0, y:0, w:1, h:1, rotation:0 });
+        var childAttachStage = null;
+        try {
+          childAttachStage = mcLocalPointToPartStage(source, {
+            x:Number(childAttach.x || 0),
+            y:Number(childAttach.y || 0)
+          });
+        } catch(eChildAttachStage242){}
+
+        if (!childAttachStage) {
+          var childSrc = source.state && source.state.source ? source.state.source : {};
+          var childSx = Math.max(0.0001, Number(oldT.w || childSrc.width || 1) / Math.max(1, Number(childSrc.width || oldT.w || 1)));
+          var childSy = Math.max(0.0001, Number(oldT.h || childSrc.height || 1) / Math.max(1, Number(childSrc.height || oldT.h || 1)));
+          childAttachStage = {
+            x:Number(oldT.x || 0) + Number(childAttach.x || 0) * childSx,
+            y:Number(oldT.y || 0) + Number(childAttach.y || 0) * childSy
+          };
+        }
+
+        var targetBoneAngle = 0;
+        try {
+          targetBoneAngle = mcPinBoneStageAngleDegForCommit_v047
+            ? mcPinBoneStageAngleDegForCommit_v047(target, bone.id, frameNow)
+            : mcPinBoneStageAngleDeg_v042(target, bone.id, frameNow);
+        } catch(eBoneAngle242) {
+          try { targetBoneAngle = mcPinBoneStageAngleDeg_v042(target, bone.id, frameNow); }
+          catch(eBoneAngleFallback242) { targetBoneAngle = 0; }
+        }
+
+        var worldOffset = {
+          x:Number(childAttachStage.x || 0) - Number(targetStage.x || 0),
+          y:Number(childAttachStage.y || 0) - Number(targetStage.y || 0)
+        };
+        var localOffset = { x:worldOffset.x, y:worldOffset.y };
+        try {
+          localOffset = mcRotatePoint_v042(worldOffset, -Number(targetBoneAngle || 0));
+        } catch(eLocalOffset242){}
+
+        source.parentPin = {
+          targetPartId:target.id,
+          boneId:String(bone.id == null ? '' : bone.id),
+          attachPoint:attachPoint,
+          childRootBoneId:childAttach.boneId == null ? null : String(childAttach.boneId),
+          childAttachKind:String(childAttach.kind || 'attachment'),
+          childAttachLocal:{
+            x:Number(childAttach.x || 0),
+            y:Number(childAttach.y || 0)
+          },
+          offset:{
+            x:Number(localOffset.x || 0),
+            y:Number(localOffset.y || 0),
+            rotation:Number(oldT.rotation || 0) - Number(targetBoneAngle || 0),
+            mode:'boneLocal'
+          },
+          offsetLocal:{
+            x:Number(localOffset.x || 0),
+            y:Number(localOffset.y || 0)
+          }
+        };
+
+        try {
+          var parentScale = mcPartTransformScaleForPin_v088(target);
+          var childScale = mcPartTransformScaleForPin_v088(source);
+          source.parentPin.inheritParentTransform = true;
+          source.parentPin.parentScaleAtPin = {
+            sx:parentScale.sx, sy:parentScale.sy,
+            w:parentScale.w, h:parentScale.h
+          };
+          source.parentPin.childScaleAtPin = {
+            sx:childScale.sx, sy:childScale.sy,
+            w:childScale.w, h:childScale.h
+          };
+          source.parentPin.childSizeAtPin = {
+            w:childScale.w, h:childScale.h
+          };
+        } catch(eScalePin242){}
+
+        source.transform = oldT;
+        mc.pinPickSourceId = null;
+        try { mcSetPinCursor(false); } catch(eCursorOff242){}
+        try { mcRemovePinPickLayer_v039(); } catch(eRemovePinLayer242){}
+
+        try {
+          var resolved = mcPinnedTransformForFrame_v066(source, mc.parts || [], frameNow);
+          if (resolved) source.transform = resolved;
+        } catch(eResolvedPin242){}
+
+        try { mcRefreshPinnedChildren(); } catch(eRefresh242){}
+        try { mcRenderPanel(); } catch(ePanel242){}
+        try { mcRenderStageParts(); } catch(eStage242){}
+        try { renderOverlay(); } catch(eOverlay242){}
+        try {
+          if (Number(source.id || 0) === Number(mc.selectedId || 0)) {
+            mcApplyTransformToApp(source.transform);
+          }
+        } catch(eApplySelected242){}
+
+        mcLog('Pinned ' + (source.name || 'part') + ' to ' +
+          (target.name || 'part') + ' / ' +
+          (bone.name || ('Bone ' + String(bone.id == null ? '' : bone.id))) + '.');
+
+        try {
+          if (evt) {
+            evt.preventDefault();
+            evt.stopPropagation();
+            if (evt.stopImmediatePropagation) evt.stopImmediatePropagation();
+          }
+        } catch(eStop242){}
+        return true;
+      };
+
+      try { log('MyCharacter Gizmo Set Anchor final pin fix active.'); } catch(eLog242){}
+    } catch(eInstall242) {
+      try { console.error('[DemBones GPT 21-09-2026] Gizmo final pin install failed', eInstall242); } catch(eConsole242){}
+    }
+  })();
 
 
   // FIX v18.113_GPT: Keying a Lip_Bone or Frame_Bone must never strip MyCharacter parentPin data.
@@ -26079,6 +26264,7 @@ function installDemBonesMrk2() {
     App.frameBoneKeys = {};
     App.expressionKeys = {};
     App.expressionProfiles = {};
+    try { if (App.source) App.source.gizmo = null; } catch(eGizmoReset){} // FIX GPT_21-09-2026_GizmoCharacterState
 
     App.currentFrame = 1;
     App.selectedCurvePointId = null;
@@ -26578,6 +26764,46 @@ function installDemBonesMrk2() {
     document.addEventListener('scroll', resetPanelScroll, true);
     setInterval(resetPanelScroll, 250);
   })();
+
+
+  // FIX GPT_21-09-2026_GizmoCurvePreserve: bone-less Gizmos use the exact stored Drawing SVG in Character.
+  (function installExactBoneLessGizmoPreview_v18243_GPT(){
+    try {
+      var mcSourceMarkupForStagePart_Base_v18243_GPT = mcSourceMarkupForStagePart;
+      mcSourceMarkupForStagePart = function(part){
+        try {
+          var state = part && part.state ? part.state : null;
+          var src = state && state.source ? state.source : null;
+          var gizmo = src && src.gizmo ? src.gizmo : null;
+          var bones = state && Array.isArray(state.bones) ? state.bones : [];
+          if (gizmo && !bones.length && Array.isArray(gizmo.frames) && gizmo.frames.length) {
+            var frameIndex = Math.max(0, Math.min(
+              gizmo.frames.length - 1,
+              Number(gizmo.defaultFrame || 1) - 1
+            ));
+            var frameData = gizmo.frames[frameIndex] || null;
+            if (frameData && frameData.raw) {
+              return '<img src="' +
+                htmlEscape(svgTextToDataUrl(String(frameData.raw))) +
+                '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:fill;pointer-events:none;" draggable="false">';
+            }
+            if (frameData && frameData.dataUrl) {
+              return '<img src="' +
+                htmlEscape(String(frameData.dataUrl)) +
+                '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:fill;pointer-events:none;" draggable="false">';
+            }
+          }
+        } catch(eExactGizmo243){}
+        return mcSourceMarkupForStagePart_Base_v18243_GPT
+          ? mcSourceMarkupForStagePart_Base_v18243_GPT(part)
+          : '';
+      };
+      try { log('Exact bone-less Gizmo curve preservation active.'); } catch(eLog243){}
+    } catch(eInstall243) {
+      try { console.error('[DemBones GPT 21-09-2026] exact Gizmo preview install failed', eInstall243); } catch(eConsole243){}
+    }
+  })();
+
 </script>
 </body>
 </html>
