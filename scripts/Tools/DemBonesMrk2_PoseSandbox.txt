@@ -25684,6 +25684,44 @@ function installDemBonesMrk2() {
     return failed;
   }
 
+  function dbRemoveExactDrawingSourceObjects(objects){ // FIX GPT_20-09-2026_DrawingExactCleanup
+    var failed = [];
+    var seen = [];
+    (objects || []).forEach(function(object){
+      if (!object || seen.indexOf(object) >= 0) return;
+      seen.push(object);
+      // IMPORTANT: never call deleteSelectedObjects here. The Wick selection may
+      // belong to an already-finished Character part. Remove only the exact
+      // temporary object created by Drawing.
+      if (!dbRemoveWickObjectForCharacterTransfer(object)) failed.push(object);
+    });
+    try { if (App.ed && typeof App.ed.syncInterfaces === 'function') App.ed.syncInterfaces(); } catch(eSync){}
+    try { if (App.project && App.project.view && typeof App.project.view.render === 'function') App.project.view.render(); } catch(eRender){}
+    try { markDirty(); } catch(eDirty){}
+    return failed;
+  }
+
+  function dbReleaseFinishedCharacterBeforeNewDrawing(){ // FIX GPT_20-09-2026_DrawingNewPartIsolation
+    var mc = mcEnsure();
+    var current = mcSelectedPart();
+    if (!current || !current.state) return;
+
+    // Persist any last pose/transform edits into the Character-owned copy.
+    try { mcCaptureActivePart(); } catch(eCapture){}
+    try { current.transform = mcReadTransform(); } catch(eTransform){}
+
+    // The next Drawing import is a NEW part. Do not let loadSvgTextAsSource
+    // overwrite the state currently being used to display this Character part.
+    mc.selectedId = null;
+    mc.pendingLoadPartId = null;
+    mc.loading = false;
+
+    try { removeProxyOverlay(false); } catch(eProxy){}
+    try { removeOverlay(); } catch(eOverlay){}
+    try { mcRenderPanel(); } catch(ePanel){}
+    try { mcRenderStageParts(); } catch(eStage){}
+  }
+
   function dbMakeTransferredCharacterStateIndependent(state){ // FIX GPT_20-09-2026_CharacterTransferOwnership
     var out = mcSafeClone(state || {});
     try { delete out.demBonesMrk2; } catch(eBinding){}
@@ -25842,7 +25880,7 @@ function installDemBonesMrk2() {
     input.click();
   }
 
-  async function dbReceiveDrawingSelectionForSandbox(data){ // FIX GPT_20-09-2026_DrawingUsesSelectedWickPath
+  async function dbReceiveDrawingSelectionForSandbox(data){ // FIX GPT_20-09-2026_DrawingNewPartIsolation
     data = data && data.data ? data.data : data;
     if (!data || data.type !== 'LukeToolsDemBonesDrawingSelection') return false;
 
@@ -25853,12 +25891,14 @@ function installDemBonesMrk2() {
     }
 
     try {
-      // Use the exact same conversion route as desktop-selected Wick artwork.
-      // Drawing creates temporary native Wick.Path objects, then DemBones ingests
-      // those objects with selectedCurveObjectsToSvg just like Use Selected Artwork.
+      // A Drawing handoff always starts a NEW part. First freeze any finished
+      // Character part so the new source cannot overwrite it.
+      dbReleaseFinishedCharacterBeforeNewDrawing();
+
+      // If an unrelated live DemBones binding exists, finish it before ingesting
+      // the new Drawing source.
       try { if (window.DemBonesMrk2 && window.DemBonesMrk2.binding) window.DemBonesMrk2.finish(); } catch(eFinish){}
 
-      App.sandboxSelectedSourceObjects = objects.slice();
       var converted = selectedCurveObjectsToSvg(objects);
       rememberSelectedCurveSourceTimeline();
 
@@ -25869,11 +25909,14 @@ function installDemBonesMrk2() {
         converted.bounds
       );
 
-      // These Wick objects exist only to reuse the normal desktop selected-curve
-      // importer, so remove them immediately after the source has been captured.
-      removeOriginalSelectedCurveObjects(objects);
-      App.sandboxSelectedSourceObjects = [];
+      // Drawing-created Wick paths are only a transport mechanism. Remove only
+      // those exact objects; never use Wick's current selection for cleanup.
+      var failedCleanup = dbRemoveExactDrawingSourceObjects(objects);
+      if (failedCleanup.length) {
+        throw new Error('Could not remove ' + failedCleanup.length + ' temporary Drawing source object' + (failedCleanup.length === 1 ? '' : 's') + '.');
+      }
 
+      App.sandboxSelectedSourceObjects = [];
       clearWickSelectionAfterArtworkUse();
       removeSetAreaOverlay();
       ensureOverlay();
@@ -25894,13 +25937,12 @@ function installDemBonesMrk2() {
         log('Drawing added to DemBones. Some objects were skipped: ' + converted.errors.join(' | '));
       } else {
         log(converted.count > 1
-          ? converted.count + ' Drawing curves added to the current DemBones Part.'
-          : 'Drawing curve added to the current DemBones Part.');
+          ? converted.count + ' Drawing curves added as a new DemBones Part.'
+          : 'Drawing curve added as a new DemBones Part.');
       }
       return true;
     } catch(error) {
-      // Clean up any temporary Wick objects if capture failed.
-      try { removeOriginalSelectedCurveObjects(objects); } catch(eCleanup){}
+      try { dbRemoveExactDrawingSourceObjects(objects); } catch(eCleanup){}
       App.sandboxSelectedSourceObjects = [];
       log('Drawing to DemBones failed: ' + (error && error.message ? error.message : error));
       return false;
