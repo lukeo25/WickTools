@@ -3579,26 +3579,100 @@ function drawingMarkProjectDirty(editor,project,label){
   try{window.parent?.dispatchEvent(new Event("resize"));}catch(e){}
 }
 
-function drawingFrameSvgPayload(frame){
+function drawingFrameBounds(frame){
   const drawing=String(frame && frame.drawing || "");
-  const svgText='<svg xmlns="'+SVGNS+'" width="'+pageW+'" height="'+pageH+'" viewBox="0 0 '+pageW+' '+pageH+'">'+drawing+'</svg>';
+  if(!drawing.trim()) return null;
+
+  const temp=document.createElementNS(SVGNS,"svg");
+  temp.setAttribute("xmlns",SVGNS);
+  temp.setAttribute("width",pageW);
+  temp.setAttribute("height",pageH);
+  temp.setAttribute("viewBox","0 0 "+pageW+" "+pageH);
+  temp.style.cssText="position:fixed;left:-100000px;top:-100000px;width:"+pageW+"px;height:"+pageH+"px;visibility:hidden;pointer-events:none;";
+  const group=document.createElementNS(SVGNS,"g");
+  group.innerHTML=drawing;
+  temp.appendChild(group);
+  document.body.appendChild(temp);
+
+  try{
+    const bb=group.getBBox();
+    if(!bb || !isFinite(bb.x)||!isFinite(bb.y)||!isFinite(bb.width)||!isFinite(bb.height)||bb.width<=0||bb.height<=0) return null;
+    return {x:Number(bb.x),y:Number(bb.y),w:Number(bb.width),h:Number(bb.height)};
+  }catch(err){
+    console.warn("[Drawing Draw Gizmo] frame bounds failed",err);
+    return null;
+  }finally{
+    temp.remove();
+  }
+}
+
+function drawingGizmoSharedBounds(){
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  drawingFrames.forEach(frame=>{
+    const bb=drawingFrameBounds(frame);
+    if(!bb) return;
+    minX=Math.min(minX,bb.x);
+    minY=Math.min(minY,bb.y);
+    maxX=Math.max(maxX,bb.x+bb.w);
+    maxY=Math.max(maxY,bb.y+bb.h);
+  });
+
+  if(!isFinite(minX)||!isFinite(minY)||!isFinite(maxX)||!isFinite(maxY)){
+    return {x:0,y:0,w:Math.max(1,pageW),h:Math.max(1,pageH)};
+  }
+
+  // Enough room for wide strokes, antialiasing and transformed edge geometry.
+  const pad=8;
+  minX-=pad;
+  minY-=pad;
+  maxX+=pad;
+  maxY+=pad;
+
+  return {
+    x:minX,
+    y:minY,
+    w:Math.max(1,maxX-minX),
+    h:Math.max(1,maxY-minY)
+  };
+}
+
+function drawingFrameSvgPayload(frame,sharedBounds){
+  const drawing=String(frame && frame.drawing || "");
+  const b=sharedBounds||drawingGizmoSharedBounds();
+
+  // Rasterisation of an SVG Image onto DemBones' Canvas happens at the SVG's
+  // intrinsic pixel size. Give it a 3x backing size while keeping the logical
+  // Gizmo dimensions at b.w × b.h for a much cleaner Canvas preview.
+  const backingScale=3;
+  const pixelW=Math.max(1,Math.ceil(b.w*backingScale));
+  const pixelH=Math.max(1,Math.ceil(b.h*backingScale));
+
+  const svgText=
+    '<svg xmlns="'+SVGNS+'" width="'+pixelW+'" height="'+pixelH+'" viewBox="'+
+    b.x+' '+b.y+' '+b.w+' '+b.h+'" preserveAspectRatio="xMidYMid meet">'+
+    drawing+
+    '</svg>';
+
   return {
     label:String(frame && frame.label || "Frame"),
     svgText:svgText,
-    width:pageW,
-    height:pageH
+    width:b.w,
+    height:b.h,
+    sourceBounds:{x:b.x,y:b.y,w:b.w,h:b.h}
   };
 }
 
 async function sendDrawGizmoDirectToDemBones(name){
   const requestId="drawgizmo_"+Date.now()+"_"+Math.floor(Math.random()*1000000);
+  const sharedBounds=drawingGizmoSharedBounds();
   const payload={
     type:"LukeToolsDemBonesDrawGizmo",
     requestId,
     name:String(name||"DrawGizmo"),
-    width:pageW,
-    height:pageH,
-    frames:drawingFrames.map(drawingFrameSvgPayload)
+    width:sharedBounds.w,
+    height:sharedBounds.h,
+    sourceBounds:sharedBounds,
+    frames:drawingFrames.map(frame=>drawingFrameSvgPayload(frame,sharedBounds))
   };
 
   console.log("[Drawing Draw Gizmo] sending",requestId,payload.name,payload.frames.length);
