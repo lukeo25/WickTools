@@ -194,6 +194,7 @@
         <rect id="pageRect" x="0" y="0" width="1280" height="800"></rect>
         <g id="onionLayer" pointer-events="none"></g>
         <g id="drawLayer"></g>
+        <g id="gizmoAnchorLayer" pointer-events="none"></g>
       </svg>
     </div>
     <svg id="selOverlay"></svg>
@@ -202,6 +203,7 @@
       <div id="gizmoTimelineControls">
         <input id="drawGizmoName" type="text" maxlength="64" value="DrawGizmo" spellcheck="false" title="Gizmo name">
         <button id="btnTimelineOnionSkin" type="button" class="active" title="Show previous and next Drawing frames">Onion Skin</button>
+        <button id="btnTimelineSetAnchor" type="button" title="Place the Gizmo attachment point used later by Character Pin To Parent">Set Anchor</button>
         <button id="btnTimelineAddFrame" type="button">+ Frame</button>
         <button id="btnTimelineDeleteFrame" type="button">Delete</button>
         <button id="btnTimelineMakeGizmo" type="button">Make Gizmo</button>
@@ -297,6 +299,7 @@ const SVGNS = "http://www.w3.org/2000/svg";
 const svgRoot = document.getElementById("svgRoot");
 const drawLayer = document.getElementById("drawLayer");
 const onionLayer = document.getElementById("onionLayer");
+const gizmoAnchorLayer = document.getElementById("gizmoAnchorLayer");
 const pageRect = document.getElementById("pageRect");
 const stage = document.getElementById("stage");
 const canvasWrap = document.getElementById("canvasWrap");
@@ -316,6 +319,8 @@ let drawingFrameIndex = 0;
 let drawingFrameNextId = 2;
 let drawingGizmoMode = false; // FIX GPT_20-09-2026_DrawGizmoTimeline
 let drawingOnionSkin = true; // FIX GPT_20-09-2026_DrawGizmoOnionSkin
+let drawingGizmoAnchor = {x:pageW*0.5,y:pageH*0.5}; // FIX GPT_20-09-2026_GizmoAnchor
+let drawingGizmoAnchorPick = false;
 
 // ---------- Tool definitions ----------
 const TOOLS = [
@@ -449,6 +454,10 @@ function scheduleDrawingSessionSave(){
       drawingFrameNextId:Number(drawingFrameNextId)||2,
       drawingGizmoMode:!!drawingGizmoMode,
       drawingOnionSkin:!!drawingOnionSkin,
+      drawingGizmoAnchor:{
+        x:Number(drawingGizmoAnchor&&drawingGizmoAnchor.x)||0,
+        y:Number(drawingGizmoAnchor&&drawingGizmoAnchor.y)||0
+      },
       zoom:Number(zoom)||1,
       panX:Number(panX)||0,
       panY:Number(panY)||0
@@ -489,6 +498,11 @@ async function restoreDrawingSession(){
     }
     drawingGizmoMode=!!saved.drawingGizmoMode;
     drawingOnionSkin=saved.drawingOnionSkin!==false;
+    drawingGizmoAnchor=saved.drawingGizmoAnchor &&
+      isFinite(Number(saved.drawingGizmoAnchor.x)) &&
+      isFinite(Number(saved.drawingGizmoAnchor.y))
+        ? {x:Number(saved.drawingGizmoAnchor.x),y:Number(saved.drawingGizmoAnchor.y)}
+        : {x:pageW*0.5,y:pageH*0.5};
 
     zoom=isFinite(Number(saved.zoom)) ? Math.max(.05,Math.min(16,Number(saved.zoom))) : 1;
     panX=isFinite(Number(saved.panX)) ? Number(saved.panX) : 60;
@@ -3366,6 +3380,8 @@ function startNewDrawingGizmo(){
   drawingFrameNextId=2;
   drawingGizmoMode=true;
   drawingOnionSkin=true;
+  drawingGizmoAnchor={x:pageW*0.5,y:pageH*0.5};
+  drawingGizmoAnchorPick=false;
   const name=document.getElementById("drawGizmoName");
   if(name)name.value="DrawGizmo";
   resetDrawingHistoryForFrame();
@@ -3415,6 +3431,38 @@ function drawGizmoIdentifier(value,fallback){
   return s;
 }
 
+function renderDrawingGizmoAnchor(){
+  if(!gizmoAnchorLayer) return;
+  gizmoAnchorLayer.innerHTML="";
+  if(!drawingGizmoMode || !drawingGizmoAnchor) return;
+
+  const x=Number(drawingGizmoAnchor.x||0);
+  const y=Number(drawingGizmoAnchor.y||0);
+  const g=document.createElementNS(SVGNS,"g");
+  g.setAttribute("data-draw-gizmo-anchor","1");
+  g.innerHTML=
+    '<circle cx="'+x+'" cy="'+y+'" r="10" fill="#ffd84a" fill-opacity=".22" stroke="#ffb400" stroke-width="2"/>'+
+    '<line x1="'+(x-16)+'" y1="'+y+'" x2="'+(x+16)+'" y2="'+y+'" stroke="#ffb400" stroke-width="2"/>'+
+    '<line x1="'+x+'" y1="'+(y-16)+'" x2="'+x+'" y2="'+(y+16)+'" stroke="#ffb400" stroke-width="2"/>';
+  gizmoAnchorLayer.appendChild(g);
+
+  const button=document.getElementById("btnTimelineSetAnchor");
+  if(button){
+    button.classList.toggle("active",!!drawingGizmoAnchorPick);
+    button.textContent=drawingGizmoAnchorPick ? "Click Canvas…" : "Set Anchor";
+  }
+}
+
+function beginDrawingGizmoAnchorPick(){
+  if(!drawingGizmoMode){
+    flashStatus("Start a Gizmo first");
+    return;
+  }
+  drawingGizmoAnchorPick=true;
+  renderDrawingGizmoAnchor();
+  flashStatus("Click where the Gizmo should attach when pinned in Character");
+}
+
 function renderDrawingFrames(){
   const timeline=document.getElementById("gizmoTimeline");
   const host=document.getElementById("gizmoTimelineFrames");
@@ -3458,6 +3506,7 @@ function renderDrawingFrames(){
   if(del)del.disabled=drawingFrames.length<=1;
   syncOnionSkinButton();
   renderDrawingOnionSkin();
+  renderDrawingGizmoAnchor();
 }
 
 function drawingWickNamespace(){
@@ -3697,9 +3746,14 @@ async function makeDrawGizmo(){ // FIX GPT_20-09-2026_CanonicalFrameGizmo
     // This is the exact marker used by LukeTools FrameGizmo.
     const familyId=String(clip.uuid||"").replace(/[^A-Za-z0-9_-]/g,"") ||
       ("gizmo_"+Date.now()+"_"+Math.floor(Math.random()*1000000));
+    const gizmoScaleX=(Number(project.width||project.stageWidth||pageW)||pageW)/Math.max(1,pageW);
+    const gizmoScaleY=(Number(project.height||project.stageHeight||pageH)||pageH)/Math.max(1,pageH);
+    const anchorX=(Number(drawingGizmoAnchor&&drawingGizmoAnchor.x)||pageW*0.5)*gizmoScaleX;
+    const anchorY=(Number(drawingGizmoAnchor&&drawingGizmoAnchor.y)||pageH*0.5)*gizmoScaleY;
     const marker=
       "/*LUKE_FRAME_GIZMO:1*/\n"+
-      "/*LUKE_FRAME_GIZMO_ID:"+familyId+"*/";
+      "/*LUKE_FRAME_GIZMO_ID:"+familyId+"*/\n"+
+      "/*LUKE_FRAME_GIZMO_ANCHOR:"+anchorX.toFixed(4)+","+anchorY.toFixed(4)+"*/";
 
     try{
       if(typeof clip.addScript==="function"){
@@ -3810,7 +3864,26 @@ async function makeDrawGizmo(){ // FIX GPT_20-09-2026_CanonicalFrameGizmo
   }
 }
 
+canvasWrap.addEventListener("pointerdown",event=>{
+  if(!drawingGizmoMode || !drawingGizmoAnchorPick) return;
+  const p=screenToSvg(event.clientX,event.clientY);
+  drawingGizmoAnchor={
+    x:Math.max(0,Math.min(pageW,Number(p.x||0))),
+    y:Math.max(0,Math.min(pageH,Number(p.y||0)))
+  };
+  drawingGizmoAnchorPick=false;
+  renderDrawingGizmoAnchor();
+  scheduleDrawingSessionSave();
+  flashStatus("Gizmo Anchor set");
+  try{
+    event.preventDefault();
+    event.stopPropagation();
+    if(event.stopImmediatePropagation) event.stopImmediatePropagation();
+  }catch(e){}
+},true);
+
 document.getElementById("btnNewGizmo")?.addEventListener("click",startNewDrawingGizmo);
+document.getElementById("btnTimelineSetAnchor")?.addEventListener("click",beginDrawingGizmoAnchorPick);
 document.getElementById("btnTimelineOnionSkin")?.addEventListener("click",()=>{
   drawingOnionSkin=!drawingOnionSkin;
   syncOnionSkinButton();
@@ -3831,6 +3904,8 @@ document.getElementById("btnNew").addEventListener("click", ()=>{
   drawingFrameNextId=2;
   drawingGizmoMode=false;
   if(onionLayer)onionLayer.innerHTML="";
+  if(gizmoAnchorLayer)gizmoAnchorLayer.innerHTML="";
+  drawingGizmoAnchorPick=false;
   clearSelection();
   history = []; historyIndex = -1;
   pushHistory();
@@ -3852,6 +3927,8 @@ document.getElementById("fileInput").addEventListener("change", ev=>{
     drawingFrameNextId=2;
     drawingGizmoMode=false;
     if(onionLayer)onionLayer.innerHTML="";
+    if(gizmoAnchorLayer)gizmoAnchorLayer.innerHTML="";
+    drawingGizmoAnchorPick=false;
     const vb = loadedSvg.getAttribute("viewBox");
     if(vb){ const parts = vb.split(/\s+/).map(Number); pageW = parts[2]; pageH = parts[3]; }
     else { pageW = parseFloat(loadedSvg.getAttribute("width"))||1280; pageH = parseFloat(loadedSvg.getAttribute("height"))||800; }
