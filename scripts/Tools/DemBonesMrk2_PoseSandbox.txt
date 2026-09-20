@@ -1561,8 +1561,11 @@ html, body, #app{
       <div class="panelPage" data-page="expression"> <!-- Internal page id retained for saved-part compatibility. FIX v18.220_GPT -->
         <div class="section softSection sandboxGizmoMain">
           <h3 class="sandboxSimpleHeader">Gizmo</h3>
-          <div class="sandboxSimpleHelp">Choose Gizmo On Stage hides DemBones so you can create or select a Wick Gizmo Clip, then return it to the Character as a normal part.</div>
+          <div class="sandboxSimpleHelp">Choose an existing Wick Gizmo, or open Drawing here to build a multi-frame Draw Gizmo directly.</div>
           <button id="btnSandboxUseGizmo" class="sandboxPrimaryAction" type="button">Choose Gizmo On Stage</button>
+          <div class="sandboxActionGrid one">
+            <button id="btnSandboxDrawGizmo" class="softBtn softBtnAccent" type="button">Draw Gizmo</button>
+          </div>
           <div class="sandboxActionGrid">
             <button id="btnSandboxLoadLipOutput" class="softBtn softBtnSecondary" type="button">Load Lip Service Output</button>
             <button id="btnSandboxLoadGizmoImages" class="softBtn softBtnSecondary" type="button">Load Gizmo Images</button>
@@ -26251,6 +26254,7 @@ function installDemBonesMrk2() {
     if (el('chkUseSelectedCurveRemoveOriginals_Claude')) el('chkUseSelectedCurveRemoveOriginals_Claude').checked = true;
     if (el('btnSandboxUseArtwork')) el('btnSandboxUseArtwork').addEventListener('click', function(){ dbSimplifiedProxy('btnUseSelectedCurve'); });
     if (el('btnSandboxOpenDrawing')) el('btnSandboxOpenDrawing').addEventListener('click', dbOpenDrawingSeparatePanel); // FIX GPT_19-09-2026_DrawingCompanionPanel
+    if (el('btnSandboxDrawGizmo')) el('btnSandboxDrawGizmo').addEventListener('click', dbOpenDrawingSeparatePanel); // FIX GPT_20-09-2026_DrawGizmoEntry
     if (el('btnSandboxImportArtwork')) el('btnSandboxImportArtwork').addEventListener('click', function(){
       try {
         if (!App.source.viewportRect) {
