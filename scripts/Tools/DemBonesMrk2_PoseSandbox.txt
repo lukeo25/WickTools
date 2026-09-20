@@ -8261,7 +8261,7 @@ html, body, #app{
     App.frameCount = Math.max(1, Number(data.frameCount || App.frameCount || 1)); App.fps = clamp(Number(data.fps || App.fps || 12), 1, 60); App.currentFrame = clamp(Number(data.currentFrame || 1), 1, App.frameCount);
     enforceAllRestChains(); Object.keys(App.keyframes || {}).forEach(function(fr){ if (App.keyframes[fr]) enforceAllPoseChains(App.keyframes[fr]); });
     if (App.mcCommitSuppressProxySync) { return; } // FIX v18.99_GPT: MyCharacter commit loads part states only for baking. Do not create Wick proxy layers during that internal load because those proxy rows are not commit children and can break Wick dirty traversal.
-    if (App.source.image || (App.source && App.source.dummy && App.source.dummy.active) || App.source.captureMode === 'blank-area') { ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); } // FIX v18.182_GPT
+    if (App.source.image || (App.source && App.source.svgNative && App.source.svgNative.shapes && App.source.svgNative.shapes.length) || (App.source && App.source.dummy && App.source.dummy.active) || App.source.captureMode === 'blank-area') { ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); } // FIX v18.182_GPT
     try { syncProxyLayersToBones(true); } catch(e){}
     scheduleProxyFrame(); updateUI(); renderOverlay(); markDirty();
   }
@@ -11485,7 +11485,7 @@ html, body, #app{
       try { e.preventDefault(); e.stopPropagation(); } catch(ePinStop){} // FIX v18.92
       return;
     }
-    if (!App.source.image && !(App.source && App.source.nativeShapes && App.source.nativeShapes.length) && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') return; // FIX v18.182_GPT
+    if (!App.source.image && !(App.source && App.source.svgNative && App.source.svgNative.shapes && App.source.svgNative.shapes.length) && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') return; // FIX v18.182_GPT
     var frameBoneHitBeforeDummy = hitTestFrameBone(local); // FIX v18.184_GPT: Frame_Bone must win over the dummy square hit area.
     if (frameBoneHitBeforeDummy && (App.activeTab === 'bones' || App.activeTab === 'expression' || App.activeTab === 'editbone')) { // FIX v18.184_GPT
       pushUndoSnapshot('Overlay edit'); // FIX v18.184_GPT
@@ -11624,7 +11624,7 @@ html, body, #app{
 
   function onOverlayMouseMove(e){
     if (!App.overlay.canvas) return;
-    if (!App.source.image && !(App.source && App.source.nativeShapes && App.source.nativeShapes.length) && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') return; // FIX v18.183_GPT: dummy and blank areas are editable sources.
+    if (!App.source.image && !(App.source && App.source.svgNative && App.source.svgNative.shapes && App.source.svgNative.shapes.length) && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') return; // FIX v18.183_GPT: dummy and blank areas are editable sources.
     var local = clientToOverlayLocal(e.clientX, e.clientY);
     App.interaction.hoverLocal = local;
     App.interaction.shift = !!e.shiftKey;
@@ -15409,7 +15409,7 @@ html, body, #app{
     if (el('btnUseSelectedCurve')) el('btnUseSelectedCurve').addEventListener('click', useSelectedWickCurveAsSource); // FIX v14.4
     if (el('btnUseSelectedCurveRemove')) el('btnUseSelectedCurveRemove').addEventListener('click', useSelectedWickCurveAsSourceAndRemoveOriginal); // FIX v14.5
     el('fileImageLoader').addEventListener('change', onImageFileChosen); // FIX v6.0
-    if (el('btnRefreshOverlay')) el('btnRefreshOverlay').addEventListener('click', function(){ if (!App.source.image && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') { updateUI(); return; } ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); renderOverlay(); updateUI(); }); // FIX v18.182_GPT // FIX Claude_10-07-2026_V6: guarded, button removed from UI
+    if (el('btnRefreshOverlay')) el('btnRefreshOverlay').addEventListener('click', function(){ if (!App.source.image && !(App.source && App.source.svgNative && App.source.svgNative.shapes && App.source.svgNative.shapes.length) && !(App.source && App.source.dummy && App.source.dummy.active) && App.source.captureMode !== 'blank-area') { updateUI(); return; } ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource(); renderOverlay(); updateUI(); }); // FIX v18.182_GPT // FIX Claude_10-07-2026_V6: guarded, button removed from UI
     if (el('btnRemoveOverlay')) el('btnRemoveOverlay').addEventListener('click', function(){ removeSetAreaOverlay(); removeOverlay(); updateUI(); }); // FIX v6.0 // FIX Claude_10-07-2026_V6: guarded, button removed from UI
 
     if (el('chkSvgSmoothEnabled')) el('chkSvgSmoothEnabled').addEventListener('change', function(){ App.smooth.enabled = !!this.checked; updateUI(); renderOverlay(); }); // FIX v8.7
