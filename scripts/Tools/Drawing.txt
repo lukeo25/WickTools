@@ -2838,15 +2838,75 @@ async function addSelectedToDemBonesPart(){
     }
 
     const pad=2;
-    minX-=pad; minY-=pad; maxX+=pad; maxY+=pad;
-    const w=Math.max(1,maxX-minX), h=Math.max(1,maxY-minY);
+    minX-=pad;
+    minY-=pad;
+    maxX+=pad;
+    maxY+=pad;
+
+    const drawingW=Math.max(1,Number(pageW)||1280);
+    const drawingH=Math.max(1,Number(pageH)||800);
+    const editor=getWickEditor();
+    const project=editor&&editor.project?editor.project:null;
+
+    let wickW=drawingW;
+    let wickH=drawingH;
+    try{
+      wickW=Math.max(1,Number(
+        project&&(
+          project.width||
+          project.stageWidth||
+          project.canvasWidth||
+          (project.root&&project.root.width)
+        )
+      )||drawingW);
+      wickH=Math.max(1,Number(
+        project&&(
+          project.height||
+          project.stageHeight||
+          project.canvasHeight||
+          (project.root&&project.root.height)
+        )
+      )||drawingH);
+    }catch(eSize){}
+
+    const sx=wickW/drawingW;
+    const sy=wickH/drawingH;
+
+    const drawingBounds={
+      x:minX,
+      y:minY,
+      w:Math.max(1,maxX-minX),
+      h:Math.max(1,maxY-minY)
+    };
+
+    // Convert placement only. The SVG itself remains untouched so its original
+    // Drawing curves, handles, fills and strokes stay intact.
+    const stageBounds={
+      x:drawingBounds.x*sx,
+      y:drawingBounds.y*sy,
+      w:Math.max(1,drawingBounds.w*sx),
+      h:Math.max(1,drawingBounds.h*sy)
+    };
+    stageBounds.cx=stageBounds.x+stageBounds.w*0.5;
+    stageBounds.cy=stageBounds.y+stageBounds.h*0.5;
+
     const svgText=selectedSvgDocumentForDemBones();
     if(!svgText) throw new Error("Nothing selected");
 
     const payload={
       type:"LukeToolsDemBonesDrawingSelection",
       svgText,
-      bounds:{x:minX,y:minY,w,h,cx:minX+w*0.5,cy:minY+h*0.5},
+      bounds:stageBounds,
+      drawingBounds:{
+        x:drawingBounds.x,
+        y:drawingBounds.y,
+        w:drawingBounds.w,
+        h:drawingBounds.h,
+        cx:drawingBounds.x+drawingBounds.w*0.5,
+        cy:drawingBounds.y+drawingBounds.h*0.5
+      },
+      drawingPage:{w:drawingW,h:drawingH},
+      wickStage:{w:wickW,h:wickH},
       count:selected.length,
       fileName:"Drawing Selection.svg",
       source:"LukeToolsDrawing",
