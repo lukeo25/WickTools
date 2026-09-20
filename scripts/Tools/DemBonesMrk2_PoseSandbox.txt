@@ -25427,6 +25427,11 @@ function installDemBonesMrk2() {
 
     var clipName = String(clip.identifier || clip.name || 'Gizmo');
     var first = captures[0];
+    var gizmoScript = dbm2GizmoScriptSource_v18220(clip);
+    var anchorMatch = gizmoScript.match(/\/\*LUKE_FRAME_GIZMO_ANCHOR:\s*([-+0-9.eE]+)\s*,\s*([-+0-9.eE]+)\s*\*\//);
+    var gizmoAnchor = anchorMatch
+      ? { x:Number(anchorMatch[1]), y:Number(anchorMatch[2]) }
+      : { x:Math.max(1,Number(first.width||1))*0.5, y:Math.max(1,Number(first.height||1))*0.5 };
 
     await loadSvgTextAsSource(
       first.svgRaw,
@@ -25444,6 +25449,10 @@ function installDemBonesMrk2() {
       sourceName:clipName,
       frameCount:captures.length,
       defaultFrame:1,
+      anchor:{
+        x:isFinite(Number(gizmoAnchor.x)) ? Number(gizmoAnchor.x) : Math.max(1,Number(first.width||1))*0.5,
+        y:isFinite(Number(gizmoAnchor.y)) ? Number(gizmoAnchor.y) : Math.max(1,Number(first.height||1))*0.5
+      },
       frames:captures.map(function(capture, index){
         return {
           slot:index + 1,
