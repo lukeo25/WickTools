@@ -26826,6 +26826,302 @@ function installDemBonesMrk2() {
     }
   })();
 
+
+
+  // FIX GPT_21-09-2026_CharacterGizmoTimelineChoices:
+  // A Gizmo inside MyCharacter is a frame-choice animation part.
+  // Its own imported Gizmo frames are shown in the Gizmo page and clicking a frame
+  // keys that choice at the CURRENT REAL WICK TIMELINE FRAME.
+  // The legacy Lip/Eye mouth-type panels are hidden while a Character Gizmo is selected.
+  (function installCharacterGizmoTimelineChoices_v18244_GPT(){
+    try {
+      function mcSelectedCharacterGizmo_v18244_GPT(){
+        try {
+          var part = mcSelectedPart ? mcSelectedPart() : null;
+          if (!part || !part.state || !part.state.source || !part.state.source.gizmo) return null;
+          var gizmo = part.state.source.gizmo;
+          if (!Array.isArray(gizmo.frames) || !gizmo.frames.length) return null;
+          return part;
+        } catch(eSelectedGizmo244) {
+          return null;
+        }
+      }
+
+      function mcCharacterGizmoSlotForFrame_v18244_GPT(part, frameNumber){
+        try {
+          var gizmo = part && part.state && part.state.source ? part.state.source.gizmo : null;
+          if (!gizmo || !Array.isArray(gizmo.frames) || !gizmo.frames.length) return 1;
+          var maxSlot = Math.max(1, gizmo.frames.length);
+          var frame = Math.max(1, Math.round(Number(frameNumber || App.currentFrame || 1) || 1));
+          var keys = gizmo.timelineKeys || {};
+          var exact = keys[String(frame)];
+          if (exact != null && isFinite(Number(exact))) {
+            return Math.max(1, Math.min(maxSlot, Math.round(Number(exact))));
+          }
+          var bestFrame = -1;
+          var bestSlot = null;
+          Object.keys(keys).forEach(function(key){
+            var f = Number(key);
+            var slot = Number(keys[key]);
+            if (!isFinite(f) || !isFinite(slot)) return;
+            if (f <= frame && f > bestFrame) {
+              bestFrame = f;
+              bestSlot = slot;
+            }
+          });
+          if (bestSlot != null) {
+            return Math.max(1, Math.min(maxSlot, Math.round(Number(bestSlot))));
+          }
+          return Math.max(1, Math.min(maxSlot, Math.round(Number(gizmo.defaultFrame || 1) || 1)));
+        } catch(eSlot244) {
+          return 1;
+        }
+      }
+
+      function mcCharacterGizmoFrameData_v18244_GPT(part, frameNumber){
+        try {
+          var gizmo = part && part.state && part.state.source ? part.state.source.gizmo : null;
+          if (!gizmo || !Array.isArray(gizmo.frames) || !gizmo.frames.length) return null;
+          var slot = mcCharacterGizmoSlotForFrame_v18244_GPT(part, frameNumber);
+          return {
+            slot:slot,
+            data:gizmo.frames[Math.max(0, Math.min(gizmo.frames.length - 1, slot - 1))] || null
+          };
+        } catch(eData244) {
+          return null;
+        }
+      }
+
+      function mcSetCharacterGizmoSlotAtCurrentWickFrame_v18244_GPT(part, slot){
+        if (!part || !part.state || !part.state.source || !part.state.source.gizmo) return false;
+        try { syncFrameFromWick(); } catch(eSync244){}
+        var frame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
+        var gizmo = part.state.source.gizmo;
+        var maxSlot = Math.max(1, Array.isArray(gizmo.frames) ? gizmo.frames.length : 1);
+        slot = Math.max(1, Math.min(maxSlot, Math.round(Number(slot || 1) || 1)));
+        if (!gizmo.timelineKeys || typeof gizmo.timelineKeys !== 'object') gizmo.timelineKeys = {};
+        gizmo.timelineKeys[String(frame)] = slot;
+
+        // Keep the live active state in sync without rebuilding or replacing the Character part.
+        try {
+          if (App.source) {
+            if (!App.source.gizmo) App.source.gizmo = mcSafeClone(gizmo);
+            else {
+              App.source.gizmo.timelineKeys = mcSafeClone(gizmo.timelineKeys || {});
+              App.source.gizmo.defaultFrame = Number(gizmo.defaultFrame || 1) || 1;
+              App.source.gizmo.frames = mcSafeClone(gizmo.frames || []);
+              App.source.gizmo.frameCount = Number(gizmo.frameCount || gizmo.frames.length || 1);
+              App.source.gizmo.anchor = mcSafeClone(gizmo.anchor || null);
+              App.source.gizmo.kind = gizmo.kind || 'LukeToolsFrameGizmo';
+              App.source.gizmo.marker = gizmo.marker || 'LUKE_FRAME_GIZMO';
+              App.source.gizmo.sourceUUID = gizmo.sourceUUID || '';
+              App.source.gizmo.sourceName = gizmo.sourceName || part.name || 'Gizmo';
+            }
+          }
+        } catch(eLive244){}
+
+        try { mcRenderStageParts(); } catch(eStage244){}
+        try { renderOverlay(); } catch(eOverlay244){}
+        try { updateUI(); } catch(eUi244){}
+        try { markDirty(); } catch(eDirty244){}
+        try {
+          var chosen = gizmo.frames[slot - 1] || {};
+          mcLog('Gizmo ' + (part.name || 'part') + ': ' +
+            (chosen.label || ('Frame ' + slot)) +
+            ' keyed on Wick frame ' + frame + '.');
+        } catch(eLog244){}
+        return true;
+      }
+
+      function mcSetCharacterGizmoLegacyPanelsVisible_v18244_GPT(showLegacy){
+        try {
+          var info = el('importedGizmoInfo');
+          var section = info && info.closest ? info.closest('.section') : null;
+          if (!section) return;
+          var subTabs = section.querySelector('.expressionSubTabs');
+          if (subTabs) subTabs.style.display = showLegacy ? '' : 'none';
+          var panels = section.querySelectorAll('.expressionPanel');
+          for (var pi = 0; pi < panels.length; pi += 1) {
+            panels[pi].style.display = showLegacy ? '' : 'none';
+          }
+
+          // These rows belong to the old expression/mouth driver workflow and are
+          // not part of a Character Gizmo's frame-choice animation.
+          var boneInfo = el('expressionBoneInfo');
+          var targetInput = el('inpExpressionTargetClip');
+          var commitSelect = el('selExpressionCommitMode');
+          var rows = [
+            boneInfo && boneInfo.closest ? boneInfo.closest('.row') : null,
+            targetInput && targetInput.closest ? targetInput.closest('.row') : null,
+            commitSelect && commitSelect.closest ? commitSelect.closest('.row') : null
+          ];
+          rows.forEach(function(row){ if (row) row.style.display = showLegacy ? '' : 'none'; });
+        } catch(eHideLegacy244){}
+      }
+
+      function mcRenderCharacterGizmoChoices_v18244_GPT(part){
+        var host = el('importedGizmoSlots');
+        var info = el('importedGizmoInfo');
+        if (!host || !part || !part.state || !part.state.source || !part.state.source.gizmo) return false;
+        var gizmo = part.state.source.gizmo;
+        var frames = Array.isArray(gizmo.frames) ? gizmo.frames : [];
+        if (!frames.length) return false;
+
+        try { syncFrameFromWick(); } catch(eSyncRender244){}
+        var wickFrame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
+        var activeSlot = mcCharacterGizmoSlotForFrame_v18244_GPT(part, wickFrame);
+        var exactKey = !!(gizmo.timelineKeys && gizmo.timelineKeys[String(wickFrame)] != null);
+
+        host.innerHTML = '';
+        if (info) {
+          info.textContent =
+            (part.name || gizmo.sourceName || 'Gizmo') +
+            ' · ' + frames.length + ' frame' + (frames.length === 1 ? '' : 's') +
+            ' · Wick frame ' + wickFrame +
+            ' = ' + ((frames[activeSlot - 1] && frames[activeSlot - 1].label) || ('Frame ' + activeSlot)) +
+            (exactKey ? ' · keyed' : '');
+        }
+
+        frames.forEach(function(frameData, index){
+          var slot = index + 1;
+          var card = document.createElement('div');
+          card.className =
+            'expressionSlotCard' +
+            (slot === activeSlot ? ' active' : '') +
+            (gizmo.timelineKeys && Number(gizmo.timelineKeys[String(wickFrame)]) === slot ? ' keyed' : '');
+          card.setAttribute('data-character-gizmo-slot', String(slot));
+          card.title = 'Choose this Gizmo frame on Wick frame ' + wickFrame + '.';
+
+          var title = document.createElement('div');
+          title.className = 'expressionSlotTitle';
+          title.textContent = String(frameData && frameData.label ? frameData.label : ('Frame ' + slot));
+
+          var thumb = document.createElement('div');
+          thumb.className = 'expressionSlotThumb';
+          thumb.style.cursor = 'pointer';
+
+          var imgUrl = '';
+          try {
+            if (frameData && frameData.dataUrl) imgUrl = String(frameData.dataUrl);
+            else if (frameData && frameData.raw) imgUrl = svgTextToDataUrl(String(frameData.raw));
+          } catch(eUrl244){}
+          if (imgUrl) {
+            var img = document.createElement('img');
+            img.src = imgUrl;
+            img.alt = String(frameData && frameData.label ? frameData.label : ('Frame ' + slot));
+            thumb.appendChild(img);
+          }
+
+          var hint = document.createElement('div');
+          hint.className = 'expressionSlotHint';
+          hint.textContent =
+            (gizmo.timelineKeys && Number(gizmo.timelineKeys[String(wickFrame)]) === slot)
+              ? ('Key on Wick frame ' + wickFrame)
+              : ('Choose on Wick frame ' + wickFrame);
+
+          card.appendChild(title);
+          card.appendChild(thumb);
+          card.appendChild(hint);
+          card.addEventListener('click', function(ev){
+            try { ev.preventDefault(); ev.stopPropagation(); } catch(eStop244){}
+            mcSetCharacterGizmoSlotAtCurrentWickFrame_v18244_GPT(part, slot);
+            mcRenderCharacterGizmoChoices_v18244_GPT(part);
+          });
+          host.appendChild(card);
+        });
+        return true;
+      }
+
+      // Reuse the existing Gizmo frame-choice area, but feed it from the selected Character Gizmo.
+      var dbm2RenderImportedGizmo_Base_v18244_GPT =
+        (typeof dbm2RenderImportedGizmo_v18220 === 'function') ? dbm2RenderImportedGizmo_v18220 : null;
+      dbm2RenderImportedGizmo_v18220 = function(){
+        var part = mcSelectedCharacterGizmo_v18244_GPT();
+        if (part) {
+          mcSetCharacterGizmoLegacyPanelsVisible_v18244_GPT(false);
+          mcRenderCharacterGizmoChoices_v18244_GPT(part);
+          return;
+        }
+        mcSetCharacterGizmoLegacyPanelsVisible_v18244_GPT(true);
+        if (dbm2RenderImportedGizmo_Base_v18244_GPT) {
+          return dbm2RenderImportedGizmo_Base_v18244_GPT.apply(this, arguments);
+        }
+      };
+
+      // The generic expression UI used to redraw the A-I mouth choices.
+      // For a selected Character Gizmo, suppress that branch entirely and show only its own frames.
+      var renderExpressionUI_Base_v18244_GPT =
+        (typeof renderExpressionUI === 'function') ? renderExpressionUI : null;
+      renderExpressionUI = function(){
+        var part = mcSelectedCharacterGizmo_v18244_GPT();
+        if (part) {
+          mcSetCharacterGizmoLegacyPanelsVisible_v18244_GPT(false);
+          mcRenderCharacterGizmoChoices_v18244_GPT(part);
+          return;
+        }
+        mcSetCharacterGizmoLegacyPanelsVisible_v18244_GPT(true);
+        if (renderExpressionUI_Base_v18244_GPT) {
+          return renderExpressionUI_Base_v18244_GPT.apply(this, arguments);
+        }
+      };
+
+      // Make Character preview use the keyed Gizmo slot for the current Wick frame.
+      var mcSourceMarkupForStagePart_Base_v18244_GPT = mcSourceMarkupForStagePart;
+      mcSourceMarkupForStagePart = function(part){
+        try {
+          var state = part && part.state ? part.state : null;
+          var gizmo = state && state.source ? state.source.gizmo : null;
+          if (gizmo && Array.isArray(gizmo.frames) && gizmo.frames.length) {
+            var pair = mcCharacterGizmoFrameData_v18244_GPT(
+              part,
+              App.__RotoBones_GPT_CommitExplicitFrame_v18146 || App.currentFrame || 1
+            );
+            var frameData = pair && pair.data ? pair.data : null;
+            if (frameData && frameData.raw) {
+              return '<img src="' +
+                htmlEscape(svgTextToDataUrl(String(frameData.raw))) +
+                '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:fill;pointer-events:none;" draggable="false">';
+            }
+            if (frameData && frameData.dataUrl) {
+              return '<img src="' +
+                htmlEscape(String(frameData.dataUrl)) +
+                '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:fill;pointer-events:none;" draggable="false">';
+            }
+          }
+        } catch(eMarkup244){}
+        return mcSourceMarkupForStagePart_Base_v18244_GPT
+          ? mcSourceMarkupForStagePart_Base_v18244_GPT(part)
+          : '';
+      };
+
+      // Refresh the Character Gizmo choices whenever Wick's current frame changes.
+      var syncFrameFromWick_Base_v18244_GPT =
+        (typeof syncFrameFromWick === 'function') ? syncFrameFromWick : null;
+      if (syncFrameFromWick_Base_v18244_GPT) {
+        syncFrameFromWick = function(){
+          var out = syncFrameFromWick_Base_v18244_GPT.apply(this, arguments);
+          try {
+            var part = mcSelectedCharacterGizmo_v18244_GPT();
+            if (part && App.activeTab === 'expression') {
+              mcRenderCharacterGizmoChoices_v18244_GPT(part);
+            }
+          } catch(eRefreshFrame244){}
+          return out;
+        };
+      }
+
+      window.MyCharacterGizmoSlotForFrame = mcCharacterGizmoSlotForFrame_v18244_GPT;
+      window.MyCharacterSetGizmoSlotAtCurrentWickFrame = function(slot){
+        var part = mcSelectedCharacterGizmo_v18244_GPT();
+        return part ? mcSetCharacterGizmoSlotAtCurrentWickFrame_v18244_GPT(part, slot) : false;
+      };
+
+      try { log('Character Gizmo timeline frame choices active.'); } catch(eLog244){}
+    } catch(eInstall244) {
+      try { console.error('[DemBones GPT 21-09-2026] Character Gizmo timeline choice install failed', eInstall244); } catch(eConsole244){}
+    }
+  })();
+
 </script>
 </body>
 </html>
