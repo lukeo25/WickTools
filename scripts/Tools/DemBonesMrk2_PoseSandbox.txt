@@ -15986,6 +15986,18 @@ html, body, #app{
     var src = part.state.source || {};
     var w = Math.max(1, Number(src.width || 300));
     var h = Math.max(1, Number(src.height || 200));
+    try {
+      if (src.gizmo && Array.isArray(src.gizmo.frames) && src.gizmo.frames.length) {
+        var rawFrameIndex = Math.max(0, Math.min(
+          src.gizmo.frames.length - 1,
+          Number(src.gizmo.defaultFrame || 1) - 1
+        ));
+        var rawGizmoFrame = src.gizmo.frames[rawFrameIndex];
+        if (rawGizmoFrame && rawGizmoFrame.raw) {
+          return '<img src="' + htmlEscape(svgTextToDataUrl(String(rawGizmoFrame.raw))) + '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:fill;pointer-events:none;" draggable="false">';
+        }
+      }
+    } catch(eGizmoRaw){}
     var dataUrl = src.dataUrl || src.embeddedDataUrl || '';
     try {
       if (src.gizmo && Array.isArray(src.gizmo.frames) && src.gizmo.frames.length) {
