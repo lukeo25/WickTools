@@ -6115,7 +6115,10 @@ html, body, #app{
     try {
       svgNative = parseNativeSvg(svgRaw, targetW, targetH);
       var isSelectedCurveMode = String(mode || '').indexOf('selected-wick-curve') === 0 || String(mode || '').indexOf('selected-wick-curves') === 0;
-      if (!(isSelectedCurveMode && App.selectedCurve && App.selectedCurve.originalPointsOnly)) svgNative = mcDensifyNativeSvgForDeform(svgNative); // FIX v18.206_GPT: selected Wick curves can preserve original points only.
+      var isDirectDrawingMode = String(mode || '') === 'drawing-direct';
+      if (!isDirectDrawingMode && !(isSelectedCurveMode && App.selectedCurve && App.selectedCurve.originalPointsOnly)) {
+        svgNative = mcDensifyNativeSvgForDeform(svgNative);
+      } // FIX GPT_20-09-2026_DrawingPreserveGeometry
     } catch(svgErr) { log('Selected Wick curve SVG native parse warning: ' + (svgErr && svgErr.message ? svgErr.message : svgErr)); } // FIX v18.206_GPT
     applyLoadedSourceImage(dataUrl, img, { fileName:fileName || 'Selected_Wick_Curve.svg', mode:mode || 'selected-wick-curve', label:fileName || 'Selected Wick Curve', svgRaw:svgRaw, svgNative:svgNative, width:targetW, height:targetH, uuid:'selected-wick-curve' });
     if (bounds) {
@@ -25930,47 +25933,48 @@ function installDemBonesMrk2() {
     input.click();
   }
 
-  async function dbReceiveDrawingSelectionForSandbox(data){ // FIX GPT_20-09-2026_DrawingNewPartIsolation
+  async function dbReceiveDrawingSelectionForSandbox(data){ // FIX GPT_20-09-2026_DrawingPreserveGeometry
     data = data && data.data ? data.data : data;
     if (!data || data.type !== 'LukeToolsDemBonesDrawingSelection') return false;
 
-    var objects = Array.isArray(data.wickObjects) ? data.wickObjects.filter(function(obj){ return !!obj; }) : [];
-    if (!objects.length) {
-      log('Drawing to DemBones failed: no Wick curve objects were supplied.');
+    var svgText = String(data.svgText || '');
+    if (!svgText || !/^\s*<svg[\s>]/i.test(svgText)) {
+      log('Drawing to DemBones failed: no valid Drawing SVG was supplied.');
       return false;
     }
 
     try {
-      // A Drawing handoff always starts a NEW part. First freeze any finished
-      // Character part so the new source cannot overwrite it.
       dbReleaseFinishedCharacterBeforeNewDrawing();
 
-      // If an unrelated live DemBones binding exists, finish it before ingesting
-      // the new Drawing source.
-      try { if (window.DemBonesMrk2 && window.DemBonesMrk2.binding) window.DemBonesMrk2.finish(); } catch(eFinish){}
+      try {
+        if (window.DemBonesMrk2 && window.DemBonesMrk2.binding) window.DemBonesMrk2.finish();
+      } catch(eFinish){}
 
-      // Start a genuinely blank DemBones Part. The previous Character part has
-      // already been captured above, so clearing the editor rig cannot alter it.
       dbResetRigForFreshDrawingPart();
 
-      var converted = selectedCurveObjectsToSvg(objects);
-      rememberSelectedCurveSourceTimeline();
+      var bounds = data.bounds && isFinite(Number(data.bounds.x)) && isFinite(Number(data.bounds.y)) &&
+        isFinite(Number(data.bounds.w)) && isFinite(Number(data.bounds.h))
+        ? {
+            x:Number(data.bounds.x),
+            y:Number(data.bounds.y),
+            w:Math.max(1,Number(data.bounds.w)),
+            h:Math.max(1,Number(data.bounds.h)),
+            cx:Number(data.bounds.cx != null ? data.bounds.cx : Number(data.bounds.x) + Number(data.bounds.w) * 0.5),
+            cy:Number(data.bounds.cy != null ? data.bounds.cy : Number(data.bounds.y) + Number(data.bounds.h) * 0.5)
+          }
+        : null;
 
       await loadSvgTextAsSource(
-        converted.svgRaw,
-        converted.fileName || String(data.fileName || 'Drawing Selection.svg'),
-        converted.count > 1 ? 'selected-wick-curves' : 'selected-wick-curve',
-        converted.bounds
+        svgText,
+        String(data.fileName || 'Drawing Selection.svg'),
+        'drawing-direct',
+        bounds
       );
 
-      // Drawing-created Wick paths are only a transport mechanism. Remove only
-      // those exact objects; never use Wick's current selection for cleanup.
-      var failedCleanup = dbRemoveExactDrawingSourceObjects(objects);
-      if (failedCleanup.length) {
-        throw new Error('Could not remove ' + failedCleanup.length + ' temporary Drawing source object' + (failedCleanup.length === 1 ? '' : 's') + '.');
-      }
-
+      App.source.selectedIdentifier = 'Drawing selection';
+      App.source.selectedUUID = 'drawing-selection';
       App.sandboxSelectedSourceObjects = [];
+
       clearWickSelectionAfterArtworkUse();
       removeSetAreaOverlay();
       ensureOverlay();
@@ -25981,22 +25985,18 @@ function installDemBonesMrk2() {
       renderOverlay();
       markDirty();
 
+      var count = Math.max(1, Number(data.count || 1));
       if (el('sandboxPartStatus')) {
         el('sandboxPartStatus').textContent =
-          (converted.count > 1 ? converted.count + ' Drawing curves' : 'Drawing curve') +
-          ' added · ready for bones.';
+          (count > 1 ? count + ' Drawing objects' : 'Drawing object') +
+          ' added · original vector geometry preserved.';
       }
 
-      if (converted.errors && converted.errors.length) {
-        log('Drawing added to DemBones. Some objects were skipped: ' + converted.errors.join(' | '));
-      } else {
-        log(converted.count > 1
-          ? converted.count + ' Drawing curves added as a new DemBones Part.'
-          : 'Drawing curve added as a new DemBones Part.');
-      }
+      log(count > 1
+        ? count + ' Drawing objects added as a new DemBones Part with original vector geometry.'
+        : 'Drawing object added as a new DemBones Part with original vector geometry.');
       return true;
     } catch(error) {
-      try { dbRemoveExactDrawingSourceObjects(objects); } catch(eCleanup){}
       App.sandboxSelectedSourceObjects = [];
       log('Drawing to DemBones failed: ' + (error && error.message ? error.message : error));
       return false;
