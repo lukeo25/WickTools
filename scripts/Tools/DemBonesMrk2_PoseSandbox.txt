@@ -17117,17 +17117,27 @@ html, body, #app{
     });
   }
 
-  function mcStartPinPickFor(id){ // FIX v_022
+  function mcStartPinPickFor(id){ // FIX v18.263_GPT: canonical Pin To Parent entry
     var mc = mcEnsure();
     var p = mcFindPart(id || mc.selectedId);
     if (!p) { mcLog('No part selected.'); return; }
     if (!p.state) { mcLog('Load Bone Json into this part before pinning it.'); return; }
+
+    // Store live edits only when this exact source part is actually loaded.
+    try {
+      var loadedId = 0;
+      if (typeof mcCurrentLoadedPartId_Strict_v18121_GPT === 'function') loadedId = mcCurrentLoadedPartId_Strict_v18121_GPT();
+      else if (typeof mcCurrentLoadedPartId_v18120_GPT === 'function') loadedId = mcCurrentLoadedPartId_v18120_GPT();
+      if (Number(loadedId || 0) === Number(p.id || 0)) mcCaptureActivePart();
+    } catch(eCapture){}
+
+    mc.selectedId = p.id;
     mc.pinPickSourceId = p.id;
     mcInstallPinCursorFollower();
-    mcInstallParentStagePinPicker(); // FIX v_034
+    mcInstallParentStagePinPicker();
     mcSetPinCursor(true);
-    try { ensureOverlay(); updateOverlayClipHost(); } catch(ePinOverlay){} // FIX v_034
-    try { mcRenderStageParts(); } catch(ePinRender){} // FIX v_034
+    try { ensureOverlay(); updateOverlayClipHost(); } catch(ePinOverlay){}
+    try { mcRenderStageParts(); } catch(ePinRender){}
     mcLog('Pin mode: click a visible bone on the stage.');
     mcRenderPanel();
   }
@@ -17314,7 +17324,7 @@ html, body, #app{
       mcClearSelectedItemAnimationFor(id);
     } else if (action === 'unpin') {
       var up = mcFindPart(id);
-      if (up) { up.parentPin = null; mc.pinPickSourceId = null; mcSetPinCursor(false); mcLog('Unpinned ' + (up.name || 'part') + '.'); mcRenderPanel(); }
+      if (up) { up.parentPin = null; if (up.transform) { delete up.transform.mcPinnedRootOriginX; delete up.transform.mcPinnedRootOriginY; delete up.transform.mcPinnedTransformOrigin; } mc.pinPickSourceId = null; mcSetPinCursor(false); try { mcRemovePinPickLayer_v039(); } catch(eUnpinLayer){} mcLog('Unpinned ' + (up.name || 'part') + '.'); mcRenderPanel(); mcRenderStageParts(); }
     } else if (action === 'pin') {
       mcStartPinPickFor(id);
     } else if (action === 'applyTransform') {
@@ -17505,40 +17515,99 @@ html, body, #app{
     if (!any) mcLog('Pin mode: no target bones are visible. Load another part with bones first.');
   }
 
-  function mcCompletePinToBone(source, target, bone, evt){ // FIX v_049
+  function mcCompletePinToBone(source, target, bone, evt){ // FIX v18.263_GPT: canonical whole-part pin solve
     var mc = mcEnsure();
-    if (!source || !target || !bone) { mcLog('Click a visible bone on the part you want to pin to.'); return true; }
-    var childRoot = mcRootBoneInState(source.state);
-    if (!childRoot || !childRoot.head) { mcLog('Pin failed. The part being pinned has no root bone.'); return true; }
+    if (!source || !target || !bone) {
+      mcLog('Click a visible bone on the part you want to pin to.');
+      return true;
+    }
+    if (!source.state || !target.state) {
+      mcLog('Pin failed. Source or target part JSON is missing.');
+      return true;
+    }
+
+    // A rigged Gizmo is attached by its root bone exactly like any normal Part.
+    // Only a genuinely bone-less Gizmo uses its stored Drawing anchor.
+    var childAttach = mcChildAttachmentPointLocal_v18241(source);
+    if (!childAttach) {
+      mcLog('Pin failed. The part being pinned has no root bone or Gizmo Set Anchor.');
+      return true;
+    }
+
     var attachPoint = 'head';
     try {
-      var node = evt && evt.target && evt.target.closest ? evt.target.closest('[data-mc-pin-attach]') : null;
+      var node = evt && evt.target ? mcFindPinDataNode_v041(evt.target) : null;
       if (node && node.getAttribute('data-mc-pin-attach') === 'tail') attachPoint = 'tail';
     } catch(eAttach){}
     if (bone && bone._mcPinAttachPoint) attachPoint = bone._mcPinAttachPoint;
-    var pinProbe = { targetPartId:target.id, boneId:bone.id, attachPoint:attachPoint };
-    var anchor = mcPinnedAnchorForPart(target, pinProbe, App.currentFrame || 1);
-    if (!anchor) { mcLog('Pin failed. Target bone position is missing.'); return true; }
+
+    var frameNow = App.currentFrame || 1;
+    try { syncFrameFromWick(); frameNow = App.currentFrame || frameNow; } catch(eSync){}
+
+    var targetStage = mcPartStagePointForBone(target, bone.id, frameNow, attachPoint);
+    if (!targetStage) { mcLog('Pin failed. Target bone position is missing.'); return true; }
+
     var oldT = mcSafeClone(source.transform || {x:0,y:0,w:1,h:1,rotation:0});
-    var worldOffset = { x:Number(oldT.x || 0) - Number(anchor.x || 0), y:Number(oldT.y || 0) - Number(anchor.y || 0) };
-    var offsetLocal = mcUnrotateVectorDegrees(worldOffset, anchor.angle);
+    var childAttachStage = mcLocalPointToPartStage(source, {
+      x:Number(childAttach.x || 0),
+      y:Number(childAttach.y || 0)
+    });
+    if (!childAttachStage) { mcLog('Pin failed. Child attachment position is missing.'); return true; }
+
+    var targetBoneAngle = 0;
+    try {
+      targetBoneAngle = mcPinBoneStageAngleDegForCommit_v047
+        ? mcPinBoneStageAngleDegForCommit_v047(target, bone.id, frameNow)
+        : mcPinBoneStageAngleDeg_v042(target, bone.id, frameNow);
+    } catch(eAngle){ targetBoneAngle = 0; }
+
+    var worldOffset = {
+      x:Number(childAttachStage.x || 0) - Number(targetStage.x || 0),
+      y:Number(childAttachStage.y || 0) - Number(targetStage.y || 0)
+    };
+    var localOffset = mcRotatePoint_v042(worldOffset, -Number(targetBoneAngle || 0));
+
     source.parentPin = {
       targetPartId:target.id,
-      boneId:bone.id,
+      boneId:String(bone.id == null ? '' : bone.id),
       attachPoint:attachPoint,
-      childRootBoneId:childRoot.id,
-      offsetLocal:{ x:Number(offsetLocal.x || 0), y:Number(offsetLocal.y || 0) },
-      rotationOffset:Number(oldT.rotation || 0) - Number(anchor.angle || 0),
-      offset:{ x:Number(offsetLocal.x || 0), y:Number(offsetLocal.y || 0), rotation:Number(oldT.rotation || 0) - Number(anchor.angle || 0) }
+      childRootBoneId:childAttach.boneId == null ? null : String(childAttach.boneId),
+      childAttachKind:String(childAttach.kind || 'attachment'),
+      childAttachLocal:{x:Number(childAttach.x || 0),y:Number(childAttach.y || 0)},
+      offsetLocal:{x:Number(localOffset.x || 0),y:Number(localOffset.y || 0)},
+      rotationOffset:Number(oldT.rotation || 0) - Number(targetBoneAngle || 0),
+      offset:{
+        x:Number(localOffset.x || 0),
+        y:Number(localOffset.y || 0),
+        rotation:Number(oldT.rotation || 0) - Number(targetBoneAngle || 0),
+        mode:'boneLocal'
+      }
     };
+
+    try {
+      var parentScale = mcPartTransformScaleForPin_v088(target);
+      var childScale = mcPartTransformScaleForPin_v088(source);
+      source.parentPin.inheritParentTransform = true;
+      source.parentPin.parentScaleAtPin = {sx:parentScale.sx,sy:parentScale.sy,w:parentScale.w,h:parentScale.h};
+      source.parentPin.childScaleAtPin = {sx:childScale.sx,sy:childScale.sy,w:childScale.w,h:childScale.h};
+      source.parentPin.childSizeAtPin = {w:childScale.w,h:childScale.h};
+    } catch(eScale){}
+
     source.transform = oldT;
     mc.selectedId = source.id;
     mc.pinPickSourceId = null;
     mcSetPinCursor(false);
-    mcActivatePart(source.id);
-    mcRenderPanel();
-    try { mcRenderStageParts(); } catch(eMcParts){}
-    renderOverlay();
+    try { mcRemovePinPickLayer_v039(); } catch(eLayer){}
+
+    try {
+      var resolved = mcPinnedTransformForFrame_v066(source, mc.parts || [], frameNow);
+      if (resolved) source.transform = resolved;
+    } catch(eResolve){}
+
+    try { mcRefreshPinnedChildren(); } catch(eRefresh){}
+    try { mcRenderPanel(); } catch(ePanel){}
+    try { mcRenderStageParts(); } catch(eStage){}
+    try { renderOverlay(); } catch(eOverlay){}
     mcLog('Pinned ' + (source.name || 'part') + ' to ' + (target.name || 'part') + ' / ' + (bone.name || ('Bone ' + bone.id)) + '.');
     try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStop){}
     return true;
@@ -21558,384 +21627,6 @@ html, body, #app{
 
   try { log('MyCharacter GPT v18.106 uses thinner Frame_Bone SVG stroke scale during commit.'); } catch(e){} // FIX v18.104_GPT
 
-
-
-  // FIX v18.110_GPT: MyCharacter pin safety.
-  // Pinning must not load the target part JSON, and completing a pin must not capture the currently loaded rig into the source part.
-  // This prevents the part JSON swap that happened when pinning while a part was in Animate mode.
-  (function installMyCharacterPinStateGuard_v18110_GPT(){
-    try {
-      var mcStartPinPickFor_Base_v18110_GPT = mcStartPinPickFor;
-      mcStartPinPickFor = function(id){
-        var mc = mcEnsure();
-        var previousSelectedId = mc.selectedId;
-        var sourceId = Number(id || mc.selectedId || 0);
-        try {
-          if (previousSelectedId != null) {
-            var activePart = mcFindPart(previousSelectedId);
-            if (activePart && activePart.state && !App.myCharacter.loading) {
-              // FIX v18.110_GPT: save the currently active animated part before starting pin mode.
-              mcCaptureActivePart();
-            }
-          }
-        } catch(eCaptureBeforePin110){}
-        try { mc.selectedId = previousSelectedId; } catch(eRestoreSelected110){}
-        return mcStartPinPickFor_Base_v18110_GPT(sourceId);
-      };
-
-      mcCompletePinToBone = function(source, target, bone, evt){
-        var mc = mcEnsure();
-        if (!source || !target || !bone) { mcLog('Click a visible bone on the part you want to pin to.'); return true; }
-        if (!source.state || !target.state) { mcLog('Pin failed. Source or target part JSON is missing.'); return true; }
-        var childRoot = mcRootBoneInState(source.state);
-        if (!childRoot || !childRoot.head) { mcLog('Pin failed. The part being pinned has no root bone.'); return true; }
-        var attachPoint = 'head';
-        try {
-          var node = evt && evt.target ? mcFindPinDataNode_v041(evt.target) : null;
-          if (node && node.getAttribute('data-mc-pin-attach') === 'tail') attachPoint = 'tail';
-        } catch(eAttach110){}
-        if (bone && bone._mcPinAttachPoint) attachPoint = bone._mcPinAttachPoint;
-        var frameNow = App.currentFrame || 1;
-        try { syncFrameFromWick(); frameNow = App.currentFrame || frameNow; } catch(eSyncPin110){}
-        var targetStage = mcPartStagePointForBone(target, bone.id, frameNow, attachPoint);
-        if (!targetStage) { mcLog('Pin failed. Target bone position is missing.'); return true; }
-        var oldT = mcSafeClone(source.transform || { x:0, y:0, w:1, h:1, rotation:0 });
-        var childRootStage = mcPartStagePointForBone(source, childRoot.id, frameNow, 'head');
-        if (!childRootStage) {
-          var childSrc = source.state && source.state.source ? source.state.source : {};
-          var childSx = Math.max(0.0001, Number(oldT.w || childSrc.width || 1) / Math.max(1, Number(childSrc.width || oldT.w || 1)));
-          var childSy = Math.max(0.0001, Number(oldT.h || childSrc.height || 1) / Math.max(1, Number(childSrc.height || oldT.h || 1)));
-          childRootStage = { x:Number(oldT.x || 0) + Number(childRoot.head.x || 0) * childSx, y:Number(oldT.y || 0) + Number(childRoot.head.y || 0) * childSy };
-        }
-        source.parentPin = {
-          targetPartId:target.id,
-          boneId:String(bone.id == null ? '' : bone.id),
-          attachPoint:attachPoint,
-          childRootBoneId:String(childRoot.id == null ? '' : childRoot.id),
-          offset:{
-            x:Number(childRootStage.x || 0) - Number(targetStage.x || 0),
-            y:Number(childRootStage.y || 0) - Number(targetStage.y || 0),
-            rotation:Number(oldT.rotation || 0) - Number(target.transform && target.transform.rotation || 0)
-          }
-        };
-        try {
-          var parentScale = mcPartTransformScaleForPin_v088(target);
-          var childScale = mcPartTransformScaleForPin_v088(source);
-          source.parentPin.inheritParentTransform = true;
-          source.parentPin.parentScaleAtPin = { sx:parentScale.sx, sy:parentScale.sy, w:parentScale.w, h:parentScale.h };
-          source.parentPin.childScaleAtPin = { sx:childScale.sx, sy:childScale.sy, w:childScale.w, h:childScale.h };
-          source.parentPin.childSizeAtPin = { w:childScale.w, h:childScale.h };
-        } catch(eScalePin110){}
-        source.transform = oldT;
-        mc.pinPickSourceId = null;
-        try { mcSetPinCursor(false); } catch(eCursorOff110){}
-        try { mcRemovePinPickLayer_v039(); } catch(eRemovePinLayer110){}
-        try {
-          var resolved = mcPinnedTransformForFrame_v066 ? mcPinnedTransformForFrame_v066(source, mc.parts || [], frameNow) : null;
-          if (resolved) source.transform = resolved;
-        } catch(eResolvedPin110){}
-        // FIX v18.110_GPT: do not call mcCaptureActivePart here.
-        // App may still contain another part's animated rig state, so capturing now is what swapped JSON between parts.
-        try { mcRefreshPinnedChildren(); } catch(eRefresh110){}
-        try { mcRenderPanel(); } catch(ePanel110){}
-        try { mcRenderStageParts(); } catch(eStage110){}
-        try { renderOverlay(); } catch(eOverlay110){}
-        try {
-          if (Number(source.id || 0) === Number(mc.selectedId || 0)) mcApplyTransformToApp(source.transform);
-        } catch(eApplySelected110){}
-        mcLog('Pinned ' + (source.name || 'part') + ' to ' + (target.name || 'part') + ' / ' + (bone.name || ('Bone ' + String(bone.id == null ? '' : bone.id))) + '.');
-        try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStop110){}
-        return true;
-      };
-
-      try { log('MyCharacter v18.110 GPT pin state guard active.'); } catch(eLog110){}
-    } catch(ePinGuard110) {
-      try { console.error('[RotoBones GPT v18.110] pin state guard failed', ePinGuard110); } catch(eConsole110){}
-    }
-  })();
-
-
-  // FIX v18.112_GPT: MyCharacter pin rotation must be measured against the target bone angle, not the parent part rotation.
-  // The v18.110 pin state guard prevented JSON swaps, but it stored offset.rotation from target.transform.rotation.
-  // On unpin and repin this could double rotate the pinned child because mcPinnedTransformForFrame_v066 adds the live target bone angle later.
-  // This override keeps the v18.110 no JSON swap behaviour and restores the original bone local rotation and offset solve.
-  (function installMyCharacterPinRotationFix_v18112_GPT(){
-    try {
-      mcCompletePinToBone = function(source, target, bone, evt){
-        var mc = mcEnsure();
-        if (!source || !target || !bone) { mcLog('Click a visible bone on the part you want to pin to.'); return true; }
-        if (!source.state || !target.state) { mcLog('Pin failed. Source or target part JSON is missing.'); return true; }
-        var childRoot = mcRootBoneInState(source.state);
-        if (!childRoot || !childRoot.head) { mcLog('Pin failed. The part being pinned has no root bone.'); return true; }
-        var attachPoint = 'head';
-        try {
-          var node = evt && evt.target ? mcFindPinDataNode_v041(evt.target) : null;
-          if (node && node.getAttribute('data-mc-pin-attach') === 'tail') attachPoint = 'tail';
-        } catch(eAttach112){}
-        if (bone && bone._mcPinAttachPoint) attachPoint = bone._mcPinAttachPoint;
-        var frameNow = App.currentFrame || 1;
-        try { syncFrameFromWick(); frameNow = App.currentFrame || frameNow; } catch(eSyncPin112){}
-        var targetStage = mcPartStagePointForBone(target, bone.id, frameNow, attachPoint);
-        if (!targetStage) { mcLog('Pin failed. Target bone position is missing.'); return true; }
-        var oldT = mcSafeClone(source.transform || { x:0, y:0, w:1, h:1, rotation:0 });
-        var childRootStage = mcPartStagePointForBone(source, childRoot.id, frameNow, 'head');
-        if (!childRootStage) {
-          try { childRootStage = mcLocalPointToPartStage(source, childRoot.head); } catch(eLocal112){}
-        }
-        if (!childRootStage) {
-          var childSrc = source.state && source.state.source ? source.state.source : {};
-          var childSx = Math.max(0.0001, Number(oldT.w || childSrc.width || 1) / Math.max(1, Number(childSrc.width || oldT.w || 1)));
-          var childSy = Math.max(0.0001, Number(oldT.h || childSrc.height || 1) / Math.max(1, Number(childSrc.height || oldT.h || 1)));
-          childRootStage = { x:Number(oldT.x || 0) + Number(childRoot.head.x || 0) * childSx, y:Number(oldT.y || 0) + Number(childRoot.head.y || 0) * childSy };
-        }
-        var targetBoneAngle = 0;
-        try {
-          targetBoneAngle = mcPinBoneStageAngleDegForCommit_v047 ? mcPinBoneStageAngleDegForCommit_v047(target, bone.id, frameNow) : mcPinBoneStageAngleDeg_v042(target, bone.id, frameNow);
-        } catch(eBoneAngle112) {
-          try { targetBoneAngle = mcPinBoneStageAngleDeg_v042(target, bone.id, frameNow); } catch(eBoneAngleFallback112) { targetBoneAngle = 0; }
-        }
-        var worldOffset = {
-          x:Number(childRootStage.x || 0) - Number(targetStage.x || 0),
-          y:Number(childRootStage.y || 0) - Number(targetStage.y || 0)
-        };
-        var localOffset = { x:worldOffset.x, y:worldOffset.y };
-        try { localOffset = mcRotatePoint_v042(worldOffset, -Number(targetBoneAngle || 0)); } catch(eLocalOffset112){}
-        source.parentPin = {
-          targetPartId:target.id,
-          boneId:String(bone.id == null ? '' : bone.id),
-          attachPoint:attachPoint,
-          childRootBoneId:String(childRoot.id == null ? '' : childRoot.id),
-          offset:{
-            x:Number(localOffset.x || 0),
-            y:Number(localOffset.y || 0),
-            rotation:Number(oldT.rotation || 0) - Number(targetBoneAngle || 0),
-            mode:'boneLocal'
-          },
-          offsetLocal:{ x:Number(localOffset.x || 0), y:Number(localOffset.y || 0) }
-        };
-        try {
-          var parentScale = mcPartTransformScaleForPin_v088(target);
-          var childScale = mcPartTransformScaleForPin_v088(source);
-          source.parentPin.inheritParentTransform = true;
-          source.parentPin.parentScaleAtPin = { sx:parentScale.sx, sy:parentScale.sy, w:parentScale.w, h:parentScale.h };
-          source.parentPin.childScaleAtPin = { sx:childScale.sx, sy:childScale.sy, w:childScale.w, h:childScale.h };
-          source.parentPin.childSizeAtPin = { w:childScale.w, h:childScale.h };
-        } catch(eScalePin112){}
-        source.transform = oldT;
-        mc.pinPickSourceId = null;
-        try { mcSetPinCursor(false); } catch(eCursorOff112){}
-        try { mcRemovePinPickLayer_v039(); } catch(eRemovePinLayer112){}
-        try {
-          var resolved = mcPinnedTransformForFrame_v066 ? mcPinnedTransformForFrame_v066(source, mc.parts || [], frameNow) : null;
-          if (resolved) source.transform = resolved;
-        } catch(eResolvedPin112){}
-        try { mcRefreshPinnedChildren(); } catch(eRefresh112){}
-        try { mcRenderPanel(); } catch(ePanel112){}
-        try { mcRenderStageParts(); } catch(eStage112){}
-        try { renderOverlay(); } catch(eOverlay112){}
-        try {
-          if (Number(source.id || 0) === Number(mc.selectedId || 0)) mcApplyTransformToApp(source.transform);
-        } catch(eApplySelected112){}
-        mcLog('Pinned ' + (source.name || 'part') + ' to ' + (target.name || 'part') + ' / ' + (bone.name || ('Bone ' + String(bone.id == null ? '' : bone.id))) + '.');
-        try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStop112){}
-        return true;
-      };
-
-      // FIX v18.115_GPT: mcHandleCardClick does not exist in this MyCharacter build.
-      // The working click route is mcHandleCardAction(action, id, target, evt), so hook that route instead.
-      var mcHandleCardAction_Base_v18115_GPT = (typeof mcHandleCardAction === 'function') ? mcHandleCardAction : null;
-      if (mcHandleCardAction_Base_v18115_GPT) {
-        mcHandleCardAction = function(action, id, target, evt){
-          try {
-            if (action === 'unpin') {
-              var mc = mcEnsure();
-              var up = mcFindPart(Number(id || 0));
-              if (up) {
-                up.parentPin = null;
-                if (up.transform) {
-                  delete up.transform.mcPinnedRootOriginX;
-                  delete up.transform.mcPinnedRootOriginY;
-                  delete up.transform.mcPinnedTransformOrigin;
-                }
-                mc.pinPickSourceId = null;
-                try { mcSetPinCursor(false); } catch(eCursorUnpin115){}
-                try { mcRemovePinPickLayer_v039(); } catch(eLayerUnpin115){}
-                try { mcLog('Unpinned ' + (up.name || 'part') + '.'); } catch(eLogUnpin115){}
-                try { mcRenderPanel(); } catch(ePanelUnpin115){}
-                try { mcRenderStageParts(); } catch(eStageUnpin115){}
-                try { renderOverlay(); } catch(eOverlayUnpin115){}
-                try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStopUnpin115){}
-                return false;
-              }
-            }
-          } catch(eUnpin115){}
-          return mcHandleCardAction_Base_v18115_GPT.apply(this, arguments);
-        };
-      }
-
-      try { log('MyCharacter v18.115 GPT pin rotation fix active.'); } catch(eLog112){}
-    } catch(ePinRot112) {
-      try { console.error('[RotoBones GPT v18.115] pin rotation fix failed', ePinRot112); } catch(eConsole112){}
-    }
-  })();
-
-
-
-  // FIX GPT_21-09-2026_GizmoAnchorFinalPin: final pin path accepts either a root bone or a Drawing Gizmo Set Anchor.
-  (function installGizmoAnchorFinalPin_v18242_GPT(){
-    try {
-      mcCompletePinToBone = function(source, target, bone, evt){
-        var mc = mcEnsure();
-        if (!source || !target || !bone) {
-          mcLog('Click a visible bone on the part you want to pin to.');
-          return true;
-        }
-        if (!source.state || !target.state) {
-          mcLog('Pin failed. Source or target part JSON is missing.');
-          return true;
-        }
-
-        var childAttach = mcChildAttachmentPointLocal_v18241(source);
-        if (!childAttach) {
-          mcLog('Pin failed. The part being pinned has no root bone or Gizmo Set Anchor.');
-          return true;
-        }
-
-        var attachPoint = 'head';
-        try {
-          var node = evt && evt.target ? mcFindPinDataNode_v041(evt.target) : null;
-          if (node && node.getAttribute('data-mc-pin-attach') === 'tail') attachPoint = 'tail';
-        } catch(eAttach242){}
-        if (bone && bone._mcPinAttachPoint) attachPoint = bone._mcPinAttachPoint;
-
-        var frameNow = App.currentFrame || 1;
-        try {
-          syncFrameFromWick();
-          frameNow = App.currentFrame || frameNow;
-        } catch(eSyncPin242){}
-
-        var targetStage = mcPartStagePointForBone(target, bone.id, frameNow, attachPoint);
-        if (!targetStage) {
-          mcLog('Pin failed. Target bone position is missing.');
-          return true;
-        }
-
-        var oldT = mcSafeClone(source.transform || { x:0, y:0, w:1, h:1, rotation:0 });
-        var childAttachStage = null;
-        try {
-          childAttachStage = mcLocalPointToPartStage(source, {
-            x:Number(childAttach.x || 0),
-            y:Number(childAttach.y || 0)
-          });
-        } catch(eChildAttachStage242){}
-
-        if (!childAttachStage) {
-          var childSrc = source.state && source.state.source ? source.state.source : {};
-          var childSx = Math.max(0.0001, Number(oldT.w || childSrc.width || 1) / Math.max(1, Number(childSrc.width || oldT.w || 1)));
-          var childSy = Math.max(0.0001, Number(oldT.h || childSrc.height || 1) / Math.max(1, Number(childSrc.height || oldT.h || 1)));
-          childAttachStage = {
-            x:Number(oldT.x || 0) + Number(childAttach.x || 0) * childSx,
-            y:Number(oldT.y || 0) + Number(childAttach.y || 0) * childSy
-          };
-        }
-
-        var targetBoneAngle = 0;
-        try {
-          targetBoneAngle = mcPinBoneStageAngleDegForCommit_v047
-            ? mcPinBoneStageAngleDegForCommit_v047(target, bone.id, frameNow)
-            : mcPinBoneStageAngleDeg_v042(target, bone.id, frameNow);
-        } catch(eBoneAngle242) {
-          try { targetBoneAngle = mcPinBoneStageAngleDeg_v042(target, bone.id, frameNow); }
-          catch(eBoneAngleFallback242) { targetBoneAngle = 0; }
-        }
-
-        var worldOffset = {
-          x:Number(childAttachStage.x || 0) - Number(targetStage.x || 0),
-          y:Number(childAttachStage.y || 0) - Number(targetStage.y || 0)
-        };
-        var localOffset = { x:worldOffset.x, y:worldOffset.y };
-        try {
-          localOffset = mcRotatePoint_v042(worldOffset, -Number(targetBoneAngle || 0));
-        } catch(eLocalOffset242){}
-
-        source.parentPin = {
-          targetPartId:target.id,
-          boneId:String(bone.id == null ? '' : bone.id),
-          attachPoint:attachPoint,
-          childRootBoneId:childAttach.boneId == null ? null : String(childAttach.boneId),
-          childAttachKind:String(childAttach.kind || 'attachment'),
-          childAttachLocal:{
-            x:Number(childAttach.x || 0),
-            y:Number(childAttach.y || 0)
-          },
-          offset:{
-            x:Number(localOffset.x || 0),
-            y:Number(localOffset.y || 0),
-            rotation:Number(oldT.rotation || 0) - Number(targetBoneAngle || 0),
-            mode:'boneLocal'
-          },
-          offsetLocal:{
-            x:Number(localOffset.x || 0),
-            y:Number(localOffset.y || 0)
-          }
-        };
-
-        try {
-          var parentScale = mcPartTransformScaleForPin_v088(target);
-          var childScale = mcPartTransformScaleForPin_v088(source);
-          source.parentPin.inheritParentTransform = true;
-          source.parentPin.parentScaleAtPin = {
-            sx:parentScale.sx, sy:parentScale.sy,
-            w:parentScale.w, h:parentScale.h
-          };
-          source.parentPin.childScaleAtPin = {
-            sx:childScale.sx, sy:childScale.sy,
-            w:childScale.w, h:childScale.h
-          };
-          source.parentPin.childSizeAtPin = {
-            w:childScale.w, h:childScale.h
-          };
-        } catch(eScalePin242){}
-
-        source.transform = oldT;
-        mc.pinPickSourceId = null;
-        try { mcSetPinCursor(false); } catch(eCursorOff242){}
-        try { mcRemovePinPickLayer_v039(); } catch(eRemovePinLayer242){}
-
-        try {
-          var resolved = mcPinnedTransformForFrame_v066(source, mc.parts || [], frameNow);
-          if (resolved) source.transform = resolved;
-        } catch(eResolvedPin242){}
-
-        try { mcRefreshPinnedChildren(); } catch(eRefresh242){}
-        try { mcRenderPanel(); } catch(ePanel242){}
-        try { mcRenderStageParts(); } catch(eStage242){}
-        try { renderOverlay(); } catch(eOverlay242){}
-        try {
-          if (Number(source.id || 0) === Number(mc.selectedId || 0)) {
-            mcApplyTransformToApp(source.transform);
-          }
-        } catch(eApplySelected242){}
-
-        mcLog('Pinned ' + (source.name || 'part') + ' to ' +
-          (target.name || 'part') + ' / ' +
-          (bone.name || ('Bone ' + String(bone.id == null ? '' : bone.id))) + '.');
-
-        try {
-          if (evt) {
-            evt.preventDefault();
-            evt.stopPropagation();
-            if (evt.stopImmediatePropagation) evt.stopImmediatePropagation();
-          }
-        } catch(eStop242){}
-        return true;
-      };
-
-      try { log('MyCharacter Gizmo Set Anchor final pin fix active.'); } catch(eLog242){}
-    } catch(eInstall242) {
-      try { console.error('[DemBones GPT 21-09-2026] Gizmo final pin install failed', eInstall242); } catch(eConsole242){}
-    }
-  })();
 
 
   // FIX v18.113_GPT: Keying a Lip_Bone or Frame_Bone must never strip MyCharacter parentPin data.
@@ -27688,53 +27379,6 @@ function installDemBonesMrk2() {
     try { log('MyCharacter v_070 ready. Layer hierarchy selected overlay order active.'); } catch(e){} // FIX v_018
     try { if (!App.B) log('Warning: LukeToolsBridge not found yet. The tool will still retry when you capture selection.'); } catch(e){}
   }
-
-  // FIX GPT_21-09-2026_RiggedGizmoPinFinal:
-  // Final authority after all earlier pin overrides. A Gizmo with bones is a normal
-  // rigged part and pins by root bone. The Gizmo Set Anchor is bone-less fallback only.
-  (function installRiggedGizmoPinFinal_v18247_GPT(){
-    try {
-      var mcChildAttachmentPointLocal_Base_v18247_GPT = mcChildAttachmentPointLocal_v18241;
-      mcChildAttachmentPointLocal_v18241 = function(part){
-        try {
-          var root = mcRootBoneInState(part && part.state);
-          if (root && root.head) {
-            return {
-              x:Number(root.head.x || 0),
-              y:Number(root.head.y || 0),
-              kind:'root-bone',
-              boneId:root.id
-            };
-          }
-        } catch(eRoot247){}
-
-        try {
-          var src = part && part.state && part.state.source ? part.state.source : null;
-          var gizmo = src && src.gizmo ? src.gizmo : null;
-          if (gizmo && gizmo.anchor &&
-              isFinite(Number(gizmo.anchor.x)) &&
-              isFinite(Number(gizmo.anchor.y))) {
-            return {
-              x:Number(gizmo.anchor.x),
-              y:Number(gizmo.anchor.y),
-              kind:'gizmo-anchor',
-              boneId:null
-            };
-          }
-        } catch(eGizmo247){}
-
-        return mcChildAttachmentPointLocal_Base_v18247_GPT
-          ? mcChildAttachmentPointLocal_Base_v18247_GPT(part)
-          : null;
-      };
-
-      try { log('Rigged Gizmo root-bone pinning and exact source cleanup active.'); } catch(eLog247){}
-    } catch(eInstall247) {
-      try { console.error('[DemBones GPT 21-09-2026] rigged Gizmo pin final install failed', eInstall247); } catch(eConsole247){}
-    }
-  })();
-
-
 
   /* FIX GPT_21-09-2026_SANDBOX_FINAL_TRANSFER_GIZMO */
   (function installSandboxFinalTransferAndGizmoFixes(){
