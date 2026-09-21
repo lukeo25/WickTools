@@ -28888,6 +28888,284 @@ function installDemBonesMrk2() {
     }
   })();
 
+
+  /* FIX GPT_21-09-2026_SANDBOX_FINAL_TRANSFER_GIZMO */
+  (function installSandboxFinalTransferAndGizmoFixes(){
+    try {
+      /*
+       * SANDBOX ONLY.
+       * Final authority for the current PoseSandbox build:
+       * 1. Character previews use original source SVG instead of reconstructed paths.
+       * 2. Selected Character part is never double-drawn while its DemBones editor overlay is active.
+       * 3. Assemble shows the Character-owned artwork only, not a second editor copy.
+       * 4. Gizmo frames share one union canvas so later frames never resize to frame 1.
+       * 5. Gizmo root-bone motion remains authoritative and Pin To Parent keeps the stored rig.
+       * 6. Add To Character retries exact source cleanup and removes legacy Character preview hosts.
+       */
+
+      function sbxExactSvgMarkup_vFinal(part){
+        try {
+          var src = part && part.state && part.state.source ? part.state.source : null;
+          if (!src || src.gizmo) return '';
+          var raw = String(src.svgRaw || '');
+          if (!raw || !/^\s*<svg[\s>]/i.test(raw)) return '';
+          return '<img src="' + htmlEscape(svgTextToDataUrl(raw)) +
+            '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:fill;pointer-events:none;" draggable="false">';
+        } catch(e) {
+          return '';
+        }
+      }
+
+      var sbxSourceMarkupBase_vFinal = mcSourceMarkupForStagePart;
+      mcSourceMarkupForStagePart = function(part){
+        var exact = sbxExactSvgMarkup_vFinal(part);
+        if (exact) return exact;
+        return sbxSourceMarkupBase_vFinal ? sbxSourceMarkupBase_vFinal(part) : '';
+      };
+
+      function sbxEditorOwnsSelectedPixels_vFinal(){
+        var tab = String(App.activeTab || '').toLowerCase();
+        return tab === 'bones' || tab === 'animate' || tab === 'animatepoints' ||
+               tab === 'mesh' || tab === 'weights' || tab === 'curves';
+      }
+
+      var sbxRenderStageBase_vFinal = mcRenderStageParts;
+      mcRenderStageParts = function(){
+        var result = sbxRenderStageBase_vFinal ? sbxRenderStageBase_vFinal.apply(this, arguments) : undefined;
+        try {
+          var mc = mcEnsure();
+          var selectedId = Number(mc.selectedId || 0);
+          var pdoc = window.parent && window.parent.document ? window.parent.document : document;
+          var host = pdoc.getElementById('mcStagePartsHost_v040') ||
+                     pdoc.querySelector('[data-luketools-bonewarp-kind="mc-stage-parts-v040"]');
+          if (host && selectedId) {
+            var selectedNode = host.querySelector('[data-mc-stage-part-id="' + selectedId + '"]');
+            if (selectedNode) selectedNode.style.display = sbxEditorOwnsSelectedPixels_vFinal() ? 'none' : '';
+          }
+
+          // Legacy Character preview hosts are never allowed to survive alongside v040.
+          Array.prototype.slice.call(pdoc.querySelectorAll(
+            '#mcStagePartsHost,[data-luketools-bonewarp-kind="mc-stage-parts"]'
+          )).forEach(function(node){
+            try {
+              if (node && node !== host) {
+                node.innerHTML = '';
+                node.style.display = 'none';
+                node.style.pointerEvents = 'none';
+              }
+            } catch(eLegacy){}
+          });
+        } catch(eStage){}
+        return result;
+      };
+
+      var sbxSetAssembleBase_vFinal = mcSetAssembleModeFor;
+      mcSetAssembleModeFor = async function(id){
+        await sbxSetAssembleBase_vFinal(id);
+        try {
+          // Assemble edits Character placement. The Character host owns the pixels.
+          if (App.flags) {
+            App.flags.showImage = false;
+            App.flags.showMesh = false;
+            App.flags.showBones = false;
+          }
+          if (App.interaction) {
+            App.interaction.addBoneMode = false;
+            App.interaction.dragging = false;
+            App.interaction.dragType = '';
+          }
+          try { removeProxyOverlay(false); } catch(eProxy){}
+          try { clearWickSelectionAfterArtworkUse(); } catch(eSelection){}
+          mcRenderStageParts();
+          renderOverlay();
+          mcRenderPanel();
+        } catch(eAssemble){}
+      };
+
+      function sbxSvgInner_vFinal(raw){
+        raw = String(raw || '');
+        var open = raw.match(/<svg\b[^>]*>/i);
+        var close = raw.match(/<\/svg>\s*$/i);
+        if (!open || !close) return raw;
+        return raw.slice(open.index + open[0].length, close.index);
+      }
+
+      function sbxNormalizeGizmoFramesToUnion_vFinal(gizmo){
+        if (!gizmo || !Array.isArray(gizmo.frames) || !gizmo.frames.length) return null;
+        var valid = gizmo.frames.map(function(frame){
+          var b = frame && (frame.originalBounds || frame.bounds);
+          if (!b) return null;
+          var x = Number(b.x), y = Number(b.y);
+          var w = Number(b.w != null ? b.w : b.width);
+          var h = Number(b.h != null ? b.h : b.height);
+          if (![x,y,w,h].every(isFinite) || w <= 0 || h <= 0) return null;
+          return { frame:frame, x:x, y:y, w:w, h:h };
+        }).filter(Boolean);
+        if (!valid.length) return null;
+
+        var minX = Math.min.apply(null, valid.map(function(v){ return v.x; }));
+        var minY = Math.min.apply(null, valid.map(function(v){ return v.y; }));
+        var maxX = Math.max.apply(null, valid.map(function(v){ return v.x + v.w; }));
+        var maxY = Math.max.apply(null, valid.map(function(v){ return v.y + v.h; }));
+        var unionW = Math.max(1, maxX - minX);
+        var unionH = Math.max(1, maxY - minY);
+
+        valid.forEach(function(v){
+          var frame = v.frame;
+          var dx = v.x - minX;
+          var dy = v.y - minY;
+          var inner = sbxSvgInner_vFinal(frame.raw);
+          var wrapped =
+            '<svg xmlns="http://www.w3.org/2000/svg" width="' + unionW + '" height="' + unionH +
+            '" viewBox="0 0 ' + unionW + ' ' + unionH +
+            '" preserveAspectRatio="none"><g transform="translate(' + dx + ' ' + dy + ')">' +
+            inner + '</g></svg>';
+          frame.raw = wrapped;
+          try { frame.dataUrl = svgTextToDataUrl(wrapped); } catch(eUrl){}
+          frame.width = unionW;
+          frame.height = unionH;
+          frame.bounds = { x:minX, y:minY, w:unionW, h:unionH, cx:minX + unionW * 0.5, cy:minY + unionH * 0.5 };
+        });
+
+        gizmo.unionBounds = { x:minX, y:minY, w:unionW, h:unionH, cx:minX + unionW * 0.5, cy:minY + unionH * 0.5 };
+        return gizmo.unionBounds;
+      }
+
+      var sbxImportGizmoBase_vFinal = dbm2ImportGizmoClip_v18240;
+      dbm2ImportGizmoClip_v18240 = async function(clip){
+        var result = await sbxImportGizmoBase_vFinal(clip);
+        try {
+          var gizmo = App.source && App.source.gizmo ? App.source.gizmo : null;
+          var union = sbxNormalizeGizmoFramesToUnion_vFinal(gizmo);
+          if (gizmo && union && gizmo.frames && gizmo.frames[0]) {
+            var keepIdentifier = String(App.source.selectedIdentifier || '');
+            var keepUuid = String(App.source.selectedUUID || '');
+            var keepSourceObjects = (App.sandboxSelectedSourceObjects || []).slice();
+            var first = gizmo.frames[0];
+
+            await loadSvgTextAsSource(
+              String(first.raw || ''),
+              String(gizmo.sourceName || 'Gizmo') + '_union.svg',
+              'selected-gizmo-part',
+              union
+            );
+
+            App.source.selectedIdentifier = keepIdentifier || String(gizmo.sourceName || 'Gizmo');
+            App.source.selectedUUID = keepUuid;
+            App.source.gizmo = mcSafeClone(gizmo);
+            App.source.width = Math.max(1, Number(union.w || 1));
+            App.source.height = Math.max(1, Number(union.h || 1));
+            App.source.stagePlacementBounds = mcSafeClone(union);
+            App.sandboxSelectedSourceObjects = keepSourceObjects;
+
+            try { fitOverlayToSource(); } catch(eFit){}
+            try { updateUI(); renderOverlay(); markDirty(); } catch(eUi){}
+          }
+        } catch(eUnion) {
+          try { log('Gizmo union-frame sizing fix failed: ' + (eUnion && eUnion.message ? eUnion.message : eUnion)); } catch(eLog){}
+        }
+        return result;
+      };
+
+      // Keep character-side Gizmo dials compact enough that no horizontal scrollbar is needed.
+      try {
+        var style = document.createElement('style');
+        style.id = 'sandboxFinalGizmoDialFit_vFinal';
+        style.textContent =
+          '#mcCharacterGizmoUi_v18248 .mcGizmoDial{width:172px!important;height:132px!important;max-width:100%!important;overflow:hidden!important}' +
+          '#mcCharacterGizmoUi_v18248 .mcGizmoDisc{width:104px!important;height:104px!important;left:34px!important;top:14px!important;border-width:4px!important}' +
+          '#mcCharacterGizmoUi_v18248 .mcGizmoArm{left:83px!important;top:64px!important;width:45px!important;height:6px!important;transform-origin:3px 3px!important}' +
+          '#mcCharacterGizmoUi_v18248 .mcGizmoPivot{left:75px!important;top:55px!important;width:22px!important;height:22px!important;border-width:4px!important}' +
+          '#mcCharacterGizmoUi_v18248 .mcGizmoStop{width:38px!important;height:38px!important;border-width:2px!important;font-size:8px!important}' +
+          '#myCharacterPanel .mcInlineGizmoDialCard{overflow:hidden!important}' +
+          '#myCharacterPanel .mcInlineGizmoDial{max-width:100%!important;overflow:hidden!important}';
+        document.head.appendChild(style);
+      } catch(eStyle){}
+
+      // Rebuild the visible radial dial using the compact geometry above.
+      try {
+        if (window.MyCharacterRenderSelectedGizmoFrames) {
+          window.setTimeout(function(){
+            try { window.MyCharacterRenderSelectedGizmoFrames(); } catch(e){}
+          }, 0);
+        }
+      } catch(eRenderGizmo){}
+
+      var sbxAddToCharacterBase_vFinal = dbAddCurrentPartToOpenCharacter;
+      dbAddCurrentPartToOpenCharacter = async function(){
+        var exactSources = [];
+        try { exactSources = (App.sandboxSelectedSourceObjects || []).slice(); } catch(eSources){}
+        var sourceUuid = '';
+        try { sourceUuid = String(App.source && App.source.gizmo && App.source.gizmo.sourceUUID || App.source && App.source.selectedUUID || ''); } catch(eUuid){}
+
+        await sbxAddToCharacterBase_vFinal();
+
+        // Retry exact source-object cleanup after the transfer transaction.
+        exactSources.forEach(function(obj){
+          try { dbRemoveWickObjectForCharacterTransfer(obj); } catch(eRemove){}
+        });
+        try {
+          if (sourceUuid) {
+            var sourceObj = dbm2FindClipByUuid_v18240(sourceUuid);
+            if (sourceObj) dbRemoveWickObjectForCharacterTransfer(sourceObj);
+          }
+        } catch(eUuidRemove){}
+
+        try {
+          App.sandboxSelectedSourceObjects = [];
+          clearWickSelectionAfterArtworkUse();
+          if (window.DemBonesMrk2 && window.DemBonesMrk2.binding &&
+              typeof window.DemBonesMrk2.finish === 'function') {
+            window.DemBonesMrk2.finish();
+          }
+        } catch(eDetach){}
+
+        try {
+          var pdoc = window.parent && window.parent.document ? window.parent.document : document;
+          Array.prototype.slice.call(pdoc.querySelectorAll(
+            '#mcStagePartsHost,[data-luketools-bonewarp-kind="mc-stage-parts"]'
+          )).forEach(function(node){
+            try {
+              node.innerHTML = '';
+              node.style.display = 'none';
+              node.style.pointerEvents = 'none';
+            } catch(eOld){}
+          });
+        } catch(eHosts){}
+
+        try {
+          if (App.flags) {
+            App.flags.showImage = false;
+            App.flags.showMesh = false;
+            App.flags.showBones = false;
+          }
+          mcRenderStageParts();
+          renderOverlay();
+          mcRenderPanel();
+          markDirty();
+        } catch(eFinal){}
+      };
+
+      // dbSimplifiedUiInstall already bound the old function reference.
+      // Replace only the sandbox Add To Character button so its listener is the final transaction above.
+      try {
+        var oldButton = el('btnSandboxAddCharacter');
+        if (oldButton && oldButton.parentNode) {
+          var newButton = oldButton.cloneNode(true);
+          oldButton.parentNode.replaceChild(newButton, oldButton);
+          newButton.addEventListener('click', function(ev){
+            try { ev.preventDefault(); ev.stopPropagation(); } catch(eStop){}
+            dbAddCurrentPartToOpenCharacter();
+          });
+        }
+      } catch(eRebind){}
+
+      try { log('Sandbox final transfer, exact SVG, Gizmo union sizing and dial-fit fixes active.'); } catch(eLog){}
+    } catch(eInstall) {
+      try { console.error('[DemBones PoseSandbox final fix]', eInstall); } catch(eConsole){}
+    }
+  })();
+
   init();
 })();
 
