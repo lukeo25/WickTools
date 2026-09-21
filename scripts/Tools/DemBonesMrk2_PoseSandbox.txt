@@ -29059,33 +29059,24 @@ function installDemBonesMrk2() {
         var result = await sbxImportGizmoBase_vFinal(clip);
         try {
           var gizmo = App.source && App.source.gizmo ? App.source.gizmo : null;
-          var union = sbxNormalizeGizmoFramesToUnion_vFinal(gizmo);
-          if (gizmo && union && gizmo.frames && gizmo.frames[0]) {
-            var keepIdentifier = String(App.source.selectedIdentifier || '');
-            var keepUuid = String(App.source.selectedUUID || '');
-            var keepSourceObjects = (App.sandboxSelectedSourceObjects || []).slice();
-            var first = gizmo.frames[0];
-
-            await loadSvgTextAsSource(
-              String(first.raw || ''),
-              String(gizmo.sourceName || 'Gizmo') + '_union.svg',
-              'selected-gizmo-part',
-              union
-            );
-
-            App.source.selectedIdentifier = keepIdentifier || String(gizmo.sourceName || 'Gizmo');
-            App.source.selectedUUID = keepUuid;
-            App.source.gizmo = mcSafeClone(gizmo);
-            App.source.width = Math.max(1, Number(union.w || 1));
-            App.source.height = Math.max(1, Number(union.h || 1));
-            App.source.stagePlacementBounds = mcSafeClone(union);
-            App.sandboxSelectedSourceObjects = keepSourceObjects;
-
-            try { fitOverlayToSource(); } catch(eFit){}
+          if (gizmo && Array.isArray(gizmo.frames) && gizmo.frames.length) {
+            /*
+             * IMPORTANT: do not reload the Gizmo through loadSvgTextAsSource here.
+             * Reloading creates a new Wick source object and changes the stage/timeline
+             * identity. Keep the original selected Gizmo and its source name/UUID exactly.
+             *
+             * Frame-union information is metadata only. Character rendering can use it
+             * without replacing the Wick object.
+             */
+            var union = sbxNormalizeGizmoFramesToUnion_vFinal(gizmo);
+            if (union) {
+              gizmo.unionBounds = mcSafeClone(union);
+              App.source.gizmo = mcSafeClone(gizmo);
+            }
             try { updateUI(); renderOverlay(); markDirty(); } catch(eUi){}
           }
         } catch(eUnion) {
-          try { log('Gizmo union-frame sizing fix failed: ' + (eUnion && eUnion.message ? eUnion.message : eUnion)); } catch(eLog){}
+          try { log('Gizmo union metadata failed: ' + (eUnion && eUnion.message ? eUnion.message : eUnion)); } catch(eLog){}
         }
         return result;
       };
