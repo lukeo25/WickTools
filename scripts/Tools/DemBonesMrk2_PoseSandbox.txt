@@ -11403,22 +11403,37 @@ html, body, #app{
     try { e.preventDefault(); e.stopPropagation(); } catch(eStop){}
   }
 
-  function mcChildAttachmentPointLocal_v18241(part){ // FIX GPT_20-09-2026_GizmoAnchorPin
+  function mcChildAttachmentPointLocal_v18241(part){ // FIX GPT_21-09-2026_RiggedGizmoRootBoneFirst
+    // A Gizmo that has been given DemBones bones behaves exactly like any other
+    // rigged Character part for pinning. Use its root bone first.
+    try {
+      var root = mcRootBoneInState(part && part.state);
+      if (root && root.head) {
+        return {
+          x:Number(root.head.x || 0),
+          y:Number(root.head.y || 0),
+          kind:'root-bone',
+          boneId:root.id
+        };
+      }
+    } catch(eRoot){}
+
+    // Only a genuinely bone-less Gizmo falls back to its Drawing Set Anchor.
     try {
       var src = part && part.state && part.state.source ? part.state.source : null;
       var gizmo = src && src.gizmo ? src.gizmo : null;
       if (gizmo && gizmo.anchor &&
           isFinite(Number(gizmo.anchor.x)) &&
           isFinite(Number(gizmo.anchor.y))) {
-        return { x:Number(gizmo.anchor.x), y:Number(gizmo.anchor.y), kind:'gizmo-anchor' };
+        return {
+          x:Number(gizmo.anchor.x),
+          y:Number(gizmo.anchor.y),
+          kind:'gizmo-anchor',
+          boneId:null
+        };
       }
     } catch(eGizmo){}
-    try {
-      var root = mcRootBoneInState(part && part.state);
-      if (root && root.head) {
-        return { x:Number(root.head.x||0), y:Number(root.head.y||0), kind:'root-bone', boneId:root.id };
-      }
-    } catch(eRoot){}
+
     return null;
   }
 
@@ -26229,6 +26244,23 @@ function installDemBonesMrk2() {
     return failed;
   }
 
+  function dbConsumeGizmoSourceFromSnapshot_v18247_GPT(snapshot){ // FIX GPT_21-09-2026_GizmoResidueUUIDCleanup
+    var result = { attempted:false, removed:true, uuid:'' };
+    try {
+      var gizmo = snapshot && snapshot.source ? snapshot.source.gizmo : null;
+      var uuid = String(gizmo && gizmo.sourceUUID || '');
+      if (!uuid) return result;
+      result.attempted = true;
+      result.uuid = uuid;
+      result.removed = dbRemoveWickObjectForCharacterTransfer(uuid);
+      return result;
+    } catch(eConsumeGizmoUuid){
+      result.attempted = true;
+      result.removed = false;
+      return result;
+    }
+  }
+
   function dbRemoveExactDrawingSourceObjects(objects){ // FIX GPT_20-09-2026_DrawingExactCleanup
     var failed = [];
     var seen = [];
@@ -26446,6 +26478,17 @@ function installDemBonesMrk2() {
       App.sandboxSelectedSourceObjects = remainingSourceObjects;
       if (remainingSourceObjects.length) log('Add To Character kept the Character part, but could not remove ' + remainingSourceObjects.length + ' original Wick item' + (remainingSourceObjects.length === 1 ? '' : 's') + '.');
     }
+
+    // FIX GPT_21-09-2026_GizmoResidueUUIDCleanup:
+    // Adding bones can outlive the temporary selection reference, but the imported
+    // Gizmo's original Wick UUID remains stored in source.gizmo. Consume that exact
+    // original here so no white/outlined stage residue remains after Character takes ownership.
+    try {
+      var gizmoConsume = dbConsumeGizmoSourceFromSnapshot_v18247_GPT(snapshot);
+      if (gizmoConsume.attempted && !gizmoConsume.removed) {
+        log('Add To Character could not remove the original Gizmo stage item ' + gizmoConsume.uuid + '.');
+      }
+    } catch(eConsumeGizmoSnapshot){}
 
     App.sandboxSelectedSourceObjects = []; // Never let an earlier part's source leak into the next ingestion.
     try { clearWickSelectionAfterArtworkUse(); } catch(eClearSelection){}
@@ -27489,6 +27532,53 @@ function installDemBonesMrk2() {
       try { log('Character Gizmo Assemble interaction isolation active.'); } catch(eLog246){}
     } catch(eInstall246) {
       try { console.error('[DemBones GPT 21-09-2026] Gizmo Assemble interaction install failed', eInstall246); } catch(eConsole246){}
+    }
+  })();
+
+
+
+  // FIX GPT_21-09-2026_RiggedGizmoPinFinal:
+  // Final authority after all earlier pin overrides. A Gizmo with bones is a normal
+  // rigged part and pins by root bone. The Gizmo Set Anchor is bone-less fallback only.
+  (function installRiggedGizmoPinFinal_v18247_GPT(){
+    try {
+      var mcChildAttachmentPointLocal_Base_v18247_GPT = mcChildAttachmentPointLocal_v18241;
+      mcChildAttachmentPointLocal_v18241 = function(part){
+        try {
+          var root = mcRootBoneInState(part && part.state);
+          if (root && root.head) {
+            return {
+              x:Number(root.head.x || 0),
+              y:Number(root.head.y || 0),
+              kind:'root-bone',
+              boneId:root.id
+            };
+          }
+        } catch(eRoot247){}
+
+        try {
+          var src = part && part.state && part.state.source ? part.state.source : null;
+          var gizmo = src && src.gizmo ? src.gizmo : null;
+          if (gizmo && gizmo.anchor &&
+              isFinite(Number(gizmo.anchor.x)) &&
+              isFinite(Number(gizmo.anchor.y))) {
+            return {
+              x:Number(gizmo.anchor.x),
+              y:Number(gizmo.anchor.y),
+              kind:'gizmo-anchor',
+              boneId:null
+            };
+          }
+        } catch(eGizmo247){}
+
+        return mcChildAttachmentPointLocal_Base_v18247_GPT
+          ? mcChildAttachmentPointLocal_Base_v18247_GPT(part)
+          : null;
+      };
+
+      try { log('Rigged Gizmo root-bone pinning and exact source cleanup active.'); } catch(eLog247){}
+    } catch(eInstall247) {
+      try { console.error('[DemBones GPT 21-09-2026] rigged Gizmo pin final install failed', eInstall247); } catch(eConsole247){}
     }
   })();
 
