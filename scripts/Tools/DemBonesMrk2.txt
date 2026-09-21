@@ -15873,6 +15873,75 @@ html, body, #app{
     } catch(e){}
   }
 
+  // FIX GPT_21-09-2026_CharacterExposure:
+
+
+  // Character overlays must obey the Wick exposure they were created from.
+
+
+  function mcCurrentWickPlayheadForExposure_v18254_GPT(){
+
+
+    var tl = null;
+
+
+    try { tl = getSelectedTimeline(); } catch(e0){}
+
+
+    try { if (!tl && App.project && App.project.activeTimeline) tl = App.project.activeTimeline; } catch(e1){}
+
+
+    try { if (!tl && App.project && App.project.timeline) tl = App.project.timeline; } catch(e2){}
+
+
+    var frame = null;
+
+
+    try { frame = Number(tl && tl.playheadPosition); } catch(e3){}
+
+
+    if (!isFinite(frame) || frame < 1) frame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
+
+
+    return Math.max(1, Math.round(frame));
+
+
+  }
+
+
+  
+
+
+  function mcPartVisibleAtCurrentWickFrame_v18254_GPT(part){
+
+
+    if (!part || part.visible === false) return false;
+
+
+    var exposure = part.wickExposure || part.exposure || null;
+
+
+    if (!exposure) return true;
+
+
+    var frame = mcCurrentWickPlayheadForExposure_v18254_GPT();
+
+
+    var start = Math.max(1, Math.round(Number(exposure.start || 1) || 1));
+
+
+    var end = Math.max(start, Math.round(Number(exposure.end || start) || start));
+
+
+    return frame >= start && frame <= end;
+
+
+  }
+
+
+  
+
+
   function mcRenderStageParts(){ // FIX v_032: every loaded part gets its own visible stage item. Loading the same JSON twice creates two separate on-screen parts.
     var mc = mcEnsure();
     var host = mcEnsureStagePartsHost();
@@ -15884,6 +15953,7 @@ html, body, #app{
     for (var i = 0; i < mc.parts.length; i += 1) {
       var part = mcNormalizePartMode(mc.parts[i]);
       if (!part || !part.state || part.visible === false) continue;
+      if (!mcPartVisibleAtCurrentWickFrame_v18254_GPT(part)) continue;
       if (Number(part.id) === selectedId) continue;
       var t = part.transform || { x:50, y:50, w:300, h:200, rotation:0 };
       var rect = stageBoundsToViewportRect({ x:Number(t.x || 0), y:Number(t.y || 0), w:Math.max(1, Number(t.w || 1)), h:Math.max(1, Number(t.h || 1)) });
@@ -15900,6 +15970,15 @@ html, body, #app{
     html += mcPinBoneMarkup(hostRect); // FIX v_033: while pinning, show every target part bone so the user can click the correct bone.
     host.innerHTML = html;
     mcBindStagePinLayerEvents(host); // FIX v_036
+    try {
+      var selectedPartForExposure254 = selectedId ? mcFindPart(selectedId) : null;
+      var selectedVisibleForExposure254 = !selectedPartForExposure254 || mcPartVisibleAtCurrentWickFrame_v18254_GPT(selectedPartForExposure254);
+      if (App.overlay && App.overlay.root) App.overlay.root.style.visibility = selectedVisibleForExposure254 ? '' : 'hidden';
+      if (App.proxy && App.proxy.overlayCanvas) App.proxy.overlayCanvas.style.visibility = selectedVisibleForExposure254 ? '' : 'hidden';
+      (App.proxy && App.proxy.hitDivs || []).concat(App.proxy && App.proxy.blockDivs || []).forEach(function(node254){
+        try { node254.style.visibility = selectedVisibleForExposure254 ? '' : 'hidden'; } catch(eNodeVis254){}
+      });
+    } catch(eExposureVisibility254){}
     try {
       if (App.overlay && App.overlay.root) {
         var selIndex = 0;
@@ -22322,18 +22401,66 @@ html, body, #app{
           parentPin:null, mode:'assemble', editTarget:'bone'
         };
         target.state = mcMakeIndependentRigState(snapshot, target);
+        try {
+          if (liveBindingForTransfer && liveBindingForTransfer.frameUUID) {
+            var sourceFrame254 = App.Wick && App.Wick.ObjectCache ? App.Wick.ObjectCache.getObjectByUUID(liveBindingForTransfer.frameUUID) : null;
+            if (sourceFrame254) {
+              var exposureStart254 = Math.max(1, Math.round(Number(sourceFrame254.start || liveBindingForTransfer.start || 1) || 1));
+              target.wickExposure = {
+                start:exposureStart254,
+                end:Math.max(exposureStart254, Math.round(Number(sourceFrame254.end || sourceFrame254.start || exposureStart254) || exposureStart254))
+              };
+            }
+          }
+        } catch(eExposure254){}
         mc.parts.splice(insertIndex, 0, target);
         mc.pendingLoadPartId = null;
         mc.loading = false;
 
         // Consume the exact managed live-rig clips. They are the duplicate stage copy.
+        // Also remove the now-empty source frame/layer, but only when it contains no other user content.
         if (liveBindingForTransfer && liveBindingForTransfer.rows && liveBindingForTransfer.rows.length) {
+          var emptiedFrames254 = [];
           liveBindingForTransfer.rows.forEach(function(row){
             var clip = null;
             try { clip = App.Wick && App.Wick.ObjectCache ? App.Wick.ObjectCache.getObjectByUUID(row.clipUUID) : null; } catch(eResolve){}
-            if (clip && clip.parent && typeof clip.parent.removeChild === 'function') {
-              try { clip.parent.removeChild(clip); } catch(eRemove){}
+            if (clip && clip.parent) {
+              var sourceFrameForCleanup254 = clip.parent;
+              try {
+                if (typeof sourceFrameForCleanup254.removeChild === 'function') sourceFrameForCleanup254.removeChild(clip);
+              } catch(eRemove){}
+              if (emptiedFrames254.indexOf(sourceFrameForCleanup254) < 0) emptiedFrames254.push(sourceFrameForCleanup254);
             }
+          });
+          emptiedFrames254.forEach(function(frame254){
+            try {
+              var clips254 = frame254.clips || [];
+              var paths254 = frame254.paths || [];
+              var hasContent254 = !!((clips254 && clips254.length) || (paths254 && paths254.length));
+              if (hasContent254) return;
+              var layer254 = frame254.parent || frame254.parentLayer || null;
+              if (!layer254) return;
+              try {
+                if (typeof layer254.removeFrame === 'function') layer254.removeFrame(frame254);
+                else if (typeof layer254.removeChild === 'function') layer254.removeChild(frame254);
+                else if (layer254.frames) {
+                  var fi254 = layer254.frames.indexOf(frame254);
+                  if (fi254 >= 0) layer254.frames.splice(fi254, 1);
+                }
+              } catch(eRemoveFrame254){}
+              var remainingFrames254 = layer254.frames || layer254._children || [];
+              if (remainingFrames254 && remainingFrames254.length) return;
+              var timeline254 = layer254.parentTimeline || layer254.parent || null;
+              var layers254 = timeline254 && timeline254.layers ? timeline254.layers : null;
+              if (!layers254 || layers254.length <= 1) return;
+              try {
+                if (typeof timeline254.removeLayer === 'function') timeline254.removeLayer(layer254);
+                else {
+                  var li254 = layers254.indexOf(layer254);
+                  if (li254 >= 0) layers254.splice(li254, 1);
+                }
+              } catch(eRemoveLayer254){}
+            } catch(eCleanup254){}
           });
         }
 
