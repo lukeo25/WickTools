@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBonesMrk2 — Live Wick curves</title> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBonesMrk2 — Live Wick curves</title> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -16941,21 +16941,13 @@ html, body, #app{
     renderOverlay();
   }
 
-  async function mcSetAssembleModeFor(id){ // FIX GPT_21-09-2026_RestoreAssembleMode
-    await mcActivatePart(id);
-    var p = mcFindPart(id);
-    if (p) {
-      p.mode = 'assemble';
-      p.editTarget = p.editTarget || 'bone';
-      if (p.state) p.state = buildRigProjectState();
-    }
-
-    // Assemble is the Character placement mode. It must not turn the stored
-    // DemBones rig into the active editing view. Bones are opened explicitly
-    // through Add Bones; rig animation is opened explicitly through Animate.
+  function mcClearLiveRigForAssemble_v18260_GPT(){
+    try { removeProxyOverlay(false); } catch(eProxy){}
+    try { removeOverlay(); } catch(eOverlay){}
     if (App.flags) {
-      App.flags.showBones = false;
+      App.flags.showImage = false;
       App.flags.showMesh = false;
+      App.flags.showBones = false;
     }
     if (App.interaction) {
       App.interaction.addBoneMode = false;
@@ -16964,14 +16956,51 @@ html, body, #app{
       App.interaction.boneId = null;
       App.interaction.hoverBoneId = null;
       App.interaction.hoverHandle = '';
+      App.interaction.pointId = null;
     }
-    try { removeProxyOverlay(false); } catch(eProxyAssemble){}
-    try { clearWickSelectionAfterArtworkUse(); } catch(eClearWickSelection){}
+    App.bones = [];
+    App.selectedBoneId = null;
+    App.frameBones = [];
+    App.selectedFrameBoneId = null;
+    App.keyframes = {};
+    App.pointKeys = {};
+    App.frameBoneKeys = {};
+    App.expressionKeys = {};
+    try {
+      if (typeof mcSetCurrentLoadedPartId_v18120_GPT === 'function') {
+        mcSetCurrentLoadedPartId_v18120_GPT(0);
+      } else if (App.myCharacter) {
+        App.myCharacter.activeLoadedPartId = 0;
+      }
+    } catch(eLoaded){}
+  }
 
+  async function mcSetAssembleModeFor(id){ // FIX v18.260_GPT: placement only; never load the stored rig
+    var mc = mcEnsure();
+    id = Number(id || 0);
+    var p = mcFindPart(id);
+    if (!p || !p.state) return;
+
+    // If this exact part is currently live in Animate/Add Bones, store those edits once
+    // before leaving rig mode. Do not load any rig merely to enter Assemble.
+    try {
+      var loadedId = 0;
+      if (typeof mcCurrentLoadedPartId_Strict_v18121_GPT === 'function') loadedId = mcCurrentLoadedPartId_Strict_v18121_GPT();
+      else if (typeof mcCurrentLoadedPartId_v18120_GPT === 'function') loadedId = mcCurrentLoadedPartId_v18120_GPT();
+      if (Number(loadedId || 0) === id) mcCaptureActivePart();
+    } catch(eCapture){}
+
+    mc.selectedId = id;
+    p.mode = 'assemble';
+    p.editTarget = p.editTarget || 'bone';
+    (mc.parts || []).forEach(function(item){
+      if (item) item.collapsed = Number(item.id || 0) !== id;
+    });
+
+    mcClearLiveRigForAssemble_v18260_GPT();
     mcShowCharacterPanelWhileRuntimeMode('character');
-    try { mcRenderStageParts(); } catch(eStageAssemble){}
-    try { renderOverlay(); } catch(eOverlayAssemble){}
-    mcRenderPanel();
+    try { mcRenderPanel(); } catch(ePanel){}
+    try { mcRenderStageParts(); } catch(eStage){}
     mcLog('Assemble: move or scale the selected Character part.');
   }
 
@@ -28207,93 +28236,6 @@ function installDemBonesMrk2() {
 
 
 
-  // FIX GPT_21-09-2026_GizmoAssembleInteraction:
-  // Character Gizmos are normal movable/scalable parts in Assemble.
-  // Their frame-choice data is independent from DemBones bone-edit state.
-  (function installGizmoAssembleInteraction_v18246_GPT(){
-    try {
-      function mcIsCharacterGizmo_v18246_GPT(part){
-        try {
-          return !!(part && part.state && part.state.source &&
-            part.state.source.gizmo &&
-            Array.isArray(part.state.source.gizmo.frames) &&
-            part.state.source.gizmo.frames.length);
-        } catch(e){ return false; }
-      }
-
-      // Final hit-test path for a Gizmo in Assemble. This deliberately bypasses
-      // bone hit testing and uses the Character transform rectangle directly.
-      var mcBeginPartDrag_Base_v18246_GPT =
-        (typeof mcBeginPartDrag === 'function') ? mcBeginPartDrag : null;
-      if (mcBeginPartDrag_Base_v18246_GPT) {
-        mcBeginPartDrag = function(local, evt){
-          try {
-            var part = mcSelectedPart ? mcSelectedPart() : null;
-            if (part && mcIsCharacterGizmo_v18246_GPT(part) &&
-                part.mode === 'assemble' &&
-                App.activeTab === 'character') {
-              var t = part.transform || mcReadTransform();
-              if (t && mcPointInsideTransform(local, t)) {
-                App.interaction.dragging = true;
-                App.interaction.dragType = 'mcPartMove';
-                App.interaction.startLocal = {
-                  x:Number(local && local.x || 0),
-                  y:Number(local && local.y || 0)
-                };
-                App.interaction.startTransform = mcSafeClone(t);
-                App.interaction.startClient = evt ? {
-                  x:Number(evt.clientX || 0),
-                  y:Number(evt.clientY || 0)
-                } : null;
-                App.interaction.startOverlayRect =
-                  App.overlay && App.overlay.root
-                    ? App.overlay.root.getBoundingClientRect() : null;
-                try {
-                  if (App.overlay && App.overlay.canvas)
-                    App.overlay.canvas.style.cursor = 'move';
-                } catch(eCursor246){}
-                return true;
-              }
-            }
-          } catch(eGizmoDrag246){}
-          return mcBeginPartDrag_Base_v18246_GPT
-            ? mcBeginPartDrag_Base_v18246_GPT.apply(this, arguments)
-            : false;
-        };
-      }
-
-      // When Assemble is clicked on a Gizmo, keep it out of bone editing.
-      var mcSetAssembleModeFor_Base_v18246_GPT =
-        (typeof mcSetAssembleModeFor === 'function') ? mcSetAssembleModeFor : null;
-      if (mcSetAssembleModeFor_Base_v18246_GPT) {
-        mcSetAssembleModeFor = async function(id){
-          var out = await mcSetAssembleModeFor_Base_v18246_GPT.apply(this, arguments);
-          try {
-            var part = mcFindPart ? mcFindPart(id) : null;
-            if (mcIsCharacterGizmo_v18246_GPT(part)) {
-              part.mode = 'assemble';
-              if (App.flags) {
-                App.flags.showBones = false;
-                App.flags.showMesh = false;
-              }
-              if (App.interaction) App.interaction.addBoneMode = false;
-              try { removeProxyOverlay(false); } catch(eProxyAssemble246){}
-              try { mcRenderStageParts(); } catch(eStageAssemble246){}
-              try { renderOverlay(); } catch(eOverlayAssemble246){}
-            }
-          } catch(eAssemble246){}
-          return out;
-        };
-      }
-
-      try { log('Character Gizmo Assemble interaction isolation active.'); } catch(eLog246){}
-    } catch(eInstall246) {
-      try { console.error('[DemBones GPT 21-09-2026] Gizmo Assemble interaction install failed', eInstall246); } catch(eConsole246){}
-    }
-  })();
-
-
-
   // FIX GPT_21-09-2026_RiggedGizmoPinFinal:
   // Final authority after all earlier pin overrides. A Gizmo with bones is a normal
   // rigged part and pins by root bone. The Gizmo Set Anchor is bone-less fallback only.
@@ -28927,29 +28869,6 @@ function installDemBonesMrk2() {
           });
         } catch(eStage){}
         return result;
-      };
-
-      var sbxSetAssembleBase_vFinal = mcSetAssembleModeFor;
-      mcSetAssembleModeFor = async function(id){
-        await sbxSetAssembleBase_vFinal(id);
-        try {
-          // Assemble edits Character placement. The Character host owns the pixels.
-          if (App.flags) {
-            App.flags.showImage = false;
-            App.flags.showMesh = false;
-            App.flags.showBones = false;
-          }
-          if (App.interaction) {
-            App.interaction.addBoneMode = false;
-            App.interaction.dragging = false;
-            App.interaction.dragType = '';
-          }
-          try { removeProxyOverlay(false); } catch(eProxy){}
-          try { clearWickSelectionAfterArtworkUse(); } catch(eSelection){}
-          mcRenderStageParts();
-          renderOverlay();
-          mcRenderPanel();
-        } catch(eAssemble){}
       };
 
       function sbxSvgInner_vFinal(raw){
