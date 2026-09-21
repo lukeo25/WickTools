@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBonesMrk2 — Live Wick curves</title> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBonesMrk2 — Live Wick curves</title> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -14622,9 +14622,8 @@ html, body, #app{
               var chosenSvg = '';
               if (chosenGizmoFrame && chosenGizmoFrame.raw) {
                 chosenSvg = String(chosenGizmoFrame.raw);
-              } else if (chosenGizmoFrame && chosenGizmoFrame.dataUrl &&
-                         String(chosenGizmoFrame.dataUrl).indexOf('data:image/svg+xml') === 0) {
-                try { chosenSvg = expressionDataUrlToText(String(chosenGizmoFrame.dataUrl)); } catch(eDecodeGizmoCommit){}
+              } else if (chosenGizmoFrame) {
+                dbm2LogMissingGizmoFrameArtwork_v18266_GPT(chosenGizmoFrame);
               }
 
               if (chosenSvg) {
@@ -16049,16 +16048,6 @@ html, body, #app{
       }
     } catch(eGizmoRaw){}
     var dataUrl = src.dataUrl || src.embeddedDataUrl || '';
-    try {
-      if (src.gizmo && Array.isArray(src.gizmo.frames) && src.gizmo.frames.length) {
-        var frameIndex = Math.max(0, Math.min(
-          src.gizmo.frames.length - 1,
-          Number(src.gizmo.defaultFrame || 1) - 1
-        ));
-        var gizmoFrame = src.gizmo.frames[frameIndex];
-        if (gizmoFrame && gizmoFrame.dataUrl) dataUrl = gizmoFrame.dataUrl;
-      }
-    } catch(eGizmoFrame){}
     if (dataUrl) {
       return '<img src="' + htmlEscape(dataUrl) + '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:fill;pointer-events:none;" draggable="false">';
     }
@@ -18843,7 +18832,7 @@ html, body, #app{
       if (gizmo && Array.isArray(gizmo.frames) && gizmo.frames.length) {
         var slot = mcInlineGizmoResolvedSlot_v18262_GPT(part, frame);
         var item = gizmo.frames[Math.max(0, Math.min(gizmo.frames.length - 1, slot - 1))] || null;
-        var gizmoMarkup = mcGizmoFrameMarkup_v18265_GPT(part, gizmo, item);
+        var gizmoMarkup = mcGizmoFrameMarkup_v18266_GPT(part, gizmo, item);
         if (gizmoMarkup) return gizmoMarkup;
       }
     } catch(eGizmo){}
@@ -25489,15 +25478,37 @@ function installDemBonesMrk2() {
     };
   }
 
-  function dbm2ComposeGizmoFrameInUnion_v18265_GPT(frameData, unionBounds){
+  var dbm2MissingGizmoFrameArtworkLogged_v18266_GPT = Object.create(null);
+
+  function dbm2LogMissingGizmoFrameArtwork_v18266_GPT(frameData){
+    var key = String(frameData && (
+      frameData.slot != null ? frameData.slot :
+      frameData.gizmoFrameNumber != null ? frameData.gizmoFrameNumber :
+      frameData.label || 'unknown'
+    ));
+    if (dbm2MissingGizmoFrameArtworkLogged_v18266_GPT[key]) return;
+    dbm2MissingGizmoFrameArtworkLogged_v18266_GPT[key] = true;
+    log('Gizmo frame data error: stored frame ' + key + ' has no raw SVG artwork.');
+  }
+
+  function dbm2ComposeGizmoFrameInUnion_v18266_GPT(frameData, unionBounds){
     if (!frameData || !unionBounds) return '';
+    var raw = String(frameData.raw || '');
+    if (!raw) {
+      dbm2LogMissingGizmoFrameArtwork_v18266_GPT(frameData);
+      return '';
+    }
     var b = frameData.originalBounds || frameData.bounds;
-    if (!b) return String(frameData.svgRaw || '');
+    if (!b) return raw;
     var x = Number(b.x || 0) - Number(unionBounds.x || 0);
     var y = Number(b.y || 0) - Number(unionBounds.y || 0);
     var w = Math.max(1,Number(b.w != null ? b.w : frameData.width || 1));
     var h = Math.max(1,Number(b.h != null ? b.h : frameData.height || 1));
-    var href = svgTextToDataUrl(String(frameData.svgRaw || ''));
+    var href = svgTextToDataUrl(raw);
+    if (!href) {
+      dbm2LogMissingGizmoFrameArtwork_v18266_GPT(frameData);
+      return '';
+    }
     return '<svg xmlns="http://www.w3.org/2000/svg" width="' + Number(unionBounds.w || 1) +
       '" height="' + Number(unionBounds.h || 1) + '" viewBox="0 0 ' +
       Number(unionBounds.w || 1) + ' ' + Number(unionBounds.h || 1) +
@@ -25506,14 +25517,18 @@ function installDemBonesMrk2() {
       '" preserveAspectRatio="none"/></svg>';
   }
 
-  function mcGizmoFrameMarkup_v18265_GPT(part, gizmo, frameData){
+  function mcGizmoFrameMarkup_v18266_GPT(part, gizmo, frameData){
     if (!gizmo || !frameData) return '';
+    var raw = String(frameData.raw || '');
+    if (!raw) {
+      dbm2LogMissingGizmoFrameArtwork_v18266_GPT(frameData);
+      return '';
+    }
     var union = gizmo.unionBounds || (part && part.state && part.state.source && part.state.source.stagePlacementBounds) || frameData.bounds;
     if (!union) {
-      if (frameData.raw) return '<img src="' + htmlEscape(svgTextToDataUrl(String(frameData.raw))) + '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;pointer-events:none;" draggable="false">';
-      return frameData.dataUrl ? '<img src="' + htmlEscape(String(frameData.dataUrl)) + '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;pointer-events:none;" draggable="false">' : '';
+      return '<img src="' + htmlEscape(svgTextToDataUrl(raw)) + '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;pointer-events:none;" draggable="false">';
     }
-    var composed = dbm2ComposeGizmoFrameInUnion_v18265_GPT(frameData, union);
+    var composed = dbm2ComposeGizmoFrameInUnion_v18266_GPT(frameData, union);
     return composed
       ? '<img src="' + htmlEscape(svgTextToDataUrl(composed)) + '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;pointer-events:none;" draggable="false">'
       : '';
@@ -25559,7 +25574,6 @@ function installDemBonesMrk2() {
           bounds:bounds,
           innerSvg:inner,
           svgRaw:svgRaw,
-          dataUrl:svgTextToDataUrl(svgRaw),
           width:Math.max(1, Math.ceil(bounds.w)),
           height:Math.max(1, Math.ceil(bounds.h))
         });
@@ -25694,9 +25708,21 @@ function installDemBonesMrk2() {
     try { dbResetRigForFreshDrawingPart(); } catch(eResetRig){}
 
     var clipName = String(clip.identifier || clip.name || 'Gizmo');
-    var first = captures[0];
-    var unionBounds = dbm2GizmoUnionBounds_v18265_GPT(captures) || mcSafeClone(first.bounds);
-    var firstDisplaySvg = dbm2ComposeGizmoFrameInUnion_v18265_GPT(first, unionBounds);
+    var storedFrames = captures.map(function(capture, index){
+      return {
+        slot:index + 1,
+        gizmoFrameNumber:Number(capture.frame || index + 1),
+        label:String(capture.label || ('Frame ' + (index + 1))),
+        raw:String(capture.svgRaw || ''),
+        width:Math.max(1, Number(capture.width || 1)),
+        height:Math.max(1, Number(capture.height || 1)),
+        bounds:mcSafeClone(capture.bounds || null),
+        originalBounds:mcSafeClone(capture.originalBounds || capture.bounds || null)
+      };
+    });
+    var first = storedFrames[0];
+    var unionBounds = dbm2GizmoUnionBounds_v18265_GPT(storedFrames) || mcSafeClone(first.bounds);
+    var firstDisplaySvg = dbm2ComposeGizmoFrameInUnion_v18266_GPT(first, unionBounds);
     var gizmoScript = dbm2GizmoScriptSource_v18220(clip);
     var anchorMatch = gizmoScript.match(/\/\*LUKE_FRAME_GIZMO_ANCHOR:\s*([-+0-9.eE]+)\s*,\s*([-+0-9.eE]+)\s*\*\//);
     var gizmoAnchor = anchorMatch
@@ -25724,19 +25750,7 @@ function installDemBonesMrk2() {
         x:isFinite(Number(gizmoAnchor.x)) ? Number(gizmoAnchor.x) : Math.max(1,Number(first.width||1))*0.5,
         y:isFinite(Number(gizmoAnchor.y)) ? Number(gizmoAnchor.y) : Math.max(1,Number(first.height||1))*0.5
       },
-      frames:captures.map(function(capture, index){
-        return {
-          slot:index + 1,
-          gizmoFrameNumber:Number(capture.frame || index + 1),
-          label:String(capture.label || ('Frame ' + (index + 1))),
-          raw:String(capture.svgRaw || ''),
-          dataUrl:String(capture.dataUrl || ''),
-          width:Math.max(1, Number(capture.width || 1)),
-          height:Math.max(1, Number(capture.height || 1)),
-          bounds:mcSafeClone(capture.bounds || null),
-          originalBounds:mcSafeClone(capture.originalBounds || capture.bounds || null)
-        };
-      })
+      frames:storedFrames
     };
 
     // Keep the native stage Gizmo until Character takes ownership.
