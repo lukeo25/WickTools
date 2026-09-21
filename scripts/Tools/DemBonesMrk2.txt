@@ -24998,8 +24998,45 @@ function installDemBonesMrk2() {
         if (!inner) throw new Error('Gizmo frame ' + stop.frame + ' contains no exportable artwork.');
         var name = String(stop.label || ('Frame ' + stop.frame));
         var svgRaw = selectedCurveWrapSvgContent(inner, bounds, name);
-        captures.push({ frame:stop.frame, label:name, bounds:bounds, svgRaw:svgRaw, dataUrl:svgTextToDataUrl(svgRaw), width:Math.max(1, Math.ceil(bounds.w)), height:Math.max(1, Math.ceil(bounds.h)) });
+        captures.push({ frame:stop.frame, label:name, bounds:bounds, innerSvg:inner, svgRaw:svgRaw, dataUrl:svgTextToDataUrl(svgRaw), width:Math.max(1, Math.ceil(bounds.w)), height:Math.max(1, Math.ceil(bounds.h)) });
       }
+
+      // FIX GPT_21-09-2026_GizmoFixedCoordinateSpace:
+      // All Gizmo frames share one coordinate system. Frame switching must not
+      // recalculate origin, scale or attachment from each frame's own bounds.
+      if (!currentOnly && captures.length) {
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        captures.forEach(function(capture){
+          var bb = capture && capture.bounds ? capture.bounds : null;
+          if (!bb) return;
+          var bx = Number(bb.x || 0), by = Number(bb.y || 0);
+          var bw = Math.max(0, Number(bb.w || 0)), bh = Math.max(0, Number(bb.h || 0));
+          minX = Math.min(minX, bx);
+          minY = Math.min(minY, by);
+          maxX = Math.max(maxX, bx + bw);
+          maxY = Math.max(maxY, by + bh);
+        });
+        if (isFinite(minX) && isFinite(minY) && isFinite(maxX) && isFinite(maxY) && maxX > minX && maxY > minY) {
+          var commonBounds = {
+            x:minX,
+            y:minY,
+            w:Math.max(1, maxX - minX),
+            h:Math.max(1, maxY - minY),
+            cx:minX + (maxX - minX) / 2,
+            cy:minY + (maxY - minY) / 2
+          };
+          captures.forEach(function(capture){
+            var rebuilt = selectedCurveWrapSvgContent(capture.innerSvg || '', commonBounds, capture.label || ('Frame ' + capture.frame));
+            capture.bounds = { x:commonBounds.x, y:commonBounds.y, w:commonBounds.w, h:commonBounds.h, cx:commonBounds.cx, cy:commonBounds.cy };
+            capture.svgRaw = rebuilt;
+            capture.dataUrl = svgTextToDataUrl(rebuilt);
+            capture.width = Math.max(1, Math.ceil(commonBounds.w));
+            capture.height = Math.max(1, Math.ceil(commonBounds.h));
+            delete capture.innerSvg;
+          });
+        }
+      }
+      captures.forEach(function(capture){ if (capture && capture.innerSvg) delete capture.innerSvg; });
     } finally {
       try { clip.animationType = original.animationType; } catch(e1){}
       try { clip.isSynced = original.isSynced; } catch(e2){}
