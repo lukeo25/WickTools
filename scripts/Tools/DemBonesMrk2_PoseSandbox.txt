@@ -26877,34 +26877,7 @@ function installDemBonesMrk2() {
     try { if (!App.B) log('Warning: LukeToolsBridge not found yet. The tool will still retry when you capture selection.'); } catch(e){}
   }
 
-  init();
-})();
-
-
-  // FIX v_027: MyCharacter cards are the only scrolling region in Build Character.
-  (function mcLockCharacterChrome(){
-    function isCharacterActive(){
-      var page = document.querySelector('.panelPage[data-page="character"]');
-      return !!(page && page.classList.contains('active'));
-    }
-    function resetPanelScroll(){
-      var p = document.getElementById('panel');
-      if (p && isCharacterActive() && p.scrollTop !== 0) p.scrollTop = 0;
-    }
-    document.addEventListener('wheel', function(ev){
-      if (!isCharacterActive()) return;
-      var cards = document.getElementById('mcCards');
-      if (!cards) return;
-      if (!cards.contains(ev.target)) {
-        resetPanelScroll();
-        ev.preventDefault();
-      }
-    }, { passive:false, capture:true });
-    document.addEventListener('scroll', resetPanelScroll, true);
-    setInterval(resetPanelScroll, 250);
-  })();
-
-
+  // GPT 21-09-2026 Gizmo patches must remain inside the main DemBones closure so they can access MyCharacter internals.
   // FIX GPT_21-09-2026_GizmoCurvePreserve: bone-less Gizmos use the exact stored Drawing SVG in Character.
   (function installExactBoneLessGizmoPreview_v18243_GPT(){
     try {
@@ -28178,6 +28151,34 @@ function installDemBonesMrk2() {
       try { console.error('[DemBones GPT 21-09-2026] Character Gizmo tab activation install failed', eInstall); } catch(eConsole){}
     }
   })();
+
+  init();
+})();
+
+
+  // FIX v_027: MyCharacter cards are the only scrolling region in Build Character.
+  (function mcLockCharacterChrome(){
+    function isCharacterActive(){
+      var page = document.querySelector('.panelPage[data-page="character"]');
+      return !!(page && page.classList.contains('active'));
+    }
+    function resetPanelScroll(){
+      var p = document.getElementById('panel');
+      if (p && isCharacterActive() && p.scrollTop !== 0) p.scrollTop = 0;
+    }
+    document.addEventListener('wheel', function(ev){
+      if (!isCharacterActive()) return;
+      var cards = document.getElementById('mcCards');
+      if (!cards) return;
+      if (!cards.contains(ev.target)) {
+        resetPanelScroll();
+        ev.preventDefault();
+      }
+    }, { passive:false, capture:true });
+    document.addEventListener('scroll', resetPanelScroll, true);
+    setInterval(resetPanelScroll, 250);
+  })();
+
 
 </script>
 </body>
