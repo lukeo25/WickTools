@@ -29014,12 +29014,35 @@ function installDemBonesMrk2() {
           var frame = v.frame;
           var dx = v.x - minX;
           var dy = v.y - minY;
-          var inner = sbxSvgInner_vFinal(frame.raw);
+          var raw = String(frame.raw || '')
+            .replace(/^\s*<\?xml[^>]*>\s*/i, '')
+            .replace(/^\s*<!DOCTYPE[^>]*>\s*/i, '');
+          var open = raw.match(/<svg\b([^>]*)>/i);
+          var inner = sbxSvgInner_vFinal(raw);
+          var attrs = open ? String(open[1] || '') : '';
+          var vbMatch = attrs.match(/\bviewBox\s*=\s*["']([^"']+)["']/i);
+          var paMatch = attrs.match(/\bpreserveAspectRatio\s*=\s*["']([^"']+)["']/i);
+          var viewBox = vbMatch && vbMatch[1]
+            ? vbMatch[1]
+            : ('0 0 ' + Math.max(1, Number(frame.width || v.w || 1)) + ' ' + Math.max(1, Number(frame.height || v.h || 1)));
+          var preserve = paMatch && paMatch[1] ? paMatch[1] : 'xMidYMid meet';
+
+          /*
+           * Keep the captured frame's own coordinate system. The previous code
+           * threw away its viewBox and pasted the path commands straight into
+           * union coordinates, which is why the hand became tiny inside a large
+           * green envelope. The nested SVG below keeps the frame geometry 1:1
+           * and only offsets its viewport inside the shared union canvas.
+           */
           var wrapped =
             '<svg xmlns="http://www.w3.org/2000/svg" width="' + unionW + '" height="' + unionH +
-            '" viewBox="0 0 ' + unionW + ' ' + unionH +
-            '" preserveAspectRatio="none"><g transform="translate(' + dx + ' ' + dy + ')">' +
-            inner + '</g></svg>';
+            '" viewBox="0 0 ' + unionW + ' ' + unionH + '" preserveAspectRatio="none">' +
+              '<svg x="' + dx + '" y="' + dy + '" width="' + v.w + '" height="' + v.h +
+              '" viewBox="' + escapeXmlAttr(viewBox) + '" preserveAspectRatio="' + escapeXmlAttr(preserve) + '">' +
+                inner +
+              '</svg>' +
+            '</svg>';
+
           frame.raw = wrapped;
           try { frame.dataUrl = svgTextToDataUrl(wrapped); } catch(eUrl){}
           frame.width = unionW;
