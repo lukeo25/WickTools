@@ -16619,7 +16619,7 @@ html, body, #app{
       mc.parts.forEach(function(p){ mcNormalizePartMode(p); if (!p.uid) p.uid = mcNewPartUid(p.id); if (p.state) p.state = mcMakeIndependentRigState(p.state, p); }); // FIX v_024
       mc.nextId = Number(data.nextId || (mc.parts.length + 1)) || 1;
       mc.selectedId = data.selectedId || (mc.parts[0] ? mc.parts[0].id : null);
-      if (mc.selectedId) await mcActivatePart(mc.selectedId);
+      if (mc.selectedId) await mcSetAssembleModeFor(mc.selectedId);
       mcRenderPanel();
       mcLog('Loaded character.');
     } catch(e) { mcLog('Character load failed: ' + (e && e.message ? e.message : e)); }
@@ -17038,7 +17038,7 @@ html, body, #app{
         var card = t && t.closest ? t.closest('.mcPartCard') : null;
         if (card && card.getAttribute('data-id')) {
           var id = Number(card.getAttribute('data-id'));
-          if (mcEnsure().selectedId !== id && !(t && t.getAttribute && t.getAttribute('data-action'))) mcActivatePart(id);
+          if (mcEnsure().selectedId !== id && !(t && t.getAttribute && t.getAttribute('data-action'))) mcSetAssembleModeFor(id);
         }
         var actionNode = t && t.closest ? t.closest('[data-action]') : null;
         if (!actionNode) return;
@@ -22412,6 +22412,7 @@ html, body, #app{
         if (liveApi && liveBindingForTransfer) {
           try { liveApi.finish(); } catch(eFinishLive){}
         }
+        try { mcPurgeAllProxyRows_v18256_GPT(); } catch(ePurgeTransfer256){}
 
         var mc = mcEnsure();
         var previousSelectedId = mc.selectedId;
@@ -22503,7 +22504,13 @@ html, body, #app{
               if (layerHasRealContent254) return;
               var timeline254 = layer254.parentTimeline || layer254.parent || null;
               var layers254 = timeline254 && timeline254.layers ? timeline254.layers : null;
-              if (!layers254 || layers254.length <= 1) return;
+              if (!layers254) return;
+              if (layers254.length <= 1) {
+                try { layer254.name = 'Layer'; } catch(eLayerName256){}
+                try { layer254.identifier = makeValidIdentifier('Layer', 'Layer'); } catch(eLayerId256){}
+                try { layer254.locked = false; } catch(eLayerLock256){}
+                return;
+              }
               try {
                 if (typeof timeline254.removeLayer === 'function') timeline254.removeLayer(layer254);
                 else {
@@ -25397,6 +25404,237 @@ function installDemBonesMrk2() {
       updateFrameBoneUI(); renderExpressionUI(); renderOverlay();
     }
     return result;
+  };
+
+
+  // FIX GPT_21-09-2026_v18.256: canonical Character/Gizmo lifecycle.
+  // This block is intentionally after all historical MyCharacter render wrappers so
+  // it is the final authority for Assemble/Animate display, exposure and helper rows.
+
+  function mcCharacterTimelineCandidates_v18256_GPT(){
+    var out = [];
+    function add(tl){ if (tl && out.indexOf(tl) < 0) out.push(tl); }
+    try { add(getSelectedTimeline()); } catch(e0){}
+    try { add(App.project && App.project.activeTimeline); } catch(e1){}
+    try { add(App.project && App.project.timeline); } catch(e2){}
+    try { add(App.ed && App.ed.project && App.ed.project.activeTimeline); } catch(e3){}
+    return out;
+  }
+
+  function mcPurgeAllProxyRows_v18256_GPT(){
+    var refs = [];
+    try {
+      (App.proxy && App.proxy.layers || []).forEach(function(info){
+        if (info && info.wickLayer && refs.indexOf(info.wickLayer) < 0) refs.push(info.wickLayer);
+      });
+      if (App.proxy && App.proxy.wickLayer && refs.indexOf(App.proxy.wickLayer) < 0) refs.push(App.proxy.wickLayer);
+    } catch(eRefs256){}
+
+    mcCharacterTimelineCandidates_v18256_GPT().forEach(function(tl){
+      if (!tl || !tl.layers) return;
+      for (var i = tl.layers.length - 1; i >= 0; i--) {
+        var layer = tl.layers[i];
+        if (!layer) continue;
+        var owned = refs.indexOf(layer) >= 0;
+        try { if (!owned && layer._ltbwProxyLayer) owned = true; } catch(eOwned0){}
+        try { if (!owned && layer._ltbwProxyBoneId != null) owned = true; } catch(eOwned1){}
+        try { if (!owned && layer._ltbwProxyFrameBoneId != null) owned = true; } catch(eOwned2){}
+        if (!owned) continue;
+        try {
+          if (typeof tl.removeLayer === 'function') tl.removeLayer(layer);
+          else tl.layers.splice(i, 1);
+        } catch(eRemove256){}
+      }
+    });
+    try {
+      if (App.proxy) {
+        App.proxy.layers = [];
+        App.proxy.wickLayer = null;
+        App.proxy.active = false;
+      }
+    } catch(eProxyReset256){}
+    try { proxyRefreshWickTimelineUI(); } catch(eTimelineUi256){}
+  }
+
+  function mcClearLiveRigForCharacter_v18256_GPT(){
+    try { removeProxyOverlay(false); } catch(eProxy256){}
+    try { mcPurgeAllProxyRows_v18256_GPT(); } catch(eRows256){}
+    try { removeOverlay(); } catch(eOverlay256){}
+    try {
+      App.bones = [];
+      App.keyframes = {};
+      App.pointKeys = {};
+      App.frameBones = [];
+      App.frameBoneKeys = {};
+      App.expressionKeys = {};
+      App.expressionProfiles = {};
+      App.selectedBoneId = null;
+      App.selectedFrameBoneId = null;
+      App.interaction.addBoneMode = false;
+      App.interaction.dragging = false;
+      App.interaction.dragType = '';
+      App.interaction.boneId = null;
+      App.interaction.hoverBoneId = null;
+      App.interaction.hoverHandle = '';
+      if (typeof mcSetCurrentLoadedPartId_v18120_GPT === 'function') mcSetCurrentLoadedPartId_v18120_GPT(0);
+    } catch(eState256){}
+  }
+
+  function mcPartVisibleForWickFrame_v18256_GPT(part, frame){
+    if (!part || part.visible === false) return false;
+    var exposure = part.wickExposure || part.exposure || null;
+    if (!exposure) return true;
+    frame = Math.max(1, Math.round(Number(frame || App.currentFrame || 1) || 1));
+    var start = Math.max(1, Math.round(Number(exposure.start || 1) || 1));
+    var end = Math.max(start, Math.round(Number(exposure.end || start) || start));
+    return frame >= start && frame <= end;
+  }
+
+  function mcCharacterLiveEditSelected_v18256_GPT(){
+    var tab = String(App.activeTab || '').toLowerCase();
+    return tab === 'animate' || tab === 'animatepoints' || tab === 'bones' || tab === 'editbone' || tab === 'expression';
+  }
+
+  function mcRenderStageParts_v18256_GPT(){
+    var mc = mcEnsure();
+    var frame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
+    var resolvedParts = null;
+    try { resolvedParts = mcResolvedLivePartsForFrame_v087(frame); } catch(eResolved256){ resolvedParts = mc.parts || []; }
+
+    try { mcHideOldStagePartsHost_v040(); } catch(eHide256){}
+    var host = mcEnsureStagePartsHost_v040 ? mcEnsureStagePartsHost_v040() : mcEnsureStagePartsHost();
+    if (!host) return;
+
+    var stageRect = mcStageRect_v040 ? mcStageRect_v040() : (updateOverlayClipHost() || {left:0,top:0});
+    var selectedId = Number(mc.selectedId || 0);
+    var liveEditSelected = mcCharacterLiveEditSelected_v18256_GPT();
+    var html = '';
+
+    try {
+      host.style.pointerEvents = mc.pinPickSourceId ? 'auto' : 'none';
+      host.style.zIndex = '949';
+    } catch(eHost256){}
+
+    for (var i = 0; i < (mc.parts || []).length; i++) {
+      var stored = mcNormalizePartMode(mc.parts[i]);
+      if (!stored || !stored.state || !mcPartVisibleForWickFrame_v18256_GPT(stored, frame)) continue;
+
+      // Only the actively edited part is omitted from the Character stage host.
+      // Its live DemBones overlay supplies that one copy while animating.
+      if (liveEditSelected && Number(stored.id) === selectedId) continue;
+
+      var part = stored;
+      try { part = mcNormalizePartMode(mcFindResolvedPart_v087(resolvedParts, stored.id) || stored); } catch(eFindResolved256){}
+      var rect = null;
+      try { rect = mcPartClientRect_v040(part); } catch(eRectA256){}
+      if (!rect) {
+        var tf = part.transform || {x:50,y:50,w:300,h:200,rotation:0};
+        try { rect = stageBoundsToViewportRect({x:Number(tf.x||0),y:Number(tf.y||0),w:Math.max(1,Number(tf.w||1)),h:Math.max(1,Number(tf.h||1))}); } catch(eRectB256){}
+      }
+      if (!rect) continue;
+
+      var markup = mcSourceMarkupForStagePart(part);
+      if (!markup) continue;
+      var t = part.transform || {rotation:0};
+      var left = Math.round(Number(rect.x || 0) - Number(stageRect.left || 0));
+      var top = Math.round(Number(rect.y || 0) - Number(stageRect.top || 0));
+      var width = Math.max(1, Math.round(Math.abs(Number(rect.width || 1))));
+      var height = Math.max(1, Math.round(Math.abs(Number(rect.height || 1))));
+      var origin = part.parentPin && typeof mcPinnedCssOriginForPart_v066 === 'function' ? mcPinnedCssOriginForPart_v066(part) : '50% 50%';
+      var z = 10000 - i;
+
+      // Character parts stay fully opaque. No automatic ghosting or extra bone drawing.
+      html += '<div data-mc-stage-part-id="' + Number(part.id) + '" style="position:absolute;left:' + left + 'px;top:' + top + 'px;width:' + width + 'px;height:' + height + 'px;z-index:' + z + ';pointer-events:none;opacity:1;transform-origin:' + origin + ';transform:rotate(' + (Number(t.rotation || 0) || 0) + 'deg);overflow:visible;">' + markup + '</div>';
+    }
+
+    host.innerHTML = html;
+
+    if (mc.pinPickSourceId) {
+      try { mcRenderPinPickLayer_v039(); } catch(ePin256){}
+      try { mcBindStagePinLayerEvents(host); } catch(eBind256){}
+    } else {
+      try { mcRemovePinPickLayer_v039(); } catch(eRemovePin256){}
+    }
+
+    try {
+      var selected = mcFindPart(selectedId);
+      var canShowHandles = selected && mcNormalizePartMode(selected).mode === 'assemble' && mcPartVisibleForWickFrame_v18256_GPT(selected, frame);
+      var h = typeof mcEnsureScaleHandleHost_v071 === 'function' ? mcEnsureScaleHandleHost_v071() : null;
+      if (!canShowHandles && h) h.innerHTML = '';
+      else if (canShowHandles && typeof mcRenderScaleHandles_v071 === 'function') mcRenderScaleHandles_v071();
+    } catch(eHandles256){}
+  }
+
+  // Final Character stage renderer. This supersedes the historical v040-v087 wrappers.
+  mcRenderStageParts = function(){
+    try { mcRenderStageParts_v18256_GPT(); }
+    catch(e){ try { mcLog('Character stage render failed: ' + (e && e.message ? e.message : e)); } catch(ignore){} }
+  };
+
+  // Do not let the Wick-follow timer recreate helper rows while Character is in Assemble.
+  var syncProxyLayersToBones_Base_v18256_GPT = syncProxyLayersToBones;
+  syncProxyLayersToBones = function(){
+    if (String(App.activeTab || '').toLowerCase() === 'character') return;
+    return syncProxyLayersToBones_Base_v18256_GPT.apply(this, arguments);
+  };
+
+  // Character display owns the artwork in Assemble. The DemBones overlay is only for live edit modes.
+  var renderOverlay_Base_v18256_GPT = renderOverlay;
+  renderOverlay = function(){
+    if (String(App.activeTab || '').toLowerCase() === 'character') {
+      try {
+        if (App.overlay && App.overlay.root) App.overlay.root.style.display = 'none';
+        if (App.proxy && App.proxy.overlayCanvas) App.proxy.overlayCanvas.style.display = 'none';
+      } catch(eHideOverlay256){}
+      try { mcRenderStageParts_v18256_GPT(); } catch(eStage256){}
+      return;
+    }
+    try {
+      if (App.overlay && App.overlay.root) App.overlay.root.style.display = '';
+      if (App.proxy && App.proxy.overlayCanvas) App.proxy.overlayCanvas.style.display = '';
+    } catch(eShowOverlay256){}
+    return renderOverlay_Base_v18256_GPT.apply(this, arguments);
+  };
+
+  // Assemble is selection/placement only. It never loads a rig into App.
+  mcSetAssembleModeFor = async function(id){
+    var mc = mcEnsure();
+    id = Number(id || 0);
+    var p = mcFindPart(id);
+    if (!p) return;
+
+    try {
+      var loadedId = typeof mcCurrentLoadedPartId_Strict_v18121_GPT === 'function' ? mcCurrentLoadedPartId_Strict_v18121_GPT() : 0;
+      if (loadedId && Number(loadedId) === Number(mc.selectedId || 0)) mcCaptureActivePart();
+    } catch(eCapture256){}
+
+    mc.selectedId = id;
+    p.mode = 'assemble';
+    p.editTarget = p.editTarget || 'bone';
+    mcClearLiveRigForCharacter_v18256_GPT();
+
+    App.activeTab = 'character';
+    try {
+      qa('.tabBtn').forEach(function(btn){ btn.classList.toggle('active', btn.getAttribute('data-tab') === 'character'); });
+      qa('.panelPage').forEach(function(page){ page.classList.toggle('active', page.getAttribute('data-page') === 'character'); });
+    } catch(eUiTabs256){}
+    try { updateUI(); } catch(eUpdate256){}
+    try { mcRenderPanel(); } catch(ePanel256){}
+    try { mcRenderStageParts_v18256_GPT(); } catch(eStage256){}
+  };
+
+  // Entering Character from any live edit mode safely stores the selected part then clears live helpers.
+  var setActiveTab_CharacterBase_v18256_GPT = setActiveTab;
+  setActiveTab = function(name){
+    if (String(name || '').toLowerCase() === 'character') {
+      try {
+        var mc = mcEnsure();
+        var selected = mcFindPart(mc.selectedId);
+        if (selected && mcCharacterLiveEditSelected_v18256_GPT()) mcCaptureActivePart();
+      } catch(eCaptureTab256){}
+      mcClearLiveRigForCharacter_v18256_GPT();
+    }
+    return setActiveTab_CharacterBase_v18256_GPT.apply(this, arguments);
   };
 
   installDemBonesMrk2();
