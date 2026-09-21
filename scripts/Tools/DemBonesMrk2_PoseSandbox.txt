@@ -14809,7 +14809,10 @@ html, body, #app{
       parentClip.transformation.scaleX = 1;
       parentClip.transformation.scaleY = 1;
       parentClip.transformation.rotation = 0;
-      parentClip.animationType = 'loop';
+      parentClip.animationType = 'sync';
+      parentClip._animationType = 'sync';
+      parentClip.isSynced = true;
+      parentClip._isSynced = true;
     } catch(eParentT){}
     try { addClipToWickProject(parentClip); } catch(addErr) { mcLog('Character commit failed: ' + (addErr && addErr.message ? addErr.message : addErr)); return; } // FIX v18.97_GPT: restored original stage insertion path from RotoBones(4).txt
     try {
@@ -16724,6 +16727,11 @@ html, body, #app{
     if (!g.timelineKeys || typeof g.timelineKeys !== 'object') g.timelineKeys = {};
     g.timelineKeys[String(frame)] = slot;
     g.defaultFrame = slot;
+    try { part.gizmoState = mcSafeClone(g); } catch(eGizmoState252){}
+    try {
+      if (App.source && Number(mcEnsure().selectedId || 0) === Number(part.id || 0)) App.source.gizmo = mcSafeClone(g);
+    } catch(eLiveGizmo252){}
+    try { mcWriteCharacterMainTimelineKeys_v18252_GPT(mcBuildCharacterState()); } catch(eMainGizmoKeys252){}
     mcInlineGizmoRefresh(part);
     mcLog('Gizmo ' + (part.name || part.id) + ': frame ' + slot + ' keyed at Wick frame ' + frame + '.');
   }
@@ -22518,7 +22526,12 @@ html, body, #app{
         return;
       }
     } catch(eBlockPersist121) { return; }
-    return mcPersistActivePartKeys_Base_v18121_GPT.apply(this, arguments);
+    var out = mcPersistActivePartKeys_Base_v18121_GPT.apply(this, arguments);
+    try {
+      mcCaptureActivePart();
+      mcWriteCharacterMainTimelineKeys_v18252_GPT(mcBuildCharacterState());
+    } catch(eMainKeys252){}
+    return out;
   };
 
   function mcCopyResolvedPinnedTransformsBack_v18121_GPT(resolvedParts){
@@ -27264,7 +27277,27 @@ function installDemBonesMrk2() {
         }
       } catch(eRemoveStageCharacter){}
       mc.loading = false;
-      if (mc.selectedId) { try { await mcActivatePart(mc.selectedId); } catch(eActivateCharacter){} }
+      if (mc.selectedId) {
+        try {
+          await mcActivatePart(mc.selectedId);
+          var selectedPart252 = mcFindPart(mc.selectedId);
+          if (selectedPart252 && selectedPart252.state) {
+            App.keyframes = mcSafeClone(selectedPart252.state.keyframes || {});
+            App.pointKeys = mcSafeClone(selectedPart252.state.pointKeys || {});
+            App.frameBoneKeys = mcSafeClone(selectedPart252.state.frameBoneKeys || {});
+            App.expressionKeys = mcSafeClone(selectedPart252.state.expressionKeys || {});
+            App.expressionProfiles = mcSafeClone(selectedPart252.state.expressionProfiles || {});
+            if (selectedPart252.state.source && selectedPart252.state.source.gizmo) {
+              if (!App.source) App.source = {};
+              App.source.gizmo = mcSafeClone(selectedPart252.state.source.gizmo);
+            }
+          }
+          try { syncProxyLayersToBones(true); } catch(eProxy252){}
+          try { ensureProxyOverlayCanvasForTimeline(); } catch(eProxyCanvas252){}
+          try { renderProxyFrame(); } catch(eProxyRender252){}
+          try { mcWriteCharacterMainTimelineKeys_v18252_GPT(data.state); } catch(eRootKeys252){}
+        } catch(eActivateCharacter){}
+      }
       try { mcRenderPanel(); } catch(ePanelCharacter){}
       try { mcRenderStageParts(); } catch(eStageCharacter){}
       try { mcOpenTab('character'); } catch(eTabCharacter){}
@@ -27292,11 +27325,150 @@ function installDemBonesMrk2() {
     return clip;
   }
 
+  // FIX GPT_21-09-2026_CharacterMainTimelineKeys:
+  // Store Character animation keys as real locked Wick layers on the ROOT timeline.
+  function mcRootTimelineForCharacterKeys_v18252_GPT(){
+    try { if (App.project && App.project.timeline) return App.project.timeline; } catch(e0){}
+    try { if (App.project && App.project.root && App.project.root.timeline) return App.project.root.timeline; } catch(e1){}
+    try { if (App.project && App.project.activeTimeline) return App.project.activeTimeline; } catch(e2){}
+    return null;
+  }
+
+  function mcRemoveCharacterKeyLayers_v18252_GPT(){
+    var tl = mcRootTimelineForCharacterKeys_v18252_GPT();
+    if (!tl || !tl.layers) return;
+    for (var i = tl.layers.length - 1; i >= 0; i -= 1) {
+      var layer = tl.layers[i];
+      if (!layer) continue;
+      var id = '';
+      try { id = String(layer.identifier || layer.name || ''); } catch(eId){}
+      if (!(layer._ltbwCharacterKeyLayer || id.indexOf('DemBonesCharacterKey_') === 0)) continue;
+      try {
+        if (typeof tl.removeLayer === 'function') tl.removeLayer(layer);
+        else tl.layers.splice(i,1);
+      } catch(eRemove){}
+    }
+  }
+
+  function mcUniqueSortedFrames_v18252_GPT(values){
+    var seen = {};
+    (values || []).forEach(function(value){
+      var n = Math.max(1, Math.round(Number(value) || 1));
+      if (isFinite(n)) seen[String(n)] = true;
+    });
+    return Object.keys(seen).map(Number).sort(function(a,b){ return a-b; });
+  }
+
+  function mcCharacterKeyRows_v18252_GPT(state){
+    var rows = [];
+    (state && state.parts || []).forEach(function(part){
+      if (!part || !part.state) return;
+      var ps = part.state || {};
+      var partName = String(part.name || ('Part ' + part.id));
+      var partUid = String(part.uid || part.id || 'part').replace(/[^A-Za-z0-9_]/g,'_');
+
+      (ps.bones || []).forEach(function(bone){
+        if (!bone) return;
+        var frames = [];
+        Object.keys(ps.keyframes || {}).forEach(function(fr){
+          var pose = ps.keyframes[fr];
+          if (!pose) return;
+          if (pose[bone.id] != null || pose[String(bone.id)] != null) frames.push(fr);
+        });
+        frames = mcUniqueSortedFrames_v18252_GPT(frames);
+        if (frames.length) rows.push({
+          id:'DemBonesCharacterKey_' + partUid + '_Bone_' + String(bone.id).replace(/[^A-Za-z0-9_]/g,'_'),
+          name:partName + ' / ' + String(bone.name || ('Bone ' + bone.id)),
+          frames:frames
+        });
+      });
+
+      var pointFrames = mcUniqueSortedFrames_v18252_GPT(Object.keys(ps.pointKeys || {}));
+      if (pointFrames.length) rows.push({
+        id:'DemBonesCharacterKey_' + partUid + '_Curves',
+        name:partName + ' / Curves',
+        frames:pointFrames
+      });
+
+      var frameBoneMap = {};
+      Object.keys(ps.frameBoneKeys || {}).forEach(function(fr){
+        var perFrame = ps.frameBoneKeys[fr] || {};
+        Object.keys(perFrame).forEach(function(fid){
+          if (!frameBoneMap[fid]) frameBoneMap[fid] = [];
+          frameBoneMap[fid].push(fr);
+        });
+      });
+      Object.keys(frameBoneMap).forEach(function(fid){
+        var fb = null;
+        (ps.frameBones || []).some(function(item){
+          if (String(item && item.id) === String(fid)) { fb=item; return true; }
+          return false;
+        });
+        rows.push({
+          id:'DemBonesCharacterKey_' + partUid + '_FrameBone_' + String(fid).replace(/[^A-Za-z0-9_]/g,'_'),
+          name:partName + ' / ' + String(fb && fb.name || ('Frame Bone ' + fid)),
+          frames:mcUniqueSortedFrames_v18252_GPT(frameBoneMap[fid])
+        });
+      });
+
+      var gizmo = ps.source && ps.source.gizmo ? ps.source.gizmo : null;
+      if (gizmo && gizmo.timelineKeys) {
+        var gizmoFrames = mcUniqueSortedFrames_v18252_GPT(Object.keys(gizmo.timelineKeys));
+        if (gizmoFrames.length) rows.push({
+          id:'DemBonesCharacterKey_' + partUid + '_Gizmo',
+          name:partName + ' / Gizmo',
+          frames:gizmoFrames
+        });
+      }
+    });
+    return rows;
+  }
+
+  function mcWriteCharacterMainTimelineKeys_v18252_GPT(state){
+    var tl = mcRootTimelineForCharacterKeys_v18252_GPT();
+    if (!tl || !App.Wick || !App.Wick.Layer || !App.Wick.Frame) return false;
+    mcRemoveCharacterKeyLayers_v18252_GPT();
+
+    var rows = mcCharacterKeyRows_v18252_GPT(state || mcBuildCharacterState());
+    rows.slice().reverse().forEach(function(row){
+      var layer = null;
+      try { layer = new App.Wick.Layer({ name:row.name, identifier:row.id }); }
+      catch(eLayer){ try { layer = new window.parent.Wick.Layer({ name:row.name, identifier:row.id }); } catch(eLayer2){} }
+      if (!layer) return;
+      try {
+        layer.name = row.name;
+        layer.identifier = row.id;
+        layer.locked = true;
+        layer._ltbwCharacterKeyLayer = true;
+      } catch(eProps){}
+      try {
+        if (typeof tl.addLayer === 'function') tl.addLayer(layer);
+        else if (tl.layers && typeof tl.layers.push === 'function') tl.layers.push(layer);
+      } catch(eAddLayer){ return; }
+
+      row.frames.forEach(function(frameNumber){
+        try {
+          var frame = new App.Wick.Frame({ start:frameNumber, end:frameNumber });
+          frame.start = frameNumber;
+          frame.end = frameNumber;
+          frame.identifier = makeValidIdentifier('key_' + frameNumber, 'key_' + frameNumber);
+          frame._ltbwCharacterKeyFrame = true;
+          if (typeof layer.addFrame === 'function') layer.addFrame(frame);
+          else if (layer.frames && typeof layer.frames.push === 'function') layer.frames.push(frame);
+        } catch(eFrame){}
+      });
+    });
+    try { markDirty(); } catch(eDirty){}
+    try { proxyRefreshWickTimelineUI(); } catch(eRefresh){}
+    return true;
+  }
+
   async function mcPersistCharacterOnStageForClose_v18250_GPT(){
     var mc = mcEnsure();
     if (!(mc.parts || []).some(function(p){ return p && p.state && p.visible !== false; })) return false;
     try { mcCaptureActivePart(); } catch(eCapture){}
     var characterState = mcBuildCharacterState();
+    try { mcWriteCharacterMainTimelineKeys_v18252_GPT(characterState); } catch(eTimelineKeys252){}
     var baseAddClip = addClipToWickProject;
     var tagged = false;
     addClipToWickProject = function(clip){
