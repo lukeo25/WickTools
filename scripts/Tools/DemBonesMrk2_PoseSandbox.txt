@@ -26840,7 +26840,82 @@ function installDemBonesMrk2() {
     return out;
   }
 
-  async function dbAddCurrentPartToOpenCharacter(){ // FIX GPT_19-09-2026_CharacterTransferNoDuplicate
+  function dbClearBuildPartAfterTransfer_v18258_GPT(){
+    try { stop(); } catch(eStop){}
+    try { removeProxyOverlay(false); } catch(eProxy){}
+    try { removeOverlay(); } catch(eOverlay){}
+    try { removeSetAreaOverlay(); } catch(eArea){}
+
+    App.bones = [];
+    App.nextBoneId = 1;
+    App.selectedBoneId = null;
+    App.frameBones = [];
+    App.nextFrameBoneId = 1;
+    App.selectedFrameBoneId = null;
+    App.keyframes = {};
+    App.pointKeys = {};
+    App.frameBoneKeys = {};
+    App.expressionKeys = {};
+    App.expressionProfiles = {};
+    App.currentFrame = 1;
+    App.selectedCurvePointId = null;
+
+    if (App.pointAnimation) {
+      App.pointAnimation.selectedPointId = '';
+      App.pointAnimation.selectedBezier = null;
+      App.pointAnimation.openBezier = null;
+      App.pointAnimation.showPoints = false;
+    }
+    if (App.interaction) {
+      App.interaction.dragging = false;
+      App.interaction.dragType = '';
+      App.interaction.boneId = null;
+      App.interaction.hoverBoneId = null;
+      App.interaction.hoverHandle = '';
+      App.interaction.pointId = null;
+      App.interaction.startPoint = null;
+      App.interaction.addBoneMode = false;
+    }
+    if (App.undo) {
+      App.undo.stack = [];
+      App.undo.lastSnapshotText = '';
+      App.undo.isRestoring = false;
+    }
+    if (App.paint) {
+      App.paint.enabled = false;
+      App.paint.showOverlay = false;
+    }
+    if (App.flags) {
+      App.flags.showImage = false;
+      App.flags.showMesh = false;
+      App.flags.showBones = false;
+    }
+    if (App.source) {
+      App.source.dataUrl = '';
+      App.source.embeddedDataUrl = '';
+      App.source.image = null;
+      App.source.width = 0;
+      App.source.height = 0;
+      App.source.fileName = '';
+      App.source.captureMode = '';
+      App.source.svgRaw = '';
+      App.source.svgNative = null;
+      App.source.alphaMask = null;
+      App.source.opaqueBounds = null;
+      App.source.dummy = null;
+      App.source.selectedIdentifier = '';
+      App.source.selectedUUID = '';
+      App.source.stagePlacementBounds = null;
+      App.source.stageBounds = null;
+      App.source.stageCenter = null;
+      App.source.viewportRect = null;
+      App.source.gizmo = null;
+    }
+    App.sandboxSelectedSourceObjects = [];
+    try { clearWickSelectionAfterArtworkUse(); } catch(eSelection){}
+  }
+
+  async function dbAddCurrentPartToOpenCharacter(){ // FIX v18.258_GPT: canonical Add To Character transfer
     var hasSource = !!(App.source && (App.source.image || App.source.svgNative || (App.source.dummy && App.source.dummy.active)));
     if (!hasSource) { log('Add To Character: create or load a part first.'); return; }
 
@@ -26975,23 +27050,16 @@ function installDemBonesMrk2() {
       if (App.source) App.source.fileName = part.name;
     } catch(eName){}
 
-    // Remove any stale non-live Character preview DOM left by the previous
-    // transfer implementation before rebuilding the Character stage view.
-    try {
-      var pdoc = window.parent && window.parent.document ? window.parent.document : null;
-      if (pdoc) {
-        Array.prototype.slice.call(pdoc.querySelectorAll('[data-luketools-bonewarp-kind="mc-stage-parts"]')).forEach(function(node){
-          try { if (node && node.parentNode) node.parentNode.removeChild(node); } catch(eRemove){}
-        });
-      }
-    } catch(eStale){}
+    // Clear the consumed Build Part workspace. Character now owns the only copy.
+    dbClearBuildPartAfterTransfer_v18258_GPT();
 
     try { mc.lastSavedSignature = null; } catch(eDirtyCharacter){}
+    part.mode = 'assemble';
+    part.editTarget = 'bone';
     try { mcRenderPanel(); } catch(ePanel){}
-    try { mcRenderStageParts(); } catch(eStage){}
-    try { updateUI(); renderOverlay(); } catch(eUi){}
-    try { mcLog('Moved "' + part.name + '" into the current character.'); } catch(eLog){}
     try { mcOpenTab('character'); } catch(eTab){}
+    try { mcRenderStageParts(); } catch(eStage){}
+    try { mcLog('Moved "' + part.name + '" into the current character.'); } catch(eLog){}
   }
 
   function dbLoadPartIntoOpenCharacter(){ // FIX GPT_19-09-2026_CharacterPartFlow
@@ -28142,39 +28210,6 @@ function installDemBonesMrk2() {
         } catch(e){ return false; }
       }
 
-      // After Add To Character, force the new Gizmo into clean Assemble context.
-      var dbAddCurrentPartToOpenCharacter_Base_v18246_GPT =
-        (typeof dbAddCurrentPartToOpenCharacter === 'function')
-          ? dbAddCurrentPartToOpenCharacter : null;
-      if (dbAddCurrentPartToOpenCharacter_Base_v18246_GPT) {
-        dbAddCurrentPartToOpenCharacter = async function(){
-          var out = await dbAddCurrentPartToOpenCharacter_Base_v18246_GPT.apply(this, arguments);
-          try {
-            var part = mcSelectedPart ? mcSelectedPart() : null;
-            if (mcIsCharacterGizmo_v18246_GPT(part)) {
-              part.mode = 'assemble';
-              if (App.flags) {
-                App.flags.showBones = false;
-                App.flags.showMesh = false;
-              }
-              if (App.interaction) {
-                App.interaction.addBoneMode = false;
-                App.interaction.dragging = false;
-                App.interaction.dragType = '';
-                App.interaction.boneId = null;
-                App.interaction.hoverBoneId = null;
-                App.interaction.hoverHandle = '';
-              }
-              try { removeProxyOverlay(false); } catch(eProxy246){}
-              try { mcOpenTab('character'); } catch(eTab246){}
-              try { mcRenderStageParts(); } catch(eStage246){}
-              try { renderOverlay(); } catch(eOverlay246){}
-            }
-          } catch(eAfterAdd246){}
-          return out;
-        };
-      }
-
       // Final hit-test path for a Gizmo in Assemble. This deliberately bypasses
       // bone hit testing and uses the Character transform rectangle directly.
       var mcBeginPartDrag_Base_v18246_GPT =
@@ -29028,75 +29063,6 @@ function installDemBonesMrk2() {
           }, 0);
         }
       } catch(eRenderGizmo){}
-
-      var sbxAddToCharacterBase_vFinal = dbAddCurrentPartToOpenCharacter;
-      dbAddCurrentPartToOpenCharacter = async function(){
-        var exactSources = [];
-        try { exactSources = (App.sandboxSelectedSourceObjects || []).slice(); } catch(eSources){}
-        var sourceUuid = '';
-        try { sourceUuid = String(App.source && App.source.gizmo && App.source.gizmo.sourceUUID || App.source && App.source.selectedUUID || ''); } catch(eUuid){}
-
-        await sbxAddToCharacterBase_vFinal();
-
-        // Retry exact source-object cleanup after the transfer transaction.
-        exactSources.forEach(function(obj){
-          try { dbRemoveWickObjectForCharacterTransfer(obj); } catch(eRemove){}
-        });
-        try {
-          if (sourceUuid) {
-            var sourceObj = dbm2FindClipByUuid_v18240(sourceUuid);
-            if (sourceObj) dbRemoveWickObjectForCharacterTransfer(sourceObj);
-          }
-        } catch(eUuidRemove){}
-
-        try {
-          App.sandboxSelectedSourceObjects = [];
-          clearWickSelectionAfterArtworkUse();
-          if (window.DemBonesMrk2 && window.DemBonesMrk2.binding &&
-              typeof window.DemBonesMrk2.finish === 'function') {
-            window.DemBonesMrk2.finish();
-          }
-        } catch(eDetach){}
-
-        try {
-          var pdoc = window.parent && window.parent.document ? window.parent.document : document;
-          Array.prototype.slice.call(pdoc.querySelectorAll(
-            '#mcStagePartsHost,[data-luketools-bonewarp-kind="mc-stage-parts"]'
-          )).forEach(function(node){
-            try {
-              node.innerHTML = '';
-              node.style.display = 'none';
-              node.style.pointerEvents = 'none';
-            } catch(eOld){}
-          });
-        } catch(eHosts){}
-
-        try {
-          if (App.flags) {
-            App.flags.showImage = false;
-            App.flags.showMesh = false;
-            App.flags.showBones = false;
-          }
-          mcRenderStageParts();
-          renderOverlay();
-          mcRenderPanel();
-          markDirty();
-        } catch(eFinal){}
-      };
-
-      // dbSimplifiedUiInstall already bound the old function reference.
-      // Replace only the sandbox Add To Character button so its listener is the final transaction above.
-      try {
-        var oldButton = el('btnSandboxAddCharacter');
-        if (oldButton && oldButton.parentNode) {
-          var newButton = oldButton.cloneNode(true);
-          oldButton.parentNode.replaceChild(newButton, oldButton);
-          newButton.addEventListener('click', function(ev){
-            try { ev.preventDefault(); ev.stopPropagation(); } catch(eStop){}
-            dbAddCurrentPartToOpenCharacter();
-          });
-        }
-      } catch(eRebind){}
 
       try { log('Sandbox final transfer, exact SVG, Gizmo union sizing and dial-fit fixes active.'); } catch(eLog){}
     } catch(eInstall) {
