@@ -1595,10 +1595,6 @@ html, body, #app{
           <div class="sandboxActionGrid one">
             <button id="btnSandboxDrawGizmo" class="softBtn softBtnAccent" type="button">Draw Gizmo</button>
           </div>
-          <div class="sandboxActionGrid">
-            <button id="btnSandboxLoadLipOutput" class="softBtn softBtnSecondary" type="button">Load Lip Service Output</button>
-            <button id="btnSandboxLoadGizmoImages" class="softBtn softBtnSecondary" type="button">Load Gizmo Images</button>
-          </div>
           <div id="sandboxGizmoStatus" class="sandboxReadout">Click Choose Gizmo On Stage. DemBones will hide while you work directly on the Wick stage.</div>
           <div id="sandboxGizmoFrames" class="sandboxGizmoFrames"></div>
         </div>
