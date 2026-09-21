@@ -969,11 +969,11 @@ html, body, #app{
 #btnSandboxResetRest{width:100%;background:#57243a;border-color:#e85586;color:#ffc5d8;font-weight:bold;}
 .sandboxResetHint{margin-top:6px;color:#d4a9b7;font-size:11px;}
 .sandboxWorkflowStatus{margin:0;padding:7px 12px;border-top:1px solid #26394b;border-bottom:1px solid #26394b;background:#0d1a26;color:#89dabb;font-size:11px;}
-#tabs{grid-template-columns:repeat(5,minmax(0,1fr)) !important;gap:5px !important;}
+#tabs{grid-template-columns:repeat(4,minmax(0,1fr)) !important;gap:5px !important;}
 #tabs .tabBtn{min-width:0;padding-left:5px;padding-right:5px;}
 .panelPage[data-page="source"] > .section:not(.sandboxPartMain),
-.panelPage[data-page="bones"] > .section:not(.sandboxBonesMain),
-.panelPage[data-page="expression"] > .section:not(.sandboxGizmoMain){display:none !important;}
+.panelPage[data-page="bones"] > .section:not(.sandboxBonesMain){display:none !important;}
+.panelPage[data-page="expression"]{display:none !important;}
 .sandboxSimpleHeader{margin:0 0 5px;color:#8fd5ff;font-size:18px;}
 .sandboxSimpleHelp{margin:0 0 12px;color:#aebfd0;font-size:12px;line-height:1.35;}
 .sandboxPrimaryAction{width:100%;min-height:42px;background:#154b75 !important;border-color:#45acf0 !important;color:#fff !important;font-weight:bold;}
@@ -998,6 +998,19 @@ html, body, #app{
 #myCharacterPanel .mcTitleRow{grid-template-columns:auto minmax(0,1fr) 28px !important;}
 .mcStackButton{min-height:34px;}
 .mcPinPlain.active{border-color:#f4bf42;background:#4b3b13;}
+.sandboxInlineGizmoIngest{margin-top:14px;padding-top:12px;border-top:1px solid #2d465c;}
+.sandboxInlineGizmoTitle{margin:0 0 5px;color:#8fd5ff;font-size:16px;}
+.mcInlineGizmo{grid-column:1/-1;display:grid;gap:8px;margin-top:2px;padding:9px;border:1px solid #35556d;border-radius:9px;background:#111d2a;}
+.mcInlineGizmoHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#dce8f2;font-size:12px;font-weight:bold;}
+.mcInlineGizmoBadge{padding:3px 7px;border:1px solid #59616c;border-radius:999px;color:#9fd9be;font-size:10px;font-weight:normal;}
+.mcInlineGizmoFrames{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}
+.mcInlineGizmoFrame{min-height:34px;padding:5px 6px;border:1px solid #3d5a70;border-radius:7px;background:#183047;color:#dce8f2;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mcInlineGizmoFrame.active{border-color:#1ee29a;background:#174536;color:#fff;}
+.mcInlineGizmoModes,.mcInlineGizmoStep{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}
+.mcInlineGizmoStep{grid-template-columns:1fr 1fr;}
+.mcInlineGizmoModes button,.mcInlineGizmoStep button{min-height:32px;padding:5px 6px;border:1px solid #3d5a70;border-radius:7px;background:#1a2b3d;color:#dce8f2;font-size:11px;}
+.mcInlineGizmoModes button.active{border-color:#1ee29a;background:#174536;color:#fff;}
+.mcInlineGizmoHint{color:#8fa6b8;font-size:10px;line-height:1.35;}
 @media(max-width:380px){.sandboxPoseGrid{grid-template-columns:1fr}.sandboxAnimateActions{grid-template-columns:1fr}.sandboxPoseSave{grid-template-columns:1fr}}
 
 /* FIX GPT_21-09-2026_CharacterGizmoRadialUI */
@@ -1038,7 +1051,6 @@ html, body, #app{
       <button class="tabBtn" data-tab="bones">Bones</button>
       <button class="tabBtn" data-tab="animate">Animate</button>
       <button class="tabBtn" data-tab="character">Character</button>
-      <button class="tabBtn" data-tab="expression">Gizmo</button> <!-- FIX v18.220_GPT: user-facing Expressions workflow is now Gizmo -->
     </div>
     <div class="sandboxWorkflowStatus">Live · changes are saved to the current Wick project</div>
   </div>
@@ -1077,6 +1089,16 @@ html, body, #app{
           </div>
           <div class="sandboxActionGrid one"><button id="btnSandboxAddCharacter" class="softBtn softBtnAccent" type="button">Add To Character</button></div>
           <div id="sandboxPartStatus" class="sandboxReadout">Ready for selected Wick artwork.</div>
+          <div class="sandboxInlineGizmoIngest">
+            <h3 class="sandboxInlineGizmoTitle">Gizmo</h3>
+            <div class="sandboxSimpleHelp">Bring a Gizmo into the Part workflow here. Choose one already on the Wick stage, or create one in Draw.</div>
+            <button id="btnSandboxUseGizmo" class="sandboxPrimaryAction" type="button">Choose Gizmo On Stage</button>
+            <div class="sandboxActionGrid one">
+              <button id="btnSandboxDrawGizmo" class="softBtn softBtnAccent" type="button">Draw Gizmo</button>
+            </div>
+            <div id="sandboxGizmoStatus" class="sandboxReadout">Ready for a Wick Gizmo.</div>
+            <div id="sandboxGizmoFrames" class="sandboxGizmoFrames"></div>
+          </div>
         </div>
         <div class="section softSection"> <!-- FIX v13.6: project save/load is first visible item -->
           <h3>Project</h3>
@@ -1588,16 +1610,7 @@ html, body, #app{
       </div>
 
       <div class="panelPage" data-page="expression"> <!-- Internal page id retained for saved-part compatibility. FIX v18.220_GPT -->
-        <div class="section softSection sandboxGizmoMain">
-          <h3 class="sandboxSimpleHeader">Gizmo</h3>
-          <div class="sandboxSimpleHelp">Choose an existing Wick Gizmo, or open Drawing here to build a multi-frame Draw Gizmo directly.</div>
-          <button id="btnSandboxUseGizmo" class="sandboxPrimaryAction" type="button">Choose Gizmo On Stage</button>
-          <div class="sandboxActionGrid one">
-            <button id="btnSandboxDrawGizmo" class="softBtn softBtnAccent" type="button">Draw Gizmo</button>
-          </div>
-          <div id="sandboxGizmoStatus" class="sandboxReadout">Click Choose Gizmo On Stage. DemBones will hide while you work directly on the Wick stage.</div>
-          <div id="sandboxGizmoFrames" class="sandboxGizmoFrames"></div>
-        </div>
+        <div class="section softSection sandboxGizmoLegacyHost" style="display:none"></div>
         <div class="section softSection">
           <h3>Gizmo Bones</h3>
           <div class="notice">Attach a selected stage Gizmo to the selected parent bone, or keep using Lip Service and Eye Service Gizmos. Clicking a Gizmo frame keys it on the real Wick timeline. Existing saved Expression data remains compatible. <!-- FIX v18.220_GPT --></div>
@@ -16497,6 +16510,117 @@ html, body, #app{
     return '<button type="button" class="mcBigBtn ' + (cls || '') + '" data-action="' + action + '" data-id="' + id + '">' + text + '</button>';
   }
 
+  function mcInlineGizmoData(part){
+    try {
+      part = mcNormalizePartMode(part || {});
+      var g = part && part.state && part.state.source ? part.state.source.gizmo : null;
+      if ((!g || !Array.isArray(g.frames) || !g.frames.length) && part && part.gizmoState && Array.isArray(part.gizmoState.frames) && part.gizmoState.frames.length) {
+        if (!part.state) part.state = {};
+        if (!part.state.source) part.state.source = {};
+        part.state.source.gizmo = mcSafeClone(part.gizmoState);
+        g = part.state.source.gizmo;
+      }
+      return g && Array.isArray(g.frames) && g.frames.length ? g : null;
+    } catch(e) { return null; }
+  }
+
+  function mcInlineGizmoHeldSlot(part, frame){
+    var g = mcInlineGizmoData(part);
+    if (!g) return 1;
+    var maxSlot = Math.max(1, g.frames.length);
+    var keys = g.timelineKeys && typeof g.timelineKeys === 'object' ? g.timelineKeys : {};
+    frame = Math.max(1, Math.round(Number(frame || App.currentFrame || 1) || 1));
+    if (keys[String(frame)] != null && isFinite(Number(keys[String(frame)]))) {
+      return Math.max(1, Math.min(maxSlot, Math.round(Number(keys[String(frame)]))));
+    }
+    var bestFrame = -1, bestSlot = null;
+    Object.keys(keys).forEach(function(key){
+      var f = Number(key), s = Number(keys[key]);
+      if (!isFinite(f) || !isFinite(s)) return;
+      if (f <= frame && f > bestFrame) { bestFrame = f; bestSlot = s; }
+    });
+    if (bestSlot != null) return Math.max(1, Math.min(maxSlot, Math.round(bestSlot)));
+    return Math.max(1, Math.min(maxSlot, Math.round(Number(g.defaultFrame || 1) || 1)));
+  }
+
+  function mcInlineGizmoMode(part){
+    var g = mcInlineGizmoData(part);
+    var mode = String(g && g.playbackMode || 'single').toLowerCase();
+    return (mode === 'follow' || mode === 'loop') ? mode : 'single';
+  }
+
+  function mcInlineGizmoMarkup(part){
+    var g = mcInlineGizmoData(part);
+    if (!g) return '';
+    var frame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
+    var slot = mcInlineGizmoHeldSlot(part, frame);
+    var mode = mcInlineGizmoMode(part);
+    var frameButtons = g.frames.map(function(item, index){
+      var n = index + 1;
+      var label = String(item && item.label || ('Frame ' + n));
+      return '<button type="button" class="mcInlineGizmoFrame' + (n === slot ? ' active' : '') + '" data-action="gizmoFrame" data-id="' + part.id + '" data-slot="' + n + '" title="' + htmlEscape(label) + '">' + htmlEscape(label) + '</button>';
+    }).join('');
+    return '' +
+      '<div class="mcInlineGizmo">' +
+        '<div class="mcInlineGizmoHeader"><span>Gizmo</span><span class="mcInlineGizmoBadge">' + htmlEscape(mode === 'follow' ? 'Follow Timeline' : mode === 'loop' ? 'Loop' : 'Single Frame') + '</span></div>' +
+        '<div class="mcInlineGizmoFrames">' + frameButtons + '</div>' +
+        '<div class="mcInlineGizmoStep">' +
+          '<button type="button" data-action="gizmoPrev" data-id="' + part.id + '">Previous</button>' +
+          '<button type="button" data-action="gizmoNext" data-id="' + part.id + '">Next</button>' +
+        '</div>' +
+        '<div class="mcInlineGizmoModes">' +
+          '<button type="button" class="' + (mode === 'single' ? 'active' : '') + '" data-action="gizmoSingle" data-id="' + part.id + '">Single</button>' +
+          '<button type="button" class="' + (mode === 'follow' ? 'active' : '') + '" data-action="gizmoFollow" data-id="' + part.id + '">Follow</button>' +
+          '<button type="button" class="' + (mode === 'loop' ? 'active' : '') + '" data-action="gizmoLoop" data-id="' + part.id + '">Loop</button>' +
+        '</div>' +
+        '<div class="mcInlineGizmoHint">Frame choices belong to this Gizmo only. Clicking a frame keys it at Wick timeline frame ' + frame + '.</div>' +
+      '</div>';
+  }
+
+  function mcInlineGizmoRefresh(part){
+    try {
+      if (part && part.state && part.state.source && part.state.source.gizmo) {
+        part.kind = 'gizmo';
+        part.gizmoState = mcSafeClone(part.state.source.gizmo);
+        if (Number(mcEnsure().selectedId || 0) === Number(part.id || 0) && App.source) App.source.gizmo = mcSafeClone(part.state.source.gizmo);
+      }
+    } catch(eMirror){}
+    try { mcRenderStageParts(); } catch(eStage){}
+    try { renderOverlay(); } catch(eOverlay){}
+    try { markDirty(); } catch(eDirty){}
+    try { mcRenderPanel(); } catch(ePanel){}
+  }
+
+  function mcInlineGizmoSetFrame(part, slot){
+    var g = mcInlineGizmoData(part);
+    if (!g) return;
+    slot = Math.max(1, Math.min(g.frames.length, Math.round(Number(slot || 1) || 1)));
+    var frame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
+    g.playbackMode = 'single';
+    if (!g.timelineKeys || typeof g.timelineKeys !== 'object') g.timelineKeys = {};
+    g.timelineKeys[String(frame)] = slot;
+    g.defaultFrame = slot;
+    mcInlineGizmoRefresh(part);
+    mcLog('Gizmo ' + (part.name || part.id) + ': frame ' + slot + ' keyed at Wick frame ' + frame + '.');
+  }
+
+  function mcInlineGizmoSetMode(part, mode){
+    var g = mcInlineGizmoData(part);
+    if (!g) return;
+    mode = (mode === 'follow' || mode === 'loop') ? mode : 'single';
+    if (mode === 'single') g.defaultFrame = mcInlineGizmoHeldSlot(part, App.currentFrame || 1);
+    g.playbackMode = mode;
+    mcInlineGizmoRefresh(part);
+    mcLog('Gizmo ' + (part.name || part.id) + ': ' + mode + ' mode.');
+  }
+
+  function mcInlineGizmoStep(part, direction){
+    var g = mcInlineGizmoData(part);
+    if (!g) return;
+    var slot = mcInlineGizmoHeldSlot(part, App.currentFrame || 1);
+    mcInlineGizmoSetFrame(part, Math.max(1, Math.min(g.frames.length, slot + direction)));
+  }
+
   function mcRenderPanel(){
     var mc = mcEnsure();
     var host = el('mcCards');
@@ -16532,6 +16656,7 @@ html, body, #app{
                 (p.parentPin ? '<button type="button" class="mcBigBtn mcUnpinBtn" data-action="unpin" data-id="' + p.id + '">Unpin</button>' : '<button type="button" class="mcBigBtn mcPinPlain' + pin + '" data-action="pin" data-id="' + p.id + '">Pin To Parent</button>') +
                 '<div class="mcLoadedTag">' + htmlEscape(loaded) + '</div>' +
                 '<div class="mcLoadedTag">' + htmlEscape(mcPinNameFor(p)) + '</div>' +
+                mcInlineGizmoMarkup(p) +
               '</div>' +
             '</div>';
         }).join('');
@@ -16975,6 +17100,25 @@ html, body, #app{
       mcSetAssembleModeFor(id);
     } else if (action === 'animate') {
       mcSetAnimateModeFor(id);
+    } else if (action === 'gizmoFrame') {
+      var gp = mcFindPart(id);
+      var slot = target && target.getAttribute ? Number(target.getAttribute('data-slot') || 1) : 1;
+      if (gp) mcInlineGizmoSetFrame(gp, slot);
+    } else if (action === 'gizmoPrev') {
+      var gpPrev = mcFindPart(id);
+      if (gpPrev) mcInlineGizmoStep(gpPrev, -1);
+    } else if (action === 'gizmoNext') {
+      var gpNext = mcFindPart(id);
+      if (gpNext) mcInlineGizmoStep(gpNext, 1);
+    } else if (action === 'gizmoSingle') {
+      var gpSingle = mcFindPart(id);
+      if (gpSingle) mcInlineGizmoSetMode(gpSingle, 'single');
+    } else if (action === 'gizmoFollow') {
+      var gpFollow = mcFindPart(id);
+      if (gpFollow) mcInlineGizmoSetMode(gpFollow, 'follow');
+    } else if (action === 'gizmoLoop') {
+      var gpLoop = mcFindPart(id);
+      if (gpLoop) mcInlineGizmoSetMode(gpLoop, 'loop');
     } else if (action === 'addbones') { // FIX GPT_21-09-2026_GizmoAddBones
       var bonePart = mcFindPart(id);
       if (!bonePart || !bonePart.state) {
@@ -27836,6 +27980,8 @@ function installDemBonesMrk2() {
       }
 
       function cgEnsureRoot(){
+        // Character Gizmo controls now render inside each Gizmo card.
+        return null;
         var host = el('sandboxGizmoFrames');
         if (!host) return null;
         var root = document.getElementById('mcCharacterGizmoUi_v18248');
