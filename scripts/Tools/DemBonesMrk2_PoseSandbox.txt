@@ -15751,7 +15751,19 @@ html, body, #app{
     if (p.editTarget !== 'node') p.editTarget = 'bone';
     if (!p.transform) p.transform = { x:50, y:50, w:300, h:200, rotation:0 };
     if (p.visible !== false) p.visible = true;
-    if (typeof p.collapsed !== 'boolean') p.collapsed = false; // FIX v18.150_GPT
+    if (typeof p.collapsed !== 'boolean') p.collapsed = false;
+    try {
+      var stateGizmo = p.state && p.state.source ? p.state.source.gizmo : null;
+      if (stateGizmo && Array.isArray(stateGizmo.frames) && stateGizmo.frames.length) {
+        p.kind = 'gizmo';
+        p.gizmoState = mcSafeClone(stateGizmo);
+      } else if (p.kind === 'gizmo' && p.gizmoState &&
+                 Array.isArray(p.gizmoState.frames) && p.gizmoState.frames.length) {
+        if (!p.state) p.state = {};
+        if (!p.state.source) p.state.source = {};
+        p.state.source.gizmo = mcSafeClone(p.gizmoState);
+      }
+    } catch(eGizmoIdentity){}
     return p;
   }
 
@@ -16391,7 +16403,32 @@ html, body, #app{
     var p = mcSelectedPart();
     if (!p || App.myCharacter.loading || !p.state) return;
     try {
+      var savedGizmo = null;
+      try {
+        savedGizmo = p.gizmoState
+          ? mcSafeClone(p.gizmoState)
+          : (p.state && p.state.source && p.state.source.gizmo
+              ? mcSafeClone(p.state.source.gizmo)
+              : null);
+      } catch(eSavedGizmo){}
+
       p.state = buildRigProjectState();
+
+      if (savedGizmo && Array.isArray(savedGizmo.frames) && savedGizmo.frames.length) {
+        if (!p.state.source) p.state.source = {};
+        p.state.source.gizmo = mcSafeClone(savedGizmo);
+        p.gizmoState = mcSafeClone(savedGizmo);
+        p.kind = 'gizmo';
+      } else {
+        try {
+          var capturedGizmo = p.state && p.state.source ? p.state.source.gizmo : null;
+          if (capturedGizmo && Array.isArray(capturedGizmo.frames) && capturedGizmo.frames.length) {
+            p.gizmoState = mcSafeClone(capturedGizmo);
+            p.kind = 'gizmo';
+          }
+        } catch(eCapturedGizmo){}
+      }
+
       p.transform = mcReadTransform();
       if (App.source && App.source.fileName) p.name = p.name || App.source.fileName;
     } catch(e) { mcLog('Could not capture active part: ' + (e && e.message ? e.message : e)); }
@@ -16434,6 +16471,11 @@ html, body, #app{
     mc.loading = true;
     try {
       target = mcNormalizePartMode(target);
+      if (target && target.kind === 'gizmo' && target.gizmoState) {
+        if (!target.state) target.state = {};
+        if (!target.state.source) target.state.source = {};
+        target.state.source.gizmo = mcSafeClone(target.gizmoState);
+      }
       if (target.state) {
         await loadRigProjectState(mcSafeClone(target.state));
         mcApplyTransformToApp(target.transform || {});
@@ -26466,7 +26508,10 @@ function installDemBonesMrk2() {
       parentPin:null,
       mode:'assemble',
       editTarget:'bone',
-      kind:(snapshot && snapshot.source && snapshot.source.gizmo) ? 'gizmo' : 'part'
+      kind:(snapshot && snapshot.source && snapshot.source.gizmo) ? 'gizmo' : 'part',
+      gizmoState:(snapshot && snapshot.source && snapshot.source.gizmo)
+        ? mcSafeClone(snapshot.source.gizmo)
+        : null
     };
 
     // Character takes ownership of the current live rig. Keep the exact state
@@ -27213,8 +27258,18 @@ function installDemBonesMrk2() {
       function mcVisibleSelectedGizmoPart_v18245_GPT(){
         try {
           var part = mcSelectedPart ? mcSelectedPart() : null;
+          if (!part) return null;
+          part = mcNormalizePartMode ? mcNormalizePartMode(part) : part;
           var gizmo = part && part.state && part.state.source ? part.state.source.gizmo : null;
-          if (!part || !gizmo || !Array.isArray(gizmo.frames) || !gizmo.frames.length) return null;
+          if ((!gizmo || !Array.isArray(gizmo.frames) || !gizmo.frames.length) &&
+              part.kind === 'gizmo' && part.gizmoState &&
+              Array.isArray(part.gizmoState.frames) && part.gizmoState.frames.length) {
+            if (!part.state) part.state = {};
+            if (!part.state.source) part.state.source = {};
+            part.state.source.gizmo = mcSafeClone(part.gizmoState);
+            gizmo = part.state.source.gizmo;
+          }
+          if (!gizmo || !Array.isArray(gizmo.frames) || !gizmo.frames.length) return null;
           return part;
         } catch(eSelected245) {
           return null;
@@ -27627,8 +27682,22 @@ function installDemBonesMrk2() {
       function cgPart(){
         try {
           var p = mcSelectedPart ? mcSelectedPart() : null;
+          if (!p) return null;
+          p = mcNormalizePartMode ? mcNormalizePartMode(p) : p;
           var g = p && p.state && p.state.source ? p.state.source.gizmo : null;
-          if (!p || !g || !Array.isArray(g.frames) || !g.frames.length) return null;
+
+          if ((!g || !Array.isArray(g.frames) || !g.frames.length) &&
+              p.kind === 'gizmo' && p.gizmoState &&
+              Array.isArray(p.gizmoState.frames) && p.gizmoState.frames.length) {
+            if (!p.state) p.state = {};
+            if (!p.state.source) p.state.source = {};
+            p.state.source.gizmo = mcSafeClone(p.gizmoState);
+            g = p.state.source.gizmo;
+          }
+
+          if (!g || !Array.isArray(g.frames) || !g.frames.length) return null;
+          p.kind = 'gizmo';
+          p.gizmoState = mcSafeClone(g);
           return p;
         } catch(e){ return null; }
       }
@@ -28054,6 +28123,63 @@ function installDemBonesMrk2() {
       try { log('Character Gizmo radial animation interface active.'); } catch(eLog){}
     } catch(eInstall) {
       try { console.error('[DemBones GPT 21-09-2026] Character Gizmo radial UI install failed', eInstall); } catch(eConsole){}
+    }
+  })();
+
+
+
+  // FIX GPT_21-09-2026_CharacterGizmoTabActivation
+  (function installCharacterGizmoTabActivation_v18249_GPT(){
+    try {
+      function repairSelectedCharacterGizmo_v18249_GPT(){
+        var p = null;
+        try { p = mcSelectedPart ? mcSelectedPart() : null; } catch(ePart){}
+        if (!p) return null;
+        try { if (mcNormalizePartMode) p = mcNormalizePartMode(p); } catch(eNorm){}
+
+        var stateGizmo = null;
+        try { stateGizmo = p.state && p.state.source ? p.state.source.gizmo : null; } catch(eState){}
+
+        if ((!stateGizmo || !Array.isArray(stateGizmo.frames) || !stateGizmo.frames.length) &&
+            p.kind === 'gizmo' && p.gizmoState &&
+            Array.isArray(p.gizmoState.frames) && p.gizmoState.frames.length) {
+          if (!p.state) p.state = {};
+          if (!p.state.source) p.state.source = {};
+          p.state.source.gizmo = mcSafeClone(p.gizmoState);
+          stateGizmo = p.state.source.gizmo;
+        }
+
+        if (stateGizmo && Array.isArray(stateGizmo.frames) && stateGizmo.frames.length) {
+          p.kind = 'gizmo';
+          p.gizmoState = mcSafeClone(stateGizmo);
+          try { if (App.source) App.source.gizmo = mcSafeClone(stateGizmo); } catch(eAppSource){}
+          return p;
+        }
+        return null;
+      }
+
+      document.addEventListener('click', function(ev){
+        try {
+          var tab = ev && ev.target && ev.target.closest
+            ? ev.target.closest('.tabBtn[data-tab="expression"]') : null;
+          if (!tab) return;
+          var p = repairSelectedCharacterGizmo_v18249_GPT();
+          if (!p) return;
+          window.setTimeout(function(){
+            try {
+              if (window.MyCharacterRenderSelectedGizmoFrames) {
+                window.MyCharacterRenderSelectedGizmoFrames();
+              }
+            } catch(eRender){}
+          }, 0);
+        } catch(eTab){}
+      }, true);
+
+      window.MyCharacterRepairSelectedGizmo = repairSelectedCharacterGizmo_v18249_GPT;
+      try { repairSelectedCharacterGizmo_v18249_GPT(); } catch(eInitial){}
+      try { log('Character Gizmo tab activation follows persistent Character identity.'); } catch(eLog){}
+    } catch(eInstall) {
+      try { console.error('[DemBones GPT 21-09-2026] Character Gizmo tab activation install failed', eInstall); } catch(eConsole){}
     }
   })();
 
