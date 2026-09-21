@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBonesMrk2 — Live Wick curves</title> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBonesMrk2 — Live Wick curves</title> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -16709,7 +16709,21 @@ html, body, #app{
     mcInlineGizmoSetFrame(part, Math.max(1, Math.min(g.frames.length, slot + direction)));
   }
 
-  function mcRenderPanel(){
+  function mcSelectCharacterPart_v18259_GPT(id){
+    var mc = mcEnsure();
+    id = Number(id || 0);
+    var part = mcFindPart(id);
+    if (!part) return null;
+    mc.selectedId = id;
+    (mc.parts || []).forEach(function(item){
+      if (item) item.collapsed = Number(item.id || 0) !== id;
+    });
+    try { mcRenderPanel(); } catch(ePanel){}
+    try { mcRenderStageParts(); } catch(eStage){}
+    return part;
+  }
+
+  function mcRenderPanel(){ // FIX v18.259_GPT: selected card open, all others collapsed
     var mc = mcEnsure();
     var host = el('mcCards');
     if (host) {
@@ -16861,7 +16875,7 @@ html, body, #app{
     mcLog('Removed part.');
   }
 
-  function mcMoveLayerFor(id, dir){
+  function mcMoveLayerFor(id, dir){ // FIX v18.259_GPT: reorder without activating or replacing part state
     var mc = mcEnsure();
     id = Number(id || mc.selectedId);
     var p = mcFindPart(id);
@@ -17164,10 +17178,7 @@ html, body, #app{
       mcLog('Now click a visible bone on ' + ((mcFindPart(id) && mcFindPart(id).name) || 'the parent part') + '.');
       return;
     }
-    if (action === 'togglePart') { // FIX v18.150_GPT
-      var tp = mcFindPart(id);
-      if (tp) { tp.collapsed = !tp.collapsed; mcRenderPanel(); }
-    } else if (action === 'loadPart') {
+    if (action === 'loadPart') {
       mc.pendingLoadPartId = id;
       var i = el('mcPartFile');
       if (i) { try { i.value = ''; } catch(e){} i.click(); }
@@ -17581,7 +17592,7 @@ html, body, #app{
         var card = t && t.closest ? t.closest('.mcPartCard') : null;
         if (card && card.getAttribute('data-id')) {
           var id = Number(card.getAttribute('data-id'));
-          if (mcEnsure().selectedId !== id && !(t && t.getAttribute && t.getAttribute('data-action'))) mcActivatePart(id);
+          if (mcEnsure().selectedId !== id && !(t && t.getAttribute && t.getAttribute('data-action'))) mcSelectCharacterPart_v18259_GPT(id);
         }
         var actionNode = t && t.closest ? t.closest('[data-action]') : null;
         if (!actionNode) return;
