@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBonesMrk2 — Live Wick curves</title> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBonesMrk2 — Live Wick curves</title> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -6057,11 +6057,11 @@ html, body, #app{
     if (!App.source.viewportRect) App.source.viewportRect = { x:80, y:80, width:100, height:100 };
     var dataUrl = svgTextToDataUrl(svgRaw);
 
-    // FIX GPT_20-09-2026_DrawingDirectVectorOnly:
-    // Drawing already supplies valid SVG vector geometry. In file:// launcher
-    // environments, do not require the browser to raster-load that SVG before
-    // DemBones can use it. Parse and display the native vectors directly.
-    if (String(mode || '') === 'drawing-direct') {
+    // FIX v18.268_GPT: Drawing and Gizmo sources already supply valid SVG vectors.
+    // Keep them vector-only: no browser image decode, no raster dependency and no
+    // densification/resampling before DemBones receives their native geometry.
+    var directVectorMode_v18268_GPT = String(mode || '') === 'drawing-direct' || String(mode || '') === 'selected-gizmo-part';
+    if (directVectorMode_v18268_GPT) {
       var directDoc = new DOMParser().parseFromString(String(svgRaw || ''), 'image/svg+xml');
       var directParserError = directDoc.querySelector && directDoc.querySelector('parsererror');
       if (directParserError) {
@@ -6079,14 +6079,14 @@ html, body, #app{
       }
 
       applyLoadedSourceImage(dataUrl, null, {
-        fileName:fileName || 'Drawing Selection.svg',
-        mode:'drawing-direct',
-        label:fileName || 'Drawing Selection',
+        fileName:fileName || (String(mode || '') === 'selected-gizmo-part' ? 'Gizmo.svg' : 'Drawing Selection.svg'),
+        mode:String(mode || 'drawing-direct'),
+        label:fileName || (String(mode || '') === 'selected-gizmo-part' ? 'Gizmo' : 'Drawing Selection'),
         svgRaw:svgRaw,
         svgNative:directNative,
         width:directW,
         height:directH,
-        uuid:'drawing-selection'
+        uuid:String(mode || '') === 'selected-gizmo-part' ? 'selected-gizmo-part' : 'drawing-selection'
       });
 
       if (bounds) {
@@ -6096,7 +6096,7 @@ html, body, #app{
       }
 
       if (el('selExportMode')) el('selExportMode').value = 'nativeCurve';
-      log('Drawing SVG loaded directly as ' + directNative.shapes.length + ' native vector shape' + (directNative.shapes.length === 1 ? '' : 's') + '.');
+      log((String(mode || '') === 'selected-gizmo-part' ? 'Gizmo SVG' : 'Drawing SVG') + ' loaded directly as ' + directNative.shapes.length + ' native vector shape' + (directNative.shapes.length === 1 ? '' : 's') + '.');
       return;
     }
 
@@ -18832,7 +18832,7 @@ html, body, #app{
       if (gizmo && Array.isArray(gizmo.frames) && gizmo.frames.length) {
         var slot = mcInlineGizmoResolvedSlot_v18262_GPT(part, frame);
         var item = gizmo.frames[Math.max(0, Math.min(gizmo.frames.length - 1, slot - 1))] || null;
-        var gizmoMarkup = mcGizmoFrameMarkup_v18266_GPT(part, gizmo, item);
+        var gizmoMarkup = mcGizmoFrameMarkup_v18268_GPT(part, gizmo, item);
         if (gizmoMarkup) return gizmoMarkup;
       }
     } catch(eGizmo){}
@@ -25491,7 +25491,27 @@ function installDemBonesMrk2() {
     log('Gizmo frame data error: stored frame ' + key + ' has no raw SVG artwork.');
   }
 
-  function dbm2ComposeGizmoFrameInUnion_v18266_GPT(frameData, unionBounds){
+  function dbm2SetSvgRootAttr_v18268_GPT(openTag, name, value){
+    var re = new RegExp('\\s' + name + '\\s*=\\s*(".*?"|\'.*?\')', 'i');
+    var attr = ' ' + name + '="' + escapeXmlAttr(String(value)) + '"';
+    return re.test(openTag)
+      ? openTag.replace(re, attr)
+      : openTag.replace(/\s*>$/, attr + '>');
+  }
+
+  function dbm2WrapGizmoFrameNative_v18268_GPT(innerSvg, bounds, fileName){
+    bounds = bounds || { x:0, y:0, w:1, h:1 };
+    var w = Math.max(1, Number(bounds.w || 1));
+    var h = Math.max(1, Number(bounds.h || 1));
+    var x = Number(bounds.x || 0);
+    var y = Number(bounds.y || 0);
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h +
+      '" viewBox="0 0 ' + w + ' ' + h + '">\n<title>' +
+      selectedCurveSvgEscape(fileName || 'Gizmo Frame') + '</title>\n<g transform="translate(' +
+      round(-x) + ' ' + round(-y) + ')">\n' + String(innerSvg || '') + '\n</g>\n</svg>';
+  }
+
+  function dbm2ComposeGizmoFrameInUnion_v18268_GPT(frameData, unionBounds){
     if (!frameData || !unionBounds) return '';
     var raw = String(frameData.raw || '');
     if (!raw) {
@@ -25500,24 +25520,29 @@ function installDemBonesMrk2() {
     }
     var b = frameData.originalBounds || frameData.bounds;
     if (!b) return raw;
-    var x = Number(b.x || 0) - Number(unionBounds.x || 0);
-    var y = Number(b.y || 0) - Number(unionBounds.y || 0);
-    var w = Math.max(1,Number(b.w != null ? b.w : frameData.width || 1));
-    var h = Math.max(1,Number(b.h != null ? b.h : frameData.height || 1));
-    var href = svgTextToDataUrl(raw);
-    if (!href) {
+
+    var dx = Number(b.x || 0) - Number(unionBounds.x || 0);
+    var dy = Number(b.y || 0) - Number(unionBounds.y || 0);
+    var unionW = Math.max(1, Number(unionBounds.w || 1));
+    var unionH = Math.max(1, Number(unionBounds.h || 1));
+    var rootMatch = raw.match(/^\s*<svg\b[^>]*>/i);
+    if (!rootMatch) {
       dbm2LogMissingGizmoFrameArtwork_v18266_GPT(frameData);
       return '';
     }
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + Number(unionBounds.w || 1) +
-      '" height="' + Number(unionBounds.h || 1) + '" viewBox="0 0 ' +
-      Number(unionBounds.w || 1) + ' ' + Number(unionBounds.h || 1) +
-      '" preserveAspectRatio="none"><image href="' + escapeXmlAttr(href) +
-      '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
-      '" preserveAspectRatio="none"/></svg>';
+
+    // Position the untouched frame geometry by viewport offset only. The frame's
+    // stored raw SVG remains unchanged; no image, scale wrapper or resampling is used.
+    var openTag = rootMatch[0];
+    openTag = dbm2SetSvgRootAttr_v18268_GPT(openTag, 'width', unionW);
+    openTag = dbm2SetSvgRootAttr_v18268_GPT(openTag, 'height', unionH);
+    openTag = dbm2SetSvgRootAttr_v18268_GPT(openTag, 'viewBox', (-dx) + ' ' + (-dy) + ' ' + unionW + ' ' + unionH);
+    openTag = openTag.replace(/\spreserveAspectRatio\s*=\s*(".*?"|'.*?')/i, '');
+
+    return raw.slice(0, rootMatch.index) + openTag + raw.slice(rootMatch.index + rootMatch[0].length);
   }
 
-  function mcGizmoFrameMarkup_v18266_GPT(part, gizmo, frameData){
+  function mcGizmoFrameMarkup_v18268_GPT(part, gizmo, frameData){
     if (!gizmo || !frameData) return '';
     var raw = String(frameData.raw || '');
     if (!raw) {
@@ -25528,7 +25553,7 @@ function installDemBonesMrk2() {
     if (!union) {
       return '<img src="' + htmlEscape(svgTextToDataUrl(raw)) + '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;pointer-events:none;" draggable="false">';
     }
-    var composed = dbm2ComposeGizmoFrameInUnion_v18266_GPT(frameData, union);
+    var composed = dbm2ComposeGizmoFrameInUnion_v18268_GPT(frameData, union);
     return composed
       ? '<img src="' + htmlEscape(svgTextToDataUrl(composed)) + '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;pointer-events:none;" draggable="false">'
       : '';
@@ -25567,7 +25592,7 @@ function installDemBonesMrk2() {
         var inner = selectedCurveExtractSvgInner(exported);
         if (!inner) throw new Error('Gizmo frame ' + stop.frame + ' contains no exportable artwork.');
         var name = String(stop.label || ('Frame ' + stop.frame));
-        var svgRaw = selectedCurveWrapSvgContent(inner, bounds, name);
+        var svgRaw = dbm2WrapGizmoFrameNative_v18268_GPT(inner, bounds, name);
         captures.push({
           frame:stop.frame,
           label:name,
@@ -25722,7 +25747,7 @@ function installDemBonesMrk2() {
     });
     var first = storedFrames[0];
     var unionBounds = dbm2GizmoUnionBounds_v18265_GPT(storedFrames) || mcSafeClone(first.bounds);
-    var firstDisplaySvg = dbm2ComposeGizmoFrameInUnion_v18266_GPT(first, unionBounds);
+    var firstDisplaySvg = dbm2ComposeGizmoFrameInUnion_v18268_GPT(first, unionBounds);
     var gizmoScript = dbm2GizmoScriptSource_v18220(clip);
     var anchorMatch = gizmoScript.match(/\/\*LUKE_FRAME_GIZMO_ANCHOR:\s*([-+0-9.eE]+)\s*,\s*([-+0-9.eE]+)\s*\*\//);
     var gizmoAnchor = anchorMatch
