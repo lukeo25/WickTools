@@ -22669,13 +22669,56 @@ html, body, #app{
     if (mcDirectStageCommitBusy_v18122_GPT && mcVisibleStageCommitTarget_v18122_GPT && clip) {
       try {
         var t = mcVisibleStageCommitTarget_v18122_GPT;
-        var frame = addClipToSpecificWickTimeline(clip, t.timeline, t.layer, t.frameNumber);
-        try { App.source.sourceTimeline = t.timeline; App.source.sourceLayer = t.layer; App.source.sourceFrame = frame || t.frame; App.source.sourceFrameNumber = t.frameNumber || 1; } catch(eSrc122){}
-        try { if (App.project) { App.project.activeTimeline = t.timeline; App.project.activeFrame = frame || t.frame; } } catch(eProj122){}
-        try { if (t.timeline) t.timeline.activeLayer = t.layer; } catch(eTl122){}
+        var tl = t.timeline;
+        var span = Math.max(1, Math.round(Number(App.frameCount || 1) || 1));
+
+        // FIX GPT_21-09-2026_CharacterPersistentStageSpan:
+        // The retained Character must live on the root timeline for the whole
+        // animation, not only in whichever frame happened to be active at close.
+        var characterLayer = null;
+        if (tl && tl.layers) {
+          for (var li = tl.layers.length - 1; li >= 0; li -= 1) {
+            var existingLayer = tl.layers[li];
+            if (!existingLayer) continue;
+            var existingId = '';
+            try { existingId = String(existingLayer.identifier || existingLayer.name || ''); } catch(eId){}
+            if (existingLayer._ltbwRetainedCharacterLayer || existingId === 'DemBonesCharacter') {
+              try {
+                if (typeof tl.removeLayer === 'function') tl.removeLayer(existingLayer);
+                else tl.layers.splice(li,1);
+              } catch(eRemoveLayer){}
+            }
+          }
+        }
+
+        try { characterLayer = new App.Wick.Layer({ name:'Character', identifier:'DemBonesCharacter' }); }
+        catch(eLayer122){ try { characterLayer = new window.parent.Wick.Layer({ name:'Character', identifier:'DemBonesCharacter' }); } catch(eLayer122b){} }
+        if (!characterLayer) throw new Error('Could not create retained Character timeline layer');
+        try {
+          characterLayer.name = 'Character';
+          characterLayer.identifier = 'DemBonesCharacter';
+          characterLayer._ltbwRetainedCharacterLayer = true;
+        } catch(eLayerProps122){}
+        if (typeof tl.addLayer === 'function') tl.addLayer(characterLayer);
+        else if (tl.layers && typeof tl.layers.push === 'function') tl.layers.push(characterLayer);
+        else throw new Error('Could not add retained Character layer');
+
+        var frame = new App.Wick.Frame({ start:1, end:span });
+        try { frame.start = 1; frame.end = span; frame.identifier = 'DemBonesCharacterSpan'; } catch(eFrameProps122){}
+        if (typeof characterLayer.addFrame === 'function') characterLayer.addFrame(frame);
+        else if (characterLayer.frames && typeof characterLayer.frames.push === 'function') characterLayer.frames.push(frame);
+        else throw new Error('Could not create retained Character span');
+
+        addToFrame(frame, clip);
+
+        try { App.source.sourceTimeline = tl; App.source.sourceLayer = characterLayer; App.source.sourceFrame = frame; App.source.sourceFrameNumber = 1; } catch(eSrc122){}
+        try { if (App.project) { App.project.activeTimeline = tl; App.project.activeFrame = frame; } } catch(eProj122){}
+        try { if (tl) tl.activeLayer = characterLayer; } catch(eTl122){}
+        try { proxyRefreshWickTimelineUI(); } catch(eRefresh122){}
+        try { markDirty(); } catch(eDirty122){}
         return frame;
       } catch(eDirect122) {
-        try { console.warn('[RotoBones GPT v18.122] direct visible stage insert failed, falling back to original addClipToWickProject.', eDirect122); } catch(eWarn122){}
+        try { console.warn('[RotoBones GPT v18.122] persistent Character insert failed, falling back to original addClipToWickProject.', eDirect122); } catch(eWarn122){}
       }
     }
     return addClipToWickProject_Base_v18122_GPT.apply(this, arguments);
@@ -27361,6 +27404,7 @@ function installDemBonesMrk2() {
 
   function mcCharacterKeyRows_v18252_GPT(state){
     var rows = [];
+    var allGizmoFrames_v18253 = [];
     (state && state.parts || []).forEach(function(part){
       if (!part || !part.state) return;
       var ps = part.state || {};
@@ -27413,14 +27457,21 @@ function installDemBonesMrk2() {
 
       var gizmo = ps.source && ps.source.gizmo ? ps.source.gizmo : null;
       if (gizmo && gizmo.timelineKeys) {
-        var gizmoFrames = mcUniqueSortedFrames_v18252_GPT(Object.keys(gizmo.timelineKeys));
-        if (gizmoFrames.length) rows.push({
-          id:'DemBonesCharacterKey_' + partUid + '_Gizmo',
-          name:partName + ' / Gizmo',
-          frames:gizmoFrames
-        });
+        Object.keys(gizmo.timelineKeys).forEach(function(fr){ allGizmoFrames_v18253.push(fr); });
       }
     });
+
+    // FIX GPT_21-09-2026_SingleGizmoTimelineRow:
+    // All Character Gizmo choices share one real Wick key row. The detailed
+    // part/slot data remains in retained DemBones state, so extra Gizmo rows add
+    // clutter without adding information.
+    var sharedGizmoFrames = mcUniqueSortedFrames_v18252_GPT(allGizmoFrames_v18253);
+    if (sharedGizmoFrames.length) rows.push({
+      id:'DemBonesCharacterKey_Gizmo',
+      name:'Gizmo',
+      frames:sharedGizmoFrames
+    });
+
     return rows;
   }
 
