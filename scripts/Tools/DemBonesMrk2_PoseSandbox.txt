@@ -26971,7 +26971,8 @@ function installDemBonesMrk2() {
         var frames = Array.isArray(gizmo.frames) ? gizmo.frames : [];
         if (!frames.length) return false;
 
-        try { syncFrameFromWick(); } catch(eSyncRender244){}
+        // Current frame is supplied by the outer Wick sync loop. Avoid recursive
+        // syncFrameFromWick -> render Gizmo -> syncFrameFromWick calls.
         var wickFrame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
         var activeSlot = mcCharacterGizmoSlotForFrame_v18244_GPT(part, wickFrame);
         var exactKey = !!(gizmo.timelineKeys && gizmo.timelineKeys[String(wickFrame)] != null);
@@ -27104,10 +27105,13 @@ function installDemBonesMrk2() {
       if (syncFrameFromWick_Base_v18244_GPT) {
         syncFrameFromWick = function(){
           var out = syncFrameFromWick_Base_v18244_GPT.apply(this, arguments);
+          if (App.__mcGizmoSyncGuard_v18246) return out;
           try {
             var part = mcSelectedCharacterGizmo_v18244_GPT();
             if (part && App.activeTab === 'expression') {
-              mcRenderCharacterGizmoChoices_v18244_GPT(part);
+              App.__mcGizmoPanelRenderGuard_v18246 = true;
+              try { mcRenderCharacterGizmoChoices_v18244_GPT(part); }
+              finally { App.__mcGizmoPanelRenderGuard_v18246 = false; }
             }
           } catch(eRefreshFrame244){}
           return out;
@@ -27175,7 +27179,12 @@ function installDemBonesMrk2() {
 
       function mcKeyVisibleGizmoFrame_v18245_GPT(part, slot){
         if (!part || !part.state || !part.state.source || !part.state.source.gizmo) return;
-        try { syncFrameFromWick(); } catch(eSync245){}
+        try {
+          if (!App.__mcGizmoSyncGuard_v18246) {
+            App.__mcGizmoSyncGuard_v18246 = true;
+            try { syncFrameFromWick(); } finally { App.__mcGizmoSyncGuard_v18246 = false; }
+          }
+        } catch(eSync245){}
         var wickFrame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
         var gizmo = part.state.source.gizmo;
         var frames = Array.isArray(gizmo.frames) ? gizmo.frames : [];
@@ -27226,7 +27235,9 @@ function installDemBonesMrk2() {
         if (importedInfo) importedInfo.style.display = '';
         if (importedSlots) importedSlots.style.display = '';
 
-        try { syncFrameFromWick(); } catch(eSyncRender245){}
+        // App.currentFrame is already maintained by the Wick follow/sync loop.
+        // Do NOT call syncFrameFromWick from inside this renderer: the sync wrapper
+        // refreshes this panel and would recurse back into the renderer.
         var wickFrame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
         var gizmo = part.state.source.gizmo;
         var frames = gizmo.frames || [];
@@ -27330,9 +27341,12 @@ function installDemBonesMrk2() {
         var syncFrameFromWick_Base_v18245_GPT = syncFrameFromWick;
         syncFrameFromWick = function(){
           var out = syncFrameFromWick_Base_v18245_GPT.apply(this, arguments);
+          if (App.__mcGizmoSyncGuard_v18246 || App.__mcGizmoPanelRenderGuard_v18246) return out;
           try {
             if (App.activeTab === 'expression') {
-              mcRenderVisibleCharacterGizmo_v18245_GPT();
+              App.__mcGizmoPanelRenderGuard_v18246 = true;
+              try { mcRenderVisibleCharacterGizmo_v18245_GPT(); }
+              finally { App.__mcGizmoPanelRenderGuard_v18246 = false; }
             }
           } catch(eSyncUi245){}
           return out;
@@ -27355,6 +27369,126 @@ function installDemBonesMrk2() {
       try { log('Selected Character Gizmo now owns the visible Gizmo frame panel.'); } catch(eLogInstall245){}
     } catch(eInstall245) {
       try { console.error('[DemBones GPT 21-09-2026] Character Gizmo visible panel install failed', eInstall245); } catch(eConsole245){}
+    }
+  })();
+
+
+
+  // FIX GPT_21-09-2026_GizmoAssembleInteraction:
+  // Character Gizmos are normal movable/scalable parts in Assemble.
+  // Their frame-choice data is independent from DemBones bone-edit state.
+  (function installGizmoAssembleInteraction_v18246_GPT(){
+    try {
+      function mcIsCharacterGizmo_v18246_GPT(part){
+        try {
+          return !!(part && part.state && part.state.source &&
+            part.state.source.gizmo &&
+            Array.isArray(part.state.source.gizmo.frames) &&
+            part.state.source.gizmo.frames.length);
+        } catch(e){ return false; }
+      }
+
+      // After Add To Character, force the new Gizmo into clean Assemble context.
+      var dbAddCurrentPartToOpenCharacter_Base_v18246_GPT =
+        (typeof dbAddCurrentPartToOpenCharacter === 'function')
+          ? dbAddCurrentPartToOpenCharacter : null;
+      if (dbAddCurrentPartToOpenCharacter_Base_v18246_GPT) {
+        dbAddCurrentPartToOpenCharacter = async function(){
+          var out = await dbAddCurrentPartToOpenCharacter_Base_v18246_GPT.apply(this, arguments);
+          try {
+            var part = mcSelectedPart ? mcSelectedPart() : null;
+            if (mcIsCharacterGizmo_v18246_GPT(part)) {
+              part.mode = 'assemble';
+              if (App.flags) {
+                App.flags.showBones = false;
+                App.flags.showMesh = false;
+              }
+              if (App.interaction) {
+                App.interaction.addBoneMode = false;
+                App.interaction.dragging = false;
+                App.interaction.dragType = '';
+                App.interaction.boneId = null;
+                App.interaction.hoverBoneId = null;
+                App.interaction.hoverHandle = '';
+              }
+              try { removeProxyOverlay(false); } catch(eProxy246){}
+              try { mcOpenTab('character'); } catch(eTab246){}
+              try { mcRenderStageParts(); } catch(eStage246){}
+              try { renderOverlay(); } catch(eOverlay246){}
+            }
+          } catch(eAfterAdd246){}
+          return out;
+        };
+      }
+
+      // Final hit-test path for a Gizmo in Assemble. This deliberately bypasses
+      // bone hit testing and uses the Character transform rectangle directly.
+      var mcBeginPartDrag_Base_v18246_GPT =
+        (typeof mcBeginPartDrag === 'function') ? mcBeginPartDrag : null;
+      if (mcBeginPartDrag_Base_v18246_GPT) {
+        mcBeginPartDrag = function(local, evt){
+          try {
+            var part = mcSelectedPart ? mcSelectedPart() : null;
+            if (part && mcIsCharacterGizmo_v18246_GPT(part) &&
+                part.mode === 'assemble' &&
+                App.activeTab === 'character') {
+              var t = part.transform || mcReadTransform();
+              if (t && mcPointInsideTransform(local, t)) {
+                App.interaction.dragging = true;
+                App.interaction.dragType = 'mcPartMove';
+                App.interaction.startLocal = {
+                  x:Number(local && local.x || 0),
+                  y:Number(local && local.y || 0)
+                };
+                App.interaction.startTransform = mcSafeClone(t);
+                App.interaction.startClient = evt ? {
+                  x:Number(evt.clientX || 0),
+                  y:Number(evt.clientY || 0)
+                } : null;
+                App.interaction.startOverlayRect =
+                  App.overlay && App.overlay.root
+                    ? App.overlay.root.getBoundingClientRect() : null;
+                try {
+                  if (App.overlay && App.overlay.canvas)
+                    App.overlay.canvas.style.cursor = 'move';
+                } catch(eCursor246){}
+                return true;
+              }
+            }
+          } catch(eGizmoDrag246){}
+          return mcBeginPartDrag_Base_v18246_GPT
+            ? mcBeginPartDrag_Base_v18246_GPT.apply(this, arguments)
+            : false;
+        };
+      }
+
+      // When Assemble is clicked on a Gizmo, keep it out of bone editing.
+      var mcSetAssembleModeFor_Base_v18246_GPT =
+        (typeof mcSetAssembleModeFor === 'function') ? mcSetAssembleModeFor : null;
+      if (mcSetAssembleModeFor_Base_v18246_GPT) {
+        mcSetAssembleModeFor = async function(id){
+          var out = await mcSetAssembleModeFor_Base_v18246_GPT.apply(this, arguments);
+          try {
+            var part = mcFindPart ? mcFindPart(id) : null;
+            if (mcIsCharacterGizmo_v18246_GPT(part)) {
+              part.mode = 'assemble';
+              if (App.flags) {
+                App.flags.showBones = false;
+                App.flags.showMesh = false;
+              }
+              if (App.interaction) App.interaction.addBoneMode = false;
+              try { removeProxyOverlay(false); } catch(eProxyAssemble246){}
+              try { mcRenderStageParts(); } catch(eStageAssemble246){}
+              try { renderOverlay(); } catch(eOverlayAssemble246){}
+            }
+          } catch(eAssemble246){}
+          return out;
+        };
+      }
+
+      try { log('Character Gizmo Assemble interaction isolation active.'); } catch(eLog246){}
+    } catch(eInstall246) {
+      try { console.error('[DemBones GPT 21-09-2026] Gizmo Assemble interaction install failed', eInstall246); } catch(eConsole246){}
     }
   })();
 
