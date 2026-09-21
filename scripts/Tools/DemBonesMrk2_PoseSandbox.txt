@@ -6911,33 +6911,40 @@ html, body, #app{
             return;
           }
 
-          if (!App.interaction.characterClosePromptBusy && mcCharacterNeedsSavePrompt()) { // FIX GPT_19-09-2026_SavePrompt
-            App.interaction.characterClosePromptBusy = true;
-            try {
-              if (evt) {
-                evt.preventDefault();
-                evt.stopPropagation();
-                if (evt.stopImmediatePropagation) evt.stopImmediatePropagation();
-              }
-            } catch(eStop){}
-            var saveBeforeClose = false;
-            try {
-              saveBeforeClose = window.confirm('This character contains a part that has not been named or saved. Save the character before closing?');
-            } catch(eConfirm){}
-            if (saveBeforeClose) {
-              try { mcSaveCharacter(); }
-              catch(eSaveClose){ mcLog('Save before close failed: ' + (eSaveClose && eSaveClose.message ? eSaveClose.message : eSaveClose)); }
+          var hasCharacterOnStage_v18250 = false;
+          try {
+            var mcClose_v18250 = mcEnsure();
+            hasCharacterOnStage_v18250 = !!((mcClose_v18250.parts || []).some(function(p){ return p && p.state && p.visible !== false; }));
+          } catch(eHasCharacter_v18250){}
+
+          if (hasCharacterOnStage_v18250) {
+            if (App.interaction.characterStageCloseBusy_v18250) {
+              try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eBusyStop_v18250){}
+              return;
             }
-            App.interaction.autoCommitCloseBypass = true;
-            setTimeout(function(){
+            App.interaction.characterStageCloseBusy_v18250 = true;
+            try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStopCharacter_v18250){}
+
+            if (mcCharacterNeedsSavePrompt()) {
+              var saveBeforeClose_v18250 = false;
+              try { saveBeforeClose_v18250 = window.confirm('Save character before closing?'); } catch(eConfirm_v18250){}
+              if (saveBeforeClose_v18250) {
+                try { mcSaveCharacter(); }
+                catch(eSaveClose_v18250){ mcLog('Save before close failed: ' + (eSaveClose_v18250 && eSaveClose_v18250.message ? eSaveClose_v18250.message : eSaveClose_v18250)); }
+              }
+            }
+
+            Promise.resolve(mcPersistCharacterOnStageForClose_v18250_GPT()).then(function(){
+              App.interaction.autoCommitCloseBypass = true;
               try { clickable.click(); }
-              catch(eClick){ try { cleanupToolOverlays(); } catch(eClean){} }
-            }, 0);
+              catch(eClick_v18250){ try { cleanupToolOverlays(); } catch(eClean_v18250){} }
+            }).catch(function(err_v18250){
+              App.interaction.characterStageCloseBusy_v18250 = false;
+              try { mcLog('Could not leave the Character on the Wick stage: ' + (err_v18250 && err_v18250.message ? err_v18250.message : err_v18250)); } catch(eLog_v18250){}
+            });
             return;
           }
 
-          // The Sandbox is a live-rig workflow. Closing saves the rig in place
-          // and must never bake a second committed stage object.
           try {
             var liveApi = window.DemBonesMrk2;
             if (liveApi && liveApi.binding && typeof liveApi.flush === 'function') liveApi.flush(true);
@@ -16983,13 +16990,10 @@ html, body, #app{
     });
   }
 
-  function mcCharacterNeedsSavePrompt(){ // FIX GPT_19-09-2026_SavePromptStable
+  function mcCharacterNeedsSavePrompt(){ // FIX GPT_21-09-2026_CloseSaveOnce
     var mc = mcEnsure();
     if (!(mc.parts || []).length) return false;
-    var sig = mcCharacterSaveSignature();
-    // Once the user has explicitly saved the current Character state, closing must not
-    // ask again merely because a part uses a default name. Prompt only for real unsaved changes.
-    return !mc.lastSavedSignature || sig !== mc.lastSavedSignature;
+    return !mc.lastSavedSignature;
   }
 
   function mcBuildCharacterState(){
@@ -24646,7 +24650,15 @@ function installDemBonesMrk2Host(host, html) {
   service.read = function (object) {
     var scripts = object && object.scripts || [];
     for (var i = 0; i < scripts.length; i++) {
-      var match = String(scripts[i].src || '').match(/\/\*DBM2_RIG:([A-Za-z0-9+/=]+)\*\//);
+      var src = String(scripts[i].src || '');
+      var characterMatch = src.match(/\/\*DBM2_CHARACTER:([A-Za-z0-9+/=]+)\*\//);
+      if (characterMatch) {
+        try {
+          var characterData = JSON.parse(decodeURIComponent(escape(host.atob(characterMatch[1]))));
+          if (characterData && characterData.format === 'DemBonesCharacter' && characterData.version === 1 && characterData.state) return characterData;
+        } catch (eCharacter) { host.console.warn('DemBonesMrk2: unreadable Character data', eCharacter); }
+      }
+      var match = src.match(/\/\*DBM2_RIG:([A-Za-z0-9+/=]+)\*\//);
       if (match) {
         try {
           var data = JSON.parse(decodeURIComponent(escape(host.atob(match[1]))));
@@ -25661,7 +25673,7 @@ function installDemBonesMrk2() {
   });
   el('chkUseSelectedCurveRemoveOriginals_Claude').disabled = true;
   el('chkUseSelectedCurveRemoveOriginals_Claude').checked = true;
-  var api = { version: '2.4', bind: bind, resume: resume, flush: flush, preview: preview, finish: finish, detachForCharacterTransfer: detachForCharacterTransfer, geometryAt: geometryAt,
+  var api = { version: '2.5', bind: bind, resume: resume, openCharacter: mcOpenRetainedCharacter_v18250_GPT, flush: flush, preview: preview, finish: finish, detachForCharacterTransfer: detachForCharacterTransfer, geometryAt: geometryAt,
     clientInverse: function () { return live.binding ? G.inverse(rigClientMatrix()) : null; },
     get binding() { return live.binding; }, get state() { return live; },
     project: function () { return App.project; },
@@ -25671,7 +25683,8 @@ function installDemBonesMrk2() {
   // The companion launcher hands off the exact rig that was hit, never the stale selection.
   setTimeout(function () {
     var pending = host.pending; host.pending = null;
-    if (pending) resume(pending);
+    if (pending && pending.data && pending.data.format === 'DemBonesCharacter') mcOpenRetainedCharacter_v18250_GPT(pending);
+    else if (pending) resume(pending);
     else setActiveTab('source');
   }, 0);
   return api;
@@ -27001,6 +27014,69 @@ function installDemBonesMrk2() {
   dbSimplifiedUiInstall();
   if (el('btnImportSelectedGizmoAsPart')) el('btnImportSelectedGizmoAsPart').addEventListener('click', dbm2ImportSelectedGizmoAsPart_v18220);
   if (el('btnImportSelectedGizmoAsExpression')) el('btnImportSelectedGizmoAsExpression').addEventListener('click', dbm2ImportSelectedGizmoAsExpression_v18220);
+
+  async function mcOpenRetainedCharacter_v18250_GPT(hit){
+    try {
+      var data = hit && hit.data ? hit.data : hit;
+      if (!data || data.format !== 'DemBonesCharacter' || !data.state || !Array.isArray(data.state.parts)) return false;
+      var mc = mcEnsure();
+      mc.loading = true;
+      mc.parts = mcSafeClone(data.state.parts || []);
+      App.poseLibrary = mcSafeClone(data.state.poseLibrary || []);
+      mc.parts.forEach(function(p){ mcNormalizePartMode(p); if (!p.uid) p.uid = mcNewPartUid(p.id); if (p.state) p.state = mcMakeIndependentRigState(p.state, p); });
+      mc.nextId = Number(data.state.nextId || (mc.parts.length + 1)) || 1;
+      mc.selectedId = data.state.selectedId || (mc.parts[0] ? mc.parts[0].id : null);
+      mc.lastSavedSignature = data.state.wasExplicitlySaved ? mcCharacterSaveSignature() : null;
+      try {
+        var stageObject = hit && hit.object ? hit.object : null;
+        if (stageObject && stageObject.parent && typeof stageObject.parent.removeChild === 'function') {
+          stageObject.parent.removeChild(stageObject);
+          try { markDirty(); } catch(eDirtyOpen){}
+        }
+      } catch(eRemoveStageCharacter){}
+      mc.loading = false;
+      if (mc.selectedId) { try { await mcActivatePart(mc.selectedId); } catch(eActivateCharacter){} }
+      try { mcRenderPanel(); } catch(ePanelCharacter){}
+      try { mcRenderStageParts(); } catch(eStageCharacter){}
+      try { mcOpenTab('character'); } catch(eTabCharacter){}
+      try { mcLog('Character reopened from the Wick stage.'); } catch(eLogCharacter){}
+      return true;
+    } catch(eOpenCharacter) {
+      try { mcEnsure().loading = false; } catch(eLoading){}
+      try { console.error('[DemBones GPT 21-09-2026] retained Character reopen failed', eOpenCharacter); } catch(eConsole){}
+      return false;
+    }
+  }
+
+  function mcAttachRetainedCharacterData_v18250_GPT(clip, state){
+    if (!clip || !state) return clip;
+    try {
+      var payload = { format:'DemBonesCharacter', version:1, state:mcSafeClone(state) };
+      payload.state.wasExplicitlySaved = !!mcEnsure().lastSavedSignature;
+      var encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+      var marker = '// DemBones Character data. Double-click this Character to reopen DemBones.\n/*DBM2_CHARACTER:' + encoded + '*/';
+      var original = '';
+      try { var current = clip.getScript && clip.getScript('default'); original = current ? String(current.src || '') : ''; } catch(eGetScript){}
+      var without = original.replace(/\/\*DBM2_CHARACTER:[A-Za-z0-9+/=]+\*\//g, '').replace(/\/\/ DemBones Character data\. Double-click this Character to reopen DemBones\.\s*/g, '').trim();
+      if (typeof clip.addScript === 'function') clip.addScript('default', without ? without + '\n' + marker : marker);
+    } catch(eAttachCharacter){ try { console.error('[DemBones GPT 21-09-2026] retained Character metadata failed', eAttachCharacter); } catch(eConsole){} }
+    return clip;
+  }
+
+  async function mcPersistCharacterOnStageForClose_v18250_GPT(){
+    var mc = mcEnsure();
+    if (!(mc.parts || []).some(function(p){ return p && p.state && p.visible !== false; })) return false;
+    try { mcCaptureActivePart(); } catch(eCapture){}
+    var characterState = mcBuildCharacterState();
+    var baseAddClip = addClipToWickProject;
+    var tagged = false;
+    addClipToWickProject = function(clip){
+      if (!tagged) { tagged = true; mcAttachRetainedCharacterData_v18250_GPT(clip, characterState); }
+      return baseAddClip.apply(this, arguments);
+    };
+    try { await mcCommitCharacterNativeClip(); return tagged; }
+    finally { addClipToWickProject = baseAddClip; }
+  }
 
   function init(){
     try { forceToolPanelFill(); } catch(e){ console.error('[MyCharacter] forceToolPanelFill failed', e); } // FIX v_018
