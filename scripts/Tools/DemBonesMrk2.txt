@@ -15873,75 +15873,6 @@ html, body, #app{
     } catch(e){}
   }
 
-  // FIX GPT_21-09-2026_CharacterExposure:
-
-
-  // Character overlays must obey the Wick exposure they were created from.
-
-
-  function mcCurrentWickPlayheadForExposure_v18254_GPT(){
-
-
-    var tl = null;
-
-
-    try { tl = getSelectedTimeline(); } catch(e0){}
-
-
-    try { if (!tl && App.project && App.project.activeTimeline) tl = App.project.activeTimeline; } catch(e1){}
-
-
-    try { if (!tl && App.project && App.project.timeline) tl = App.project.timeline; } catch(e2){}
-
-
-    var frame = null;
-
-
-    try { frame = Number(tl && tl.playheadPosition); } catch(e3){}
-
-
-    if (!isFinite(frame) || frame < 1) frame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
-
-
-    return Math.max(1, Math.round(frame));
-
-
-  }
-
-
-  
-
-
-  function mcPartVisibleAtCurrentWickFrame_v18254_GPT(part){
-
-
-    if (!part || part.visible === false) return false;
-
-
-    var exposure = part.wickExposure || part.exposure || null;
-
-
-    if (!exposure) return true;
-
-
-    var frame = mcCurrentWickPlayheadForExposure_v18254_GPT();
-
-
-    var start = Math.max(1, Math.round(Number(exposure.start || 1) || 1));
-
-
-    var end = Math.max(start, Math.round(Number(exposure.end || start) || start));
-
-
-    return frame >= start && frame <= end;
-
-
-  }
-
-
-  
-
-
   function mcRenderStageParts(){ // FIX v_032: every loaded part gets its own visible stage item. Loading the same JSON twice creates two separate on-screen parts.
     var mc = mcEnsure();
     var host = mcEnsureStagePartsHost();
@@ -15953,7 +15884,6 @@ html, body, #app{
     for (var i = 0; i < mc.parts.length; i += 1) {
       var part = mcNormalizePartMode(mc.parts[i]);
       if (!part || !part.state || part.visible === false) continue;
-      if (!mcPartVisibleAtCurrentWickFrame_v18254_GPT(part)) continue;
       if (Number(part.id) === selectedId) continue;
       var t = part.transform || { x:50, y:50, w:300, h:200, rotation:0 };
       var rect = stageBoundsToViewportRect({ x:Number(t.x || 0), y:Number(t.y || 0), w:Math.max(1, Number(t.w || 1)), h:Math.max(1, Number(t.h || 1)) });
@@ -15970,15 +15900,6 @@ html, body, #app{
     html += mcPinBoneMarkup(hostRect); // FIX v_033: while pinning, show every target part bone so the user can click the correct bone.
     host.innerHTML = html;
     mcBindStagePinLayerEvents(host); // FIX v_036
-    try {
-      var selectedPartForExposure254 = selectedId ? mcFindPart(selectedId) : null;
-      var selectedVisibleForExposure254 = !selectedPartForExposure254 || mcPartVisibleAtCurrentWickFrame_v18254_GPT(selectedPartForExposure254);
-      if (App.overlay && App.overlay.root) App.overlay.root.style.visibility = selectedVisibleForExposure254 ? '' : 'hidden';
-      if (App.proxy && App.proxy.overlayCanvas) App.proxy.overlayCanvas.style.visibility = selectedVisibleForExposure254 ? '' : 'hidden';
-      (App.proxy && App.proxy.hitDivs || []).concat(App.proxy && App.proxy.blockDivs || []).forEach(function(node254){
-        try { node254.style.visibility = selectedVisibleForExposure254 ? '' : 'hidden'; } catch(eNodeVis254){}
-      });
-    } catch(eExposureVisibility254){}
     try {
       if (App.overlay && App.overlay.root) {
         var selIndex = 0;
@@ -16479,41 +16400,10 @@ html, body, #app{
   }
 
   async function mcSetAssembleModeFor(id){
-    // FIX GPT_21-09-2026_CharacterAssembleNoRig:
-    // Assemble selects the stored Character part. It does not reopen its bones.
-    var mc = mcEnsure();
-    id = Number(id);
+    await mcActivatePart(id);
     var p = mcFindPart(id);
-    if (!p) return;
-
-    try { mcCaptureActivePart(); } catch(eCaptureAssemble255){}
-    mc.selectedId = id;
-    p.mode = 'assemble';
-    p.editTarget = p.editTarget || 'bone';
-
-    try { removeProxyOverlay(false); } catch(eProxyAssemble255){}
-    try {
-      App.bones = [];
-      App.keyframes = {};
-      App.pointKeys = {};
-      App.frameBones = [];
-      App.frameBoneKeys = {};
-      App.expressionKeys = {};
-      App.expressionProfiles = {};
-      App.selectedBoneId = null;
-      App.selectedFrameBoneId = null;
-      App.interaction.addBoneMode = false;
-      App.interaction.dragging = false;
-      App.interaction.dragType = '';
-      App.interaction.boneId = null;
-      App.interaction.hoverBoneId = null;
-      App.interaction.hoverHandle = '';
-      if (p.transform) mcApplyTransformToApp(p.transform);
-      if (App.flags) App.flags.showBones = false;
-    } catch(eClearRigAssemble255){}
-
+    if (p) { p.mode = 'assemble'; p.editTarget = p.editTarget || 'bone'; if (p.state) p.state = buildRigProjectState(); }
     mcShowCharacterPanelWhileRuntimeMode('character');
-    try { mcRenderStageParts(); } catch(eStageAssemble255){}
     mcRenderPanel();
   }
 
@@ -16521,7 +16411,6 @@ html, body, #app{
     await mcActivatePart(id);
     var p = mcFindPart(id);
     if (p) { p.mode = 'animate'; p.editTarget = p.editTarget || 'bone'; if (p.state) p.state = buildRigProjectState(); }
-    try { if (App.flags) App.flags.showBones = true; } catch(eShowBonesAnimate255){}
     mcShowCharacterPanelWhileRuntimeMode(p && p.editTarget === 'node' ? 'animatepoints' : 'animate');
     mcShowSelectedPartKeyRows(); // FIX v_067
     mcRenderPanel();
@@ -16531,7 +16420,6 @@ html, body, #app{
     await mcActivatePart(id);
     var p = mcFindPart(id);
     if (p) { p.mode = 'animate'; p.editTarget = 'bone'; if (p.state) p.state = buildRigProjectState(); }
-    try { if (App.flags) App.flags.showBones = true; } catch(eShowBonesBone255){}
     mcShowCharacterPanelWhileRuntimeMode('animate');
     mcShowSelectedPartKeyRows(); // FIX v_067
     mcRenderPanel();
@@ -16619,7 +16507,7 @@ html, body, #app{
       mc.parts.forEach(function(p){ mcNormalizePartMode(p); if (!p.uid) p.uid = mcNewPartUid(p.id); if (p.state) p.state = mcMakeIndependentRigState(p.state, p); }); // FIX v_024
       mc.nextId = Number(data.nextId || (mc.parts.length + 1)) || 1;
       mc.selectedId = data.selectedId || (mc.parts[0] ? mc.parts[0].id : null);
-      if (mc.selectedId) await mcSetAssembleModeFor(mc.selectedId);
+      if (mc.selectedId) await mcActivatePart(mc.selectedId);
       mcRenderPanel();
       mcLog('Loaded character.');
     } catch(e) { mcLog('Character load failed: ' + (e && e.message ? e.message : e)); }
@@ -17038,7 +16926,7 @@ html, body, #app{
         var card = t && t.closest ? t.closest('.mcPartCard') : null;
         if (card && card.getAttribute('data-id')) {
           var id = Number(card.getAttribute('data-id'));
-          if (mcEnsure().selectedId !== id && !(t && t.getAttribute && t.getAttribute('data-action'))) mcSetAssembleModeFor(id);
+          if (mcEnsure().selectedId !== id && !(t && t.getAttribute && t.getAttribute('data-action'))) mcActivatePart(id);
         }
         var actionNode = t && t.closest ? t.closest('[data-action]') : null;
         if (!actionNode) return;
@@ -22412,7 +22300,6 @@ html, body, #app{
         if (liveApi && liveBindingForTransfer) {
           try { liveApi.finish(); } catch(eFinishLive){}
         }
-        try { mcPurgeAllProxyRows_v18256_GPT(); } catch(ePurgeTransfer256){}
 
         var mc = mcEnsure();
         var previousSelectedId = mc.selectedId;
@@ -22435,177 +22322,31 @@ html, body, #app{
           parentPin:null, mode:'assemble', editTarget:'bone'
         };
         target.state = mcMakeIndependentRigState(snapshot, target);
-        try {
-          if (liveBindingForTransfer && liveBindingForTransfer.frameUUID) {
-            var sourceFrame254 = App.Wick && App.Wick.ObjectCache ? App.Wick.ObjectCache.getObjectByUUID(liveBindingForTransfer.frameUUID) : null;
-            if (sourceFrame254) {
-              var exposureStart254 = Math.max(1, Math.round(Number(sourceFrame254.start || liveBindingForTransfer.start || 1) || 1));
-              target.wickExposure = {
-                start:exposureStart254,
-                end:Math.max(exposureStart254, Math.round(Number(sourceFrame254.end || sourceFrame254.start || exposureStart254) || exposureStart254))
-              };
-            }
-          }
-        } catch(eExposure254){}
         mc.parts.splice(insertIndex, 0, target);
         mc.pendingLoadPartId = null;
         mc.loading = false;
 
         // Consume the exact managed live-rig clips. They are the duplicate stage copy.
-        // Also remove the now-empty source frame/layer, but only when it contains no other user content.
         if (liveBindingForTransfer && liveBindingForTransfer.rows && liveBindingForTransfer.rows.length) {
-          var emptiedFrames254 = [];
           liveBindingForTransfer.rows.forEach(function(row){
             var clip = null;
             try { clip = App.Wick && App.Wick.ObjectCache ? App.Wick.ObjectCache.getObjectByUUID(row.clipUUID) : null; } catch(eResolve){}
-            if (clip && clip.parent) {
-              var sourceFrameForCleanup254 = clip.parent;
-              try {
-                if (typeof sourceFrameForCleanup254.removeChild === 'function') sourceFrameForCleanup254.removeChild(clip);
-              } catch(eRemove){}
-              if (emptiedFrames254.indexOf(sourceFrameForCleanup254) < 0) emptiedFrames254.push(sourceFrameForCleanup254);
+            if (clip && clip.parent && typeof clip.parent.removeChild === 'function') {
+              try { clip.parent.removeChild(clip); } catch(eRemove){}
             }
-          });
-          emptiedFrames254.forEach(function(frame254){
-            try {
-              var clips254 = frame254.clips || [];
-              var paths254 = frame254.paths || [];
-              var hasContent254 = !!((clips254 && clips254.length) || (paths254 && paths254.length));
-              if (hasContent254) return;
-              var layer254 = frame254.parent || frame254.parentLayer || null;
-              if (!layer254) return;
-              try {
-                if (typeof layer254.removeFrame === 'function') layer254.removeFrame(frame254);
-                else if (typeof layer254.removeChild === 'function') layer254.removeChild(frame254);
-                else if (layer254.frames) {
-                  var fi254 = layer254.frames.indexOf(frame254);
-                  if (fi254 >= 0) layer254.frames.splice(fi254, 1);
-                }
-              } catch(eRemoveFrame254){}
-              var remainingFrames254 = layer254.frames || layer254._children || [];
-              var layerHasRealContent254 = false;
-              try {
-                Array.prototype.slice.call(remainingFrames254 || []).forEach(function(testFrame254){
-                  if (layerHasRealContent254 || !testFrame254) return;
-                  var tfClips254 = testFrame254.clips || [];
-                  var tfPaths254 = testFrame254.paths || [];
-                  var tfObjects254 = testFrame254.objects || testFrame254._children || [];
-                  if ((tfClips254 && tfClips254.length) || (tfPaths254 && tfPaths254.length)) {
-                    layerHasRealContent254 = true;
-                    return;
-                  }
-                  if (tfObjects254 && tfObjects254.length) {
-                    layerHasRealContent254 = tfObjects254.some(function(obj254){
-                      return obj254 && obj254 !== testFrame254 && obj254 !== layer254;
-                    });
-                  }
-                });
-              } catch(eLayerContent254){}
-              if (layerHasRealContent254) return;
-              var timeline254 = layer254.parentTimeline || layer254.parent || null;
-              var layers254 = timeline254 && timeline254.layers ? timeline254.layers : null;
-              if (!layers254) return;
-              if (layers254.length <= 1) {
-                try { layer254.name = 'Layer'; } catch(eLayerName256){}
-                try { layer254.identifier = makeValidIdentifier('Layer', 'Layer'); } catch(eLayerId256){}
-                try { layer254.locked = false; } catch(eLayerLock256){}
-                return;
-              }
-              try {
-                if (typeof timeline254.removeLayer === 'function') timeline254.removeLayer(layer254);
-                else {
-                  var li254 = layers254.indexOf(layer254);
-                  if (li254 >= 0) layers254.splice(li254, 1);
-                }
-              } catch(eRemoveLayer254){}
-            } catch(eCleanup254){}
           });
         }
 
         // The committed Character part is now stored. Deselect it so its composite remains visible
         // and the next selected Wick object can become a new live rig in this same panel.
         mc.selectedId = null;
-
-        // FIX GPT_21-09-2026_AddToCharacterCleanExit:
-        // The Character now owns an independent snapshot. Clear the live Build Part
-        // workspace so no bone/envelope/transform overlay can be recreated afterward.
-        try { removeProxyOverlay(false); } catch(eProxy254){}
-        try { removeOverlay(); } catch(eOverlay254){}
-        try { removeSetAreaOverlay(); } catch(eSetArea254){}
-        try {
-          App.bones = [];
-          App.keyframes = {};
-          App.pointKeys = {};
-          App.frameBones = [];
-          App.frameBoneKeys = {};
-          App.expressionKeys = {};
-          App.expressionProfiles = {};
-          App.selectedBoneId = null;
-          App.selectedFrameBoneId = null;
-          App.nextBoneId = 1;
-          App.nextFrameBoneId = 1;
-          App.interaction.addBoneMode = false;
-          App.interaction.dragging = false;
-          App.interaction.boneId = null;
-          App.interaction.hoverBoneId = null;
-          App.interaction.hoverHandle = '';
-          if (App.source) {
-            App.source.dataUrl = '';
-            App.source.embeddedDataUrl = '';
-            App.source.image = null;
-            App.source.width = 0;
-            App.source.height = 0;
-            App.source.fileName = '';
-            App.source.captureMode = '';
-            App.source.svgRaw = '';
-            App.source.svgNative = null;
-            App.source.alphaMask = null;
-            App.source.opaqueBounds = null;
-            App.source.dummy = null;
-            App.source.selectedIdentifier = '';
-            App.source.selectedUUID = '';
-            App.source.stagePlacementBounds = null;
-            App.source.stageBounds = null;
-            App.source.stageCenter = null;
-            App.source.viewportRect = null;
-          }
-        } catch(eReset254){}
-        // Remove DemBones-owned proxy rows after the part is transferred.
-        try {
-          var tlProxy255 = null;
-          try { tlProxy255 = getSelectedTimeline(); } catch(eTlA255){}
-          try { if (!tlProxy255 && App.project && App.project.activeTimeline) tlProxy255 = App.project.activeTimeline; } catch(eTlB255){}
-          if (tlProxy255 && tlProxy255.layers) {
-            for (var pli255 = tlProxy255.layers.length - 1; pli255 >= 0; pli255--) {
-              var pl255 = tlProxy255.layers[pli255];
-              if (!pl255) continue;
-              var owned255 = false;
-              try { owned255 = !!pl255._ltbwProxyLayer; } catch(eOwned255){}
-              try { if (!owned255 && pl255._ltbwProxyBoneId != null) owned255 = true; } catch(eBoneOwned255){}
-              try { if (!owned255 && pl255._ltbwProxyFrameBoneId != null) owned255 = true; } catch(eFrameOwned255){}
-              try {
-                var pid255 = String(pl255.identifier || '');
-                if (!owned255 && /BoneWarp_Proxy|_proxy_|LTBW/i.test(pid255)) owned255 = true;
-              } catch(eIdOwned255){}
-              if (!owned255) continue;
-              try {
-                if (typeof tlProxy255.removeLayer === 'function') tlProxy255.removeLayer(pl255);
-                else tlProxy255.layers.splice(pli255, 1);
-              } catch(eRemoveProxyLayer255){}
-            }
-          }
-          if (App.proxy) {
-            App.proxy.layers = [];
-            App.proxy.wickLayer = null;
-          }
-        } catch(ePurgeProxy255){}
-
-        try { clearWickSelectionAfterArtworkUse(); } catch(eClear){}
-        try { setActiveTab('source'); updateUI(); } catch(eUi){}
         try { mcRenderPanel(); } catch(ePanel){}
         try { if (typeof mcRenderStageParts === 'function') mcRenderStageParts(); } catch(eStage){}
         try { if (App.ed && typeof App.ed.syncInterfaces === 'function') App.ed.syncInterfaces(); } catch(eSync){}
         try { if (App.project && App.project.view && typeof App.project.view.render === 'function') App.project.view.render(); } catch(eRender){}
+        try { removeOverlay(); removeProxyOverlay(false); } catch(eOverlay){}
+        try { clearWickSelectionAfterArtworkUse(); } catch(eClear){}
+        try { setActiveTab('source'); updateUI(); } catch(eUi){}
 
         try {
           var chosenName = window.prompt('Name this part:', target.name || ('Part ' + target.id));
@@ -24925,15 +24666,7 @@ function installDemBonesMrk2() {
     if (!rig) { status('Select a Wick curve and choose Bind selected curves.'); return; }
     refreshBridgeRefs();
     var data = rig.data || host.read(rig.object || rig);
-    // FIX GPT_21-09-2026_ResumeGuard: Character/Gizmo reopen payloads are not native DBM2_RIG payloads.
-    // Ignore them here instead of throwing an unhandled promise error. Native live rigs keep the original path below.
-    if (!data || data.format !== 'DemBonesMrk2' || !data.binding || !Array.isArray(data.binding.rows) || !data.state) {
-      live.binding = null;
-      live.suspended = false;
-      try { setActiveTab('character'); } catch(eResumeTab253){}
-      try { status('Character reopened. Select its part to continue editing.'); } catch(eResumeStatus253){}
-      return false;
-    }
+    if (!data || data.format !== 'DemBonesMrk2') throw new Error('This is not a DemBonesMrk2 rig.');
     if (rig.object && !data.binding.rows.some(function (row) { return row.clipUUID === rig.object.uuid; })) {
       status('This is a copied rig clip. Open its native artwork and bind it as a new rig.', true); return;
     }
@@ -25257,45 +24990,8 @@ function installDemBonesMrk2() {
         if (!inner) throw new Error('Gizmo frame ' + stop.frame + ' contains no exportable artwork.');
         var name = String(stop.label || ('Frame ' + stop.frame));
         var svgRaw = selectedCurveWrapSvgContent(inner, bounds, name);
-        captures.push({ frame:stop.frame, label:name, bounds:bounds, innerSvg:inner, svgRaw:svgRaw, dataUrl:svgTextToDataUrl(svgRaw), width:Math.max(1, Math.ceil(bounds.w)), height:Math.max(1, Math.ceil(bounds.h)) });
+        captures.push({ frame:stop.frame, label:name, bounds:bounds, svgRaw:svgRaw, dataUrl:svgTextToDataUrl(svgRaw), width:Math.max(1, Math.ceil(bounds.w)), height:Math.max(1, Math.ceil(bounds.h)) });
       }
-
-      // FIX GPT_21-09-2026_GizmoFixedCoordinateSpace:
-      // All Gizmo frames share one coordinate system. Frame switching must not
-      // recalculate origin, scale or attachment from each frame's own bounds.
-      if (!currentOnly && captures.length) {
-        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        captures.forEach(function(capture){
-          var bb = capture && capture.bounds ? capture.bounds : null;
-          if (!bb) return;
-          var bx = Number(bb.x || 0), by = Number(bb.y || 0);
-          var bw = Math.max(0, Number(bb.w || 0)), bh = Math.max(0, Number(bb.h || 0));
-          minX = Math.min(minX, bx);
-          minY = Math.min(minY, by);
-          maxX = Math.max(maxX, bx + bw);
-          maxY = Math.max(maxY, by + bh);
-        });
-        if (isFinite(minX) && isFinite(minY) && isFinite(maxX) && isFinite(maxY) && maxX > minX && maxY > minY) {
-          var commonBounds = {
-            x:minX,
-            y:minY,
-            w:Math.max(1, maxX - minX),
-            h:Math.max(1, maxY - minY),
-            cx:minX + (maxX - minX) / 2,
-            cy:minY + (maxY - minY) / 2
-          };
-          captures.forEach(function(capture){
-            var rebuilt = selectedCurveWrapSvgContent(capture.innerSvg || '', commonBounds, capture.label || ('Frame ' + capture.frame));
-            capture.bounds = { x:commonBounds.x, y:commonBounds.y, w:commonBounds.w, h:commonBounds.h, cx:commonBounds.cx, cy:commonBounds.cy };
-            capture.svgRaw = rebuilt;
-            capture.dataUrl = svgTextToDataUrl(rebuilt);
-            capture.width = Math.max(1, Math.ceil(commonBounds.w));
-            capture.height = Math.max(1, Math.ceil(commonBounds.h));
-            delete capture.innerSvg;
-          });
-        }
-      }
-      captures.forEach(function(capture){ if (capture && capture.innerSvg) delete capture.innerSvg; });
     } finally {
       try { clip.animationType = original.animationType; } catch(e1){}
       try { clip.isSynced = original.isSynced; } catch(e2){}
@@ -25404,237 +25100,6 @@ function installDemBonesMrk2() {
       updateFrameBoneUI(); renderExpressionUI(); renderOverlay();
     }
     return result;
-  };
-
-
-  // FIX GPT_21-09-2026_v18.256: canonical Character/Gizmo lifecycle.
-  // This block is intentionally after all historical MyCharacter render wrappers so
-  // it is the final authority for Assemble/Animate display, exposure and helper rows.
-
-  function mcCharacterTimelineCandidates_v18256_GPT(){
-    var out = [];
-    function add(tl){ if (tl && out.indexOf(tl) < 0) out.push(tl); }
-    try { add(getSelectedTimeline()); } catch(e0){}
-    try { add(App.project && App.project.activeTimeline); } catch(e1){}
-    try { add(App.project && App.project.timeline); } catch(e2){}
-    try { add(App.ed && App.ed.project && App.ed.project.activeTimeline); } catch(e3){}
-    return out;
-  }
-
-  function mcPurgeAllProxyRows_v18256_GPT(){
-    var refs = [];
-    try {
-      (App.proxy && App.proxy.layers || []).forEach(function(info){
-        if (info && info.wickLayer && refs.indexOf(info.wickLayer) < 0) refs.push(info.wickLayer);
-      });
-      if (App.proxy && App.proxy.wickLayer && refs.indexOf(App.proxy.wickLayer) < 0) refs.push(App.proxy.wickLayer);
-    } catch(eRefs256){}
-
-    mcCharacterTimelineCandidates_v18256_GPT().forEach(function(tl){
-      if (!tl || !tl.layers) return;
-      for (var i = tl.layers.length - 1; i >= 0; i--) {
-        var layer = tl.layers[i];
-        if (!layer) continue;
-        var owned = refs.indexOf(layer) >= 0;
-        try { if (!owned && layer._ltbwProxyLayer) owned = true; } catch(eOwned0){}
-        try { if (!owned && layer._ltbwProxyBoneId != null) owned = true; } catch(eOwned1){}
-        try { if (!owned && layer._ltbwProxyFrameBoneId != null) owned = true; } catch(eOwned2){}
-        if (!owned) continue;
-        try {
-          if (typeof tl.removeLayer === 'function') tl.removeLayer(layer);
-          else tl.layers.splice(i, 1);
-        } catch(eRemove256){}
-      }
-    });
-    try {
-      if (App.proxy) {
-        App.proxy.layers = [];
-        App.proxy.wickLayer = null;
-        App.proxy.active = false;
-      }
-    } catch(eProxyReset256){}
-    try { proxyRefreshWickTimelineUI(); } catch(eTimelineUi256){}
-  }
-
-  function mcClearLiveRigForCharacter_v18256_GPT(){
-    try { removeProxyOverlay(false); } catch(eProxy256){}
-    try { mcPurgeAllProxyRows_v18256_GPT(); } catch(eRows256){}
-    try { removeOverlay(); } catch(eOverlay256){}
-    try {
-      App.bones = [];
-      App.keyframes = {};
-      App.pointKeys = {};
-      App.frameBones = [];
-      App.frameBoneKeys = {};
-      App.expressionKeys = {};
-      App.expressionProfiles = {};
-      App.selectedBoneId = null;
-      App.selectedFrameBoneId = null;
-      App.interaction.addBoneMode = false;
-      App.interaction.dragging = false;
-      App.interaction.dragType = '';
-      App.interaction.boneId = null;
-      App.interaction.hoverBoneId = null;
-      App.interaction.hoverHandle = '';
-      if (typeof mcSetCurrentLoadedPartId_v18120_GPT === 'function') mcSetCurrentLoadedPartId_v18120_GPT(0);
-    } catch(eState256){}
-  }
-
-  function mcPartVisibleForWickFrame_v18256_GPT(part, frame){
-    if (!part || part.visible === false) return false;
-    var exposure = part.wickExposure || part.exposure || null;
-    if (!exposure) return true;
-    frame = Math.max(1, Math.round(Number(frame || App.currentFrame || 1) || 1));
-    var start = Math.max(1, Math.round(Number(exposure.start || 1) || 1));
-    var end = Math.max(start, Math.round(Number(exposure.end || start) || start));
-    return frame >= start && frame <= end;
-  }
-
-  function mcCharacterLiveEditSelected_v18256_GPT(){
-    var tab = String(App.activeTab || '').toLowerCase();
-    return tab === 'animate' || tab === 'animatepoints' || tab === 'bones' || tab === 'editbone' || tab === 'expression';
-  }
-
-  function mcRenderStageParts_v18256_GPT(){
-    var mc = mcEnsure();
-    var frame = Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
-    var resolvedParts = null;
-    try { resolvedParts = mcResolvedLivePartsForFrame_v087(frame); } catch(eResolved256){ resolvedParts = mc.parts || []; }
-
-    try { mcHideOldStagePartsHost_v040(); } catch(eHide256){}
-    var host = mcEnsureStagePartsHost_v040 ? mcEnsureStagePartsHost_v040() : mcEnsureStagePartsHost();
-    if (!host) return;
-
-    var stageRect = mcStageRect_v040 ? mcStageRect_v040() : (updateOverlayClipHost() || {left:0,top:0});
-    var selectedId = Number(mc.selectedId || 0);
-    var liveEditSelected = mcCharacterLiveEditSelected_v18256_GPT();
-    var html = '';
-
-    try {
-      host.style.pointerEvents = mc.pinPickSourceId ? 'auto' : 'none';
-      host.style.zIndex = '949';
-    } catch(eHost256){}
-
-    for (var i = 0; i < (mc.parts || []).length; i++) {
-      var stored = mcNormalizePartMode(mc.parts[i]);
-      if (!stored || !stored.state || !mcPartVisibleForWickFrame_v18256_GPT(stored, frame)) continue;
-
-      // Only the actively edited part is omitted from the Character stage host.
-      // Its live DemBones overlay supplies that one copy while animating.
-      if (liveEditSelected && Number(stored.id) === selectedId) continue;
-
-      var part = stored;
-      try { part = mcNormalizePartMode(mcFindResolvedPart_v087(resolvedParts, stored.id) || stored); } catch(eFindResolved256){}
-      var rect = null;
-      try { rect = mcPartClientRect_v040(part); } catch(eRectA256){}
-      if (!rect) {
-        var tf = part.transform || {x:50,y:50,w:300,h:200,rotation:0};
-        try { rect = stageBoundsToViewportRect({x:Number(tf.x||0),y:Number(tf.y||0),w:Math.max(1,Number(tf.w||1)),h:Math.max(1,Number(tf.h||1))}); } catch(eRectB256){}
-      }
-      if (!rect) continue;
-
-      var markup = mcSourceMarkupForStagePart(part);
-      if (!markup) continue;
-      var t = part.transform || {rotation:0};
-      var left = Math.round(Number(rect.x || 0) - Number(stageRect.left || 0));
-      var top = Math.round(Number(rect.y || 0) - Number(stageRect.top || 0));
-      var width = Math.max(1, Math.round(Math.abs(Number(rect.width || 1))));
-      var height = Math.max(1, Math.round(Math.abs(Number(rect.height || 1))));
-      var origin = part.parentPin && typeof mcPinnedCssOriginForPart_v066 === 'function' ? mcPinnedCssOriginForPart_v066(part) : '50% 50%';
-      var z = 10000 - i;
-
-      // Character parts stay fully opaque. No automatic ghosting or extra bone drawing.
-      html += '<div data-mc-stage-part-id="' + Number(part.id) + '" style="position:absolute;left:' + left + 'px;top:' + top + 'px;width:' + width + 'px;height:' + height + 'px;z-index:' + z + ';pointer-events:none;opacity:1;transform-origin:' + origin + ';transform:rotate(' + (Number(t.rotation || 0) || 0) + 'deg);overflow:visible;">' + markup + '</div>';
-    }
-
-    host.innerHTML = html;
-
-    if (mc.pinPickSourceId) {
-      try { mcRenderPinPickLayer_v039(); } catch(ePin256){}
-      try { mcBindStagePinLayerEvents(host); } catch(eBind256){}
-    } else {
-      try { mcRemovePinPickLayer_v039(); } catch(eRemovePin256){}
-    }
-
-    try {
-      var selected = mcFindPart(selectedId);
-      var canShowHandles = selected && mcNormalizePartMode(selected).mode === 'assemble' && mcPartVisibleForWickFrame_v18256_GPT(selected, frame);
-      var h = typeof mcEnsureScaleHandleHost_v071 === 'function' ? mcEnsureScaleHandleHost_v071() : null;
-      if (!canShowHandles && h) h.innerHTML = '';
-      else if (canShowHandles && typeof mcRenderScaleHandles_v071 === 'function') mcRenderScaleHandles_v071();
-    } catch(eHandles256){}
-  }
-
-  // Final Character stage renderer. This supersedes the historical v040-v087 wrappers.
-  mcRenderStageParts = function(){
-    try { mcRenderStageParts_v18256_GPT(); }
-    catch(e){ try { mcLog('Character stage render failed: ' + (e && e.message ? e.message : e)); } catch(ignore){} }
-  };
-
-  // Do not let the Wick-follow timer recreate helper rows while Character is in Assemble.
-  var syncProxyLayersToBones_Base_v18256_GPT = syncProxyLayersToBones;
-  syncProxyLayersToBones = function(){
-    if (String(App.activeTab || '').toLowerCase() === 'character') return;
-    return syncProxyLayersToBones_Base_v18256_GPT.apply(this, arguments);
-  };
-
-  // Character display owns the artwork in Assemble. The DemBones overlay is only for live edit modes.
-  var renderOverlay_Base_v18256_GPT = renderOverlay;
-  renderOverlay = function(){
-    if (String(App.activeTab || '').toLowerCase() === 'character') {
-      try {
-        if (App.overlay && App.overlay.root) App.overlay.root.style.display = 'none';
-        if (App.proxy && App.proxy.overlayCanvas) App.proxy.overlayCanvas.style.display = 'none';
-      } catch(eHideOverlay256){}
-      try { mcRenderStageParts_v18256_GPT(); } catch(eStage256){}
-      return;
-    }
-    try {
-      if (App.overlay && App.overlay.root) App.overlay.root.style.display = '';
-      if (App.proxy && App.proxy.overlayCanvas) App.proxy.overlayCanvas.style.display = '';
-    } catch(eShowOverlay256){}
-    return renderOverlay_Base_v18256_GPT.apply(this, arguments);
-  };
-
-  // Assemble is selection/placement only. It never loads a rig into App.
-  mcSetAssembleModeFor = async function(id){
-    var mc = mcEnsure();
-    id = Number(id || 0);
-    var p = mcFindPart(id);
-    if (!p) return;
-
-    try {
-      var loadedId = typeof mcCurrentLoadedPartId_Strict_v18121_GPT === 'function' ? mcCurrentLoadedPartId_Strict_v18121_GPT() : 0;
-      if (loadedId && Number(loadedId) === Number(mc.selectedId || 0)) mcCaptureActivePart();
-    } catch(eCapture256){}
-
-    mc.selectedId = id;
-    p.mode = 'assemble';
-    p.editTarget = p.editTarget || 'bone';
-    mcClearLiveRigForCharacter_v18256_GPT();
-
-    App.activeTab = 'character';
-    try {
-      qa('.tabBtn').forEach(function(btn){ btn.classList.toggle('active', btn.getAttribute('data-tab') === 'character'); });
-      qa('.panelPage').forEach(function(page){ page.classList.toggle('active', page.getAttribute('data-page') === 'character'); });
-    } catch(eUiTabs256){}
-    try { updateUI(); } catch(eUpdate256){}
-    try { mcRenderPanel(); } catch(ePanel256){}
-    try { mcRenderStageParts_v18256_GPT(); } catch(eStage256){}
-  };
-
-  // Entering Character from any live edit mode safely stores the selected part then clears live helpers.
-  var setActiveTab_CharacterBase_v18256_GPT = setActiveTab;
-  setActiveTab = function(name){
-    if (String(name || '').toLowerCase() === 'character') {
-      try {
-        var mc = mcEnsure();
-        var selected = mcFindPart(mc.selectedId);
-        if (selected && mcCharacterLiveEditSelected_v18256_GPT()) mcCaptureActivePart();
-      } catch(eCaptureTab256){}
-      mcClearLiveRigForCharacter_v18256_GPT();
-    }
-    return setActiveTab_CharacterBase_v18256_GPT.apply(this, arguments);
   };
 
   installDemBonesMrk2();
