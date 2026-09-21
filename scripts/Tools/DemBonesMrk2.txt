@@ -24666,7 +24666,15 @@ function installDemBonesMrk2() {
     if (!rig) { status('Select a Wick curve and choose Bind selected curves.'); return; }
     refreshBridgeRefs();
     var data = rig.data || host.read(rig.object || rig);
-    if (!data || data.format !== 'DemBonesMrk2') throw new Error('This is not a DemBonesMrk2 rig.');
+    // FIX GPT_21-09-2026_ResumeGuard: Character/Gizmo reopen payloads are not native DBM2_RIG payloads.
+    // Ignore them here instead of throwing an unhandled promise error. Native live rigs keep the original path below.
+    if (!data || data.format !== 'DemBonesMrk2' || !data.binding || !Array.isArray(data.binding.rows) || !data.state) {
+      live.binding = null;
+      live.suspended = false;
+      try { setActiveTab('character'); } catch(eResumeTab253){}
+      try { status('Character reopened. Select its part to continue editing.'); } catch(eResumeStatus253){}
+      return false;
+    }
     if (rig.object && !data.binding.rows.some(function (row) { return row.clipUUID === rig.object.uuid; })) {
       status('This is a copied rig clip. Open its native artwork and bind it as a new rig.', true); return;
     }
