@@ -6845,12 +6845,15 @@ html, body, #app{
           '[id^="ltbw_nav_cut_"]',
           '#ltbw-proxy-keyframe-canvas',
           '.luketools-bonewarp-overlay',
-          '.ltbw-stage-clip-host',
-          '[data-luketools-bonewarp-kind="mc-stage-parts"]'
+          '.ltbw-stage-clip-host'
         ].join(',');
         Array.prototype.slice.call(pdoc.querySelectorAll(selectors)).forEach(function(node){
           try { if (node && node.parentNode) node.parentNode.removeChild(node); } catch(removeErr){}
         });
+        // FIX GPT_21-09-2026_SandboxClosePersistence:
+        // Do not remove the visible MyCharacter stage host during generic panel cleanup.
+        // The close handoff replaces it with real Wick content; until then the stage
+        // must continue to look unchanged, matching current DemBones behaviour.
       }
     } catch(e){}
     App.overlay.root = null; // FIX v9.7
@@ -6932,29 +6935,10 @@ html, body, #app{
           } catch(eHasCharacter_v18250){}
 
           if (hasCharacterOnStage_v18250) {
-            if (App.interaction.characterStageCloseBusy_v18250) {
-              try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eBusyStop_v18250){}
-              return;
-            }
-            App.interaction.characterStageCloseBusy_v18250 = true;
-            try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStopCharacter_v18250){}
-
-            if (mcCharacterNeedsSavePrompt()) {
-              var saveBeforeClose_v18250 = false;
-              try { saveBeforeClose_v18250 = window.confirm('Save character before closing?'); } catch(eConfirm_v18250){}
-              if (saveBeforeClose_v18250) {
-                try { mcSaveCharacter(); }
-                catch(eSaveClose_v18250){ mcLog('Save before close failed: ' + (eSaveClose_v18250 && eSaveClose_v18250.message ? eSaveClose_v18250.message : eSaveClose_v18250)); }
-              }
-            }
-
-            Promise.resolve(mcPersistCharacterOnStageForClose_v18250_GPT()).then(function(){
-              App.interaction.autoCommitCloseBypass = true;
+            try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStopCharacter_v18251){}
+            mcCloseSandboxKeepingCharacter_v18251_GPT(function(){
               try { clickable.click(); }
-              catch(eClick_v18250){ try { cleanupToolOverlays(); } catch(eClean_v18250){} }
-            }).catch(function(err_v18250){
-              App.interaction.characterStageCloseBusy_v18250 = false;
-              try { mcLog('Could not leave the Character on the Wick stage: ' + (err_v18250 && err_v18250.message ? err_v18250.message : err_v18250)); } catch(eLog_v18250){}
+              catch(eClick_v18251){ try { cleanupToolOverlays(); } catch(eClean_v18251){} }
             });
             return;
           }
@@ -6974,6 +6958,16 @@ html, body, #app{
         try {
           if (typeof live !== 'undefined' && live && live.binding) flush(true);
         } catch(e){}
+        // FIX GPT_21-09-2026_SandboxClosePersistence:
+        // If the panel is being removed after our intercepted close, native Wick
+        // content already exists. If removal happens unexpectedly, leave the parent
+        // stage preview in place rather than blanking the Character from the stage.
+        if (mcSandboxHasCharacter_v18251_GPT() && !App.interaction.autoCommitCloseBypass) {
+          try { removeSetAreaOverlay(); } catch(eArea251){}
+          try { removeProxyOverlay(false); } catch(eProxy251){}
+          try { removeOverlay(); } catch(eOverlay251){}
+          return;
+        }
         cleanupToolOverlays();
       };
       window.addEventListener('beforeunload', App.interaction.unloadHandler, true);
@@ -27259,6 +27253,58 @@ function installDemBonesMrk2() {
     finally { addClipToWickProject = baseAddClip; }
   }
 
+  function mcSandboxHasCharacter_v18251_GPT(){
+    try {
+      var mc = mcEnsure();
+      return !!((mc.parts || []).some(function(p){ return p && p.state && p.visible !== false; }));
+    } catch(eHasCharacter251) {
+      return false;
+    }
+  }
+
+  async function mcCloseSandboxKeepingCharacter_v18251_GPT(finalClose){
+    if (App.interaction.sandboxCharacterCloseBusy_v18251) return false;
+    App.interaction.sandboxCharacterCloseBusy_v18251 = true;
+    try {
+      if (!mcSandboxHasCharacter_v18251_GPT()) {
+        if (typeof finalClose === 'function') finalClose();
+        else cleanupToolOverlays();
+        return true;
+      }
+
+      if (mcCharacterNeedsSavePrompt()) {
+        var saveBeforeClose = false;
+        try { saveBeforeClose = window.confirm('Save character before closing?'); } catch(eConfirm251){}
+        if (saveBeforeClose) {
+          try { mcSaveCharacter(); }
+          catch(eSave251){ try { mcLog('Save before close failed: ' + (eSave251 && eSave251.message ? eSave251.message : eSave251)); } catch(eLogSave251){} }
+        }
+      }
+
+      await mcPersistCharacterOnStageForClose_v18250_GPT();
+
+      // The native Wick Character is now the persistent stage object. Remove the
+      // temporary parent-window preview only after the Wick object exists.
+      try {
+        var pdoc = window.parent && window.parent.document ? window.parent.document : null;
+        if (pdoc) {
+          Array.prototype.slice.call(pdoc.querySelectorAll('[data-luketools-bonewarp-kind="mc-stage-parts"]')).forEach(function(node){
+            try { if (node && node.parentNode) node.parentNode.removeChild(node); } catch(eRemove251){}
+          });
+        }
+      } catch(ePreview251){}
+
+      App.interaction.autoCommitCloseBypass = true;
+      if (typeof finalClose === 'function') finalClose();
+      else cleanupToolOverlays();
+      return true;
+    } catch(err251) {
+      App.interaction.sandboxCharacterCloseBusy_v18251 = false;
+      try { mcLog('Could not leave the Character on the Wick stage: ' + (err251 && err251.message ? err251.message : err251)); } catch(eLog251){}
+      return false;
+    }
+  }
+
   function init(){
     try { forceToolPanelFill(); } catch(e){ console.error('[MyCharacter] forceToolPanelFill failed', e); } // FIX v_018
     try { refreshBridgeRefs(); } catch(e){ console.error('[MyCharacter] refreshBridgeRefs failed', e); } // FIX v_018
@@ -27271,7 +27317,16 @@ function installDemBonesMrk2() {
     try { installParentCloseCleanup(); } catch(e){ console.error('[MyCharacter] parent close cleanup failed', e); } // FIX v_018
     try { window.addEventListener('resize', forceToolPanelFill); } catch(e){} // FIX v7.6
     try { window.parent && window.parent.addEventListener && window.parent.addEventListener('resize', forceToolPanelFill); } catch(e){} // FIX v7.6
-    try { window.addEventListener('message', function(e){ if (e && e.data && (e.data.type === 'LukeToolsClose' || e.data.type === 'LukeToolsToolClosed')) cleanupToolOverlays(); }); } catch(e){}
+    try {
+      window.addEventListener('message', function(e){
+        if (!e || !e.data || (e.data.type !== 'LukeToolsClose' && e.data.type !== 'LukeToolsToolClosed')) return;
+        if (mcSandboxHasCharacter_v18251_GPT()) {
+          mcCloseSandboxKeepingCharacter_v18251_GPT(function(){ cleanupToolOverlays(); });
+        } else {
+          cleanupToolOverlays();
+        }
+      });
+    } catch(e){}
     try { syncFrameCountFromWickTimeline(); } catch(e){ console.error('[MyCharacter] sync frame count failed', e); } // FIX v_018
     try { updateUI(); } catch(e){ console.error('[MyCharacter] updateUI failed', e); } // FIX v_018
     try { log('MyCharacter v_070 ready. Layer hierarchy selected overlay order active.'); } catch(e){} // FIX v_018
