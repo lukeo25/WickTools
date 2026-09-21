@@ -25833,7 +25833,63 @@ function installDemBonesMrk2() {
         if (!inner) throw new Error('Gizmo frame ' + stop.frame + ' contains no exportable artwork.');
         var name = String(stop.label || ('Frame ' + stop.frame));
         var svgRaw = selectedCurveWrapSvgContent(inner, bounds, name);
-        captures.push({ frame:stop.frame, label:name, bounds:bounds, svgRaw:svgRaw, dataUrl:svgTextToDataUrl(svgRaw), width:Math.max(1, Math.ceil(bounds.w)), height:Math.max(1, Math.ceil(bounds.h)) });
+        captures.push({
+          frame:stop.frame,
+          label:name,
+          bounds:bounds,
+          innerSvg:inner,
+          svgRaw:svgRaw,
+          dataUrl:svgTextToDataUrl(svgRaw),
+          width:Math.max(1, Math.ceil(bounds.w)),
+          height:Math.max(1, Math.ceil(bounds.h))
+        });
+      }
+
+      // FIX GPT_21-09-2026_GizmoUnionBounds:
+      // All frames share the union of every frame's bounds. A larger later
+      // frame therefore keeps its real size and is never squeezed into frame 1.
+      if (!currentOnly && captures.length) {
+        var unionMinX = Infinity, unionMinY = Infinity;
+        var unionMaxX = -Infinity, unionMaxY = -Infinity;
+
+        captures.forEach(function(capture){
+          var b = capture && capture.bounds ? capture.bounds : null;
+          if (!b) return;
+          var bx = Number(b.x || 0);
+          var by = Number(b.y || 0);
+          var bw = Math.max(0, Number(b.w || 0));
+          var bh = Math.max(0, Number(b.h || 0));
+          unionMinX = Math.min(unionMinX, bx);
+          unionMinY = Math.min(unionMinY, by);
+          unionMaxX = Math.max(unionMaxX, bx + bw);
+          unionMaxY = Math.max(unionMaxY, by + bh);
+        });
+
+        if (isFinite(unionMinX) && isFinite(unionMinY) && isFinite(unionMaxX) && isFinite(unionMaxY)) {
+          var unionBounds = {
+            x:unionMinX,
+            y:unionMinY,
+            w:Math.max(1, unionMaxX - unionMinX),
+            h:Math.max(1, unionMaxY - unionMinY)
+          };
+          unionBounds.cx = unionBounds.x + unionBounds.w * 0.5;
+          unionBounds.cy = unionBounds.y + unionBounds.h * 0.5;
+
+          captures.forEach(function(capture){
+            var commonSvg = selectedCurveWrapSvgContent(
+              String(capture.innerSvg || ''),
+              unionBounds,
+              String(capture.label || ('Frame ' + capture.frame))
+            );
+            capture.originalBounds = mcSafeClone(capture.bounds || null);
+            capture.bounds = mcSafeClone(unionBounds);
+            capture.svgRaw = commonSvg;
+            capture.dataUrl = svgTextToDataUrl(commonSvg);
+            capture.width = Math.max(1, Math.ceil(unionBounds.w));
+            capture.height = Math.max(1, Math.ceil(unionBounds.h));
+            delete capture.innerSvg;
+          });
+        }
       }
     } finally {
       try { clip.animationType = original.animationType; } catch(e1){}
@@ -26010,6 +26066,7 @@ function installDemBonesMrk2() {
       sourceName:clipName,
       frameCount:captures.length,
       defaultFrame:1,
+      unionBounds:mcSafeClone(first.bounds || null),
       anchor:{
         x:isFinite(Number(gizmoAnchor.x)) ? Number(gizmoAnchor.x) : Math.max(1,Number(first.width||1))*0.5,
         y:isFinite(Number(gizmoAnchor.y)) ? Number(gizmoAnchor.y) : Math.max(1,Number(first.height||1))*0.5
@@ -26023,7 +26080,8 @@ function installDemBonesMrk2() {
           dataUrl:String(capture.dataUrl || ''),
           width:Math.max(1, Number(capture.width || 1)),
           height:Math.max(1, Number(capture.height || 1)),
-          bounds:mcSafeClone(capture.bounds || null)
+          bounds:mcSafeClone(capture.bounds || null),
+          originalBounds:mcSafeClone(capture.originalBounds || capture.bounds || null)
         };
       })
     };
