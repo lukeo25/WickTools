@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBonesMrk2 — Live Wick curves</title> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBonesMrk2 — Live Wick curves</title> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -1111,7 +1111,10 @@ html, body, #app{
               <button id="btnSandboxDrawGizmo" class="softBtn softBtnAccent" type="button">Draw Gizmo</button>
             </div>
             <div id="sandboxGizmoStatus" class="sandboxReadout">Ready for a Wick Gizmo.</div>
-            <div id="sandboxGizmoFrames" class="sandboxGizmoFrames"></div>
+            <div id="sandboxGizmoFrames" class="sandboxGizmoFrames">
+              <div id="importedGizmoInfo" class="softReadout">Ready for this Gizmo's own frames.</div>
+              <div id="importedGizmoSlots" class="frameSlotGrid"></div>
+            </div>
           </div>
         </div>
         <div class="section softSection"> <!-- FIX v13.6: project save/load is first visible item -->
@@ -1620,76 +1623,6 @@ html, body, #app{
             </div>
           </div>
           <div class="notice small">Point keys are stored separately from bone keys. During preview and commit, keyed point positions and Bezier handles are applied first, then the existing bone warp is applied. Frame 1 keys are created automatically for points and bones.</div>
-        </div>
-      </div>
-
-      <div class="panelPage" data-page="expression"> <!-- Internal page id retained for saved-part compatibility. FIX v18.220_GPT -->
-        <div class="section softSection sandboxGizmoLegacyHost" style="display:none"></div>
-        <div class="section softSection">
-          <h3>Gizmo Bones</h3>
-          <div class="notice">Attach a selected stage Gizmo to the selected parent bone, or keep using Lip Service and Eye Service Gizmos. Clicking a Gizmo frame keys it on the real Wick timeline. Existing saved Expression data remains compatible. <!-- FIX v18.220_GPT --></div>
-          <div class="softActionRow" style="margin-top:10px;">
-            <button id="btnImportSelectedGizmoAsExpression" class="softBtn softBtnAccent">Import Selected Gizmo</button>
-          </div>
-          <div id="importedGizmoInfo" class="softReadout">Select or create a Gizmo Clip. Gizmos are independent until pinned later in Character.</div>
-          <div id="importedGizmoSlots" class="frameSlotGrid"></div>
-          <div class="row" style="margin-top:10px;">
-            <label>Selected Gizmo bone</label>
-            <div id="expressionBoneInfo" class="small">None</div>
-          </div>
-          <div class="row">
-            <label>Target clip name</label>
-            <input type="text" id="inpExpressionTargetClip" value="" placeholder="MouthShape or EyeShape">
-            <button id="btnApplyExpressionTarget" class="secondary">Apply Target</button>
-          </div>
-          <div class="row">
-            <label>Gizmo commit</label>
-            <select id="selExpressionCommitMode">
-              <option value="script">Script Style</option>
-              <option value="clipInClip">Clip In Clip Script Driver</option>
-            </select>
-            <button id="btnBuildExpressionScript" class="secondary">Build Script</button>
-            <button id="btnCopyExpressionScript" class="secondary">Copy Script</button>
-            <button id="btnCreateExpressionFrameClip" class="secondary">Add Frames To Clip</button> <!-- FIX v18.5 -->
-            <button id="btnCommitExpressionScript">Commit Script To Selected Wick Clip</button>
-          </div>
-          <div class="expressionSubTabs">
-            <button class="expressionSubTab active" data-expression-tab="lip">Lip Service</button>
-            <button class="expressionSubTab" data-expression-tab="eye">Eye Service</button>
-            <button class="expressionSubTab" data-expression-tab="script">Script</button>
-          </div>
-          <div class="expressionPanel active" data-expression-panel="lip">
-            <div class="notice">Lip_Bone is created from the Bone type setup as a pinned Frame Bone. The slots use the Lip Service default images in order, labelled A through I, then Rest. After creating the Lip_Bone, the Bones tab stays open so you can adjust scale and rotation with the overlay handles before choosing Gizmo. Load Lip images here in Gizmo, not in the generic Frame Bone slot area. <!-- FIX v18.220_GPT --></div>
-            <div class="softActionRow" style="margin-top:10px;">
-              <button id="btnAttachLipFrameBone" class="softBtn softBtnAccent">Attach Lip Bone</button> <!-- FIX v18.6 -->
-              <button id="btnPinLipFrameBone" class="softBtn softBtnSecondary">Pin Lip Bone</button> <!-- FIX v18.6 -->
-              <button id="btnLoadLipExpressionImages" class="softBtn softBtnSecondary">Load Lip Images</button> <!-- FIX v18.34 -->
-            </div>
-            <div id="lipExpressionSlots" class="expressionSlotGrid"></div>
-            <div class="softActionRow" style="margin-top:10px;">
-              <button id="btnLoadLipExpressionJson" class="softBtn softBtnSecondary">Load Lip JSON</button> <!-- FIX v18.4 -->
-              <button id="btnSaveLipExpressionJson" class="softBtn softBtnSecondary">Save Lip JSON</button> <!-- FIX v18.4 -->
-              <button id="btnClearLipExpressionKey" class="softBtn softBtnWarn">Clear Lip Key</button>
-            </div>
-          </div>
-          <div class="expressionPanel" data-expression-panel="eye">
-            <div class="notice">Frame_Bone is created as a real frame bone attachment for wink images. Load as many images as needed here and every image slot appears below. Click an image slot to key that Frame_Bone on the real Wick timeline. <!-- FIX v18.90 --></div>
-            <div class="softActionRow" style="margin-top:10px;">
-              <button id="btnAttachWinkFrameBone" class="softBtn softBtnAccent">Attach Frame_Bone</button> <!-- FIX v18.90 -->
-              <button id="btnPinWinkFrameBone" class="softBtn softBtnSecondary">Pin Frame_Bone</button> <!-- FIX v18.90 -->
-              <button id="btnLoadWinkExpressionImages" class="softBtn softBtnSecondary">Load Frame_Bone Images</button> <!-- FIX v18.90 -->
-            </div>
-            <div id="eyeExpressionSlots" class="expressionSlotGrid"></div>
-            <div class="softActionRow" style="margin-top:10px;">
-              <button id="btnLoadWinkExpressionJson" class="softBtn softBtnSecondary">Load Wink JSON</button> <!-- FIX v18.4 -->
-              <button id="btnSaveWinkExpressionJson" class="softBtn softBtnSecondary">Save Wink JSON</button> <!-- FIX v18.4 -->
-              <button id="btnClearEyeExpressionKey" class="softBtn softBtnWarn">Clear Eye Key</button>
-            </div>
-          </div>
-          <div class="expressionPanel" data-expression-panel="script">
-            <div class="notice">This script drives the named mouth or eye clips from the real Wick timeline frame. On Commit, RotoBones builds MouthShape and EyeShape inside the committed shape clip, then adds the driver script to that committed shape clip. The expression layer is generated above the shape frames. Add Frames To Clip is only for manual testing.</div> <!-- FIX v18.5 -->
-            <pre id="expressionScriptPreview" class="expressionScriptBox"></pre>
-          </div>
         </div>
       </div>
 
@@ -27286,14 +27219,6 @@ function installDemBonesMrk2() {
     if (el('btnSandboxDeleteBone')) el('btnSandboxDeleteBone').addEventListener('click', function(){ dbSimplifiedProxy('btnDeleteBone'); });
     if (el('btnSandboxClearBones')) el('btnSandboxClearBones').addEventListener('click', function(){ dbSimplifiedProxy('btnClearBones'); });
     if (el('btnSandboxUseGizmo')) el('btnSandboxUseGizmo').addEventListener('click', dbm2StartStageGizmoPick_v18221); // FIX GPT_20-09-2026_GizmoStageAccess
-    if (el('btnSandboxLoadLipOutput')) el('btnSandboxLoadLipOutput').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadLipExpressionJson'); });
-    if (el('btnSandboxLoadGizmoImages')) el('btnSandboxLoadGizmoImages').addEventListener('click', function(){ dbSimplifiedProxy('btnLoadLipExpressionImages'); });
-    var gizmoFrames = el('sandboxGizmoFrames');
-    ['importedGizmoInfo','importedGizmoSlots'].forEach(function(id){ var node = el(id); if (gizmoFrames && node) gizmoFrames.appendChild(node); }); // FIX GPT_21-09-2026_CharacterGizmoOwnFramesOnly
-    try {
-      var legacyLipSlots = el('lipExpressionSlots');
-      if (legacyLipSlots) legacyLipSlots.style.display = 'none';
-    } catch(eHideLegacyLipSlots){} // Character Gizmo panel must never show default mouth types.
     var baseUpdateUI = updateUI;
     updateUI = function(){ var result = baseUpdateUI.apply(this, arguments); dbSimplifiedRender(); return result; };
     dbSimplifiedChooseBone(App.sandboxBoneKind);
@@ -27324,7 +27249,6 @@ function installDemBonesMrk2() {
   dbPoseLibraryInstall();
   dbSimplifiedUiInstall();
   if (el('btnImportSelectedGizmoAsPart')) el('btnImportSelectedGizmoAsPart').addEventListener('click', dbm2ImportSelectedGizmoAsPart_v18220);
-  if (el('btnImportSelectedGizmoAsExpression')) el('btnImportSelectedGizmoAsExpression').addEventListener('click', dbm2ImportSelectedGizmoAsExpression_v18220);
 
   async function mcOpenRetainedCharacter_v18250_GPT(hit){
     try {
