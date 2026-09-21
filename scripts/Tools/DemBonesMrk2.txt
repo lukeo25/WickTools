@@ -16479,10 +16479,41 @@ html, body, #app{
   }
 
   async function mcSetAssembleModeFor(id){
-    await mcActivatePart(id);
+    // FIX GPT_21-09-2026_CharacterAssembleNoRig:
+    // Assemble selects the stored Character part. It does not reopen its bones.
+    var mc = mcEnsure();
+    id = Number(id);
     var p = mcFindPart(id);
-    if (p) { p.mode = 'assemble'; p.editTarget = p.editTarget || 'bone'; if (p.state) p.state = buildRigProjectState(); }
+    if (!p) return;
+
+    try { mcCaptureActivePart(); } catch(eCaptureAssemble255){}
+    mc.selectedId = id;
+    p.mode = 'assemble';
+    p.editTarget = p.editTarget || 'bone';
+
+    try { removeProxyOverlay(false); } catch(eProxyAssemble255){}
+    try {
+      App.bones = [];
+      App.keyframes = {};
+      App.pointKeys = {};
+      App.frameBones = [];
+      App.frameBoneKeys = {};
+      App.expressionKeys = {};
+      App.expressionProfiles = {};
+      App.selectedBoneId = null;
+      App.selectedFrameBoneId = null;
+      App.interaction.addBoneMode = false;
+      App.interaction.dragging = false;
+      App.interaction.dragType = '';
+      App.interaction.boneId = null;
+      App.interaction.hoverBoneId = null;
+      App.interaction.hoverHandle = '';
+      if (p.transform) mcApplyTransformToApp(p.transform);
+      if (App.flags) App.flags.showBones = false;
+    } catch(eClearRigAssemble255){}
+
     mcShowCharacterPanelWhileRuntimeMode('character');
+    try { mcRenderStageParts(); } catch(eStageAssemble255){}
     mcRenderPanel();
   }
 
@@ -16490,6 +16521,7 @@ html, body, #app{
     await mcActivatePart(id);
     var p = mcFindPart(id);
     if (p) { p.mode = 'animate'; p.editTarget = p.editTarget || 'bone'; if (p.state) p.state = buildRigProjectState(); }
+    try { if (App.flags) App.flags.showBones = true; } catch(eShowBonesAnimate255){}
     mcShowCharacterPanelWhileRuntimeMode(p && p.editTarget === 'node' ? 'animatepoints' : 'animate');
     mcShowSelectedPartKeyRows(); // FIX v_067
     mcRenderPanel();
@@ -16499,6 +16531,7 @@ html, body, #app{
     await mcActivatePart(id);
     var p = mcFindPart(id);
     if (p) { p.mode = 'animate'; p.editTarget = 'bone'; if (p.state) p.state = buildRigProjectState(); }
+    try { if (App.flags) App.flags.showBones = true; } catch(eShowBonesBone255){}
     mcShowCharacterPanelWhileRuntimeMode('animate');
     mcShowSelectedPartKeyRows(); // FIX v_067
     mcRenderPanel();
@@ -22530,6 +22563,35 @@ html, body, #app{
             App.source.viewportRect = null;
           }
         } catch(eReset254){}
+        // Remove DemBones-owned proxy rows after the part is transferred.
+        try {
+          var tlProxy255 = null;
+          try { tlProxy255 = getSelectedTimeline(); } catch(eTlA255){}
+          try { if (!tlProxy255 && App.project && App.project.activeTimeline) tlProxy255 = App.project.activeTimeline; } catch(eTlB255){}
+          if (tlProxy255 && tlProxy255.layers) {
+            for (var pli255 = tlProxy255.layers.length - 1; pli255 >= 0; pli255--) {
+              var pl255 = tlProxy255.layers[pli255];
+              if (!pl255) continue;
+              var owned255 = false;
+              try { owned255 = !!pl255._ltbwProxyLayer; } catch(eOwned255){}
+              try { if (!owned255 && pl255._ltbwProxyBoneId != null) owned255 = true; } catch(eBoneOwned255){}
+              try { if (!owned255 && pl255._ltbwProxyFrameBoneId != null) owned255 = true; } catch(eFrameOwned255){}
+              try {
+                var pid255 = String(pl255.identifier || '');
+                if (!owned255 && /BoneWarp_Proxy|_proxy_|LTBW/i.test(pid255)) owned255 = true;
+              } catch(eIdOwned255){}
+              if (!owned255) continue;
+              try {
+                if (typeof tlProxy255.removeLayer === 'function') tlProxy255.removeLayer(pl255);
+                else tlProxy255.layers.splice(pli255, 1);
+              } catch(eRemoveProxyLayer255){}
+            }
+          }
+          if (App.proxy) {
+            App.proxy.layers = [];
+            App.proxy.wickLayer = null;
+          }
+        } catch(ePurgeProxy255){}
 
         try { clearWickSelectionAfterArtworkUse(); } catch(eClear){}
         try { setActiveTab('source'); updateUI(); } catch(eUi){}
