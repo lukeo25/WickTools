@@ -14813,6 +14813,29 @@ html, body, #app{
       parentClip._animationType = 'sync';
       parentClip.isSynced = true;
       parentClip._isSynced = true;
+
+      // FIX GPT_21-09-2026_CharacterPlaybackWithoutLT:
+      // Old Wick builds can fail to advance a newly-created synced clip until
+      // its internal timeline is explicitly aligned with the owning/root frame.
+      // This update script keeps the baked Character timeline following Wick's
+      // current frame even after the LukeTools iframe is closed.
+      var totalFramesPlayback = Math.max(1, Math.round(Number(frameTotal || 1) || 1));
+      var playbackScript = [
+        '(function(){',
+        '  try {',
+        '    var f = 1;',
+        '    try { if (this.parent && this.parent.parentTimeline) f = Number(this.parent.parentTimeline.playheadPosition || 1); } catch(e0){}',
+        '    try { if ((!f || f < 1) && project) f = Number(project.currentFrameNumber || 1); } catch(e1){}',
+        '    f = Math.max(1, Math.min(' + totalFramesPlayback + ', Math.round(f || 1)));',
+        '    if (this.timeline) this.timeline.playheadPosition = f;',
+        '  } catch(e){}',
+        '}).call(this);'
+      ].join('\n');
+      try {
+        var existingCharacterScript = parentClip.getScript && parentClip.getScript('default');
+        var existingCharacterSource = existingCharacterScript ? String(existingCharacterScript.src || '') : '';
+        if (typeof parentClip.addScript === 'function') parentClip.addScript('default', existingCharacterSource ? existingCharacterSource + '\n' + playbackScript : playbackScript);
+      } catch(ePlaybackScript){}
     } catch(eParentT){}
     try { addClipToWickProject(parentClip); } catch(addErr) { mcLog('Character commit failed: ' + (addErr && addErr.message ? addErr.message : addErr)); return; } // FIX v18.97_GPT: restored original stage insertion path from RotoBones(4).txt
     try {
@@ -24905,6 +24928,9 @@ function installDemBonesMrk2Host(host, html) {
   service.open = function (rig) {
     if (service.opening) return Promise.resolve(false);
     if (service.panel && service.panel.alive && service.panel.alive()) {
+      if (rig && rig.data && rig.data.format === 'DemBonesCharacter' && service.panel.openCharacter) {
+        return Promise.resolve(service.panel.openCharacter(rig));
+      }
       return Promise.resolve(service.panel.resume(rig || null));
     }
     if (!service.html && service.sourceUrl) {
@@ -27339,6 +27365,14 @@ function installDemBonesMrk2() {
           try { ensureProxyOverlayCanvasForTimeline(); } catch(eProxyCanvas252){}
           try { renderProxyFrame(); } catch(eProxyRender252){}
           try { mcWriteCharacterMainTimelineKeys_v18252_GPT(data.state); } catch(eRootKeys252){}
+          try {
+            if (hit && hit.object) {
+              hit.object.animationType = 'sync';
+              hit.object._animationType = 'sync';
+              hit.object.isSynced = true;
+              hit.object._isSynced = true;
+            }
+          } catch(eReopenSync252){}
         } catch(eActivateCharacter){}
       }
       try { mcRenderPanel(); } catch(ePanelCharacter){}
@@ -27427,34 +27461,8 @@ function installDemBonesMrk2() {
         });
       });
 
-      var pointFrames = mcUniqueSortedFrames_v18252_GPT(Object.keys(ps.pointKeys || {}));
-      if (pointFrames.length) rows.push({
-        id:'DemBonesCharacterKey_' + partUid + '_Curves',
-        name:partName + ' / Curves',
-        frames:pointFrames
-      });
-
-      var frameBoneMap = {};
-      Object.keys(ps.frameBoneKeys || {}).forEach(function(fr){
-        var perFrame = ps.frameBoneKeys[fr] || {};
-        Object.keys(perFrame).forEach(function(fid){
-          if (!frameBoneMap[fid]) frameBoneMap[fid] = [];
-          frameBoneMap[fid].push(fr);
-        });
-      });
-      Object.keys(frameBoneMap).forEach(function(fid){
-        var fb = null;
-        (ps.frameBones || []).some(function(item){
-          if (String(item && item.id) === String(fid)) { fb=item; return true; }
-          return false;
-        });
-        rows.push({
-          id:'DemBonesCharacterKey_' + partUid + '_FrameBone_' + String(fid).replace(/[^A-Za-z0-9_]/g,'_'),
-          name:partName + ' / ' + String(fb && fb.name || ('Frame Bone ' + fid)),
-          frames:mcUniqueSortedFrames_v18252_GPT(frameBoneMap[fid])
-        });
-      });
-
+      // Main Wick timeline intentionally shows only actual Bone keys and
+      // one shared Gizmo row. Curve and Frame Bone helper rows stay internal.
       var gizmo = ps.source && ps.source.gizmo ? ps.source.gizmo : null;
       if (gizmo && gizmo.timelineKeys) {
         Object.keys(gizmo.timelineKeys).forEach(function(fr){ allGizmoFrames_v18253.push(fr); });
