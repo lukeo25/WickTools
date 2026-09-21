@@ -14728,6 +14728,60 @@ html, body, #app{
           var resolvedParts = mcResolvedPartsForCommitFrame(loadedParts, fi);
           var resolvedPart = mcFindPartInList(resolvedParts, basePart.id) || basePart;
           var exportBounds = partExportBounds[basePart.id] || computeAnimationExportBounds();
+
+          // FIX GPT_21-09-2026_GizmoCommitKeepsKeys:
+          // A Character Gizmo is discrete frame-choice animation. Resolve the
+          // held Gizmo slot for THIS Wick frame, load that frame's SVG geometry,
+          // then let the existing DemBones pose/bone deformation bake it.
+          try {
+            var commitGizmo = basePart && basePart.state && basePart.state.source
+              ? basePart.state.source.gizmo
+              : null;
+            if (commitGizmo && Array.isArray(commitGizmo.frames) && commitGizmo.frames.length) {
+              var maxGizmoSlot = commitGizmo.frames.length;
+              var keys = commitGizmo.timelineKeys || {};
+              var chosenSlot = null;
+              if (keys[String(fi)] != null && isFinite(Number(keys[String(fi)]))) {
+                chosenSlot = Math.round(Number(keys[String(fi)]));
+              } else {
+                var bestKeyFrame = -1;
+                Object.keys(keys).forEach(function(key){
+                  var keyFrame = Number(key);
+                  var keySlot = Number(keys[key]);
+                  if (!isFinite(keyFrame) || !isFinite(keySlot)) return;
+                  if (keyFrame <= fi && keyFrame > bestKeyFrame) {
+                    bestKeyFrame = keyFrame;
+                    chosenSlot = Math.round(keySlot);
+                  }
+                });
+              }
+              if (chosenSlot == null) chosenSlot = Math.round(Number(commitGizmo.defaultFrame || 1) || 1);
+              chosenSlot = Math.max(1, Math.min(maxGizmoSlot, chosenSlot));
+
+              var chosenGizmoFrame = commitGizmo.frames[chosenSlot - 1] || null;
+              var chosenSvg = '';
+              if (chosenGizmoFrame && chosenGizmoFrame.raw) {
+                chosenSvg = String(chosenGizmoFrame.raw);
+              } else if (chosenGizmoFrame && chosenGizmoFrame.dataUrl &&
+                         String(chosenGizmoFrame.dataUrl).indexOf('data:image/svg+xml') === 0) {
+                try { chosenSvg = expressionDataUrlToText(String(chosenGizmoFrame.dataUrl)); } catch(eDecodeGizmoCommit){}
+              }
+
+              if (chosenSvg) {
+                var commitW = Math.max(1, Number(basePart.state.source.width || App.source.width || 300));
+                var commitH = Math.max(1, Number(basePart.state.source.height || App.source.height || 200));
+                App.source.svgRaw = chosenSvg;
+                App.source.svgNative = parseNativeSvg(chosenSvg, commitW, commitH);
+                App.source.width = commitW;
+                App.source.height = commitH;
+                App.source.gizmo = mcSafeClone(commitGizmo);
+                App.source.gizmo.defaultFrame = chosenSlot;
+              }
+            }
+          } catch(eGizmoCommitFrame) {
+            try { mcLog('Gizmo frame bake warning on Wick frame ' + fi + ': ' + (eGizmoCommitFrame && eGizmoCommitFrame.message ? eGizmoCommitFrame.message : eGizmoCommitFrame)); } catch(eGizmoCommitLog){}
+          }
+
           var records = nativeShapePathRecordsFromFrame(fi, exportBounds);
           for (var si = 0; si < records.length; si += 1) {
             var bakedRecord = mcBakeRecordToCharacterClip(records[si], resolvedPart, exportBounds, parentBounds); // FIX v_046
@@ -27227,7 +27281,7 @@ function installDemBonesMrk2() {
     if (!clip || !state) return clip;
     try {
       var payload = { format:'DemBonesCharacter', version:1, state:mcSafeClone(state) };
-      payload.state.wasExplicitlySaved = !!mcEnsure().lastSavedSignature;
+      payload.state.wasExplicitlySaved = true; // automatic Wick-stage persistence; never prompt on close
       var encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
       var marker = '// DemBones Character data. Double-click this Character to reopen DemBones.\n/*DBM2_CHARACTER:' + encoded + '*/';
       var original = '';
@@ -27272,15 +27326,8 @@ function installDemBonesMrk2() {
         return true;
       }
 
-      if (mcCharacterNeedsSavePrompt()) {
-        var saveBeforeClose = false;
-        try { saveBeforeClose = window.confirm('Save character before closing?'); } catch(eConfirm251){}
-        if (saveBeforeClose) {
-          try { mcSaveCharacter(); }
-          catch(eSave251){ try { mcLog('Save before close failed: ' + (eSave251 && eSave251.message ? eSave251.message : eSave251)); } catch(eLogSave251){} }
-        }
-      }
-
+      // Closing LukeTools must never interrupt the user with a save prompt.
+      // Character state is retained in the Wick object automatically.
       await mcPersistCharacterOnStageForClose_v18250_GPT();
 
       // The native Wick Character is now the persistent stage object. Remove the
