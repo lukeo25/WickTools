@@ -999,6 +999,35 @@ html, body, #app{
 .mcStackButton{min-height:34px;}
 .mcPinPlain.active{border-color:#f4bf42;background:#4b3b13;}
 @media(max-width:380px){.sandboxPoseGrid{grid-template-columns:1fr}.sandboxAnimateActions{grid-template-columns:1fr}.sandboxPoseSave{grid-template-columns:1fr}}
+
+/* FIX GPT_21-09-2026_CharacterGizmoRadialUI */
+#mcCharacterGizmoUi_v18248{display:none;flex-direction:column;gap:8px;margin-top:8px;color:#eef1f5}
+#mcCharacterGizmoUi_v18248.active{display:flex}
+#mcCharacterGizmoUi_v18248 *{box-sizing:border-box}
+#mcCharacterGizmoUi_v18248 .mcGizmoHeading{padding:0 0 7px;border-bottom:1px solid #414650;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#c8ced6}
+#mcCharacterGizmoUi_v18248 .mcGizmoCard{min-width:0;border:1px solid #414650;border-radius:7px;background:#17191d;padding:9px}
+#mcCharacterGizmoUi_v18248 .mcGizmoSelection{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center}
+#mcCharacterGizmoUi_v18248 .mcGizmoName{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#mcCharacterGizmoUi_v18248 .mcGizmoBadge{font-size:10px;border:1px solid #59616c;border-radius:999px;padding:3px 7px;color:#dce2e8}
+#mcCharacterGizmoUi_v18248 .mcGizmoReadout{font:12px Consolas,monospace;color:#79dca8}
+#mcCharacterGizmoUi_v18248 .mcGizmoRow{display:flex;min-width:0;gap:7px}
+#mcCharacterGizmoUi_v18248 button{min-width:0;border:1px solid #4a505a;border-radius:6px;background:#343941;color:#eef1f5;padding:8px 7px;cursor:pointer;font-size:12px;font-weight:700}
+#mcCharacterGizmoUi_v18248 button:hover{filter:brightness(1.15)}
+#mcCharacterGizmoUi_v18248 button.active{border-color:#79dca8;box-shadow:0 0 0 1px #79dca8 inset;color:#fff}
+#mcCharacterGizmoUi_v18248 .mcGizmoRow button{flex:1}
+#mcCharacterGizmoUi_v18248 .mcGizmoDial{position:relative;width:240px;height:184px;margin:0 auto;overflow:visible}
+#mcCharacterGizmoUi_v18248 .mcGizmoDisc{position:absolute;width:154px;height:154px;left:43px;top:15px;border:5px solid rgba(33,178,107,.66);border-radius:50%;background:rgba(33,178,107,.12)}
+#mcCharacterGizmoUi_v18248 .mcGizmoArm{position:absolute;left:116px;top:89px;width:64px;height:8px;border-radius:8px;background:rgba(121,220,168,.85);transform-origin:4px 4px;pointer-events:none}
+#mcCharacterGizmoUi_v18248 .mcGizmoPivot{position:absolute;left:107px;top:77px;width:28px;height:28px;border-radius:50%;background:#21b26b;border:6px solid #b7efd0;pointer-events:none}
+#mcCharacterGizmoUi_v18248 .mcGizmoStop{position:absolute;width:48px;height:48px;border-radius:50%;padding:2px;background:#285a44;border:3px solid #79dca8;font-size:9px;line-height:1.05;overflow:hidden;text-overflow:ellipsis;z-index:2}
+#mcCharacterGizmoUi_v18248 .mcGizmoStop small{display:block;font:9px Consolas,monospace;opacity:.76;margin-top:2px}
+#mcCharacterGizmoUi_v18248 .mcGizmoStop.active{background:#21b26b;border-color:#fff;transform:scale(1.08)}
+#mcCharacterGizmoUi_v18248 .mcGizmoStop.preview{border-color:#fff;box-shadow:0 0 0 2px rgba(121,220,168,.42),0 0 14px rgba(121,220,168,.35)}
+#mcCharacterGizmoUi_v18248 .mcGizmoMuted{color:#aab2bd;font-size:11px;line-height:1.4}
+#mcCharacterGizmoUi_v18248 .mcGizmoLabelRow{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
+#mcCharacterGizmoUi_v18248 input{min-width:0;width:100%;padding:9px 10px;border:1px solid #4a505a;border-radius:7px;background:#101216;color:#fff}
+#mcCharacterGizmoUi_v18248 .mcGizmoStatus{min-height:34px;border:1px solid #3e4650;border-radius:8px;padding:9px;color:#b9c1cb;font-size:11px;line-height:1.35}
+#mcCharacterGizmoUi_v18248 .mcGizmoStatus.ok{border-color:#21b26b;color:#79dca8}
 </style>
 </head>
 <body>
@@ -27579,6 +27608,452 @@ function installDemBonesMrk2() {
       try { log('Rigged Gizmo root-bone pinning and exact source cleanup active.'); } catch(eLog247){}
     } catch(eInstall247) {
       try { console.error('[DemBones GPT 21-09-2026] rigged Gizmo pin final install failed', eInstall247); } catch(eConsole247){}
+    }
+  })();
+
+
+
+  // FIX GPT_21-09-2026_CharacterGizmoRadialUI:
+  // The selected Character Gizmo gets the same interaction model as FrameGizmo.txt.
+  (function installCharacterGizmoRadialUi_v18248_GPT(){
+    try {
+      var state = {
+        previewPartId:null,
+        previewSlot:null,
+        rendering:false,
+        lastSignature:''
+      };
+
+      function cgPart(){
+        try {
+          var p = mcSelectedPart ? mcSelectedPart() : null;
+          var g = p && p.state && p.state.source ? p.state.source.gizmo : null;
+          if (!p || !g || !Array.isArray(g.frames) || !g.frames.length) return null;
+          return p;
+        } catch(e){ return null; }
+      }
+
+      function cgGizmo(part){
+        return part && part.state && part.state.source ? part.state.source.gizmo : null;
+      }
+
+      function cgMode(g){
+        var m = String(g && g.playbackMode || 'single').toLowerCase();
+        return (m === 'follow' || m === 'loop') ? m : 'single';
+      }
+
+      function cgTimelineFrame(){
+        return Math.max(1, Math.round(Number(App.currentFrame || 1) || 1));
+      }
+
+      function cgInternalLength(g){
+        var max = 1;
+        (g && g.frames || []).forEach(function(fr, i){
+          var n = Number(fr && fr.gizmoFrameNumber || (i + 1));
+          if (isFinite(n)) max = Math.max(max, Math.round(n));
+        });
+        return Math.max(1, max);
+      }
+
+      function cgSlotForInternalFrame(g, internalFrame){
+        var frames = g && Array.isArray(g.frames) ? g.frames : [];
+        if (!frames.length) return 1;
+        var best = 1;
+        var bestFrame = -Infinity;
+        frames.forEach(function(fr, i){
+          var n = Number(fr && fr.gizmoFrameNumber || (i + 1));
+          if (!isFinite(n)) n = i + 1;
+          if (n <= internalFrame && n >= bestFrame) {
+            bestFrame = n;
+            best = i + 1;
+          }
+        });
+        if (bestFrame === -Infinity) best = 1;
+        return best;
+      }
+
+      function cgHeldKeySlot(g, frame){
+        var frames = g && Array.isArray(g.frames) ? g.frames : [];
+        var maxSlot = Math.max(1, frames.length);
+        var keys = g && g.timelineKeys && typeof g.timelineKeys === 'object' ? g.timelineKeys : {};
+        if (keys[String(frame)] != null && isFinite(Number(keys[String(frame)]))) {
+          return Math.max(1, Math.min(maxSlot, Math.round(Number(keys[String(frame)]))));
+        }
+        var bestFrame = -1, bestSlot = null;
+        Object.keys(keys).forEach(function(k){
+          var f = Number(k), s = Number(keys[k]);
+          if (!isFinite(f) || !isFinite(s)) return;
+          if (f <= frame && f > bestFrame) {
+            bestFrame = f;
+            bestSlot = s;
+          }
+        });
+        if (bestSlot != null) return Math.max(1, Math.min(maxSlot, Math.round(bestSlot)));
+        return Math.max(1, Math.min(maxSlot, Math.round(Number(g.defaultFrame || 1) || 1)));
+      }
+
+      function cgResolvedSlot(part, frame){
+        var g = cgGizmo(part);
+        if (!g || !g.frames || !g.frames.length) return 1;
+        if (state.previewPartId === part.id && state.previewSlot != null) {
+          return Math.max(1, Math.min(g.frames.length, Math.round(Number(state.previewSlot) || 1)));
+        }
+        var mode = cgMode(g);
+        if (mode === 'single') return cgHeldKeySlot(g, frame);
+        var length = cgInternalLength(g);
+        var internalFrame = ((Math.max(1, frame) - 1) % length) + 1;
+        return cgSlotForInternalFrame(g, internalFrame);
+      }
+
+      function cgMirror(part){
+        try {
+          if (part && part.state && part.state.source && App.source) {
+            App.source.gizmo = mcSafeClone(part.state.source.gizmo);
+          }
+        } catch(e){}
+      }
+
+      function cgRefreshStage(){
+        try { mcRenderStageParts(); } catch(eStage){}
+        try { renderOverlay(); } catch(eOverlay){}
+        try { markDirty(); } catch(eDirty){}
+      }
+
+      function cgSetSlot(part, slot){
+        var g = cgGizmo(part);
+        if (!g || !g.frames || !g.frames.length) return;
+        try {
+          if (!App.__mcGizmoSyncGuard_v18246) {
+            App.__mcGizmoSyncGuard_v18246 = true;
+            try { syncFrameFromWick(); } finally { App.__mcGizmoSyncGuard_v18246 = false; }
+          }
+        } catch(eSync){}
+        var frame = cgTimelineFrame();
+        slot = Math.max(1, Math.min(g.frames.length, Math.round(Number(slot || 1) || 1)));
+        g.playbackMode = 'single';
+        if (!g.timelineKeys || typeof g.timelineKeys !== 'object') g.timelineKeys = {};
+        g.timelineKeys[String(frame)] = slot;
+        state.previewPartId = null;
+        state.previewSlot = null;
+        cgMirror(part);
+        cgRefreshStage();
+        var item = g.frames[slot - 1] || {};
+        cgStatus('Timeline frame ' + frame + ' → Gizmo ' + (item.label || ('Frame ' + slot)) + '.', 'ok');
+        cgRender(true);
+      }
+
+      function cgSetMode(part, mode){
+        var g = cgGizmo(part);
+        if (!g) return;
+        mode = (mode === 'follow' || mode === 'loop') ? mode : 'single';
+        if (mode === 'single') {
+          var current = cgResolvedSlot(part, cgTimelineFrame());
+          g.playbackMode = 'single';
+          g.defaultFrame = current;
+        } else {
+          g.playbackMode = mode;
+        }
+        state.previewPartId = null;
+        state.previewSlot = null;
+        cgMirror(part);
+        cgRefreshStage();
+        cgStatus(
+          mode === 'follow' ? 'Gizmo follows the Wick timeline.' :
+          mode === 'loop' ? 'Gizmo loops its internal frames from the Wick timeline.' :
+          'Gizmo holds keyed frame choices.',
+          'ok'
+        );
+        cgRender(true);
+      }
+
+      function cgNeighbour(part, direction){
+        var g = cgGizmo(part);
+        if (!g || !g.frames || !g.frames.length) return;
+        var slot = cgResolvedSlot(part, cgTimelineFrame());
+        slot = Math.max(1, Math.min(g.frames.length, slot + direction));
+        cgSetSlot(part, slot);
+      }
+
+      function cgSetPreview(part, slot){
+        if (!part) return;
+        state.previewPartId = part.id;
+        state.previewSlot = slot;
+        cgRefreshStage();
+        cgRender(true);
+      }
+
+      function cgClearPreview(){
+        if (state.previewSlot == null) return;
+        state.previewPartId = null;
+        state.previewSlot = null;
+        cgRefreshStage();
+        cgRender(true);
+      }
+
+      function cgStatus(text, type){
+        var box = document.getElementById('mcCharacterGizmoStatus_v18248');
+        if (!box) return;
+        box.textContent = String(text || '');
+        box.className = 'mcGizmoStatus' + (type ? (' ' + type) : '');
+      }
+
+      function cgEnsureRoot(){
+        var host = el('sandboxGizmoFrames');
+        if (!host) return null;
+        var root = document.getElementById('mcCharacterGizmoUi_v18248');
+        if (!root) {
+          root = document.createElement('div');
+          root.id = 'mcCharacterGizmoUi_v18248';
+          root.innerHTML =
+            '<div class="mcGizmoHeading">Gizmo Frames</div>' +
+            '<div class="mcGizmoCard mcGizmoSelection">' +
+              '<div class="mcGizmoName" id="mcCharacterGizmoName_v18248">Gizmo</div>' +
+              '<div class="mcGizmoBadge" id="mcCharacterGizmoBadge_v18248">Single</div>' +
+              '<div class="mcGizmoReadout" id="mcCharacterGizmoReadout_v18248">Timeline 1</div>' +
+              '<button id="mcCharacterGizmoUse_v18248" type="button">Use selected</button>' +
+            '</div>' +
+            '<div class="mcGizmoRow">' +
+              '<button id="mcCharacterGizmoKeep_v18248" class="active" type="button">Part stays selected</button>' +
+              '<button id="mcCharacterGizmoOn_v18248" class="active" type="button">Gizmo: On</button>' +
+            '</div>' +
+            '<div class="mcGizmoCard">' +
+              '<div id="mcCharacterGizmoDial_v18248" class="mcGizmoDial"></div>' +
+              '<div class="mcGizmoRow"><button id="mcCharacterGizmoPrev_v18248" type="button">Previous</button><button id="mcCharacterGizmoNext_v18248" type="button">Next</button></div>' +
+            '</div>' +
+            '<div class="mcGizmoRow">' +
+              '<button id="mcCharacterGizmoSingle_v18248" type="button">Single Frame</button>' +
+              '<button id="mcCharacterGizmoFollow_v18248" type="button">Follow Timeline</button>' +
+              '<button id="mcCharacterGizmoLoop_v18248" type="button">Loop</button>' +
+            '</div>' +
+            '<div class="mcGizmoCard">' +
+              '<div class="mcGizmoMuted" style="margin-bottom:7px">Label the selected internal frame</div>' +
+              '<div class="mcGizmoLabelRow">' +
+                '<input id="mcCharacterGizmoLabel_v18248" type="text" maxlength="64" placeholder="Frame label">' +
+                '<button id="mcCharacterGizmoSaveLabel_v18248" type="button">Save label</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="mcGizmoMuted">Hover over a Gizmo frame to preview it. Click a frame to key that choice on the current Wick timeline frame.</div>' +
+            '<div id="mcCharacterGizmoStatus_v18248" class="mcGizmoStatus">Ready.</div>';
+          host.appendChild(root);
+
+          root.querySelector('#mcCharacterGizmoUse_v18248').addEventListener('click', function(){
+            var p = cgPart();
+            if (!p) return;
+            try { mc.selectedId = p.id; } catch(e){}
+            cgStatus('Using ' + (p.name || 'selected Gizmo') + '.', 'ok');
+            cgRender(true);
+          });
+          root.querySelector('#mcCharacterGizmoKeep_v18248').addEventListener('click', function(){
+            var p = cgPart();
+            if (!p) return;
+            try { mc.selectedId = p.id; mcRenderPanel(); } catch(e){}
+            cgStatus('This Character Gizmo remains selected.', 'ok');
+          });
+          root.querySelector('#mcCharacterGizmoOn_v18248').addEventListener('click', function(){
+            cgStatus('This Character part is a Gizmo.', 'ok');
+          });
+          root.querySelector('#mcCharacterGizmoPrev_v18248').addEventListener('click', function(){ var p=cgPart(); if(p) cgNeighbour(p,-1); });
+          root.querySelector('#mcCharacterGizmoNext_v18248').addEventListener('click', function(){ var p=cgPart(); if(p) cgNeighbour(p,1); });
+          root.querySelector('#mcCharacterGizmoSingle_v18248').addEventListener('click', function(){ var p=cgPart(); if(p) cgSetMode(p,'single'); });
+          root.querySelector('#mcCharacterGizmoFollow_v18248').addEventListener('click', function(){ var p=cgPart(); if(p) cgSetMode(p,'follow'); });
+          root.querySelector('#mcCharacterGizmoLoop_v18248').addEventListener('click', function(){ var p=cgPart(); if(p) cgSetMode(p,'loop'); });
+          root.querySelector('#mcCharacterGizmoSaveLabel_v18248').addEventListener('click', function(){
+            var p = cgPart(), g = cgGizmo(p);
+            if (!p || !g) return;
+            var slot = cgResolvedSlot(p, cgTimelineFrame());
+            var input = root.querySelector('#mcCharacterGizmoLabel_v18248');
+            var value = String(input && input.value || '').trim();
+            if (!value) { cgStatus('Enter a frame label first.',''); return; }
+            var item = g.frames[slot - 1];
+            if (!item) return;
+            item.label = value;
+            cgMirror(p);
+            try { markDirty(); } catch(e){}
+            cgStatus('Frame ' + slot + ' labelled ' + value + '.', 'ok');
+            cgRender(true);
+          });
+          root.querySelector('#mcCharacterGizmoLabel_v18248').addEventListener('keydown', function(ev){
+            if (ev.key === 'Enter') root.querySelector('#mcCharacterGizmoSaveLabel_v18248').click();
+          });
+        }
+        return root;
+      }
+
+      function cgStopAngle(index, count){
+        return count <= 1 ? -90 : -155 + (130 * index / (count - 1));
+      }
+
+      function cgRenderDial(root, part, slot){
+        var dial = root.querySelector('#mcCharacterGizmoDial_v18248');
+        if (!dial) return;
+        dial.innerHTML = '';
+        var g = cgGizmo(part);
+        var frames = g && g.frames || [];
+        if (!frames.length) return;
+
+        var disc = document.createElement('div');
+        disc.className = 'mcGizmoDisc';
+        dial.appendChild(disc);
+
+        var shown = frames.length > 12 ? frames.slice(0,12) : frames;
+        var activeIndex = Math.max(0, Math.min(shown.length - 1, slot - 1));
+        var angle = cgStopAngle(activeIndex, shown.length);
+
+        var arm = document.createElement('div');
+        arm.className = 'mcGizmoArm';
+        arm.style.transform = 'rotate(' + angle + 'deg)';
+        dial.appendChild(arm);
+
+        var pivot = document.createElement('div');
+        pivot.className = 'mcGizmoPivot';
+        dial.appendChild(pivot);
+
+        shown.forEach(function(item, i){
+          var a = cgStopAngle(i, shown.length) * Math.PI / 180;
+          var r = 88, cx = 120, cy = 92;
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'mcGizmoStop' + ((i + 1) === slot ? ' active' : '');
+          btn.style.left = Math.round(cx + Math.cos(a) * r - 24) + 'px';
+          btn.style.top = Math.round(cy + Math.sin(a) * r - 24) + 'px';
+          var label = String(item && item.label || ('Frame_' + (i + 1)));
+          var shortLabel = label.length > 11 ? label.slice(0,10) + '…' : label;
+          var sourceFrame = Number(item && item.gizmoFrameNumber || (i + 1));
+          btn.innerHTML = shortLabel + '<small>Fr ' + sourceFrame + '</small>';
+          btn.title = label + ' · Gizmo frame ' + sourceFrame;
+          btn.addEventListener('mouseenter', function(){
+            btn.classList.add('preview');
+            cgSetPreview(part, i + 1);
+          });
+          btn.addEventListener('mouseleave', function(){
+            btn.classList.remove('preview');
+            cgClearPreview();
+          });
+          btn.addEventListener('click', function(){
+            cgClearPreview();
+            cgSetSlot(part, i + 1);
+          });
+          dial.appendChild(btn);
+        });
+
+        if (frames.length > shown.length) {
+          var note = document.createElement('div');
+          note.className = 'mcGizmoMuted';
+          note.style.cssText = 'position:absolute;left:0;right:0;bottom:0;text-align:center';
+          note.textContent = 'First 12 of ' + frames.length + ' frames shown';
+          dial.appendChild(note);
+        }
+      }
+
+      function cgHideLegacy(host, showCharacterGizmo){
+        if (!host) return;
+        Array.prototype.slice.call(host.children || []).forEach(function(node){
+          if (node.id === 'mcCharacterGizmoUi_v18248') return;
+          node.style.display = showCharacterGizmo ? 'none' : '';
+        });
+      }
+
+      function cgRender(force){
+        if (state.rendering) return;
+        state.rendering = true;
+        try {
+          var root = cgEnsureRoot();
+          if (!root) return;
+          var host = el('sandboxGizmoFrames');
+          var part = cgPart();
+          if (!part) {
+            root.classList.remove('active');
+            cgHideLegacy(host, false);
+            state.lastSignature = '';
+            return;
+          }
+
+          cgHideLegacy(host, true);
+          root.classList.add('active');
+
+          var g = cgGizmo(part);
+          var frame = cgTimelineFrame();
+          var slot = cgResolvedSlot(part, frame);
+          var item = g.frames[Math.max(0, slot - 1)] || {};
+          var mode = cgMode(g);
+          var badge = mode === 'follow' ? 'Follow' : mode === 'loop' ? 'Loop' : 'Single';
+          var signature = [
+            part.id, frame, slot, mode,
+            state.previewPartId || '', state.previewSlot || '',
+            g.frames.map(function(fr){return String(fr.label||'')+':'+String(fr.gizmoFrameNumber||'');}).join('|'),
+            JSON.stringify(g.timelineKeys || {})
+          ].join('~');
+          if (!force && signature === state.lastSignature) return;
+          state.lastSignature = signature;
+
+          root.querySelector('#mcCharacterGizmoName_v18248').textContent = part.name || g.sourceName || 'Gizmo';
+          root.querySelector('#mcCharacterGizmoBadge_v18248').textContent = state.previewSlot != null ? 'Preview' : badge;
+          root.querySelector('#mcCharacterGizmoReadout_v18248').textContent =
+            'Gizmo ' + slot + ' of ' + g.frames.length + ' · Timeline ' + frame;
+
+          root.querySelector('#mcCharacterGizmoSingle_v18248').classList.toggle('active', mode === 'single');
+          root.querySelector('#mcCharacterGizmoFollow_v18248').classList.toggle('active', mode === 'follow');
+          root.querySelector('#mcCharacterGizmoLoop_v18248').classList.toggle('active', mode === 'loop');
+          root.querySelector('#mcCharacterGizmoLabel_v18248').value = String(item.label || '');
+
+          cgRenderDial(root, part, slot);
+        } finally {
+          state.rendering = false;
+        }
+      }
+
+      // Final preview authority for Character Gizmos, including playback mode and hover preview.
+      var mcSourceMarkupForStagePart_Base_v18248_GPT = mcSourceMarkupForStagePart;
+      mcSourceMarkupForStagePart = function(part){
+        try {
+          var g = cgGizmo(part);
+          if (g && Array.isArray(g.frames) && g.frames.length) {
+            var frame = Math.max(1, Math.round(Number(
+              App.__RotoBones_GPT_CommitExplicitFrame_v18146 || App.currentFrame || 1
+            ) || 1));
+            var slot = cgResolvedSlot(part, frame);
+            var data = g.frames[Math.max(0, Math.min(g.frames.length - 1, slot - 1))] || null;
+            if (data && data.raw) {
+              return '<img src="' + htmlEscape(svgTextToDataUrl(String(data.raw))) +
+                '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:fill;pointer-events:none;" draggable="false">';
+            }
+            if (data && data.dataUrl) {
+              return '<img src="' + htmlEscape(String(data.dataUrl)) +
+                '" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:fill;pointer-events:none;" draggable="false">';
+            }
+          }
+        } catch(eMarkup248){}
+        return mcSourceMarkupForStagePart_Base_v18248_GPT
+          ? mcSourceMarkupForStagePart_Base_v18248_GPT(part)
+          : '';
+      };
+
+      // Keep the UI live while the Wick playhead moves, without calling sync recursively.
+      if (typeof dbSimplifiedRender === 'function') {
+        var dbSimplifiedRender_Base_v18248_GPT = dbSimplifiedRender;
+        dbSimplifiedRender = function(){
+          var out = dbSimplifiedRender_Base_v18248_GPT.apply(this, arguments);
+          try { if (App.activeTab === 'expression') cgRender(false); } catch(e){}
+          return out;
+        };
+      }
+
+      document.addEventListener('click', function(ev){
+        try {
+          var tab = ev && ev.target && ev.target.closest
+            ? ev.target.closest('.tabBtn[data-tab="expression"]') : null;
+          if (!tab) return;
+          window.setTimeout(function(){ try { cgRender(true); } catch(e){} }, 0);
+        } catch(e){}
+      }, true);
+
+      window.MyCharacterRenderSelectedGizmoFrames = function(){ cgRender(true); };
+      window.MyCharacterGizmoResolvedSlot_v18248 = cgResolvedSlot;
+
+      try { cgRender(true); } catch(eInitial){}
+      try { log('Character Gizmo radial animation interface active.'); } catch(eLog){}
+    } catch(eInstall) {
+      try { console.error('[DemBones GPT 21-09-2026] Character Gizmo radial UI install failed', eInstall); } catch(eConsole){}
     }
   })();
 
