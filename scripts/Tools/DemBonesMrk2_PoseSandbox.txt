@@ -1010,16 +1010,19 @@ html, body, #app{
 .mcInlineGizmoToggleRow{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
 .mcInlineGizmoToggleRow button,.mcInlineGizmoStep button,.mcInlineGizmoModes button{min-width:0;min-height:38px;border:1px solid #4a505a;border-radius:6px;background:#343941;color:#eef1f5;padding:7px 6px;cursor:pointer;font-size:12px;font-weight:700;}
 .mcInlineGizmoToggleRow button.active,.mcInlineGizmoModes button.active{border-color:#79dca8;box-shadow:0 0 0 1px #79dca8 inset;color:#fff;}
-.mcInlineGizmoDialCard{border:1px solid #3f4852;border-radius:8px;background:#14171b;padding:8px 7px 10px;}
-.mcInlineGizmoDial{position:relative;width:250px;height:240px;max-width:100%;margin:0 auto;overflow:visible;}
-.mcInlineGizmoDisc{position:absolute;width:170px;height:170px;left:40px;top:38px;border:5px solid rgba(33,178,107,.72);border-radius:50%;background:rgba(33,178,107,.12);}
-.mcInlineGizmoArm{position:absolute;left:121px;top:119px;width:70px;height:9px;border-radius:8px;background:rgba(121,220,168,.88);transform-origin:4px 4px;pointer-events:none;}
-.mcInlineGizmoPivot{position:absolute;left:111px;top:107px;width:30px;height:30px;border-radius:50%;background:#21b26b;border:6px solid #b7efd0;pointer-events:none;}
-.mcInlineGizmoFrame{position:absolute;width:58px;height:58px;border-radius:50%;padding:3px;background:#285a44;border:3px solid #79dca8;color:#fff;font-size:10px;line-height:1.05;overflow:hidden;text-overflow:ellipsis;z-index:2;cursor:pointer;}
-.mcInlineGizmoFrame small{display:block;margin-top:3px;font:10px Consolas,monospace;opacity:.78;}
-.mcInlineGizmoFrame.active{background:#21b26b;border-color:#fff;transform:scale(1.08);}
-.mcInlineGizmoStep{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:1px;}
-.mcInlineGizmoModes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+.mcInlineGizmoDialCard{border:1px solid #3f4852;border-radius:8px;background:#14171b;padding:6px 6px 7px;overflow:hidden;}
+.mcInlineGizmoDial{position:relative;width:172px;height:132px;max-width:100%;margin:0 auto;overflow:hidden;}
+.mcInlineGizmoDisc{position:absolute;width:104px;height:104px;left:34px;top:14px;border:4px solid rgba(33,178,107,.72);border-radius:50%;background:rgba(33,178,107,.12);}
+.mcInlineGizmoArm{position:absolute;left:83px;top:64px;width:45px;height:6px;border-radius:6px;background:rgba(121,220,168,.88);transform-origin:3px 3px;pointer-events:none;}
+.mcInlineGizmoPivot{position:absolute;left:75px;top:55px;width:22px;height:22px;border-radius:50%;background:#21b26b;border:4px solid #b7efd0;pointer-events:none;}
+.mcInlineGizmoFrame{position:absolute;width:38px;height:38px;border-radius:50%;padding:2px;background:#285a44;border:2px solid #79dca8;color:#fff;font-size:8px;line-height:1;overflow:hidden;text-overflow:ellipsis;z-index:2;cursor:pointer;}
+.mcInlineGizmoFrame small{display:block;margin-top:2px;font:8px Consolas,monospace;opacity:.78;}
+.mcInlineGizmoFrame.active{background:#21b26b;border-color:#fff;transform:scale(1.06);}
+.mcInlineGizmoStep{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:2px;}
+.mcInlineGizmoModes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}
+.mcInlineGizmoKeys{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:5px 0 1px;}
+.mcInlineGizmoKey{min-width:0!important;min-height:24px!important;padding:3px 6px!important;font:10px Consolas,monospace!important;border-color:#5a6470!important;background:#22272e!important;}
+.mcInlineGizmoKey.current{border-color:#79dca8!important;color:#fff!important;box-shadow:0 0 0 1px #79dca8 inset;}
 .mcInlineGizmoHint{color:#9aa6b2;font-size:10px;line-height:1.35;text-align:center;}
 .mcInlineGizmo.disabled .mcInlineGizmoHint:after{content:" · Select Animate to enable";font-weight:700;}
 @media(max-width:380px){.sandboxPoseGrid{grid-template-columns:1fr}.sandboxAnimateActions{grid-template-columns:1fr}.sandboxPoseSave{grid-template-columns:1fr}}
@@ -16578,6 +16581,10 @@ html, body, #app{
     var disabledClass = enabled ? '' : ' disabled';
     var frames = g.frames || [];
     var count = Math.max(1, frames.length);
+    if (!g.timelineKeys || typeof g.timelineKeys !== 'object') g.timelineKeys = {};
+    if (!Object.keys(g.timelineKeys).length) {
+      g.timelineKeys['1'] = Math.max(1, Math.min(count, Math.round(Number(g.defaultFrame || 1) || 1)));
+    }
 
     function stopAngle(index, total){
       if (total <= 1) return -90;
@@ -16593,12 +16600,23 @@ html, body, #app{
       var shortLabel = label.length > 11 ? label.slice(0,10) + '…' : label;
       var sourceFrame = Math.max(1, Math.round(Number(item && item.gizmoFrameNumber || n) || n));
       var angle = stopAngle(index, count) * Math.PI / 180;
-      var radius = 102;
-      var cx = 125, cy = 123;
-      var left = Math.round(cx + Math.cos(angle) * radius - 29);
-      var top = Math.round(cy + Math.sin(angle) * radius - 29);
+      var radius = 65;
+      var cx = 86, cy = 67;
+      var left = Math.round(cx + Math.cos(angle) * radius - 19);
+      var top = Math.round(cy + Math.sin(angle) * radius - 19);
       return '<button type="button" class="mcInlineGizmoFrame' + (n === slot ? ' active' : '') + '" style="left:' + left + 'px;top:' + top + 'px" data-action="gizmoFrame" data-id="' + part.id + '" data-slot="' + n + '" title="' + htmlEscape(label) + '"' + disabledAttr + '>' +
         htmlEscape(shortLabel) + '<small>Fr ' + sourceFrame + '</small></button>';
+    }).join('');
+
+    var keyFrames = Object.keys(g.timelineKeys || {}).map(function(key){
+      return Math.max(1, Math.round(Number(key) || 1));
+    }).filter(function(value, index, arr){
+      return isFinite(value) && arr.indexOf(value) === index;
+    }).sort(function(a,b){ return a-b; });
+    var keyButtons = keyFrames.map(function(keyFrame){
+      return '<button type="button" class="mcInlineGizmoKey' + (keyFrame === frame ? ' current' : '') +
+        '" data-action="gizmoKeyJump" data-id="' + part.id + '" data-frame="' + keyFrame +
+        '" title="Go to Gizmo key on Wick frame ' + keyFrame + '">◆ ' + keyFrame + '</button>';
     }).join('');
 
     return '' +
@@ -16606,8 +16624,10 @@ html, body, #app{
         '<div class="mcInlineGizmoHeader">' +
           '<div class="mcInlineGizmoName">' + htmlEscape(part.name || g.sourceName || 'Gizmo') + '</div>' +
           '<div class="mcInlineGizmoBadge">' + htmlEscape(mode === 'follow' ? 'Follow' : mode === 'loop' ? 'Loop' : 'Single') + '</div>' +
-          '<div class="mcInlineGizmoReadout">Gizmo ' + slot + ' of ' + frames.length + ' · Timeline ' + frame + '</div>' +
+          '<div class="mcInlineGizmoReadout">Gizmo ' + slot + ' of ' + frames.length + ' · Timeline ' + frame +
+            (g.timelineKeys && g.timelineKeys[String(frame)] != null ? ' · KEY' : '') + '</div>' +
         '</div>' +
+        '<div class="mcInlineGizmoKeys">' + keyButtons + '</div>' +
         '<div class="mcInlineGizmoToggleRow">' +
           '<button type="button" class="active"' + disabledAttr + '>Part stays selected</button>' +
           '<button type="button" class="active"' + disabledAttr + '>Gizmo: On</button>' +
@@ -17153,6 +17173,13 @@ html, body, #app{
       mcSetAssembleModeFor(id);
     } else if (action === 'animate') {
       mcSetAnimateModeFor(id);
+    } else if (action === 'gizmoKeyJump') {
+      var keyFrame = target && target.getAttribute ? Number(target.getAttribute('data-frame') || 1) : 1;
+      keyFrame = Math.max(1, Math.round(keyFrame || 1));
+      try { setCurrentFrame(keyFrame, true); } catch(eGizmoKeyJump) {
+        try { App.currentFrame = keyFrame; setWickTimelineFrame(keyFrame); updateUI(); renderOverlay(); } catch(eGizmoKeyJumpFallback){}
+      }
+      try { mcRenderPanel(); } catch(eGizmoKeyPanel){}
     } else if (action === 'gizmoFrame') {
       var gp = mcFindPart(id);
       var slot = target && target.getAttribute ? Number(target.getAttribute('data-slot') || 1) : 1;
@@ -20406,8 +20433,55 @@ html, body, #app{
       var height = Math.max(1, Math.round(Math.abs(Number(rect.height || 1))));
       var opacity = fadeInactive && Number(part.id) !== Number(mc.selectedId || 0) ? 0.32 : 1;
       var origin = part.parentPin ? mcPinnedCssOriginForPart_v066(part) : '50% 50%';
+      var renderRotation = Number(t.rotation || 0) || 0;
+
+      // FIX GPT_21-09-2026_GizmoRootBoneDrive:
+      // For a Character Gizmo, its first/root bone drives the whole Gizmo image.
+      try {
+        var gizmoData = part.state && part.state.source ? part.state.source.gizmo : null;
+        var gizmoBones = part.state && Array.isArray(part.state.bones) ? part.state.bones : [];
+        if (gizmoData && gizmoBones.length) {
+          var driverBone = null;
+          try { driverBone = mcRootBoneInState(part.state); } catch(eRootGizmo){}
+          if (!driverBone) driverBone = gizmoBones[0];
+          if (driverBone && driverBone.head && driverBone.tail) {
+            var poseBone = mcPoseForPartBone_v044(part, driverBone.id, frame);
+            if (poseBone && poseBone.head && poseBone.tail) {
+              var restAngle = Math.atan2(
+                Number(driverBone.tail.y || 0) - Number(driverBone.head.y || 0),
+                Number(driverBone.tail.x || 0) - Number(driverBone.head.x || 0)
+              ) * 180 / Math.PI;
+              var poseAngle = Math.atan2(
+                Number(poseBone.tail.y || 0) - Number(poseBone.head.y || 0),
+                Number(poseBone.tail.x || 0) - Number(poseBone.head.x || 0)
+              ) * 180 / Math.PI;
+              var angleDelta = poseAngle - restAngle;
+              while (angleDelta > 180) angleDelta -= 360;
+              while (angleDelta < -180) angleDelta += 360;
+              renderRotation += angleDelta;
+
+              var srcG = part.state.source || {};
+              var swG = Math.max(1, Number(srcG.width || t.w || 1));
+              var shG = Math.max(1, Number(srcG.height || t.h || 1));
+              origin = (Number(driverBone.head.x || 0) / swG * 100) + '% ' +
+                       (Number(driverBone.head.y || 0) / shG * 100) + '%';
+
+              var restStagePt = mcLocalPointToPartStage(part, driverBone.head);
+              var poseStagePt = mcLocalPointToPartStage(part, poseBone.head);
+              if (restStagePt && poseStagePt) {
+                var restVp = stageBoundsToViewportRect({x:Number(restStagePt.x||0),y:Number(restStagePt.y||0),w:1,h:1});
+                var poseVp = stageBoundsToViewportRect({x:Number(poseStagePt.x||0),y:Number(poseStagePt.y||0),w:1,h:1});
+                if (restVp && poseVp) {
+                  left += Math.round(Number(poseVp.x||0) - Number(restVp.x||0));
+                  top += Math.round(Number(poseVp.y||0) - Number(restVp.y||0));
+                }
+              }
+            }
+          }
+        }
+      } catch(eGizmoRootDrive){}
       var z = 10000 - i;
-      html += '<div data-mc-stage-part-id="' + Number(part.id) + '" style="position:absolute;left:' + left + 'px;top:' + top + 'px;width:' + width + 'px;height:' + height + 'px;z-index:' + z + ';pointer-events:none;opacity:' + opacity + ';transform-origin:' + origin + ';transform:rotate(' + (Number(t.rotation || 0) || 0) + 'deg);overflow:visible;">' + markup + '</div>';
+      html += '<div data-mc-stage-part-id="' + Number(part.id) + '" style="position:absolute;left:' + left + 'px;top:' + top + 'px;width:' + width + 'px;height:' + height + 'px;z-index:' + z + ';pointer-events:none;opacity:' + opacity + ';transform-origin:' + origin + ';transform:rotate(' + renderRotation + 'deg);overflow:visible;">' + markup + '</div>';
       if (fadeInactive && Number(part.id) !== Number(mc.selectedId || 0)) boneOverlay += mcPartBoneMarkupForStage_v052(part, stageRect, 0.45);
     }
     if (boneOverlay) {
