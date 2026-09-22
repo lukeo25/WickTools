@@ -613,17 +613,39 @@ function boneLineMarkup(b){
     '<circle cx="'+a.x+'" cy="'+a.y+'" r="6" fill="#ffff00" stroke="#fff" stroke-width="2"/>'+
     '<circle cx="'+z.x+'" cy="'+z.y+'" r="6" fill="#ffb000" stroke="#fff" stroke-width="2"/>';
 }
-function renderOverlay(){if(!state.overlay)return;var p=currentPart(),html="";if(p)(p.bones||[]).forEach(function(b){html+=boneLineMarkup(b);});if(state.drag){
-  var a=viewportPoint(state.drag.head.x,state.drag.head.y),z=viewportPoint(state.drag.tail.x,state.drag.tail.y);
-  html+='<line x1="'+a.x+'" y1="'+a.y+'" x2="'+z.x+'" y2="'+z.y+'" stroke="rgba(0,0,0,.78)" stroke-width="4" stroke-linecap="round"/>'+
-    '<line x1="'+a.x+'" y1="'+a.y+'" x2="'+z.x+'" y2="'+z.y+'" stroke="#38d6ff" stroke-width="2.5" stroke-linecap="round"/>'+
-    '<circle cx="'+a.x+'" cy="'+a.y+'" r="6" fill="#ffff00" stroke="#fff" stroke-width="2"/>'+
-    '<circle cx="'+z.x+'" cy="'+z.y+'" r="6" fill="#ffb000" stroke="#fff" stroke-width="2"/>';
+function renderOverlay(){if(!state.overlay)return;var p=currentPart(),html="";if(p)(p.bones||[]).forEach(function(b){html+=boneLineMarkup(b);});if(state.drag&&state.drag.localHead&&state.drag.localTail){
+  html+=boneLineMarkup({
+    id:-9999,
+    name:"New Bone",
+    type:String(state.newBoneType||"normal"),
+    head:state.drag.localHead,
+    tail:state.drag.localTail,
+    envStart:32,
+    envEnd:32,
+    radius:32,
+    strength:1
+  });
 }state.overlay.innerHTML=html;}
+function updateCreationDragFromEvent(ev){
+  if(!state.drag)return false;
+  var o=currentObject();if(!o)return false;
+  var stage=stagePoint(ev.clientX,ev.clientY);
+  if(ev.shiftKey){
+    var dx=stage.x-state.drag.head.x,dy=stage.y-state.drag.head.y;
+    if(Math.abs(dx)>=Math.abs(dy))stage.y=state.drag.head.y;else stage.x=state.drag.head.x;
+  }
+  state.drag.tail=stage;
+  state.drag.localTail=inverseTransformPointByMatrix(objectStageMatrix(o),stage);
+  renderOverlay();
+  return true;
+}
 function installBoneCapture(){
   var d=window.parent.document;if(d.__dbNativeBoneCapture)return;d.__dbNativeBoneCapture=true;
   d.addEventListener("pointerenter",function(ev){if(state.tab==="bones"&&state.addingBone)moveBoneCursor(ev);},true);
-  d.addEventListener("mousemove",function(ev){if(state.tab==="bones"&&state.addingBone)moveBoneCursor(ev);},true);
+  d.addEventListener("mousemove",function(ev){
+    if(state.tab==="bones"&&state.addingBone)moveBoneCursor(ev);
+    if(state.drag){updateCreationDragFromEvent(ev);try{ev.preventDefault();ev.stopPropagation();}catch(e){}}
+  },true);
   d.addEventListener("pointerdown",function(ev){
     if(state.tab==="bones"&&beginEnvelopeDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
     if(state.tab==="animate"&&!state.addingBone&&beginAnimateDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
@@ -641,9 +663,9 @@ function installBoneCapture(){
     var sp=stagePoint(ev.clientX,ev.clientY),part=currentPart(),o=currentObject(),m=objectStageMatrix(o),lp=inverseTransformPointByMatrix(m,sp);
     if(state.newBoneType==="chain"){
       var snap=nearestTailForLocal(part,lp,18);
-      if(snap){lp={x:snap.point.x,y:snap.point.y};sp=bonePointToStage(lp,o);state.drag={head:sp,tail:sp,parentId:snap.bone.id};}
-      else state.drag={head:sp,tail:sp,parentId:null};
-    }else state.drag={head:sp,tail:sp,parentId:null};
+      if(snap){lp={x:snap.point.x,y:snap.point.y};sp=bonePointToStage(lp,o);state.drag={head:sp,tail:sp,localHead:{x:lp.x,y:lp.y},localTail:{x:lp.x,y:lp.y},parentId:snap.bone.id};}
+      else state.drag={head:sp,tail:sp,localHead:{x:lp.x,y:lp.y},localTail:{x:lp.x,y:lp.y},parentId:null};
+    }else state.drag={head:sp,tail:sp,localHead:{x:lp.x,y:lp.y},localTail:{x:lp.x,y:lp.y},parentId:null};
     ev.preventDefault();ev.stopPropagation();
   },true);
 
@@ -652,28 +674,18 @@ function installBoneCapture(){
     if(state.animDrag&&state.animDrag.envelope){moveEnvelopeDrag(ev);ev.preventDefault();ev.stopPropagation();return;}
     if(state.animDrag){moveAnimateDrag(ev);ev.preventDefault();ev.stopPropagation();return;}
     if(!state.drag)return;
-    var p=stagePoint(ev.clientX,ev.clientY);
-    if(ev.shiftKey){
-      var dx=p.x-state.drag.head.x,dy=p.y-state.drag.head.y;
-      if(Math.abs(dx)>=Math.abs(dy))p.y=state.drag.head.y;else p.x=state.drag.head.x;
-    }
-    state.drag.tail=p;renderOverlay();ev.preventDefault();ev.stopPropagation();
+    updateCreationDragFromEvent(ev);ev.preventDefault();ev.stopPropagation();
   },true);
 
   d.addEventListener("pointerup",function(ev){
     if(state.animDrag&&state.animDrag.envelope){endEnvelopeDrag();ev.preventDefault();ev.stopPropagation();return;}
     if(state.animDrag){endAnimateDrag();ev.preventDefault();ev.stopPropagation();return;}
     if(!state.drag)return;
-    var tailStage=stagePoint(ev.clientX,ev.clientY);
-    if(ev.shiftKey){
-      var ddx=tailStage.x-state.drag.head.x,ddy=tailStage.y-state.drag.head.y;
-      if(Math.abs(ddx)>=Math.abs(ddy))tailStage.y=state.drag.head.y;else tailStage.x=state.drag.head.x;
-    }
-    state.drag.tail=tailStage;
-    var part=currentPart(),o=currentObject(),m=objectStageMatrix(o),dx=state.drag.tail.x-state.drag.head.x,dy=state.drag.tail.y-state.drag.head.y;
+    updateCreationDragFromEvent(ev);
+    var part=currentPart(),o=currentObject(),dx=state.drag.tail.x-state.drag.head.x,dy=state.drag.tail.y-state.drag.head.y;
     if(part&&Math.hypot(dx,dy)>=8){
       var id=1;(part.bones||[]).forEach(function(b){id=Math.max(id,Number(b.id||0)+1);});
-      var bh=inverseTransformPointByMatrix(m,state.drag.head),bt=inverseTransformPointByMatrix(m,state.drag.tail),env=32,type=String(state.newBoneType||"normal");
+      var bh={x:state.drag.localHead.x,y:state.drag.localHead.y},bt={x:state.drag.localTail.x,y:state.drag.localTail.y},env=32,type=String(state.newBoneType||"normal");
       var bone={id:id,name:"Bone "+id,type:type,space:"object",head:bh,tail:bt,restLength:Math.max(1,pointDistance(bh,bt)),envStart:env,envEnd:env,radius:env,strength:1,parentId:type==="chain"?(state.drag.parentId||null):null};
       part.bones.push(bone);state.selectedBoneId=id;
       captureNativeSource(part,o);syncBoneRows();writeRegistry();
