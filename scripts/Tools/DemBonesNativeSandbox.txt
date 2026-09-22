@@ -121,7 +121,9 @@ function ensureBoneObjectSpace(part,o){
   if(!part||!o)return false;
   var changed=false,m=objectStageMatrix(o);
   (part.bones||[]).forEach(function(b){
-    if(!b||b.space==="object")return;
+    if(!b)return;
+    if(b.envStart==null||b.envEnd==null){var dx=(b.tail&&b.tail.x||0)-(b.head&&b.head.x||0),dy=(b.tail&&b.tail.y||0)-(b.head&&b.head.y||0),len=Math.hypot(dx,dy)||40,env=Math.max(18,len*0.72);if(b.envStart==null)b.envStart=env;if(b.envEnd==null)b.envEnd=env;b.radius=Math.max(b.envStart,b.envEnd);changed=true;}
+    if(b.space==="object")return;
     b.head=inverseTransformPointByMatrix(m,b.head||{x:0,y:0});
     b.tail=inverseTransformPointByMatrix(m,b.tail||{x:0,y:0});
     b.space="object";
@@ -204,11 +206,18 @@ function pointSegmentInfo(p,a,b){
   var vx=b.x-a.x,vy=b.y-a.y,wx=p.x-a.x,wy=p.y-a.y,den=vx*vx+vy*vy,t=den>0?(wx*vx+wy*vy)/den:0;
   t=Math.max(0,Math.min(1,t));var q={x:a.x+vx*t,y:a.y+vy*t},dx=p.x-q.x,dy=p.y-q.y;return {t:t,d:Math.sqrt(dx*dx+dy*dy)};
 }
-function boneRadius(b){var dx=b.tail.x-b.head.x,dy=b.tail.y-b.head.y,len=Math.sqrt(dx*dx+dy*dy);return Math.max(18,Number(b.radius||0)||len*0.72);}
+function boneRadius(b,t){
+  var dx=b.tail.x-b.head.x,dy=b.tail.y-b.head.y,len=Math.sqrt(dx*dx+dy*dy);
+  var fallback=Math.max(18,Number(b.radius||0)||len*0.72);
+  var a=Math.max(2,Number(b.envStart!=null?b.envStart:fallback));
+  var z=Math.max(2,Number(b.envEnd!=null?b.envEnd:fallback));
+  t=Math.max(0,Math.min(1,Number(t||0)));
+  return a+(z-a)*t;
+}
 function skinPointNative(p,part,pose){
   var sumW=0,sumX=0,sumY=0;
   (part.bones||[]).forEach(function(b){
-    var rest={head:b.head,tail:b.tail},cur=pose[String(b.id)]||rest,info=pointSegmentInfo(p,rest.head,rest.tail),radius=boneRadius(b);
+    var rest={head:b.head,tail:b.tail},cur=pose[String(b.id)]||rest,info=pointSegmentInfo(p,rest.head,rest.tail),radius=boneRadius(b,info.t);
     if(info.d>radius)return;
     var w=1-(info.d/radius);w=w*w;
     var rdx=rest.tail.x-rest.head.x,rdy=rest.tail.y-rest.head.y,cdx=cur.tail.x-cur.head.x,cdy=cur.tail.y-cur.head.y;
@@ -268,6 +277,13 @@ function makeNativePath(rec,json){
 function rebuildNativeOutput(part,o,transientPose,transientFrame){
   if(!part||!o||!o.timeline||state.baking)return false;
   var source=captureNativeSource(part,o),e=exposure(o);if(!source||!e)return false;
+  if(part.kind==="gizmo"){
+    try{o.animationType=source.animationType||"loop";o.isSynced=!!source.isSynced;o.singleFrameNumber=source.singleFrameNumber||1;}catch(eMode){}
+    part.deformationEnabled=true;
+    part.lastBakedLength=e.length;
+    dirty("DemBones Gizmo rig metadata");
+    return true;
+  }
   state.baking=true;
   try{
     source.layers.forEach(function(srcLayer,li){
@@ -334,6 +350,42 @@ function poseBoneForDisplay(part,bone){
 function viewportDistancePointToSegment(px,py,a,b){
   var vx=b.x-a.x,vy=b.y-a.y,wx=px-a.x,wy=py-a.y,den=vx*vx+vy*vy,t=den>0?(wx*vx+wy*vy)/den:0;
   t=Math.max(0,Math.min(1,t));var x=a.x+vx*t,y=a.y+vy*t,dx=px-x,dy=py-y;return Math.sqrt(dx*dx+dy*dy);
+}
+
+function envelopeWidthFromLocal(b,local,which){
+  var h=b.head,t=b.tail,dx=t.x-h.x,dy=t.y-h.y,len=Math.hypot(dx,dy)||1,px=-dy/len,py=dx/len,a=which==="head"?h:t;
+  return Math.max(2,Math.min(2000,Math.abs((local.x-a.x)*px+(local.y-a.y)*py)));
+}
+function findEnvelopeHit(clientX,clientY){
+  if(state.tab!=="bones")return null;
+  var part=currentPart(),o=currentObject();if(!part||!o)return null;
+  var best=null;
+  (part.bones||[]).forEach(function(b){
+    var g=envelopeLocalGeometry(b,{head:b.head,tail:b.tail});
+    [["envHead",g.hp],["envHead",g.hn],["envTail",g.tp],["envTail",g.tn]].forEach(function(row){
+      var sp=bonePointToStage(row[1],o),v=viewportPoint(sp.x,sp.y),d=Math.hypot(clientX-v.x,clientY-v.y);
+      if(d<=12&&(!best||d<best.distance))best={bone:b,type:row[0],distance:d};
+    });
+  });
+  return best;
+}
+function beginEnvelopeDrag(ev){
+  var hit=findEnvelopeHit(ev.clientX,ev.clientY);if(!hit)return false;
+  state.animDrag={envelope:true,boneId:hit.bone.id,type:hit.type};
+  status("Adjust "+hit.bone.name+" envelope.");
+  return true;
+}
+function moveEnvelopeDrag(ev){
+  var d=state.animDrag;if(!d||!d.envelope)return false;
+  var part=currentPart(),o=currentObject(),b=null;(part.bones||[]).forEach(function(x){if(String(x.id)===String(d.boneId))b=x;});if(!b)return false;
+  var local=inverseTransformPointByMatrix(objectStageMatrix(o),stagePoint(ev.clientX,ev.clientY));
+  if(d.type==="envHead")b.envStart=envelopeWidthFromLocal(b,local,"head");else b.envEnd=envelopeWidthFromLocal(b,local,"tail");
+  b.radius=Math.max(Number(b.envStart||0),Number(b.envEnd||0));
+  renderOverlay();return true;
+}
+function endEnvelopeDrag(){
+  var d=state.animDrag;if(!d||!d.envelope)return false;
+  state.animDrag=null;writeRegistry();renderAll();status("Envelope updated.");return true;
 }
 function findAnimateBoneHit(clientX,clientY){
   var part=currentPart(),o=currentObject();if(!part||!o)return null;
@@ -419,11 +471,30 @@ function viewportPoint(x,y){refresh();try{var view=state.project&&state.project.
 function ensureOverlay(){if(state.overlay&&state.overlay.parentNode)return state.overlay;var d=window.parent.document,svg=d.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("data-dembones-native-overlay","1");svg.style.cssText="position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483000;pointer-events:none;overflow:visible";(d.body||d.documentElement).appendChild(svg);state.overlay=svg;return svg;}
 function showOverlay(){ensureOverlay();state.overlay.style.display="block";renderOverlay();}
 function hideOverlay(){if(state.overlay)state.overlay.style.display="none";}
-function boneLineMarkup(b){var part=currentPart(),o=currentObject(),pb=part?poseBoneForDisplay(part,b):{head:b.head,tail:b.tail};var ah=bonePointToStage(pb.head,o),zh=bonePointToStage(pb.tail,o);var a=viewportPoint(ah.x,ah.y),z=viewportPoint(zh.x,zh.y);return '<line x1="'+a.x+'" y1="'+a.y+'" x2="'+z.x+'" y2="'+z.y+'" stroke="#26e29a" stroke-width="7" stroke-linecap="round"/><circle cx="'+a.x+'" cy="'+a.y+'" r="7" fill="#ffe14c" stroke="#1a2b3c" stroke-width="2"/><circle cx="'+z.x+'" cy="'+z.y+'" r="7" fill="#9ef2cf" stroke="#1a2b3c" stroke-width="2"/>';}
+function envelopeLocalGeometry(b,pb){
+  var h=pb.head,t=pb.tail,dx=t.x-h.x,dy=t.y-h.y,len=Math.hypot(dx,dy)||1,px=-dy/len,py=dx/len;
+  var es=Math.max(2,Number(b.envStart!=null?b.envStart:boneRadius(b,0)));
+  var ee=Math.max(2,Number(b.envEnd!=null?b.envEnd:boneRadius(b,1)));
+  return {hp:{x:h.x+px*es,y:h.y+py*es},hn:{x:h.x-px*es,y:h.y-py*es},tp:{x:t.x+px*ee,y:t.y+py*ee},tn:{x:t.x-px*ee,y:t.y-py*ee}};
+}
+function boneLineMarkup(b){
+  var part=currentPart(),o=currentObject(),pb=part?poseBoneForDisplay(part,b):{head:b.head,tail:b.tail},g=envelopeLocalGeometry(b,pb);
+  var ah=bonePointToStage(pb.head,o),zh=bonePointToStage(pb.tail,o),hp=bonePointToStage(g.hp,o),hn=bonePointToStage(g.hn,o),tp=bonePointToStage(g.tp,o),tn=bonePointToStage(g.tn,o);
+  var a=viewportPoint(ah.x,ah.y),z=viewportPoint(zh.x,zh.y),vhp=viewportPoint(hp.x,hp.y),vhn=viewportPoint(hn.x,hn.y),vtp=viewportPoint(tp.x,tp.y),vtn=viewportPoint(tn.x,tn.y);
+  return '<path d="M '+vhp.x+' '+vhp.y+' L '+vtp.x+' '+vtp.y+' L '+vtn.x+' '+vtn.y+' L '+vhn.x+' '+vhn.y+' Z" fill="rgba(150,78,255,.08)" stroke="rgba(180,110,255,.85)" stroke-width="2"/>'+
+    '<circle cx="'+vhp.x+'" cy="'+vhp.y+'" r="5" fill="#c77cff" stroke="#fff" stroke-width="2"/>'+
+    '<circle cx="'+vhn.x+'" cy="'+vhn.y+'" r="5" fill="#c77cff" stroke="#fff" stroke-width="2"/>'+
+    '<circle cx="'+vtp.x+'" cy="'+vtp.y+'" r="5" fill="#c77cff" stroke="#fff" stroke-width="2"/>'+
+    '<circle cx="'+vtn.x+'" cy="'+vtn.y+'" r="5" fill="#c77cff" stroke="#fff" stroke-width="2"/>'+
+    '<line x1="'+a.x+'" y1="'+a.y+'" x2="'+z.x+'" y2="'+z.y+'" stroke="#26e29a" stroke-width="7" stroke-linecap="round"/>'+
+    '<circle cx="'+a.x+'" cy="'+a.y+'" r="7" fill="#ffe14c" stroke="#1a2b3c" stroke-width="2"/>'+
+    '<circle cx="'+z.x+'" cy="'+z.y+'" r="7" fill="#9ef2cf" stroke="#1a2b3c" stroke-width="2"/>';
+}
 function renderOverlay(){if(!state.overlay)return;var p=currentPart(),html="";if(p)(p.bones||[]).forEach(function(b){html+=boneLineMarkup(b);});if(state.drag){var a=viewportPoint(state.drag.head.x,state.drag.head.y),z=viewportPoint(state.drag.tail.x,state.drag.tail.y);html+='<line x1="'+a.x+'" y1="'+a.y+'" x2="'+z.x+'" y2="'+z.y+'" stroke="#ffe14c" stroke-width="5" stroke-dasharray="8 5"/>';}state.overlay.innerHTML=html;}
 function installBoneCapture(){
   var d=window.parent.document;if(d.__dbNativeBoneCapture)return;d.__dbNativeBoneCapture=true;
   d.addEventListener("pointerdown",function(ev){
+    if(state.tab==="bones"&&!state.addingBone&&beginEnvelopeDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
     if(state.tab==="animate"&&!state.addingBone&&beginAnimateDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
     if(!state.addingBone||!state.currentUUID)return;
     var c=findStageCanvas();if(!c)return;var r=c.getBoundingClientRect();
@@ -431,10 +502,12 @@ function installBoneCapture(){
     var p=stagePoint(ev.clientX,ev.clientY);state.drag={head:p,tail:p};ev.preventDefault();ev.stopPropagation();
   },true);
   d.addEventListener("pointermove",function(ev){
+    if(state.animDrag&&state.animDrag.envelope){moveEnvelopeDrag(ev);ev.preventDefault();ev.stopPropagation();return;}
     if(state.animDrag){moveAnimateDrag(ev);ev.preventDefault();ev.stopPropagation();return;}
     if(!state.drag)return;state.drag.tail=stagePoint(ev.clientX,ev.clientY);renderOverlay();ev.preventDefault();
   },true);
   d.addEventListener("pointerup",function(ev){
+    if(state.animDrag&&state.animDrag.envelope){endEnvelopeDrag();ev.preventDefault();ev.stopPropagation();return;}
     if(state.animDrag){endAnimateDrag();ev.preventDefault();ev.stopPropagation();return;}
     if(!state.drag)return;
     state.drag.tail=stagePoint(ev.clientX,ev.clientY);var p=currentPart();
@@ -443,7 +516,7 @@ function installBoneCapture(){
       if(Math.sqrt(dx*dx+dy*dy)>3){
         var id=1;(p.bones||[]).forEach(function(b){id=Math.max(id,Number(b.id||0)+1);});
         var o=currentObject(),m=objectStageMatrix(o);
-        p.bones.push({id:id,name:"Bone "+id,type:"normal",space:"object",head:inverseTransformPointByMatrix(m,state.drag.head),tail:inverseTransformPointByMatrix(m,state.drag.tail)});
+        var bh=inverseTransformPointByMatrix(m,state.drag.head),bt=inverseTransformPointByMatrix(m,state.drag.tail),bl=Math.hypot(bt.x-bh.x,bt.y-bh.y)||40,env=Math.max(18,bl*0.72);p.bones.push({id:id,name:"Bone "+id,type:"normal",space:"object",head:bh,tail:bt,envStart:env,envEnd:env,radius:env,strength:1});
         captureNativeSource(p,o);syncBoneRows();writeRegistry();
       }
     }
