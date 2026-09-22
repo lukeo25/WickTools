@@ -165,7 +165,11 @@ function captureNativeSource(part,o){
     frames.forEach(function(f){
       if(!f)return;
       var fs={start:frameStartValue(f),end:frameEndValue(f),identifier:String(f.identifier||""),paths:[]};
-      framePaths(f).forEach(function(p){fs.paths.push({identifier:String(p.identifier||""),name:String(p.name||""),json:cloneData(p.json)});});
+      framePaths(f).forEach(function(p){
+        var pj=p.json;
+        if(typeof pj==="string"){try{pj=JSON.parse(pj);}catch(eParse){}}
+        fs.paths.push({identifier:String(p.identifier||""),name:String(p.name||""),json:cloneData(pj)});
+      });
       if(fs.paths.length){ls.frames.push(fs);source.frameCount=Math.max(source.frameCount,fs.end);}
     });
     source.layers.push(ls);
@@ -264,7 +268,9 @@ function transformSegmentNative(seg,part,pose){
   return cloneData(seg);
 }
 function deformPaperJson(json,part,pose){
-  var out=cloneData(json);
+  var src=json;
+  if(typeof src==="string"){try{src=JSON.parse(src);}catch(eParse){}}
+  var out=cloneData(src);
   function walk(node){
     if(!node)return;
     if(Array.isArray(node)){for(var i=0;i<node.length;i++)walk(node[i]);return;}
@@ -282,8 +288,14 @@ function ensureInternalLayer(o,index,src){
   return layer;
 }
 function makeNativePath(rec,json){
-  var p=null;try{p=new state.Wick.Path({json:cloneData(json)});}catch(e){try{p=new state.Wick.Path();p.json=cloneData(json);}catch(x){}}
-  if(!p)return null;try{p.identifier=rec.identifier||p.identifier;}catch(e){}try{p.name=rec.name||p.name;}catch(e){}return p;
+  var j=cloneData(json),p=null;
+  try{p=new state.Wick.Path({json:j});}
+  catch(e){try{p=new state.Wick.Path(j);}catch(e2){try{p=new state.Wick.Path();p.json=j;}catch(x){}}}
+  if(!p)return null;
+  try{if(p.updateJSON)p.updateJSON();}catch(eUpdate){}
+  try{p.identifier=rec.identifier||p.identifier;}catch(e){}
+  try{p.name=rec.name||p.name;}catch(e){}
+  return p;
 }
 function rebuildNativeOutput(part,o,transientPose,transientFrame){
   if(!part||!o||!o.timeline||state.baking)return false;
@@ -479,13 +491,29 @@ function endAnimateDrag(){
 function playhead(){refresh();try{var tl=state.project&&state.project.activeTimeline;if(tl)return Math.max(1,Math.round(Number(tl.playheadPosition||1)));}catch(e){}try{return Math.max(1,Math.round(Number(state.project.currentFrameNumber||1)));}catch(e){return 1;}}
 function currentPart(){return state.currentUUID?state.registry.parts[state.currentUUID]||null:null;}
 function ensurePartForObject(o){var id=uuid(o);if(!id)throw new Error("Selected Wick object has no UUID.");var p=state.registry.parts[id];if(!p){p={uuid:id,name:objectName(o),kind:isGizmo(o)?"gizmo":"part",inCharacter:false,bones:[],boneKeys:{},createdAt:new Date().toISOString()};state.registry.parts[id]=p;}p.name=objectName(o);p.kind=isGizmo(o)?"gizmo":"part";return p;}
-function useObject(o){if(!o)throw new Error("No Wick item selected.");var p=ensurePartForObject(o);state.current=o;state.currentUUID=p.uuid;ensureBoneObjectSpace(p,o);writeRegistry();if(state.tab==="bones")enterAddBoneMode();renderAll();status("Using native Wick item: "+p.name+". Its Wick exposure has not been changed.");return p;}
+function repairSharedJointParents(part){
+  if(!part||!part.bones)return false;
+  var changed=false;
+  (part.bones||[]).forEach(function(child){
+    if(child.parentId)return;
+    var best=null;
+    (part.bones||[]).forEach(function(parent){
+      if(parent===child)return;
+      var d=pointDistance(child.head,parent.tail);
+      if(d<=1.5&&(!best||d<best.d))best={id:parent.id,d:d};
+    });
+    if(best){child.parentId=best.id;changed=true;}
+  });
+  return changed;
+}
+function useObject(o){if(!o)throw new Error("No Wick item selected.");var p=ensurePartForObject(o);state.current=o;state.currentUUID=p.uuid;ensureBoneObjectSpace(p,o);repairSharedJointParents(p);writeRegistry();if(state.tab==="bones")enterAddBoneMode();renderAll();status("Using native Wick item: "+p.name+". Its Wick exposure has not been changed.");return p;}
 function useSelected(){var a=selectedObjects();if(a.length!==1){status("Select exactly one Wick item on the stage.",true);return;}try{useObject(a[0]);}catch(e){status(e.message||String(e),true);}}
 function status(msg,bad){$("status").textContent=msg;$("status").style.color=bad?"#ffb1ba":"#84efc3";}
 function shouldShowBoneOverlay(){var p=currentPart();return !!(p&&(p.bones||[]).length&&(state.tab==="bones"||state.tab==="animate"||state.tab==="character"||state.addingBone));}
 function syncBoneOverlayVisibility(){if(shouldShowBoneOverlay())showOverlay();else hideOverlay();}
 function ensureDeformationReady(){
   var p=currentPart(),o=currentObject();if(!p||!o||!(p.bones||[]).length)return false;
+  repairSharedJointParents(p);
   captureNativeSource(p,o);
   var e=exposure(o);
   if(!p.deformationEnabled||!e||Number(p.lastBakedLength||0)!==Number(e.length||0))rebuildNativeOutput(p,o);
@@ -653,30 +681,43 @@ function installBoneCapture(){
     var canvas=findStageCanvas();if(!canvas)return;var r=canvas.getBoundingClientRect();
     if(ev.clientX<r.left||ev.clientX>r.right||ev.clientY<r.top||ev.clientY>r.bottom)return;
 
-    var existing=localBoneAtClient(ev.clientX,ev.clientY);
     var sp=stagePoint(ev.clientX,ev.clientY),part=currentPart(),o=currentObject(),m=objectStageMatrix(o),lp=inverseTransformPointByMatrix(m,sp);
+    var tailSnap=nearestTailForLocal(part,lp,18);
 
-    if(existing){
-      state.selectedBoneId=existing.bone.id;
-      // Match original DemBones add mode: clicking an existing bone selects it,
-      // but dragging away from that click immediately previews/creates the next bone.
+    // DemBones connection rule: if creation STARTS at an existing tail, that joint is shared.
+    // This applies to Normal, Stretchy and Chain bones. Starting elsewhere stays independent.
+    if(tailSnap){
+      lp={x:tailSnap.point.x,y:tailSnap.point.y};
+      sp=bonePointToStage(lp,o);
+      state.selectedBoneId=tailSnap.bone.id;
       state.drag={
         head:sp,tail:sp,
         localHead:{x:lp.x,y:lp.y},
         localTail:{x:lp.x,y:lp.y},
-        parentId:(state.newBoneType==="chain"?existing.bone.id:null),
+        parentId:tailSnap.bone.id,
         maybeExisting:true,
-        sourceBoneId:existing.bone.id
+        sourceBoneId:tailSnap.bone.id
       };
-      status(existing.bone.name+" selected. Drag away to create another "+String(state.newBoneType||"normal")+" bone; click without dragging only selects.");
+      status("Shared joint: drag from "+tailSnap.bone.name+" tail to create the next bone.");
       renderAll();ev.preventDefault();ev.stopPropagation();return;
     }
 
-    if(state.newBoneType==="chain"){
-      var snap=nearestTailForLocal(part,lp,18);
-      if(snap){lp={x:snap.point.x,y:snap.point.y};sp=bonePointToStage(lp,o);state.drag={head:sp,tail:sp,localHead:{x:lp.x,y:lp.y},localTail:{x:lp.x,y:lp.y},parentId:snap.bone.id};}
-      else state.drag={head:sp,tail:sp,localHead:{x:lp.x,y:lp.y},localTail:{x:lp.x,y:lp.y},parentId:null};
-    }else state.drag={head:sp,tail:sp,localHead:{x:lp.x,y:lp.y},localTail:{x:lp.x,y:lp.y},parentId:null};
+    var existing=localBoneAtClient(ev.clientX,ev.clientY);
+    if(existing){
+      state.selectedBoneId=existing.bone.id;
+      state.drag={
+        head:sp,tail:sp,
+        localHead:{x:lp.x,y:lp.y},
+        localTail:{x:lp.x,y:lp.y},
+        parentId:null,
+        maybeExisting:true,
+        sourceBoneId:existing.bone.id
+      };
+      status(existing.bone.name+" selected. Drag away to create an independent "+String(state.newBoneType||"normal")+" bone.");
+      renderAll();ev.preventDefault();ev.stopPropagation();return;
+    }
+
+    state.drag={head:sp,tail:sp,localHead:{x:lp.x,y:lp.y},localTail:{x:lp.x,y:lp.y},parentId:null};
     ev.preventDefault();ev.stopPropagation();
   },true);
 
@@ -697,7 +738,7 @@ function installBoneCapture(){
     if(part&&Math.hypot(dx,dy)>=8){
       var id=1;(part.bones||[]).forEach(function(b){id=Math.max(id,Number(b.id||0)+1);});
       var bh={x:state.drag.localHead.x,y:state.drag.localHead.y},bt={x:state.drag.localTail.x,y:state.drag.localTail.y},env=32,type=String(state.newBoneType||"normal");
-      var bone={id:id,name:"Bone "+id,type:type,space:"object",head:bh,tail:bt,restLength:Math.max(1,pointDistance(bh,bt)),envStart:env,envEnd:env,radius:env,strength:1,parentId:type==="chain"?(state.drag.parentId||null):null};
+      var bone={id:id,name:"Bone "+id,type:type,space:"object",head:bh,tail:bt,restLength:Math.max(1,pointDistance(bh,bt)),envStart:env,envEnd:env,radius:env,strength:1,parentId:(state.drag.parentId||null)};
       part.bones.push(bone);state.selectedBoneId=id;
       captureNativeSource(part,o);syncBoneRows();writeRegistry();
       status(bone.name+" created exactly where drawn. "+(bone.parentId?"Connected as Chain. ":"")+"Green bone cursor = add. Blue bone cursor = edit/select.");
