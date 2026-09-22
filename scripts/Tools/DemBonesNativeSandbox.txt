@@ -43,9 +43,18 @@ button{border:1px solid #527398;background:#20344c;color:#edf6ff;border-radius:8
   <div class="page" data-page="bones">
     <div class="card native">
       <h3>Bones</h3>
-      <div class="row"><button id="addBone" class="primary">Add Bone</button><button id="autoSizeBones">Auto Size</button><button id="clearBones" class="danger">Clear All</button></div>
+      <div class="row">
+        <select id="boneType" style="flex:1;min-width:120px;background:#0e151e;color:#edf6ff;border:1px solid #527398;border-radius:8px;padding:9px 10px">
+          <option value="normal">Normal</option>
+          <option value="stretchy">Stretchy</option>
+          <option value="chain">Chain</option>
+          <option value="dummy">Dummy</option>
+        </select>
+        <button id="addBone" class="primary">Add Bone</button>
+      </div>
+      <div class="row"><button id="autoSizeBones">Auto Size</button><button id="clearBones" class="danger">Clear All</button></div>
       <div class="row"><button id="addCharacter" class="good">Add To Character</button></div>
-      <div class="small">Drag directly across the Wick stage to create a bone. Bone metadata is stored in the Wick project registry; the native Part remains untouched.</div>
+      <div class="small">Bones tab = Add Bone mode. Crosshair means drag to create. Normal and Stretchy bones are independent. Chain bones connect only when you start near an existing tail. Dummy bones do not deform artwork.</div>
       <div id="boneList"></div>
     </div>
   </div>
@@ -80,7 +89,7 @@ button{border:1px solid #527398;background:#20344c;color:#edf6ff;border-radius:8
 
 var MARKER_BEGIN="/*DBNATIVE_REGISTRY:";
 var MARKER_RE=/\/\*DBNATIVE_REGISTRY:([A-Za-z0-9+/=]+)\*\//g;
-var state={B:null,ed:null,project:null,Wick:null,paper:null,current:null,currentUUID:"",registry:{version:1,characterId:"character_1",parts:{}},overlay:null,addingBone:false,drag:null,animDrag:null,tab:"part",timer:null,baking:false};
+var state={B:null,ed:null,project:null,Wick:null,paper:null,current:null,currentUUID:"",registry:{version:1,characterId:"character_1",parts:{}},overlay:null,modeBadge:null,addingBone:false,drag:null,animDrag:null,tab:"part",timer:null,baking:false,newBoneType:"normal",selectedBoneId:null};
 
 function $(id){return document.getElementById(id);}
 function bridge(){try{return window.LukeToolsBridge||(window.parent&&window.parent.LukeToolsBridge)||(window.top&&window.top.LukeToolsBridge)||null;}catch(e){return null;}}
@@ -191,15 +200,15 @@ function lerpPoint(a,b,t){return {x:Number(a.x||0)+(Number(b.x||0)-Number(a.x||0
 function poseForFrame(part,fr){
   var rest=poseMapFromKey(part,null),keys=Object.keys(part.boneKeys||{}).map(Number).filter(function(n){return isFinite(n);}).sort(function(a,b){return a-b;});
   if(!keys.length)return rest;
-  var exact=part.boneKeys[String(fr)];if(exact)return poseMapFromKey(part,exact);
+  var exact=part.boneKeys[String(fr)];if(exact)return enforcePoseConnections(part,poseMapFromKey(part,exact));
   var e=exposure(currentObject()),prev=e?e.start:1,next=null;
   var prevKey=null,nextKey=null;
   keys.forEach(function(k){if(k<fr&&k>=prev){prev=k;prevKey=part.boneKeys[String(k)];}if(k>fr&&next==null){next=k;nextKey=part.boneKeys[String(k)];}});
   var a=prevKey?poseMapFromKey(part,prevKey):rest;
-  if(next==null)return a;
+  if(next==null)return enforcePoseConnections(part,a);
   var b=poseMapFromKey(part,nextKey),den=Math.max(1,next-prev),t=Math.max(0,Math.min(1,(fr-prev)/den)),out={};
   (part.bones||[]).forEach(function(bone){var id=String(bone.id),pa=a[id]||{head:bone.head,tail:bone.tail},pb=b[id]||pa;out[id]={head:lerpPoint(pa.head,pb.head,t),tail:lerpPoint(pa.tail,pb.tail,t)};});
-  return out;
+  return enforcePoseConnections(part,out);
 }
 function keyFromPoseMap(part,map){return (part.bones||[]).map(function(b){var p=map[String(b.id)]||{head:b.head,tail:b.tail};return {id:b.id,head:cloneData(p.head),tail:cloneData(p.tail)};});}
 function pointSegmentInfo(p,a,b){
@@ -217,14 +226,16 @@ function boneRadius(b,t){
 function skinPointNative(p,part,pose){
   var sumW=0,sumX=0,sumY=0;
   (part.bones||[]).forEach(function(b){
+    if(String(b.type||"normal")==="dummy")return;
     var rest={head:b.head,tail:b.tail},cur=pose[String(b.id)]||rest,info=pointSegmentInfo(p,rest.head,rest.tail),radius=boneRadius(b,info.t);
     if(info.d>radius)return;
-    var w=1-(info.d/radius);w=w*w;
+    var w=1-(info.d/radius);w=w*w*Math.max(0,Number(b.strength==null?1:b.strength));
     var rdx=rest.tail.x-rest.head.x,rdy=rest.tail.y-rest.head.y,cdx=cur.tail.x-cur.head.x,cdy=cur.tail.y-cur.head.y;
     var rlen=Math.sqrt(rdx*rdx+rdy*rdy)||0.0001,clen=Math.sqrt(cdx*cdx+cdy*cdy)||0.0001;
     var rux=rdx/rlen,ruy=rdy/rlen,cux=cdx/clen,cuy=cdy/clen,rpx=-ruy,rpy=rux,cpx=-cuy,cpy=cux;
     var relx=p.x-rest.head.x,rely=p.y-rest.head.y,u=relx*rux+rely*ruy,v=relx*rpx+rely*rpy;
-    var tx=cur.head.x+cux*u+cpx*v,ty=cur.head.y+cuy*u+cpy*v;
+    var scaleU=String(b.type||"normal")==="stretchy"?(clen/rlen):1;
+    var tx=cur.head.x+cux*u*scaleU+cpx*v,ty=cur.head.y+cuy*u*scaleU+cpy*v;
     sumX+=tx*w;sumY+=ty*w;sumW+=w;
   });
   if(sumW<=0.00001)return {x:p.x,y:p.y};
@@ -404,13 +415,30 @@ function findAnimateBoneHit(clientX,clientY){
   });
   return best;
 }
+function enforcePoseConnections(part,pose){
+  var byId={};(part.bones||[]).forEach(function(b){byId[String(b.id)]=b;});
+  var guard=0,changed=true;
+  while(changed&&guard++<20){
+    changed=false;
+    (part.bones||[]).forEach(function(b){
+      if(!b.parentId)return;
+      var parent=pose[String(b.parentId)],child=pose[String(b.id)];
+      if(!parent||!child)return;
+      var dx=parent.tail.x-child.head.x,dy=parent.tail.y-child.head.y;
+      if(Math.abs(dx)>0.0001||Math.abs(dy)>0.0001){
+        child.head.x+=dx;child.head.y+=dy;child.tail.x+=dx;child.tail.y+=dy;changed=true;
+      }
+    });
+  }
+  return pose;
+}
 function beginAnimateDrag(ev){
   if(state.tab!=="animate"||state.addingBone||!currentPart())return false;
   var hit=findAnimateBoneHit(ev.clientX,ev.clientY);if(!hit)return false;
   ensureDeformationReady();
   var part=currentPart(),o=currentObject(),fr=playhead(),pose=poseForFrame(part,fr),m=objectStageMatrix(o);
   var local=inverseTransformPointByMatrix(m,stagePoint(ev.clientX,ev.clientY));
-  state.animDrag={boneId:hit.bone.id,type:hit.type,frame:fr,start:local,pose:cloneData(pose),startPose:cloneData(pose)};
+  state.animDrag={boneId:hit.bone.id,type:hit.type,frame:fr,start:local,pose:cloneData(pose),startPose:cloneData(pose),boneType:String(hit.bone.type||"normal"),restLength:Number(hit.bone.restLength||pointDistance(hit.bone.head,hit.bone.tail)||1)};
   status("Animating "+hit.bone.name+" on Wick frame "+fr+". Release to set the key.");
   renderOverlay();
   return true;
@@ -419,12 +447,17 @@ function moveAnimateDrag(ev){
   var d=state.animDrag;if(!d)return false;
   var part=currentPart(),o=currentObject(),m=objectStageMatrix(o),local=inverseTransformPointByMatrix(m,stagePoint(ev.clientX,ev.clientY));
   var pb=d.pose[String(d.boneId)],sb=d.startPose[String(d.boneId)];if(!pb||!sb)return false;
-  if(d.type==="head")pb.head={x:local.x,y:local.y};
-  else if(d.type==="tail")pb.tail={x:local.x,y:local.y};
-  else{
-    var dx=local.x-d.start.x,dy=local.y-d.start.y;
+  var dx=local.x-d.start.x,dy=local.y-d.start.y;
+  if(d.type==="head"||d.type==="line"){
     pb.head={x:sb.head.x+dx,y:sb.head.y+dy};pb.tail={x:sb.tail.x+dx,y:sb.tail.y+dy};
+  }else if(d.type==="tail"){
+    if(d.boneType==="stretchy")pb.tail={x:local.x,y:local.y};
+    else{
+      var vx=local.x-pb.head.x,vy=local.y-pb.head.y,len=Math.hypot(vx,vy)||1,L=Math.max(1,d.restLength||1);
+      pb.tail={x:pb.head.x+vx/len*L,y:pb.head.y+vy/len*L};
+    }
   }
+  enforcePoseConnections(part,d.pose);
   updateCurrentNativePose(part,o,d.pose,d.frame);
   renderOverlay();
   return true;
@@ -471,36 +504,63 @@ function switchTab(name){
   renderAll();syncBoneOverlayVisibility();
 }
 function findStageCanvas(){try{var list=Array.prototype.slice.call(window.parent.document.querySelectorAll("canvas"));var best=null,area=0;list.forEach(function(c){var r=c.getBoundingClientRect(),a=r.width*r.height;if(a>area&&r.width>200&&r.height>150){best=c;area=a;}});return best;}catch(e){return null;}}
+function ensureBoneModeBadge(){
+  try{
+    if(state.modeBadge&&state.modeBadge.parentNode)return state.modeBadge;
+    var d=window.parent.document,b=d.createElement("div");
+    b.setAttribute("data-dbnative-bone-mode","1");
+    b.style.cssText="position:fixed;z-index:2147483001;pointer-events:none;padding:6px 9px;border-radius:6px;background:rgba(16,32,51,.94);border:1px solid #3aa7ff;color:#dff4ff;font:bold 11px Arial;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35);display:none";
+    b.textContent="ADD BONE · DRAG";
+    (d.body||d.documentElement).appendChild(b);
+    state.modeBadge=b;return b;
+  }catch(e){return null;}
+}
+function positionBoneModeBadge(){
+  var b=ensureBoneModeBadge(),canvas=findStageCanvas();if(!b||!canvas)return;
+  var r=canvas.getBoundingClientRect();b.style.left=Math.round(r.left+10)+"px";b.style.top=Math.round(r.top+10)+"px";
+}
 function setBoneCreationCursor(active){
   try{
-    var d=window.parent.document,c=findStageCanvas();
+    var d=window.parent.document,canvas=findStageCanvas(),badge=ensureBoneModeBadge();
     if(active){
-      if(c){
-        if(c.getAttribute("data-dbnative-old-cursor")==null)c.setAttribute("data-dbnative-old-cursor",c.style.cursor||"");
-        c.style.cursor="crosshair";
+      if(canvas){
+        if(canvas.getAttribute("data-dbnative-old-cursor")==null)canvas.setAttribute("data-dbnative-old-cursor",canvas.style.cursor||"");
+        canvas.style.cursor="crosshair";
       }
+      positionBoneModeBadge();if(badge)badge.style.display="block";
       if(d&&d.documentElement)d.documentElement.classList.add("dbnative-add-bone-mode");
     }else{
-      if(c){
-        var old=c.getAttribute("data-dbnative-old-cursor");
-        if(old!=null){c.style.cursor=old;c.removeAttribute("data-dbnative-old-cursor");}
-        else c.style.cursor="";
+      if(canvas){
+        var old=canvas.getAttribute("data-dbnative-old-cursor");
+        if(old!=null){canvas.style.cursor=old;canvas.removeAttribute("data-dbnative-old-cursor");}else canvas.style.cursor="";
       }
+      if(badge)badge.style.display="none";
       if(d&&d.documentElement)d.documentElement.classList.remove("dbnative-add-bone-mode");
     }
   }catch(e){}
 }
 function enterAddBoneMode(){
   if(!currentPart()){state.addingBone=false;setBoneCreationCursor(false);status("Choose a Part first.",true);return false;}
-  state.addingBone=true;
-  showOverlay();
-  setBoneCreationCursor(true);
-  status("Add Bone mode: drag across the Wick artwork to create a bone.");
+  state.addingBone=true;showOverlay();setBoneCreationCursor(true);
+  status("ADD BONE mode — drag on the Wick artwork. "+String(state.newBoneType||"normal").toUpperCase()+" bone.");
   return true;
 }
-function leaveAddBoneMode(){
-  state.addingBone=false;
-  setBoneCreationCursor(false);
+function leaveAddBoneMode(){state.addingBone=false;state.drag=null;setBoneCreationCursor(false);}
+function pointDistance(a,b){return Math.hypot(Number(a.x||0)-Number(b.x||0),Number(a.y||0)-Number(b.y||0));}
+function localBoneAtClient(clientX,clientY){
+  var part=currentPart(),o=currentObject();if(!part||!o)return null,best=null,pose=poseForFrame(part,playhead());
+  (part.bones||[]).forEach(function(b){
+    var pb=pose[String(b.id)]||{head:b.head,tail:b.tail};
+    var hs=viewportPoint(bonePointToStage(pb.head,o).x,bonePointToStage(pb.head,o).y);
+    var ts=viewportPoint(bonePointToStage(pb.tail,o).x,bonePointToStage(pb.tail,o).y);
+    var dl=viewportDistancePointToSegment(clientX,clientY,hs,ts),dh=Math.hypot(clientX-hs.x,clientY-hs.y),dt=Math.hypot(clientX-ts.x,clientY-ts.y);
+    var d=Math.min(dl,dh,dt);if(d<=10&&(!best||d<best.distance))best={bone:b,distance:d};
+  });
+  return best;
+}
+function nearestTailForLocal(part,p,maxD){
+  var best=null;(part&&part.bones||[]).forEach(function(b){var d=pointDistance(p,b.tail);if(d<=maxD&&(!best||d<best.distance))best={bone:b,point:b.tail,distance:d};});
+  return best;
 }
 function stagePoint(clientX,clientY){refresh();try{var view=state.project&&state.project.view&&state.project.view.paper&&state.project.view.paper.view;var rect=view&&view.element&&view.element.getBoundingClientRect();if(view&&rect&&view.viewToProject){var pp=view.viewToProject(new state.paper.Point(clientX-rect.left,clientY-rect.top));return {x:Number(pp.x),y:Number(pp.y)};}}catch(e){}var c=findStageCanvas();if(!c)return {x:0,y:0};var r=c.getBoundingClientRect(),w=Number(state.project.width||720),h=Number(state.project.height||480);return {x:(clientX-r.left)/r.width*w,y:(clientY-r.top)/r.height*h};}
 function viewportPoint(x,y){refresh();try{var view=state.project&&state.project.view&&state.project.view.paper&&state.project.view.paper.view;var rect=view&&view.element&&view.element.getBoundingClientRect();if(view&&rect&&view.projectToView){var vp=view.projectToView(new state.paper.Point(x,y));return {x:rect.left+vp.x,y:rect.top+vp.y};}}catch(e){}var c=findStageCanvas();if(!c)return {x:0,y:0};var r=c.getBoundingClientRect(),w=Number(state.project.width||720),h=Number(state.project.height||480);return {x:r.left+x/w*r.width,y:r.top+y/h*r.height};}
@@ -534,37 +594,71 @@ function boneLineMarkup(b){
     '<circle cx="'+a.x+'" cy="'+a.y+'" r="6" fill="#ffff00" stroke="#fff" stroke-width="2"/>'+
     '<circle cx="'+z.x+'" cy="'+z.y+'" r="6" fill="#ffb000" stroke="#fff" stroke-width="2"/>';
 }
-function renderOverlay(){if(!state.overlay)return;var p=currentPart(),html="";if(p)(p.bones||[]).forEach(function(b){html+=boneLineMarkup(b);});if(state.drag){var a=viewportPoint(state.drag.head.x,state.drag.head.y),z=viewportPoint(state.drag.tail.x,state.drag.tail.y);html+='<line x1="'+a.x+'" y1="'+a.y+'" x2="'+z.x+'" y2="'+z.y+'" stroke="#ffe14c" stroke-width="5" stroke-dasharray="8 5"/>';}state.overlay.innerHTML=html;}
+function renderOverlay(){if(!state.overlay)return;var p=currentPart(),html="";if(p)(p.bones||[]).forEach(function(b){html+=boneLineMarkup(b);});if(state.drag){
+  var a=viewportPoint(state.drag.head.x,state.drag.head.y),z=viewportPoint(state.drag.tail.x,state.drag.tail.y);
+  html+='<line x1="'+a.x+'" y1="'+a.y+'" x2="'+z.x+'" y2="'+z.y+'" stroke="rgba(0,0,0,.78)" stroke-width="4" stroke-linecap="round"/>'+
+    '<line x1="'+a.x+'" y1="'+a.y+'" x2="'+z.x+'" y2="'+z.y+'" stroke="#38d6ff" stroke-width="2.5" stroke-linecap="round"/>'+
+    '<circle cx="'+a.x+'" cy="'+a.y+'" r="6" fill="#ffff00" stroke="#fff" stroke-width="2"/>'+
+    '<circle cx="'+z.x+'" cy="'+z.y+'" r="6" fill="#ffb000" stroke="#fff" stroke-width="2"/>';
+}state.overlay.innerHTML=html;}
 function installBoneCapture(){
   var d=window.parent.document;if(d.__dbNativeBoneCapture)return;d.__dbNativeBoneCapture=true;
   d.addEventListener("pointerdown",function(ev){
     if(state.tab==="bones"&&beginEnvelopeDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
     if(state.tab==="animate"&&!state.addingBone&&beginAnimateDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
     if(!state.addingBone||!state.currentUUID)return;
-    var c=findStageCanvas();if(!c)return;var r=c.getBoundingClientRect();
+    var canvas=findStageCanvas();if(!canvas)return;var r=canvas.getBoundingClientRect();
     if(ev.clientX<r.left||ev.clientX>r.right||ev.clientY<r.top||ev.clientY>r.bottom)return;
-    var p=stagePoint(ev.clientX,ev.clientY);state.drag={head:p,tail:p};ev.preventDefault();ev.stopPropagation();
+
+    var existing=localBoneAtClient(ev.clientX,ev.clientY);
+    if(existing){
+      state.selectedBoneId=existing.bone.id;
+      status(existing.bone.name+" selected. Drag empty artwork to create another "+String(state.newBoneType||"normal")+" bone.");
+      renderAll();ev.preventDefault();ev.stopPropagation();return;
+    }
+
+    var sp=stagePoint(ev.clientX,ev.clientY),part=currentPart(),o=currentObject(),m=objectStageMatrix(o),lp=inverseTransformPointByMatrix(m,sp);
+    if(state.newBoneType==="chain"){
+      var snap=nearestTailForLocal(part,lp,18);
+      if(snap){lp={x:snap.point.x,y:snap.point.y};sp=bonePointToStage(lp,o);state.drag={head:sp,tail:sp,parentId:snap.bone.id};}
+      else state.drag={head:sp,tail:sp,parentId:null};
+    }else state.drag={head:sp,tail:sp,parentId:null};
+    ev.preventDefault();ev.stopPropagation();
   },true);
+
   d.addEventListener("pointermove",function(ev){
     if(state.animDrag&&state.animDrag.envelope){moveEnvelopeDrag(ev);ev.preventDefault();ev.stopPropagation();return;}
     if(state.animDrag){moveAnimateDrag(ev);ev.preventDefault();ev.stopPropagation();return;}
-    if(!state.drag)return;state.drag.tail=stagePoint(ev.clientX,ev.clientY);renderOverlay();ev.preventDefault();
+    if(!state.drag)return;
+    var p=stagePoint(ev.clientX,ev.clientY);
+    if(ev.shiftKey){
+      var dx=p.x-state.drag.head.x,dy=p.y-state.drag.head.y;
+      if(Math.abs(dx)>=Math.abs(dy))p.y=state.drag.head.y;else p.x=state.drag.head.x;
+    }
+    state.drag.tail=p;renderOverlay();ev.preventDefault();ev.stopPropagation();
   },true);
+
   d.addEventListener("pointerup",function(ev){
     if(state.animDrag&&state.animDrag.envelope){endEnvelopeDrag();ev.preventDefault();ev.stopPropagation();return;}
     if(state.animDrag){endAnimateDrag();ev.preventDefault();ev.stopPropagation();return;}
     if(!state.drag)return;
-    state.drag.tail=stagePoint(ev.clientX,ev.clientY);var p=currentPart();
-    if(p){
-      var dx=state.drag.tail.x-state.drag.head.x,dy=state.drag.tail.y-state.drag.head.y;
-      if(Math.sqrt(dx*dx+dy*dy)>3){
-        var id=1;(p.bones||[]).forEach(function(b){id=Math.max(id,Number(b.id||0)+1);});
-        var o=currentObject(),m=objectStageMatrix(o);
-        var bh=inverseTransformPointByMatrix(m,state.drag.head),bt=inverseTransformPointByMatrix(m,state.drag.tail),env=32;p.bones.push({id:id,name:"Bone "+id,type:"normal",space:"object",head:bh,tail:bt,envStart:env,envEnd:env,radius:env,strength:1});
-        captureNativeSource(p,o);syncBoneRows();writeRegistry();
-      }
+    var tailStage=stagePoint(ev.clientX,ev.clientY);
+    if(ev.shiftKey){
+      var ddx=tailStage.x-state.drag.head.x,ddy=tailStage.y-state.drag.head.y;
+      if(Math.abs(ddx)>=Math.abs(ddy))tailStage.y=state.drag.head.y;else tailStage.x=state.drag.head.x;
     }
-    state.drag=null;if(state.tab==="bones"&&currentPart()){state.addingBone=true;setBoneCreationCursor(true);}else leaveAddBoneMode();renderAll();status("Bone added. Add Bone mode remains active; drag again to add another bone.");ev.preventDefault();ev.stopPropagation();
+    state.drag.tail=tailStage;
+    var part=currentPart(),o=currentObject(),m=objectStageMatrix(o),dx=state.drag.tail.x-state.drag.head.x,dy=state.drag.tail.y-state.drag.head.y;
+    if(part&&Math.hypot(dx,dy)>=8){
+      var id=1;(part.bones||[]).forEach(function(b){id=Math.max(id,Number(b.id||0)+1);});
+      var bh=inverseTransformPointByMatrix(m,state.drag.head),bt=inverseTransformPointByMatrix(m,state.drag.tail),env=32,type=String(state.newBoneType||"normal");
+      var bone={id:id,name:"Bone "+id,type:type,space:"object",head:bh,tail:bt,restLength:Math.max(1,pointDistance(bh,bt)),envStart:env,envEnd:env,radius:env,strength:1,parentId:type==="chain"?(state.drag.parentId||null):null};
+      part.bones.push(bone);state.selectedBoneId=id;
+      captureNativeSource(part,o);syncBoneRows();writeRegistry();
+      status(bone.name+" created exactly where drawn. "+(bone.parentId?"Connected as Chain. ":"")+"ADD BONE remains active.");
+    }
+    state.drag=null;if(state.tab==="bones"&&currentPart()){state.addingBone=true;setBoneCreationCursor(true);}else leaveAddBoneMode();
+    renderAll();ev.preventDefault();ev.stopPropagation();
   },true);
 }
 function timelineForObject(o){var e=exposure(o);return e&&e.timeline?e.timeline:null;}
@@ -672,7 +766,7 @@ function installReceivers(){try{if(window.parent){window.parent.__LukeToolsDemBo
 function closeTool(){leaveAddBoneMode();hideOverlay();try{if(state.timer)clearInterval(state.timer);}catch(e){}try{var f=window.frameElement;if(f&&f.parentNode&&f.parentNode.parentNode){var host=f.parentNode.parentNode;var btn=host.querySelector&&host.querySelector("button[aria-label='Close'],button[title='Close']");if(btn){btn.click();return;}}}catch(e){}try{window.parent.postMessage({type:"LukeToolsToolClosed"},"*");}catch(e){}}
 
 Array.prototype.forEach.call(document.querySelectorAll(".tab"),function(b){b.addEventListener("click",function(){switchTab(b.getAttribute("data-tab"));});});
-$("useSelected").onclick=useSelected;$("drawPart").onclick=function(){openDrawing("part");};$("drawGizmo").onclick=function(){openDrawing("gizmo");};$("addBone").onclick=function(){enterAddBoneMode();};$("autoSizeBones").onclick=autoSizeAllEnvelopesNative;$("clearBones").onclick=clearBones;$("setBoneKey").onclick=setBoneKey;$("addCharacter").onclick=addCharacter;$("removeCharacter").onclick=removeCharacter;$("gizmoSingle").onclick=function(){setGizmoMode("single");};$("gizmoFollow").onclick=function(){setGizmoMode("sync");};$("gizmoLoop").onclick=function(){setGizmoMode("loop");};$("closeBtn").onclick=closeTool;
+$("useSelected").onclick=useSelected;$("drawPart").onclick=function(){openDrawing("part");};$("drawGizmo").onclick=function(){openDrawing("gizmo");};$("boneType").onchange=function(){state.newBoneType=this.value||"normal";if(state.tab==="bones")enterAddBoneMode();};$("addBone").onclick=function(){enterAddBoneMode();};$("autoSizeBones").onclick=autoSizeAllEnvelopesNative;$("clearBones").onclick=clearBones;$("setBoneKey").onclick=setBoneKey;$("addCharacter").onclick=addCharacter;$("removeCharacter").onclick=removeCharacter;$("gizmoSingle").onclick=function(){setGizmoMode("single");};$("gizmoFollow").onclick=function(){setGizmoMode("sync");};$("gizmoLoop").onclick=function(){setGizmoMode("loop");};$("closeBtn").onclick=closeTool;
 
 refresh();readRegistry();installReceivers();installBoneCapture();
 var sel=selectedObjects();if(sel.length===1){var id=uuid(sel[0]);if(state.registry.parts[id]){state.current=sel[0];state.currentUUID=id;}}
