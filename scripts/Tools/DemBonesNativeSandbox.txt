@@ -80,7 +80,7 @@ button{border:1px solid #527398;background:#20344c;color:#edf6ff;border-radius:8
 
 var MARKER_BEGIN="/*DBNATIVE_REGISTRY:";
 var MARKER_RE=/\/\*DBNATIVE_REGISTRY:([A-Za-z0-9+/=]+)\*\//g;
-var state={B:null,ed:null,project:null,Wick:null,paper:null,current:null,currentUUID:"",registry:{version:1,characterId:"character_1",parts:{}},overlay:null,addingBone:false,drag:null,tab:"part",timer:null};
+var state={B:null,ed:null,project:null,Wick:null,paper:null,current:null,currentUUID:"",registry:{version:1,characterId:"character_1",parts:{}},overlay:null,addingBone:false,drag:null,animDrag:null,tab:"part",timer:null,baking:false};
 
 function $(id){return document.getElementById(id);}
 function bridge(){try{return window.LukeToolsBridge||(window.parent&&window.parent.LukeToolsBridge)||(window.top&&window.top.LukeToolsBridge)||null;}catch(e){return null;}}
@@ -131,6 +131,177 @@ function ensureBoneObjectSpace(part,o){
 }
 function parentFrame(o){try{return o.parentFrame||((o.parent&&o.parent.classname==="Frame")?o.parent:null);}catch(e){return null;}}
 function exposure(o){var f=parentFrame(o);if(!f)return null;var start=1,end=1;try{start=Math.max(1,Math.round(Number(f.start||f.startFrame||1)));}catch(e){}try{end=Math.max(start,Math.round(Number(f.end||f.endFrame||start)));}catch(e){}return {start:start,end:end,length:end-start+1,frame:f,timeline:f.parentTimeline||null};}
+function cloneData(v){return v==null?v:JSON.parse(JSON.stringify(v));}
+function currentObject(){return state.current&&uuid(state.current)===state.currentUUID?state.current:resolve(state.currentUUID);}
+function frameStartValue(f){try{return Math.max(1,Math.round(Number(f.start||f.startFrame||1)));}catch(e){return 1;}}
+function frameEndValue(f){var s=frameStartValue(f);try{return Math.max(s,Math.round(Number(f.end||f.endFrame||s)));}catch(e){return s;}}
+function framePaths(f){
+  try{if(Array.isArray(f.paths))return f.paths.slice();}catch(e){}
+  try{return Array.prototype.slice.call(f._children||[]).filter(function(x){return x&&x.json;});}catch(e){}
+  return [];
+}
+function captureNativeSource(part,o){
+  if(!part||!o||!o.timeline)return null;
+  if(part.nativeSource&&part.nativeSource.version===1)return part.nativeSource;
+  var source={version:1,frameCount:1,animationType:"loop",isSynced:false,singleFrameNumber:1,layers:[]};
+  try{source.animationType=String(o.animationType||"loop");}catch(e){}
+  try{source.isSynced=!!o.isSynced;}catch(e){}
+  try{source.singleFrameNumber=Math.max(1,Math.round(Number(o.singleFrameNumber||1)));}catch(e){}
+  var layers=[];try{layers=Array.prototype.slice.call(o.timeline.layers||[]);}catch(e){}
+  layers.forEach(function(layer,li){
+    var ls={name:String(layer.name||("Layer "+(li+1))),identifier:String(layer.identifier||""),frames:[]};
+    var frames=[];try{frames=Array.prototype.slice.call(layer.frames||[]);}catch(e){}
+    frames.forEach(function(f){
+      if(!f)return;
+      var fs={start:frameStartValue(f),end:frameEndValue(f),identifier:String(f.identifier||""),paths:[]};
+      framePaths(f).forEach(function(p){fs.paths.push({identifier:String(p.identifier||""),name:String(p.name||""),json:cloneData(p.json)});});
+      if(fs.paths.length){ls.frames.push(fs);source.frameCount=Math.max(source.frameCount,fs.end);}
+    });
+    source.layers.push(ls);
+  });
+  part.nativeSource=source;
+  if(part.kind==="gizmo"&&!part.gizmoPlayback){
+    if(source.animationType==="single")part.gizmoPlayback="single";
+    else if(source.isSynced)part.gizmoPlayback="sync";
+    else part.gizmoPlayback="loop";
+  }
+  return source;
+}
+function sourceFrameAt(layer,n){
+  if(!layer||!layer.frames||!layer.frames.length)return null;
+  var exact=null,before=null;
+  layer.frames.forEach(function(f){if(n>=f.start&&n<=f.end)exact=f;if(f.start<=n&&(!before||f.start>before.start))before=f;});
+  return exact||before||layer.frames[0];
+}
+function sourceFrameNumber(part,source,local){
+  var count=Math.max(1,Number(source&&source.frameCount||1));
+  var mode=part&&part.kind==="gizmo"?(part.gizmoPlayback||"loop"):(source&&source.animationType||"loop");
+  if(mode==="single"||mode==="singleFrame")return Math.max(1,Math.min(count,Number(part&&part.gizmoSingleFrame||source.singleFrameNumber||1)));
+  if(mode==="playOnce")return Math.max(1,Math.min(count,local));
+  return ((Math.max(1,local)-1)%count)+1;
+}
+function poseMapFromKey(part,key){
+  var out={};(part.bones||[]).forEach(function(b){out[String(b.id)]={head:cloneData(b.head),tail:cloneData(b.tail)};});
+  (key||[]).forEach(function(k){if(k&&k.id!=null)out[String(k.id)]={head:cloneData(k.head),tail:cloneData(k.tail)};});
+  return out;
+}
+function lerpPoint(a,b,t){return {x:Number(a.x||0)+(Number(b.x||0)-Number(a.x||0))*t,y:Number(a.y||0)+(Number(b.y||0)-Number(a.y||0))*t};}
+function poseForFrame(part,fr){
+  var rest=poseMapFromKey(part,null),keys=Object.keys(part.boneKeys||{}).map(Number).filter(function(n){return isFinite(n);}).sort(function(a,b){return a-b;});
+  if(!keys.length)return rest;
+  var exact=part.boneKeys[String(fr)];if(exact)return poseMapFromKey(part,exact);
+  var e=exposure(currentObject()),prev=e?e.start:1,next=null;
+  var prevKey=null,nextKey=null;
+  keys.forEach(function(k){if(k<fr&&k>=prev){prev=k;prevKey=part.boneKeys[String(k)];}if(k>fr&&next==null){next=k;nextKey=part.boneKeys[String(k)];}});
+  var a=prevKey?poseMapFromKey(part,prevKey):rest;
+  if(next==null)return a;
+  var b=poseMapFromKey(part,nextKey),den=Math.max(1,next-prev),t=Math.max(0,Math.min(1,(fr-prev)/den)),out={};
+  (part.bones||[]).forEach(function(bone){var id=String(bone.id),pa=a[id]||{head:bone.head,tail:bone.tail},pb=b[id]||pa;out[id]={head:lerpPoint(pa.head,pb.head,t),tail:lerpPoint(pa.tail,pb.tail,t)};});
+  return out;
+}
+function keyFromPoseMap(part,map){return (part.bones||[]).map(function(b){var p=map[String(b.id)]||{head:b.head,tail:b.tail};return {id:b.id,head:cloneData(p.head),tail:cloneData(p.tail)};});}
+function pointSegmentInfo(p,a,b){
+  var vx=b.x-a.x,vy=b.y-a.y,wx=p.x-a.x,wy=p.y-a.y,den=vx*vx+vy*vy,t=den>0?(wx*vx+wy*vy)/den:0;
+  t=Math.max(0,Math.min(1,t));var q={x:a.x+vx*t,y:a.y+vy*t},dx=p.x-q.x,dy=p.y-q.y;return {t:t,d:Math.sqrt(dx*dx+dy*dy)};
+}
+function boneRadius(b){var dx=b.tail.x-b.head.x,dy=b.tail.y-b.head.y,len=Math.sqrt(dx*dx+dy*dy);return Math.max(18,Number(b.radius||0)||len*0.72);}
+function skinPointNative(p,part,pose){
+  var sumW=0,sumX=0,sumY=0;
+  (part.bones||[]).forEach(function(b){
+    var rest={head:b.head,tail:b.tail},cur=pose[String(b.id)]||rest,info=pointSegmentInfo(p,rest.head,rest.tail),radius=boneRadius(b);
+    if(info.d>radius)return;
+    var w=1-(info.d/radius);w=w*w;
+    var rdx=rest.tail.x-rest.head.x,rdy=rest.tail.y-rest.head.y,cdx=cur.tail.x-cur.head.x,cdy=cur.tail.y-cur.head.y;
+    var rlen=Math.sqrt(rdx*rdx+rdy*rdy)||0.0001,clen=Math.sqrt(cdx*cdx+cdy*cdy)||0.0001;
+    var rux=rdx/rlen,ruy=rdy/rlen,cux=cdx/clen,cuy=cdy/clen,rpx=-ruy,rpy=rux,cpx=-cuy,cpy=cux;
+    var relx=p.x-rest.head.x,rely=p.y-rest.head.y,u=relx*rux+rely*ruy,v=relx*rpx+rely*rpy;
+    var tx=cur.head.x+cux*u+cpx*v,ty=cur.head.y+cuy*u+cpy*v;
+    sumX+=tx*w;sumY+=ty*w;sumW+=w;
+  });
+  if(sumW<=0.00001)return {x:p.x,y:p.y};
+  return {x:sumX/sumW,y:sumY/sumW};
+}
+function pointFromAny(v){if(Array.isArray(v))return {x:Number(v[0]||0),y:Number(v[1]||0)};return {x:Number(v&&v.x||0),y:Number(v&&v.y||0)};}
+function pointToAny(sample,p){if(Array.isArray(sample))return [p.x,p.y];return {x:p.x,y:p.y};}
+function transformSegmentNative(seg,part,pose){
+  if(Array.isArray(seg)&&seg.length&&((Array.isArray(seg[0])&&seg[0].length>=2)||(seg[0]&&typeof seg[0]==="object"))){
+    var a0=pointFromAny(seg[0]),hIn=seg[1]?pointFromAny(seg[1]):{x:0,y:0},hOut=seg[2]?pointFromAny(seg[2]):{x:0,y:0};
+    var c1={x:a0.x+hIn.x,y:a0.y+hIn.y},c2={x:a0.x+hOut.x,y:a0.y+hOut.y};
+    var a1=skinPointNative(a0,part,pose),c11=skinPointNative(c1,part,pose),c21=skinPointNative(c2,part,pose),out=cloneData(seg);
+    out[0]=pointToAny(seg[0],a1);
+    if(seg[1])out[1]=pointToAny(seg[1],{x:c11.x-a1.x,y:c11.y-a1.y});
+    if(seg[2])out[2]=pointToAny(seg[2],{x:c21.x-a1.x,y:c21.y-a1.y});
+    return out;
+  }
+  if(seg&&typeof seg==="object"&&seg.point){
+    var a=pointFromAny(seg.point),hi=seg.handleIn?pointFromAny(seg.handleIn):{x:0,y:0},ho=seg.handleOut?pointFromAny(seg.handleOut):{x:0,y:0};
+    var cc1={x:a.x+hi.x,y:a.y+hi.y},cc2={x:a.x+ho.x,y:a.y+ho.y},na=skinPointNative(a,part,pose),n1=skinPointNative(cc1,part,pose),n2=skinPointNative(cc2,part,pose),o=cloneData(seg);
+    o.point=pointToAny(seg.point,na);
+    if(seg.handleIn)o.handleIn=pointToAny(seg.handleIn,{x:n1.x-na.x,y:n1.y-na.y});
+    if(seg.handleOut)o.handleOut=pointToAny(seg.handleOut,{x:n2.x-na.x,y:n2.y-na.y});
+    return o;
+  }
+  return cloneData(seg);
+}
+function deformPaperJson(json,part,pose){
+  var out=cloneData(json);
+  function walk(node){
+    if(!node)return;
+    if(Array.isArray(node)){for(var i=0;i<node.length;i++)walk(node[i]);return;}
+    if(typeof node!=="object")return;
+    if(Array.isArray(node.segments))node.segments=node.segments.map(function(s){return transformSegmentNative(s,part,pose);});
+    Object.keys(node).forEach(function(k){if(k!=="segments")walk(node[k]);});
+  }
+  walk(out);return out;
+}
+function removeLayerFrames(layer){var arr=[];try{arr=Array.prototype.slice.call(layer.frames||[]);}catch(e){}arr.forEach(function(f){try{if(layer.removeChild)layer.removeChild(f);else if(layer.removeFrame)layer.removeFrame(f);}catch(x){}});}
+function ensureInternalLayer(o,index,src){
+  var tl=o.timeline,layer=null;try{layer=tl.layers[index]||null;}catch(e){}
+  if(!layer){try{layer=new state.Wick.Layer({name:src&&src.name||("Layer "+(index+1)),identifier:src&&src.identifier||""});tl.addLayer(layer);}catch(e){return null;}}
+  try{layer.name=src&&src.name||layer.name;}catch(e){}
+  return layer;
+}
+function makeNativePath(rec,json){
+  var p=null;try{p=new state.Wick.Path({json:cloneData(json)});}catch(e){try{p=new state.Wick.Path();p.json=cloneData(json);}catch(x){}}
+  if(!p)return null;try{p.identifier=rec.identifier||p.identifier;}catch(e){}try{p.name=rec.name||p.name;}catch(e){}return p;
+}
+function rebuildNativeOutput(part,o,transientPose,transientFrame){
+  if(!part||!o||!o.timeline||state.baking)return false;
+  var source=captureNativeSource(part,o),e=exposure(o);if(!source||!e)return false;
+  state.baking=true;
+  try{
+    source.layers.forEach(function(srcLayer,li){
+      var layer=ensureInternalLayer(o,li,srcLayer);if(!layer)return;removeLayerFrames(layer);
+      for(var local=1;local<=e.length;local++){
+        var abs=e.start+local-1,srcN=sourceFrameNumber(part,source,local),srcF=sourceFrameAt(srcLayer,srcN);if(!srcF)continue;
+        var pose=(transientPose&&abs===transientFrame)?transientPose:poseForFrame(part,abs),wf=new state.Wick.Frame({start:local,end:local});
+        try{wf.identifier=srcF.identifier||"";}catch(x){}
+        (srcF.paths||[]).forEach(function(rec){var p=makeNativePath(rec,deformPaperJson(rec.json,part,pose));if(p&&wf.addPath)wf.addPath(p);});
+        try{layer.addFrame(wf);}catch(x){}
+      }
+    });
+    try{o.animationType="playOnce";o.isSynced=true;o.timeline.playheadPosition=Math.max(1,Math.min(e.length,playhead()-e.start+1));}catch(x){}
+    part.deformationEnabled=true;part.lastBakedLength=e.length;
+    dirty("DemBones native deformation");
+    return true;
+  }finally{state.baking=false;}
+}
+function restoreNativeSource(part,o){
+  var source=part&&part.nativeSource;if(!source||!o||!o.timeline)return;
+  source.layers.forEach(function(srcLayer,li){
+    var layer=ensureInternalLayer(o,li,srcLayer);if(!layer)return;removeLayerFrames(layer);
+    (srcLayer.frames||[]).forEach(function(srcF){
+      var wf=new state.Wick.Frame({start:srcF.start,end:srcF.end});
+      try{wf.identifier=srcF.identifier||"";}catch(e){}
+      (srcF.paths||[]).forEach(function(rec){var p=makeNativePath(rec,rec.json);if(p&&wf.addPath)wf.addPath(p);});
+      try{layer.addFrame(wf);}catch(e){}
+    });
+  });
+  try{o.animationType=source.animationType||"loop";o.isSynced=!!source.isSynced;o.singleFrameNumber=source.singleFrameNumber||1;}catch(e){}
+  delete part.deformationEnabled;delete part.lastBakedLength;
+  dirty("Restore native Wick source");
+}
+
 function playhead(){refresh();try{var tl=state.project&&state.project.activeTimeline;if(tl)return Math.max(1,Math.round(Number(tl.playheadPosition||1)));}catch(e){}try{return Math.max(1,Math.round(Number(state.project.currentFrameNumber||1)));}catch(e){return 1;}}
 function currentPart(){return state.currentUUID?state.registry.parts[state.currentUUID]||null:null;}
 function ensurePartForObject(o){var id=uuid(o);if(!id)throw new Error("Selected Wick object has no UUID.");var p=state.registry.parts[id];if(!p){p={uuid:id,name:objectName(o),kind:isGizmo(o)?"gizmo":"part",inCharacter:false,bones:[],boneKeys:{},createdAt:new Date().toISOString()};state.registry.parts[id]=p;}p.name=objectName(o);p.kind=isGizmo(o)?"gizmo":"part";return p;}
