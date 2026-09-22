@@ -446,7 +446,7 @@ function endAnimateDrag(){
 function playhead(){refresh();try{var tl=state.project&&state.project.activeTimeline;if(tl)return Math.max(1,Math.round(Number(tl.playheadPosition||1)));}catch(e){}try{return Math.max(1,Math.round(Number(state.project.currentFrameNumber||1)));}catch(e){return 1;}}
 function currentPart(){return state.currentUUID?state.registry.parts[state.currentUUID]||null:null;}
 function ensurePartForObject(o){var id=uuid(o);if(!id)throw new Error("Selected Wick object has no UUID.");var p=state.registry.parts[id];if(!p){p={uuid:id,name:objectName(o),kind:isGizmo(o)?"gizmo":"part",inCharacter:false,bones:[],boneKeys:{},createdAt:new Date().toISOString()};state.registry.parts[id]=p;}p.name=objectName(o);p.kind=isGizmo(o)?"gizmo":"part";return p;}
-function useObject(o){if(!o)throw new Error("No Wick item selected.");var p=ensurePartForObject(o);state.current=o;state.currentUUID=p.uuid;ensureBoneObjectSpace(p,o);writeRegistry();renderAll();status("Using native Wick item: "+p.name+". Its Wick exposure has not been changed.");return p;}
+function useObject(o){if(!o)throw new Error("No Wick item selected.");var p=ensurePartForObject(o);state.current=o;state.currentUUID=p.uuid;ensureBoneObjectSpace(p,o);writeRegistry();if(state.tab==="bones")enterAddBoneMode();renderAll();status("Using native Wick item: "+p.name+". Its Wick exposure has not been changed.");return p;}
 function useSelected(){var a=selectedObjects();if(a.length!==1){status("Select exactly one Wick item on the stage.",true);return;}try{useObject(a[0]);}catch(e){status(e.message||String(e),true);}}
 function status(msg,bad){$("status").textContent=msg;$("status").style.color=bad?"#ffb1ba":"#84efc3";}
 function shouldShowBoneOverlay(){var p=currentPart();return !!(p&&(p.bones||[]).length&&(state.tab==="bones"||state.tab==="animate"||state.tab==="character"||state.addingBone));}
@@ -462,10 +462,46 @@ function switchTab(name){
   state.tab=name;
   Array.prototype.forEach.call(document.querySelectorAll(".tab"),function(b){b.classList.toggle("active",b.getAttribute("data-tab")===name);});
   Array.prototype.forEach.call(document.querySelectorAll(".page"),function(p){p.classList.toggle("active",p.getAttribute("data-page")===name);});
-  if(name==="animate")ensureDeformationReady();
+  if(name==="bones"){
+    if(currentPart())enterAddBoneMode();else leaveAddBoneMode();
+  }else{
+    leaveAddBoneMode();
+    if(name==="animate")ensureDeformationReady();
+  }
   renderAll();syncBoneOverlayVisibility();
 }
 function findStageCanvas(){try{var list=Array.prototype.slice.call(window.parent.document.querySelectorAll("canvas"));var best=null,area=0;list.forEach(function(c){var r=c.getBoundingClientRect(),a=r.width*r.height;if(a>area&&r.width>200&&r.height>150){best=c;area=a;}});return best;}catch(e){return null;}}
+function setBoneCreationCursor(active){
+  try{
+    var d=window.parent.document,c=findStageCanvas();
+    if(active){
+      if(c){
+        if(c.getAttribute("data-dbnative-old-cursor")==null)c.setAttribute("data-dbnative-old-cursor",c.style.cursor||"");
+        c.style.cursor="crosshair";
+      }
+      if(d&&d.documentElement)d.documentElement.classList.add("dbnative-add-bone-mode");
+    }else{
+      if(c){
+        var old=c.getAttribute("data-dbnative-old-cursor");
+        if(old!=null){c.style.cursor=old;c.removeAttribute("data-dbnative-old-cursor");}
+        else c.style.cursor="";
+      }
+      if(d&&d.documentElement)d.documentElement.classList.remove("dbnative-add-bone-mode");
+    }
+  }catch(e){}
+}
+function enterAddBoneMode(){
+  if(!currentPart()){state.addingBone=false;setBoneCreationCursor(false);status("Choose a Part first.",true);return false;}
+  state.addingBone=true;
+  showOverlay();
+  setBoneCreationCursor(true);
+  status("Add Bone mode: drag across the Wick artwork to create a bone.");
+  return true;
+}
+function leaveAddBoneMode(){
+  state.addingBone=false;
+  setBoneCreationCursor(false);
+}
 function stagePoint(clientX,clientY){refresh();try{var view=state.project&&state.project.view&&state.project.view.paper&&state.project.view.paper.view;var rect=view&&view.element&&view.element.getBoundingClientRect();if(view&&rect&&view.viewToProject){var pp=view.viewToProject(new state.paper.Point(clientX-rect.left,clientY-rect.top));return {x:Number(pp.x),y:Number(pp.y)};}}catch(e){}var c=findStageCanvas();if(!c)return {x:0,y:0};var r=c.getBoundingClientRect(),w=Number(state.project.width||720),h=Number(state.project.height||480);return {x:(clientX-r.left)/r.width*w,y:(clientY-r.top)/r.height*h};}
 function viewportPoint(x,y){refresh();try{var view=state.project&&state.project.view&&state.project.view.paper&&state.project.view.paper.view;var rect=view&&view.element&&view.element.getBoundingClientRect();if(view&&rect&&view.projectToView){var vp=view.projectToView(new state.paper.Point(x,y));return {x:rect.left+vp.x,y:rect.top+vp.y};}}catch(e){}var c=findStageCanvas();if(!c)return {x:0,y:0};var r=c.getBoundingClientRect(),w=Number(state.project.width||720),h=Number(state.project.height||480);return {x:r.left+x/w*r.width,y:r.top+y/h*r.height};}
 function ensureOverlay(){if(state.overlay&&state.overlay.parentNode)return state.overlay;var d=window.parent.document,svg=d.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("data-dembones-native-overlay","1");svg.style.cssText="position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483000;pointer-events:none;overflow:visible";(d.body||d.documentElement).appendChild(svg);state.overlay=svg;return svg;}
@@ -494,7 +530,7 @@ function renderOverlay(){if(!state.overlay)return;var p=currentPart(),html="";if
 function installBoneCapture(){
   var d=window.parent.document;if(d.__dbNativeBoneCapture)return;d.__dbNativeBoneCapture=true;
   d.addEventListener("pointerdown",function(ev){
-    if(state.tab==="bones"&&!state.addingBone&&beginEnvelopeDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
+    if(state.tab==="bones"&&beginEnvelopeDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
     if(state.tab==="animate"&&!state.addingBone&&beginAnimateDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
     if(!state.addingBone||!state.currentUUID)return;
     var c=findStageCanvas();if(!c)return;var r=c.getBoundingClientRect();
@@ -520,7 +556,7 @@ function installBoneCapture(){
         captureNativeSource(p,o);syncBoneRows();writeRegistry();
       }
     }
-    state.drag=null;state.addingBone=false;renderAll();status("Bone added to the native Wick Part. The Part exposure remains unchanged.");ev.preventDefault();ev.stopPropagation();
+    state.drag=null;if(state.tab==="bones"&&currentPart()){state.addingBone=true;setBoneCreationCursor(true);}else leaveAddBoneMode();renderAll();status("Bone added. Add Bone mode remains active; drag again to add another bone.");ev.preventDefault();ev.stopPropagation();
   },true);
 }
 function timelineForObject(o){var e=exposure(o);return e&&e.timeline?e.timeline:null;}
@@ -542,10 +578,10 @@ function activeFrame(){refresh();try{if(state.project&&state.project.activeFrame
 function importDrawingAsNativePart(data){refresh();if(!state.Wick||!state.paper)throw new Error("Wick/Paper APIs are unavailable.");var imported=state.paper.project.importSVG(String(data.svgText||""),{insert:false,expandShapes:true});if(!imported)throw new Error("Drawing SVG could not be imported.");var sx=(data.wickStage&&data.drawingPage)?Number(data.wickStage.w)/Math.max(1,Number(data.drawingPage.w)):1,sy=(data.wickStage&&data.drawingPage)?Number(data.wickStage.h)/Math.max(1,Number(data.drawingPage.h)):1;if(imported.scale&&(Math.abs(sx-1)>.0001||Math.abs(sy-1)>.0001))imported.scale(sx,sy,new state.paper.Point(0,0));var paths=[];(function walk(n){if(!n)return;if(n.className==="Path"||n.className==="CompoundPath"){paths.push(n);return;}if(n.children)Array.prototype.slice.call(n.children).forEach(walk);})(imported);if(!paths.length)throw new Error("Drawing contained no native paths.");var clip=new state.Wick.Clip({identifier:"DBNativePart_"+Date.now()});try{clip.name=String(data.fileName||"Drawing Part").replace(/\.[^.]+$/,"");}catch(e){}var layer=null;try{layer=new state.Wick.Layer({name:"Artwork"});clip.timeline.addLayer(layer);}catch(e){layer=clip.timeline.layers&&clip.timeline.layers[0];}var f=new state.Wick.Frame({start:1,end:1});if(layer&&layer.addFrame)layer.addFrame(f);paths.forEach(function(pp){var json=pp.exportJSON({asString:false}),wp=null;try{wp=new state.Wick.Path({json:json});}catch(e){try{wp=new state.Wick.Path(json,pp);}catch(x){wp=new state.Wick.Path(json);}}addObjectToFrame(f,wp);});try{imported.remove();}catch(e){}var sf=activeFrame();if(!sf||!addObjectToFrame(sf,clip))throw new Error("Could not place native Drawing Part on the Wick frame.");dirty("Create native DemBones Part");useObject(clip);return {ok:true,uuid:uuid(clip)};}
 function importNativeGizmo(data){var o=resolve(String(data&&data.uuid||""));if(!o)throw new Error("Native Gizmo Clip could not be resolved.");useObject(o);return {ok:true,uuid:uuid(o),keptNative:true};}
 function installReceivers(){try{if(window.parent){window.parent.__LukeToolsDemBonesReceiveDrawing=function(data){try{return importDrawingAsNativePart(data&&data.data?data.data:data);}catch(e){status(e.message||String(e),true);return {ok:false,error:e.message||String(e)};}};window.parent.__LukeToolsDemBonesImportNativeGizmo=function(data){try{return importNativeGizmo(data&&data.data?data.data:data);}catch(e){status(e.message||String(e),true);return {ok:false,error:e.message||String(e)};}};}}catch(e){}}
-function closeTool(){hideOverlay();try{if(state.timer)clearInterval(state.timer);}catch(e){}try{var f=window.frameElement;if(f&&f.parentNode&&f.parentNode.parentNode){var host=f.parentNode.parentNode;var btn=host.querySelector&&host.querySelector("button[aria-label='Close'],button[title='Close']");if(btn){btn.click();return;}}}catch(e){}try{window.parent.postMessage({type:"LukeToolsToolClosed"},"*");}catch(e){}}
+function closeTool(){leaveAddBoneMode();hideOverlay();try{if(state.timer)clearInterval(state.timer);}catch(e){}try{var f=window.frameElement;if(f&&f.parentNode&&f.parentNode.parentNode){var host=f.parentNode.parentNode;var btn=host.querySelector&&host.querySelector("button[aria-label='Close'],button[title='Close']");if(btn){btn.click();return;}}}catch(e){}try{window.parent.postMessage({type:"LukeToolsToolClosed"},"*");}catch(e){}}
 
 Array.prototype.forEach.call(document.querySelectorAll(".tab"),function(b){b.addEventListener("click",function(){switchTab(b.getAttribute("data-tab"));});});
-$("useSelected").onclick=useSelected;$("drawPart").onclick=function(){openDrawing("part");};$("drawGizmo").onclick=function(){openDrawing("gizmo");};$("addBone").onclick=function(){if(!currentPart()){status("Choose a Part first.",true);return;}state.addingBone=true;showOverlay();status("Drag across the Wick stage to create a bone.");};$("clearBones").onclick=clearBones;$("setBoneKey").onclick=setBoneKey;$("addCharacter").onclick=addCharacter;$("removeCharacter").onclick=removeCharacter;$("gizmoSingle").onclick=function(){setGizmoMode("single");};$("gizmoFollow").onclick=function(){setGizmoMode("sync");};$("gizmoLoop").onclick=function(){setGizmoMode("loop");};$("closeBtn").onclick=closeTool;
+$("useSelected").onclick=useSelected;$("drawPart").onclick=function(){openDrawing("part");};$("drawGizmo").onclick=function(){openDrawing("gizmo");};$("addBone").onclick=function(){enterAddBoneMode();};$("clearBones").onclick=clearBones;$("setBoneKey").onclick=setBoneKey;$("addCharacter").onclick=addCharacter;$("removeCharacter").onclick=removeCharacter;$("gizmoSingle").onclick=function(){setGizmoMode("single");};$("gizmoFollow").onclick=function(){setGizmoMode("sync");};$("gizmoLoop").onclick=function(){setGizmoMode("loop");};$("closeBtn").onclick=closeTool;
 
 refresh();readRegistry();installReceivers();installBoneCapture();
 var sel=selectedObjects();if(sel.length===1){var id=uuid(sel[0]);if(state.registry.parts[id]){state.current=sel[0];state.currentUUID=id;}}
