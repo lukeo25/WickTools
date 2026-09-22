@@ -654,13 +654,24 @@ function installBoneCapture(){
     if(ev.clientX<r.left||ev.clientX>r.right||ev.clientY<r.top||ev.clientY>r.bottom)return;
 
     var existing=localBoneAtClient(ev.clientX,ev.clientY);
+    var sp=stagePoint(ev.clientX,ev.clientY),part=currentPart(),o=currentObject(),m=objectStageMatrix(o),lp=inverseTransformPointByMatrix(m,sp);
+
     if(existing){
       state.selectedBoneId=existing.bone.id;
-      status(existing.bone.name+" selected. Drag empty artwork to create another "+String(state.newBoneType||"normal")+" bone.");
+      // Match original DemBones add mode: clicking an existing bone selects it,
+      // but dragging away from that click immediately previews/creates the next bone.
+      state.drag={
+        head:sp,tail:sp,
+        localHead:{x:lp.x,y:lp.y},
+        localTail:{x:lp.x,y:lp.y},
+        parentId:(state.newBoneType==="chain"?existing.bone.id:null),
+        maybeExisting:true,
+        sourceBoneId:existing.bone.id
+      };
+      status(existing.bone.name+" selected. Drag away to create another "+String(state.newBoneType||"normal")+" bone; click without dragging only selects.");
       renderAll();ev.preventDefault();ev.stopPropagation();return;
     }
 
-    var sp=stagePoint(ev.clientX,ev.clientY),part=currentPart(),o=currentObject(),m=objectStageMatrix(o),lp=inverseTransformPointByMatrix(m,sp);
     if(state.newBoneType==="chain"){
       var snap=nearestTailForLocal(part,lp,18);
       if(snap){lp={x:snap.point.x,y:snap.point.y};sp=bonePointToStage(lp,o);state.drag={head:sp,tail:sp,localHead:{x:lp.x,y:lp.y},localTail:{x:lp.x,y:lp.y},parentId:snap.bone.id};}
@@ -690,6 +701,9 @@ function installBoneCapture(){
       part.bones.push(bone);state.selectedBoneId=id;
       captureNativeSource(part,o);syncBoneRows();writeRegistry();
       status(bone.name+" created exactly where drawn. "+(bone.parentId?"Connected as Chain. ":"")+"Green bone cursor = add. Blue bone cursor = edit/select.");
+    }else if(state.drag.maybeExisting){
+      state.selectedBoneId=state.drag.sourceBoneId||state.selectedBoneId;
+      status("Bone selected. Drag away from it to create another bone.");
     }
     state.drag=null;if(state.tab==="bones"&&currentPart()){state.addingBone=true;setBoneCreationCursor(true);}else leaveAddBoneMode();
     renderAll();ev.preventDefault();ev.stopPropagation();
