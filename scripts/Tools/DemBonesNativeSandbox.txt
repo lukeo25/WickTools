@@ -504,51 +504,70 @@ function switchTab(name){
   renderAll();syncBoneOverlayVisibility();
 }
 function findStageCanvas(){try{var list=Array.prototype.slice.call(window.parent.document.querySelectorAll("canvas"));var best=null,area=0;list.forEach(function(c){var r=c.getBoundingClientRect(),a=r.width*r.height;if(a>area&&r.width>200&&r.height>150){best=c;area=a;}});return best;}catch(e){return null;}}
-function ensureBoneModeBadge(){
+function ensureBoneCursorIcon(){
   try{
     if(state.modeBadge&&state.modeBadge.parentNode)return state.modeBadge;
-    var d=window.parent.document,b=d.createElement("div");
-    b.setAttribute("data-dbnative-bone-mode","1");
-    b.style.cssText="position:fixed;z-index:2147483001;pointer-events:none;padding:6px 9px;border-radius:6px;background:rgba(16,32,51,.94);border:1px solid #3aa7ff;color:#dff4ff;font:bold 11px Arial;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35);display:none";
-    b.textContent="ADD BONE · DRAG";
-    (d.body||d.documentElement).appendChild(b);
-    state.modeBadge=b;return b;
+    var d=window.parent.document,n=d.createElement("div");
+    n.setAttribute("data-dbnative-bone-cursor","1");
+    n.style.cssText="position:fixed;left:0;top:0;width:34px;height:34px;pointer-events:none;z-index:2147483647;transform:translate(-100px,-100px);display:none;filter:drop-shadow(0 0 3px rgba(255,255,255,.8));";
+    (d.body||d.documentElement).appendChild(n);
+    state.modeBadge=n;return n;
   }catch(e){return null;}
 }
-function positionBoneModeBadge(){
-  var b=ensureBoneModeBadge(),canvas=findStageCanvas();if(!b||!canvas)return;
-  var r=canvas.getBoundingClientRect();b.style.left=Math.round(r.left+10)+"px";b.style.top=Math.round(r.top+10)+"px";
+function boneCursorSvg(colour){
+  colour=colour||"#21d48f";
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">'+
+    '<line x1="8" y1="24" x2="25" y2="7" stroke="#09131e" stroke-width="8" stroke-linecap="round"/>'+
+    '<line x1="8" y1="24" x2="25" y2="7" stroke="'+colour+'" stroke-width="5" stroke-linecap="round"/>'+
+    '<circle cx="8" cy="24" r="5" fill="'+colour+'" stroke="#fff" stroke-width="2"/>'+
+    '<circle cx="25" cy="7" r="5" fill="'+colour+'" stroke="#fff" stroke-width="2"/>'+
+    '</svg>';
+}
+function setBoneCursorVisual(mode){
+  var n=ensureBoneCursorIcon();if(!n)return;
+  var edit=(mode==="edit");
+  n.innerHTML=boneCursorSvg(edit?"#38a9ff":"#22d58f");
+  n.style.display=state.tab==="bones"&&state.addingBone?"block":"none";
+}
+function moveBoneCursor(ev){
+  if(!(state.tab==="bones"&&state.addingBone))return;
+  var n=ensureBoneCursorIcon();if(!n)return;
+  n.style.transform="translate("+(Number(ev.clientX||0)+8)+"px,"+(Number(ev.clientY||0)+8)+"px)";
+  var hit=null;
+  try{hit=localBoneAtClient(ev.clientX,ev.clientY);}catch(e){}
+  setBoneCursorVisual(hit?"edit":"add");
 }
 function setBoneCreationCursor(active){
   try{
-    var d=window.parent.document,canvas=findStageCanvas(),badge=ensureBoneModeBadge();
+    var canvas=findStageCanvas(),n=ensureBoneCursorIcon();
     if(active){
       if(canvas){
         if(canvas.getAttribute("data-dbnative-old-cursor")==null)canvas.setAttribute("data-dbnative-old-cursor",canvas.style.cursor||"");
-        canvas.style.cursor="crosshair";
+        canvas.style.cursor="none";
       }
-      positionBoneModeBadge();if(badge)badge.style.display="block";
-      if(d&&d.documentElement)d.documentElement.classList.add("dbnative-add-bone-mode");
+      if(n){n.style.display="block";setBoneCursorVisual("add");}
     }else{
       if(canvas){
         var old=canvas.getAttribute("data-dbnative-old-cursor");
-        if(old!=null){canvas.style.cursor=old;canvas.removeAttribute("data-dbnative-old-cursor");}else canvas.style.cursor="";
+        if(old!=null){canvas.style.cursor=old;canvas.removeAttribute("data-dbnative-old-cursor");}
+        else canvas.style.cursor="";
       }
-      if(badge)badge.style.display="none";
-      if(d&&d.documentElement)d.documentElement.classList.remove("dbnative-add-bone-mode");
+      if(n)n.style.display="none";
     }
   }catch(e){}
 }
 function enterAddBoneMode(){
   if(!currentPart()){state.addingBone=false;setBoneCreationCursor(false);status("Choose a Part first.",true);return false;}
   state.addingBone=true;showOverlay();setBoneCreationCursor(true);
-  status("ADD BONE mode — drag on the Wick artwork. "+String(state.newBoneType||"normal").toUpperCase()+" bone.");
+  status("Add Bone mode: drag on empty artwork to create a "+String(state.newBoneType||"normal")+" bone. Hover an existing bone to edit/select it.");
   return true;
 }
 function leaveAddBoneMode(){state.addingBone=false;state.drag=null;setBoneCreationCursor(false);}
 function pointDistance(a,b){return Math.hypot(Number(a.x||0)-Number(b.x||0),Number(a.y||0)-Number(b.y||0));}
 function localBoneAtClient(clientX,clientY){
-  var part=currentPart(),o=currentObject();if(!part||!o)return null,best=null,pose=poseForFrame(part,playhead());
+  var part=currentPart(),o=currentObject();
+  if(!part||!o)return null;
+  var best=null,pose=poseForFrame(part,playhead());
   (part.bones||[]).forEach(function(b){
     var pb=pose[String(b.id)]||{head:b.head,tail:b.tail};
     var hs=viewportPoint(bonePointToStage(pb.head,o).x,bonePointToStage(pb.head,o).y);
@@ -603,6 +622,8 @@ function renderOverlay(){if(!state.overlay)return;var p=currentPart(),html="";if
 }state.overlay.innerHTML=html;}
 function installBoneCapture(){
   var d=window.parent.document;if(d.__dbNativeBoneCapture)return;d.__dbNativeBoneCapture=true;
+  d.addEventListener("pointerenter",function(ev){if(state.tab==="bones"&&state.addingBone)moveBoneCursor(ev);},true);
+  d.addEventListener("mousemove",function(ev){if(state.tab==="bones"&&state.addingBone)moveBoneCursor(ev);},true);
   d.addEventListener("pointerdown",function(ev){
     if(state.tab==="bones"&&beginEnvelopeDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
     if(state.tab==="animate"&&!state.addingBone&&beginAnimateDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
@@ -627,6 +648,7 @@ function installBoneCapture(){
   },true);
 
   d.addEventListener("pointermove",function(ev){
+    if(state.tab==="bones"&&state.addingBone)moveBoneCursor(ev);
     if(state.animDrag&&state.animDrag.envelope){moveEnvelopeDrag(ev);ev.preventDefault();ev.stopPropagation();return;}
     if(state.animDrag){moveAnimateDrag(ev);ev.preventDefault();ev.stopPropagation();return;}
     if(!state.drag)return;
@@ -655,7 +677,7 @@ function installBoneCapture(){
       var bone={id:id,name:"Bone "+id,type:type,space:"object",head:bh,tail:bt,restLength:Math.max(1,pointDistance(bh,bt)),envStart:env,envEnd:env,radius:env,strength:1,parentId:type==="chain"?(state.drag.parentId||null):null};
       part.bones.push(bone);state.selectedBoneId=id;
       captureNativeSource(part,o);syncBoneRows();writeRegistry();
-      status(bone.name+" created exactly where drawn. "+(bone.parentId?"Connected as Chain. ":"")+"ADD BONE remains active.");
+      status(bone.name+" created exactly where drawn. "+(bone.parentId?"Connected as Chain. ":"")+"Green bone cursor = add. Blue bone cursor = edit/select.");
     }
     state.drag=null;if(state.tab==="bones"&&currentPart()){state.addingBone=true;setBoneCreationCursor(true);}else leaveAddBoneMode();
     renderAll();ev.preventDefault();ev.stopPropagation();
