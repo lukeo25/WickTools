@@ -44,6 +44,7 @@ button{border:1px solid #527398;background:#20344c;color:#edf6ff;border-radius:8
     <div class="card native">
       <h3>Bones</h3>
       <div class="row"><button id="addBone" class="primary">Add Bone</button><button id="clearBones" class="danger">Clear All</button></div>
+      <div class="row"><button id="addCharacter" class="good">Add To Character</button></div>
       <div class="small">Drag directly across the Wick stage to create a bone. Bone metadata is stored in the Wick project registry; the native Part remains untouched.</div>
       <div id="boneList"></div>
     </div>
@@ -66,7 +67,7 @@ button{border:1px solid #527398;background:#20344c;color:#edf6ff;border-radius:8
   <div class="page" data-page="character">
     <div class="card native">
       <h3>Character</h3>
-      <div class="row"><button id="addCharacter" class="good">Add To Character</button><button id="removeCharacter">Remove From Character</button></div>
+      <div class="row"><button id="removeCharacter">Remove From Character</button></div>
       <div class="info" id="characterInfo">No Part selected.</div>
       <div id="characterList"></div>
     </div>
