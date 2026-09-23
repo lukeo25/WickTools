@@ -309,11 +309,32 @@ function rebuildNativeOutput(part,o,transientPose,transientFrame){
   if(!part||!o||!o.timeline||state.baking)return false;
   var source=captureNativeSource(part,o),e=exposure(o);if(!source||!e)return false;
   if(part.kind==="gizmo"){
-    try{o.animationType=source.animationType||"loop";o.isSynced=!!source.isSynced;o.singleFrameNumber=source.singleFrameNumber||1;}catch(eMode){}
-    part.deformationEnabled=true;
-    part.lastBakedLength=e.length;
-    dirty("DemBones Gizmo rig metadata");
-    return true;
+    state.baking=true;
+    try{
+      var pose=transientPose||poseForFrame(part,transientFrame||playhead());
+      source.layers.forEach(function(srcLayer,li){
+        var layer=ensureInternalLayer(o,li,srcLayer);if(!layer)return;
+        (srcLayer.frames||[]).forEach(function(srcF){
+          var wf=nativeFrameAt(layer,srcF.start);
+          if(!wf)return;
+          var existing=framePaths(wf);
+          (srcF.paths||[]).forEach(function(rec,pi){
+            var json=deformPaperJson(rec.json,part,pose),target=existing[pi]||null;
+            if(target)assignJsonToWickPath(target,json);
+            else{
+              var np=makeNativePath(rec,json);
+              if(np&&wf.addPath)wf.addPath(np);
+            }
+          });
+        });
+      });
+      try{o.animationType=source.animationType||"loop";o.isSynced=!!source.isSynced;o.singleFrameNumber=source.singleFrameNumber||1;}catch(eMode){}
+      part.deformationEnabled=true;
+      part.lastBakedLength=e.length;
+      dirty("DemBones Gizmo deformation");
+      try{if(state.project&&state.project.view&&state.project.view.render)state.project.view.render();}catch(eRender){}
+      return true;
+    }finally{state.baking=false;}
   }
   state.baking=true;
   try{
@@ -323,7 +344,10 @@ function rebuildNativeOutput(part,o,transientPose,transientFrame){
         var abs=e.start+local-1,srcN=sourceFrameNumber(part,source,local),srcF=sourceFrameAt(srcLayer,srcN);if(!srcF)continue;
         var pose=(transientPose&&abs===transientFrame)?transientPose:poseForFrame(part,abs),wf=new state.Wick.Frame({start:local,end:local});
         try{wf.identifier=srcF.identifier||"";}catch(x){}
-        (srcF.paths||[]).forEach(function(rec){var p=makeNativePath(rec,deformPaperJson(rec.json,part,pose));if(p&&wf.addPath)wf.addPath(p);});
+        (srcF.paths||[]).forEach(function(rec){
+          var p=makeNativePath(rec,deformPaperJson(rec.json,part,pose));
+          if(p&&wf.addPath)wf.addPath(p);
+        });
         try{layer.addFrame(wf);}catch(x){}
       }
     });
@@ -355,6 +379,13 @@ function nativeFrameAt(layer,n){
   for(var i=0;i<arr.length;i++)if(n>=frameStartValue(arr[i])&&n<=frameEndValue(arr[i]))return arr[i];
   return null;
 }
+function assignJsonToWickPath(path,json){
+  if(!path)return false;
+  var j=cloneData(json);
+  try{path.json=j;return true;}catch(e1){}
+  try{if(path.setJSON){path.setJSON(j);return true;}}catch(e2){}
+  return false;
+}
 function updateCurrentNativePose(part,o,pose,absFrame){
   if(!part||!o||!part.nativeSource)return false;
   var e=exposure(o);if(!e)return false;
@@ -364,13 +395,38 @@ function updateCurrentNativePose(part,o,pose,absFrame){
     source.layers.forEach(function(srcLayer,li){
       var layer=ensureInternalLayer(o,li,srcLayer);if(!layer)return;
       var srcN=sourceFrameNumber(part,source,local),srcF=sourceFrameAt(srcLayer,srcN);if(!srcF)return;
-      var wf=nativeFrameAt(layer,local);
-      if(!wf){wf=new state.Wick.Frame({start:local,end:local});try{layer.addFrame(wf);}catch(eAdd){return;}}
-      var old=framePaths(wf);old.forEach(function(p){try{if(wf.removePath)wf.removePath(p);else if(wf.removeChild)wf.removeChild(p);}catch(eRemove){}});
-      (srcF.paths||[]).forEach(function(rec){var np=makeNativePath(rec,deformPaperJson(rec.json,part,pose));if(np&&wf.addPath)wf.addPath(np);});
+
+      // Gizmos keep their original Draw-session internal frame number.
+      // Ordinary Parts use the exposure-local frame.
+      var targetFrameNumber=(part.kind==="gizmo")?srcN:local;
+      var wf=nativeFrameAt(layer,targetFrameNumber);
+      if(!wf){
+        wf=new state.Wick.Frame({start:targetFrameNumber,end:targetFrameNumber});
+        try{layer.addFrame(wf);}catch(eAdd){return;}
+      }
+
+      var existing=framePaths(wf);
+      (srcF.paths||[]).forEach(function(rec,pi){
+        var json=deformPaperJson(rec.json,part,pose);
+        var target=existing[pi]||null;
+        if(target){
+          assignJsonToWickPath(target,json);
+        }else{
+          var np=makeNativePath(rec,json);
+          if(np&&wf.addPath)wf.addPath(np);
+        }
+      });
     });
-    try{o.animationType="playOnce";o.isSynced=true;o.timeline.playheadPosition=local;}catch(e){}
+
+    // Never rewrite a Gizmo's Draw-session playback model while previewing deformation.
+    if(part.kind!=="gizmo"){
+      try{o.animationType="playOnce";o.isSynced=true;o.timeline.playheadPosition=local;}catch(eMode){}
+    }else{
+      try{o.timeline.playheadPosition=sourceFrameNumber(part,source,local);}catch(eGizmo){}
+    }
+
     try{if(state.project&&state.project.view&&state.project.view.render)state.project.view.render();}catch(e){}
+    try{if(state.ed&&state.ed.syncInterfaces)state.ed.syncInterfaces();}catch(eSync){}
     return true;
   }finally{state.baking=false;}
 }
@@ -478,7 +534,8 @@ function moveAnimateDrag(ev){
     }
   }
   enforcePoseConnections(part,d.pose);
-  updateCurrentNativePose(part,o,d.pose,d.frame);
+  var deformed=updateCurrentNativePose(part,o,d.pose,d.frame);
+  if(!deformed)status("Bone moved, but native Wick geometry could not be updated.",true);
   renderOverlay();
   return true;
 }
