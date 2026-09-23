@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBones Refined Sandbox — DemBonesMrk2 + working Gizmos</title> <!-- FIX GPT_24-09-2026_WickStyleAssembleHandles: Assemble uses Wick-like blue round transform nodes with corner rotation zones; no separate orange handle --> <!-- FIX GPT_24-09-2026_AssembleBoneRotatesWithPart: selected Assemble bone overlay follows the same wrapper rotation as its artwork --> <!-- FIX GPT_24-09-2026_GizmoUsesNormalBonesWorkflow: Gizmos jump directly to Bones and use the same bone workflow as Parts; Add To Character lives in Bones --> <!-- FIX GPT_24-09-2026_BuildPartRotateHandle: Bones shows a compact rotation handle and gizmo edit bounds fit the loaded frame --> <!-- FIX GPT_24-09-2026_AssembleRotateHandle: selected Assemble part has direct stage rotation handle --> <!-- FIX GPT_24-09-2026_RenderAllCharacterShapes: all Character artwork remains visible while one part animates --> <!-- FIX GPT_24-09-2026_AnimateContextBones: non-selected part bones remain visible in neutral grey; selected live part bones stay coloured --> <!-- FIX GPT_23-09-2026_CleanAnimateOverlay: Animate hides envelopes, labels and parent-link clutter; bones render compact green --> <!-- FIX GPT_23-09-2026_AssembleRotationSafe: Assemble wrapper move/scale/rotation never rebuilds cleared rig state --> <!-- FIX GPT_23-09-2026_MoveThenPinDirect: move any Part/Gizmo into place, press Pin, then choose any static or animated target bone; pinning never captures or activates another rig --> <!-- FIX GPT_23-09-2026_AssemblePinAnimatedParent: Assemble pinning reads target bones directly from stored Character animation; no target activation/load; Parts and Gizmos can pin to animated parent bones on any Wick frame --> <!-- FIX GPT_23-09-2026_SelectedAssemblePartStaysVisible: selected Assemble parts remain in Character stage renderer; only a genuinely loaded live Animate/Add-Bones part is omitted; Character host stays above Wick canvas --> <!-- FIX GPT_23-09-2026_GizmoClipNoReskin: Gizmo internal frames are copied as untouched native Wick curves inside the Gizmo Clip; DemBones never reskins/rebakes Gizmo artwork on close --> <!-- FIX GPT_23-09-2026_TimelineDiamondsNoHelperLayers: remove fake DemBones key layers/frames; show small green Bone and yellow Gizmo diamonds on real Wick rows; hide CharacterSpan implementation label --> <!-- FIX GPT_23-09-2026_CloseNativeCurvesAndGizmoClips: close commits shape rigs as Wick curves on frames and Gizmos as real nested Wick Gizmo Clips; Gizmos never pass through the Character curve-flatten path --> <!-- FIX GPT_23-09-2026_CharacterCollapsedDragReorder: header arrow is open/close control; Delete is red inside open panel; closed cards drag to reorder; open cards cannot drag --> <!-- FIX GPT_23-09-2026_GizmoTimelineIsTruth: remove duplicate Gizmo key buttons and redundant Part stays selected/Gizmo On controls; Wick timeline is the key display --> <!-- FIX GPT_23-09-2026_StaleRigMousemove: missing transferred/deleted rig clips no longer throw on every mousemove; stale overlays shut down cleanly --> <!-- FIX GPT_23-09-2026_GizmoSingleStageCopy_AnimateDial: one Gizmo stage copy after Character transfer; selected Character Gizmo shows the existing dial/control in Animate --> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBones Refined Sandbox — DemBonesMrk2 + working Gizmos</title> <!-- FIX GPT_24-09-2026_RealAssembleTransform: Assemble handles are interactive and directly transform the Character Part; move/scale/rotate update artwork and bones together from the same live transform --> <!-- FIX GPT_24-09-2026_WickStyleAssembleHandles: Assemble uses Wick-like blue round transform nodes with corner rotation zones; no separate orange handle --> <!-- FIX GPT_24-09-2026_AssembleBoneRotatesWithPart: selected Assemble bone overlay follows the same wrapper rotation as its artwork --> <!-- FIX GPT_24-09-2026_GizmoUsesNormalBonesWorkflow: Gizmos jump directly to Bones and use the same bone workflow as Parts; Add To Character lives in Bones --> <!-- FIX GPT_24-09-2026_BuildPartRotateHandle: Bones shows a compact rotation handle and gizmo edit bounds fit the loaded frame --> <!-- FIX GPT_24-09-2026_AssembleRotateHandle: selected Assemble part has direct stage rotation handle --> <!-- FIX GPT_24-09-2026_RenderAllCharacterShapes: all Character artwork remains visible while one part animates --> <!-- FIX GPT_24-09-2026_AnimateContextBones: non-selected part bones remain visible in neutral grey; selected live part bones stay coloured --> <!-- FIX GPT_23-09-2026_CleanAnimateOverlay: Animate hides envelopes, labels and parent-link clutter; bones render compact green --> <!-- FIX GPT_23-09-2026_AssembleRotationSafe: Assemble wrapper move/scale/rotation never rebuilds cleared rig state --> <!-- FIX GPT_23-09-2026_MoveThenPinDirect: move any Part/Gizmo into place, press Pin, then choose any static or animated target bone; pinning never captures or activates another rig --> <!-- FIX GPT_23-09-2026_AssemblePinAnimatedParent: Assemble pinning reads target bones directly from stored Character animation; no target activation/load; Parts and Gizmos can pin to animated parent bones on any Wick frame --> <!-- FIX GPT_23-09-2026_SelectedAssemblePartStaysVisible: selected Assemble parts remain in Character stage renderer; only a genuinely loaded live Animate/Add-Bones part is omitted; Character host stays above Wick canvas --> <!-- FIX GPT_23-09-2026_GizmoClipNoReskin: Gizmo internal frames are copied as untouched native Wick curves inside the Gizmo Clip; DemBones never reskins/rebakes Gizmo artwork on close --> <!-- FIX GPT_23-09-2026_TimelineDiamondsNoHelperLayers: remove fake DemBones key layers/frames; show small green Bone and yellow Gizmo diamonds on real Wick rows; hide CharacterSpan implementation label --> <!-- FIX GPT_23-09-2026_CloseNativeCurvesAndGizmoClips: close commits shape rigs as Wick curves on frames and Gizmos as real nested Wick Gizmo Clips; Gizmos never pass through the Character curve-flatten path --> <!-- FIX GPT_23-09-2026_CharacterCollapsedDragReorder: header arrow is open/close control; Delete is red inside open panel; closed cards drag to reorder; open cards cannot drag --> <!-- FIX GPT_23-09-2026_GizmoTimelineIsTruth: remove duplicate Gizmo key buttons and redundant Part stays selected/Gizmo On controls; Wick timeline is the key display --> <!-- FIX GPT_23-09-2026_StaleRigMousemove: missing transferred/deleted rig clips no longer throw on every mousemove; stale overlays shut down cleanly --> <!-- FIX GPT_23-09-2026_GizmoSingleStageCopy_AnimateDial: one Gizmo stage copy after Character transfer; selected Character Gizmo shows the existing dial/control in Animate --> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -20536,46 +20536,162 @@ html, body, #app{
     if (!host) return;
     var p = mcSelectedPart ? mcSelectedPart() : null;
     p = p ? mcNormalizePartMode(p) : null;
-    if (!p || !p.state || p.mode !== 'assemble' || p.visible === false) { host.innerHTML = ''; return; }
+    if (!p || !p.state || p.mode !== 'assemble' || p.visible === false) { host.innerHTML = ''; host.style.pointerEvents='none'; return; }
+
     var stageRect = mcStageRect_v071();
     var handles = mcScaleHandlesForPart_v071(p);
-    var html = '<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;">';
     var outline = handles.map(function(h){
       var cp = mcStagePointToClient_v071(h.p);
-      return cp ? { x:Number(cp.x || 0) - Number(stageRect.left || 0), y:Number(cp.y || 0) - Number(stageRect.top || 0), id:h.id } : null;
+      return cp ? {
+        x:Number(cp.x || 0) - Number(stageRect.left || 0),
+        y:Number(cp.y || 0) - Number(stageRect.top || 0),
+        id:h.id,
+        xSign:Number(h.xSign || 0),
+        ySign:Number(h.ySign || 0),
+        cursor:h.cursor || 'nwse-resize'
+      } : null;
     }).filter(Boolean);
+
     var by = {};
     outline.forEach(function(o){ by[o.id] = o; });
 
-    // FIX GPT_24-09-2026_WickStyleAssembleHandles:
-    // Match Wick's transform language: light blue selection frame with round blue/white
-    // nodes. Rotation is picked just outside any corner, like Wick, rather than by
-    // a separate orange handle.
+    host.style.pointerEvents = 'none';
+    var html = '<svg data-mc-transform-ui="1" xmlns="http://www.w3.org/2000/svg" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;">';
+
     if (by.nw && by.ne && by.se && by.sw) {
-      html += '<path d="M ' + by.nw.x + ' ' + by.nw.y + ' L ' + by.ne.x + ' ' + by.ne.y + ' L ' + by.se.x + ' ' + by.se.y + ' L ' + by.sw.x + ' ' + by.sw.y + ' Z" fill="rgba(107,163,255,0.035)" stroke="#6fa8ff" stroke-width="1.5" opacity="0.95"/>';
+      html += '<path d="M ' + by.nw.x + ' ' + by.nw.y + ' L ' + by.ne.x + ' ' + by.ne.y + ' L ' + by.se.x + ' ' + by.se.y + ' L ' + by.sw.x + ' ' + by.sw.y + ' Z" fill="rgba(107,163,255,0.035)" stroke="#6fa8ff" stroke-width="1.5" pointer-events="none"/>';
     }
 
     outline.forEach(function(o){
-      html += '<circle cx="' + o.x + '" cy="' + o.y + '" r="5.5" fill="rgba(255,255,255,0.95)" stroke="#78aaff" stroke-width="2" opacity="0.98"/>';
+      html += '<circle data-mc-transform-kind="scale" data-mc-handle-id="' + o.id + '" data-mc-xs="' + o.xSign + '" data-mc-ys="' + o.ySign + '" cx="' + o.x + '" cy="' + o.y + '" r="6" fill="#ffffff" stroke="#78aaff" stroke-width="2" style="pointer-events:all;cursor:' + o.cursor + ';" />';
     });
 
     function addRotateCorner(id, sx, sy){
       var o = by[id];
       if (!o) return;
-      var r = 15;
-      var x0 = o.x + sx * 9;
-      var y0 = o.y + sy * 9;
-      var x1 = o.x + sx * r;
-      var y1 = o.y + sy * r;
-      html += '<path d="M ' + x0 + ' ' + y1 + ' Q ' + x1 + ' ' + y1 + ' ' + x1 + ' ' + y0 + '" fill="none" stroke="#78aaff" stroke-width="2.5" stroke-linecap="round" opacity="0.95"/>';
+      var r1 = 10, r2 = 22;
+      var ax = o.x + sx * r1;
+      var ay = o.y + sy * r2;
+      var bx = o.x + sx * r2;
+      var byy = o.y + sy * r2;
+      var cx = o.x + sx * r2;
+      var cy = o.y + sy * r1;
+      html += '<path data-mc-transform-kind="rotate" data-mc-rotate-corner="' + id + '" d="M ' + ax + ' ' + ay + ' Q ' + bx + ' ' + byy + ' ' + cx + ' ' + cy + '" fill="none" stroke="#78aaff" stroke-width="3" stroke-linecap="round" style="pointer-events:stroke;cursor:grab;" />';
     }
-    addRotateCorner('nw', -1, -1);
-    addRotateCorner('ne', 1, -1);
-    addRotateCorner('se', 1, 1);
-    addRotateCorner('sw', -1, 1);
+    addRotateCorner('nw',-1,-1);
+    addRotateCorner('ne',1,-1);
+    addRotateCorner('se',1,1);
+    addRotateCorner('sw',-1,1);
 
     html += '</svg>';
     host.innerHTML = html;
+
+    var svg = host.querySelector('[data-mc-transform-ui="1"]');
+    if (!svg) return;
+
+    Array.prototype.slice.call(svg.querySelectorAll('[data-mc-transform-kind]')).forEach(function(node){
+      if (node.__mcTransformBound_v20260924) return;
+      node.__mcTransformBound_v20260924 = true;
+      node.addEventListener('pointerdown', function(ev){
+        var kind = String(node.getAttribute('data-mc-transform-kind') || '');
+        var part = mcSelectedPart ? mcSelectedPart() : null;
+        part = part ? mcNormalizePartMode(part) : null;
+        if (!part || part.mode !== 'assemble') return;
+
+        var base = mcSafeClone(part.transform || mcReadTransform());
+        var pdoc = mcParentDoc_v071();
+        var startClient = mcEventClientInParent ? mcEventClientInParent(ev) : {x:Number(ev.clientX||0),y:Number(ev.clientY||0)};
+        var startStage = mcClientToStage(Number(startClient.x||0), Number(startClient.y||0));
+        if (!startStage) return;
+
+        var cxStage = Number(base.x||0) + Math.max(1,Number(base.w||1))*0.5;
+        var cyStage = Number(base.y||0) + Math.max(1,Number(base.h||1))*0.5;
+        var startAngle = Math.atan2(Number(startStage.y||0)-cyStage, Number(startStage.x||0)-cxStage);
+        var xSign = Number(node.getAttribute('data-mc-xs') || 0);
+        var ySign = Number(node.getAttribute('data-mc-ys') || 0);
+
+        function applyAndRender(next){
+          var oldT = mcSafeClone(part.transform || base);
+          part.transform = next;
+          try { mcApplyPinnedChildren(part.id, oldT, next); } catch(ePins){}
+          try { mcApplyTransformToApp(next); } catch(eApply){}
+          // Artwork, bones and transform UI all read the same part.transform.
+          try { mcRenderStageParts_v087(); } catch(eStage){ try { mcRenderStageParts(); } catch(eStage2){} }
+          try { mcRenderScaleHandles_v071(); } catch(eHandles){}
+          try { mcRenderPanel(); } catch(ePanel){}
+        }
+
+        function move(mev){
+          var client = mcEventClientInParent ? mcEventClientInParent(mev) : {x:Number(mev.clientX||0),y:Number(mev.clientY||0)};
+          var stage = mcClientToStage(Number(client.x||0), Number(client.y||0));
+          if (!stage) return;
+
+          if (kind === 'rotate') {
+            var a = Math.atan2(Number(stage.y||0)-cyStage, Number(stage.x||0)-cxStage);
+            var delta = (a-startAngle)*180/Math.PI;
+            while(delta>180) delta-=360;
+            while(delta<-180) delta+=360;
+            if (mev.shiftKey) delta = Math.round(delta/15)*15;
+            var rt = mcSafeClone(base);
+            rt.rotation = Number(base.rotation||0) + delta;
+            applyAndRender(rt);
+          } else {
+            var ax = mcRotAxes_v071(base);
+            var dx = Number(stage.x||0)-Number(startStage.x||0);
+            var dy = Number(stage.y||0)-Number(startStage.y||0);
+            var du = dx*ax.ux + dy*ax.uy;
+            var dv = dx*ax.vx + dy*ax.vy;
+
+            var bw = Math.max(1,Number(base.w||1));
+            var bh = Math.max(1,Number(base.h||1));
+            var nw=bw, nh=bh, shiftU=0, shiftV=0;
+
+            if (xSign>0){ nw=bw+du; shiftU=du*0.5; }
+            if (xSign<0){ nw=bw-du; shiftU=du*0.5; }
+            if (ySign>0){ nh=bh+dv; shiftV=dv*0.5; }
+            if (ySign<0){ nh=bh-dv; shiftV=dv*0.5; }
+
+            nw=Math.max(8,nw); nh=Math.max(8,nh);
+            if (mev.shiftKey && xSign && ySign){
+              var ratio=Math.max(nw/bw,nh/bh);
+              nw=Math.max(8,bw*ratio);
+              nh=Math.max(8,bh*ratio);
+              var sdu=xSign>0?(nw-bw):(bw-nw);
+              var sdv=ySign>0?(nh-bh):(bh-nh);
+              shiftU=sdu*0.5; shiftV=sdv*0.5;
+            }
+
+            var bcx=Number(base.x||0)+bw*0.5;
+            var bcy=Number(base.y||0)+bh*0.5;
+            var ncx=bcx + ax.ux*shiftU + ax.vx*shiftV;
+            var ncy=bcy + ax.uy*shiftU + ax.vy*shiftV;
+            var st=mcSafeClone(base);
+            st.x=ncx-nw*0.5;
+            st.y=ncy-nh*0.5;
+            st.w=nw;
+            st.h=nh;
+            applyAndRender(st);
+          }
+
+          try { mev.preventDefault(); mev.stopPropagation(); } catch(eStopMove){}
+        }
+
+        function up(uev){
+          try {
+            pdoc.removeEventListener('pointermove',move,true);
+            pdoc.removeEventListener('pointerup',up,true);
+            pdoc.removeEventListener('pointercancel',up,true);
+          } catch(eRemove){}
+          try { mcRenderStageParts(); mcRenderScaleHandles_v071(); mcRenderPanel(); } catch(eFinal){}
+          try { uev.preventDefault(); uev.stopPropagation(); } catch(eStopUp){}
+        }
+
+        pdoc.addEventListener('pointermove',move,true);
+        pdoc.addEventListener('pointerup',up,true);
+        pdoc.addEventListener('pointercancel',up,true);
+        try { ev.preventDefault(); ev.stopPropagation(); if(ev.stopImmediatePropagation) ev.stopImmediatePropagation(); } catch(eStop){}
+      },true);
+    });
   }
 
   var mcRenderStageParts_Base_v071 = mcRenderStageParts;
@@ -20851,7 +20967,11 @@ html, body, #app{
       // FIX v18.269_GPT: Character stage host always owns Character artwork.
       // Animate/Add Bones overlays own bones, nodes and handles only.
       if (!livePart || !livePart.state || livePart.visible === false) continue;
-      var part = mcNormalizePartMode(mcFindResolvedPart_v087(resolvedParts, livePart.id) || livePart); // FIX v_087: draw with evaluated pin transform.
+      var part = mcNormalizePartMode(
+        livePart.mode === 'assemble'
+          ? livePart
+          : (mcFindResolvedPart_v087(resolvedParts, livePart.id) || livePart)
+      ); // FIX GPT_24-09-2026_RealAssembleTransform: Assemble always draws from the live Character transform.
       var rect = mcPartClientRect_v040 ? mcPartClientRect_v040(part) : null;
       if (!rect) {
         var tFallback = part.transform || { x:50, y:50, w:300, h:200, rotation:0 };
@@ -20917,9 +21037,11 @@ html, body, #app{
       var z = 10000 - i;
       html += '<div data-mc-stage-part-id="' + Number(part.id) + '" style="position:absolute;left:' + left + 'px;top:' + top + 'px;width:' + width + 'px;height:' + height + 'px;z-index:' + z + ';pointer-events:none;opacity:' + opacity + ';transform-origin:' + origin + ';transform:rotate(' + renderRotation + 'deg);overflow:visible;">' + markup + '</div>';
       if (Number(part.id) === Number(mc.selectedId || 0) && part.mode === 'assemble') {
-        // FIX GPT_24-09-2026_AssembleBoneRotatesWithPart:
-        // Bone stage points use the same rotated part transform as the artwork.
-        boneOverlay += mcPartBoneMarkupForStage_v052(part, stageRect, 1.0);
+        // FIX GPT_24-09-2026_RealAssembleTransform:
+        // In Assemble, use the live selected Character part itself for the bone overlay
+        // so move/scale/rotation affects artwork and bones in exactly the same transform.
+        var liveSelectedForBones = mcFindPart ? mcFindPart(part.id) : part;
+        boneOverlay += mcPartBoneMarkupForStage_v052(liveSelectedForBones || part, stageRect, 1.0);
       } else if (fadeInactive && Number(part.id) !== Number(mc.selectedId || 0)) {
         boneOverlay += mcPartBoneMarkupForStage_v052(part, stageRect, 0.45);
       }
