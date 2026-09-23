@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DemBones Native Sandbox v0.4 — Native Path Timeline Follow</title>
+<title>DemBones Native Sandbox v0.5 — Reopen + Edit Bones</title>
 <style>
 :root{color-scheme:dark;--bg:#0a1522;--panel:#102033;--panel2:#172a40;--line:#35506f;--text:#e7eef7;--muted:#aebed0;--blue:#3aa7ff;--green:#24d394;--gold:#e2b53d;--red:#c96772}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
@@ -51,6 +51,7 @@ button{border:1px solid #527398;background:#20344c;color:#edf6ff;border-radius:8
           <option value="dummy">Dummy</option>
         </select>
         <button id="addBone" class="primary">Add Bone</button>
+        <button id="editBone">Edit Bones</button>
       </div>
       <div class="row"><button id="autoSizeBones">Auto Size</button><button id="clearBones" class="danger">Clear All</button></div>
       <div class="row"><button id="addCharacter" class="good">Add To Character</button></div>
@@ -89,7 +90,7 @@ button{border:1px solid #527398;background:#20344c;color:#edf6ff;border-radius:8
 
 var MARKER_BEGIN="/*DBNATIVE_REGISTRY:";
 var MARKER_RE=/\/\*DBNATIVE_REGISTRY:([A-Za-z0-9+/=]+)\*\//g;
-var state={B:null,ed:null,project:null,Wick:null,paper:null,current:null,currentUUID:"",registry:{version:1,characterId:"character_1",parts:{}},overlay:null,modeBadge:null,addingBone:false,drag:null,animDrag:null,tab:"part",timer:null,followRAF:null,lastFollowFrame:null,baking:false,newBoneType:"normal",selectedBoneId:null};
+var state={B:null,ed:null,project:null,Wick:null,paper:null,current:null,currentUUID:"",registry:{version:1,characterId:"character_1",parts:{}},overlay:null,modeBadge:null,addingBone:false,drag:null,animDrag:null,tab:"part",timer:null,followRAF:null,lastFollowFrame:null,baking:false,newBoneType:"normal",selectedBoneId:null,boneEditMode:false,editBoneDrag:null};
 
 function $(id){return document.getElementById(id);}
 function bridge(){try{return window.LukeToolsBridge||(window.parent&&window.parent.LukeToolsBridge)||(window.top&&window.top.LukeToolsBridge)||null;}catch(e){return null;}}
@@ -671,6 +672,81 @@ function enforcePoseConnections(part,pose){
   }
   return pose;
 }
+function findRestBoneHit(clientX,clientY){
+  var part=currentPart(),o=currentObject();if(!part||!o)return null;
+  var best=null;
+  (part.bones||[]).forEach(function(b){
+    var hs0=bonePointToStage(b.head,o),ts0=bonePointToStage(b.tail,o);
+    var hs=viewportPoint(hs0.x,hs0.y),ts=viewportPoint(ts0.x,ts0.y);
+    var dh=Math.hypot(clientX-hs.x,clientY-hs.y),dt=Math.hypot(clientX-ts.x,clientY-ts.y),candidate=null;
+    if(dh<=14)candidate={bone:b,type:"head",distance:dh};
+    if(dt<=14&&(!candidate||dt<candidate.distance))candidate={bone:b,type:"tail",distance:dt};
+    var dl=viewportDistancePointToSegment(clientX,clientY,hs,ts);
+    if(dl<=10&&(!candidate||dl<candidate.distance))candidate={bone:b,type:"line",distance:dl};
+    if(candidate&&(!best||candidate.distance<best.distance))best=candidate;
+  });
+  return best;
+}
+function beginBoneEditDrag(ev){
+  if(state.tab!=="bones"||!state.boneEditMode)return false;
+  var hit=findRestBoneHit(ev.clientX,ev.clientY);if(!hit)return false;
+  var part=currentPart(),o=currentObject(),m=objectStageMatrix(o),local=inverseTransformPointByMatrix(m,stagePoint(ev.clientX,ev.clientY));
+  state.selectedBoneId=hit.bone.id;
+  state.editBoneDrag={
+    boneId:hit.bone.id,
+    type:hit.type,
+    start:local,
+    startHead:cloneData(hit.bone.head),
+    startTail:cloneData(hit.bone.tail)
+  };
+  status("Editing "+hit.bone.name+". Drag the head, tail, or whole bone.");
+  renderOverlay();
+  return true;
+}
+function moveBoneEditDrag(ev){
+  var d=state.editBoneDrag;if(!d)return false;
+  var part=currentPart(),o=currentObject(),bone=null;
+  (part.bones||[]).forEach(function(b){if(String(b.id)===String(d.boneId))bone=b;});
+  if(!bone||!o)return false;
+  var local=inverseTransformPointByMatrix(objectStageMatrix(o),stagePoint(ev.clientX,ev.clientY));
+  var dx=local.x-d.start.x,dy=local.y-d.start.y;
+  if(d.type==="line"){
+    bone.head={x:d.startHead.x+dx,y:d.startHead.y+dy};
+    bone.tail={x:d.startTail.x+dx,y:d.startTail.y+dy};
+  }else if(d.type==="head"){
+    bone.head={x:local.x,y:local.y};
+  }else{
+    bone.tail={x:local.x,y:local.y};
+  }
+  bone.restLength=Math.max(1,pointDistance(bone.head,bone.tail));
+  // Keep children that share this bone's tail attached while editing rest placement.
+  (part.bones||[]).forEach(function(child){
+    if(String(child.parentId||"")!==String(bone.id))return;
+    var oldHead=child.head||{x:0,y:0},cx=bone.tail.x-oldHead.x,cy=bone.tail.y-oldHead.y;
+    child.head={x:bone.tail.x,y:bone.tail.y};
+    child.tail={x:Number(child.tail.x||0)+cx,y:Number(child.tail.y||0)+cy};
+    child.restLength=Math.max(1,pointDistance(child.head,child.tail));
+  });
+  renderOverlay();
+  return true;
+}
+function endBoneEditDrag(){
+  if(!state.editBoneDrag)return false;
+  state.editBoneDrag=null;
+  writeRegistry();
+  renderAll();
+  status("Bone rest position updated. Edit Bones remains active.");
+  return true;
+}
+function setBoneWorkMode(mode){
+  state.boneEditMode=(mode==="edit");
+  state.addingBone=!state.boneEditMode&&state.tab==="bones"&&!!currentPart();
+  try{$("addBone").classList.toggle("primary",!state.boneEditMode);$("editBone").classList.toggle("primary",state.boneEditMode);}catch(e){}
+  setBoneCreationCursor(state.addingBone);
+  if(state.boneEditMode)status("Edit Bones mode: drag a bone head, tail, or the bone itself.");
+  else if(state.addingBone)status("Add Bone mode: drag on empty artwork to create a bone.");
+  renderOverlay();
+}
 function beginAnimateDrag(ev){
   if(state.tab!=="animate"||state.addingBone||!currentPart())return false;
   var hit=findAnimateBoneHit(ev.clientX,ev.clientY);if(!hit)return false;
@@ -767,9 +843,10 @@ function switchTab(name){
   Array.prototype.forEach.call(document.querySelectorAll(".page"),function(p){p.classList.toggle("active",p.getAttribute("data-page")===name);});
   if(name==="bones"){
     clearWickSelection();
-    if(currentPart())enterAddBoneMode();else leaveAddBoneMode();
+    if(currentPart())setBoneWorkMode(state.boneEditMode?"edit":"add");else leaveAddBoneMode();
   }else{
     leaveAddBoneMode();
+    state.editBoneDrag=null;
     if(name==="animate")ensureDeformationReady();
   }
   renderAll();syncBoneOverlayVisibility();
@@ -911,14 +988,17 @@ function updateCreationDragFromEvent(ev){
   return true;
 }
 function installBoneCapture(){
-  var d=window.parent.document;if(d.__dbNativeBoneCapture)return;d.__dbNativeBoneCapture=true;
-  d.addEventListener("pointerenter",function(ev){if(state.tab==="bones"&&state.addingBone)moveBoneCursor(ev);},true);
-  d.addEventListener("mousemove",function(ev){
+  var d=window.parent.document;
+  try{if(typeof d.__dbNativeBoneCaptureCleanup==="function")d.__dbNativeBoneCaptureCleanup();}catch(eOldCleanup){}
+
+  function onPointerEnter(ev){if(state.tab==="bones"&&state.addingBone)moveBoneCursor(ev);}
+  function onMouseMove(ev){
     if(state.tab==="bones"&&state.addingBone)moveBoneCursor(ev);
     if(state.drag){updateCreationDragFromEvent(ev);try{ev.preventDefault();ev.stopPropagation();}catch(e){}}
-  },true);
-  d.addEventListener("pointerdown",function(ev){
-    if(state.tab==="bones"&&beginEnvelopeDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
+  }
+  function onPointerDown(ev){
+    if(state.tab==="bones"&&state.boneEditMode&&beginBoneEditDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
+    if(state.tab==="bones"&&!state.boneEditMode&&beginEnvelopeDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
     if(state.tab==="animate"&&!state.addingBone&&beginAnimateDrag(ev)){ev.preventDefault();ev.stopPropagation();return;}
     if(!state.addingBone||!state.currentUUID)return;
     var canvas=findStageCanvas();if(!canvas)return;var r=canvas.getBoundingClientRect();
@@ -926,53 +1006,33 @@ function installBoneCapture(){
 
     var sp=stagePoint(ev.clientX,ev.clientY),part=currentPart(),o=currentObject(),m=objectStageMatrix(o),lp=inverseTransformPointByMatrix(m,sp);
     var tailSnap=nearestTailForLocal(part,lp,18);
-
-    // DemBones connection rule: if creation STARTS at an existing tail, that joint is shared.
-    // This applies to Normal, Stretchy and Chain bones. Starting elsewhere stays independent.
     if(tailSnap){
-      lp={x:tailSnap.point.x,y:tailSnap.point.y};
-      sp=bonePointToStage(lp,o);
+      lp={x:tailSnap.point.x,y:tailSnap.point.y};sp=bonePointToStage(lp,o);
       state.selectedBoneId=tailSnap.bone.id;
-      state.drag={
-        head:sp,tail:sp,
-        localHead:{x:lp.x,y:lp.y},
-        localTail:{x:lp.x,y:lp.y},
-        parentId:tailSnap.bone.id,
-        maybeExisting:true,
-        sourceBoneId:tailSnap.bone.id
-      };
+      state.drag={head:sp,tail:sp,localHead:{x:lp.x,y:lp.y},localTail:{x:lp.x,y:lp.y},parentId:tailSnap.bone.id,maybeExisting:true,sourceBoneId:tailSnap.bone.id};
       status("Shared joint: drag from "+tailSnap.bone.name+" tail to create the next bone.");
       renderAll();ev.preventDefault();ev.stopPropagation();return;
     }
-
     var existing=localBoneAtClient(ev.clientX,ev.clientY);
     if(existing){
       state.selectedBoneId=existing.bone.id;
-      state.drag={
-        head:sp,tail:sp,
-        localHead:{x:lp.x,y:lp.y},
-        localTail:{x:lp.x,y:lp.y},
-        parentId:null,
-        maybeExisting:true,
-        sourceBoneId:existing.bone.id
-      };
+      state.drag={head:sp,tail:sp,localHead:{x:lp.x,y:lp.y},localTail:{x:lp.x,y:lp.y},parentId:null,maybeExisting:true,sourceBoneId:existing.bone.id};
       status(existing.bone.name+" selected. Drag away to create an independent "+String(state.newBoneType||"normal")+" bone.");
       renderAll();ev.preventDefault();ev.stopPropagation();return;
     }
-
     state.drag={head:sp,tail:sp,localHead:{x:lp.x,y:lp.y},localTail:{x:lp.x,y:lp.y},parentId:null};
     ev.preventDefault();ev.stopPropagation();
-  },true);
-
-  d.addEventListener("pointermove",function(ev){
+  }
+  function onPointerMove(ev){
     if(state.tab==="bones"&&state.addingBone)moveBoneCursor(ev);
+    if(state.editBoneDrag){moveBoneEditDrag(ev);ev.preventDefault();ev.stopPropagation();return;}
     if(state.animDrag&&state.animDrag.envelope){moveEnvelopeDrag(ev);ev.preventDefault();ev.stopPropagation();return;}
     if(state.animDrag){moveAnimateDrag(ev);ev.preventDefault();ev.stopPropagation();return;}
     if(!state.drag)return;
     updateCreationDragFromEvent(ev);ev.preventDefault();ev.stopPropagation();
-  },true);
-
-  d.addEventListener("pointerup",function(ev){
+  }
+  function onPointerUp(ev){
+    if(state.editBoneDrag){endBoneEditDrag();ev.preventDefault();ev.stopPropagation();return;}
     if(state.animDrag&&state.animDrag.envelope){endEnvelopeDrag();ev.preventDefault();ev.stopPropagation();return;}
     if(state.animDrag){endAnimateDrag();ev.preventDefault();ev.stopPropagation();return;}
     if(!state.drag)return;
@@ -987,11 +1047,28 @@ function installBoneCapture(){
       status(bone.name+" created exactly where drawn. "+(bone.parentId?"Connected as Chain. ":"")+"Green bone cursor = add. Blue bone cursor = edit/select.");
     }else if(state.drag.maybeExisting){
       state.selectedBoneId=state.drag.sourceBoneId||state.selectedBoneId;
-      status("Bone selected. Drag away from it to create another bone.");
+      status("Bone selected. Drag away to create another bone.");
     }
-    state.drag=null;if(state.tab==="bones"&&currentPart()){state.addingBone=true;setBoneCreationCursor(true);}else leaveAddBoneMode();
+    state.drag=null;
+    if(state.tab==="bones"&&currentPart()&&!state.boneEditMode){state.addingBone=true;setBoneCreationCursor(true);}else leaveAddBoneMode();
     renderAll();ev.preventDefault();ev.stopPropagation();
-  },true);
+  }
+
+  d.addEventListener("pointerenter",onPointerEnter,true);
+  d.addEventListener("mousemove",onMouseMove,true);
+  d.addEventListener("pointerdown",onPointerDown,true);
+  d.addEventListener("pointermove",onPointerMove,true);
+  d.addEventListener("pointerup",onPointerUp,true);
+  d.__dbNativeBoneCapture=true;
+  d.__dbNativeBoneCaptureCleanup=function(){
+    try{d.removeEventListener("pointerenter",onPointerEnter,true);}catch(e){}
+    try{d.removeEventListener("mousemove",onMouseMove,true);}catch(e){}
+    try{d.removeEventListener("pointerdown",onPointerDown,true);}catch(e){}
+    try{d.removeEventListener("pointermove",onPointerMove,true);}catch(e){}
+    try{d.removeEventListener("pointerup",onPointerUp,true);}catch(e){}
+    d.__dbNativeBoneCapture=false;
+    d.__dbNativeBoneCaptureCleanup=null;
+  };
 }
 function timelineForObject(o){var e=exposure(o);return e&&e.timeline?e.timeline:null;}
 function layerIdForBone(part,bone){return "DBNative_"+String(part.uuid).replace(/[^A-Za-z0-9_]/g,"_")+"_Bone_"+bone.id;}
@@ -1145,9 +1222,65 @@ function stopWickFrameFollower(){
   try{if(state.followRAF)cancelAnimationFrame(state.followRAF);}catch(e){}
   state.followRAF=null;
 }
+function installNativeDoubleClickReopen(){
+  try{
+    var pwin=window.parent,pdoc=pwin.document;
+    if(pdoc.__dbNativeDoubleClickReopenInstalled)return;
+    pdoc.__dbNativeDoubleClickReopenInstalled=true;
+    pdoc.addEventListener("dblclick",function(){
+      setTimeout(function(){
+        try{
+          var B=pwin.LukeToolsBridge||null,ed=(B&&B.getEditor)?B.getEditor():(pwin.wickEditor||pwin.editor||null),project=(B&&B.getProject)?B.getProject():(ed&&ed.project);
+          if(!project)return;
+          var selected=[];
+          try{if(B&&B.captureSelectionNow)B.captureSelectionNow();}catch(eCap){}
+          try{if(B&&B.getSelectedObjects)selected=Array.prototype.slice.call(B.getSelectedObjects()||[]);}catch(eSel){}
+          if(!selected.length){try{if(project.selection&&project.selection.getSelectedObjects)selected=Array.prototype.slice.call(project.selection.getSelectedObjects()||[]);}catch(ePSel){}}
+          if(selected.length!==1)return;
+          var obj=selected[0],id=String(obj&&obj.uuid||"");if(!id)return;
+
+          // Read only the registry marker from the project root so this continues
+          // to work even after the Native Bones iframe has been closed.
+          var root=null;
+          try{root=project.root||((project.activeTimeline&&project.activeTimeline.parentClip)||null);}catch(eRoot){}
+          if(!root)return;
+          var scripts=[];try{scripts=root.scripts||[];}catch(eScripts){}
+          var src="";
+          for(var i=0;i<scripts.length;i++){if(scripts[i]&&String(scripts[i].name||"")==="default"){src=String(scripts[i].src||"");break;}}
+          var re=/\/\*DBNATIVE_REGISTRY:([A-Za-z0-9+/=]+)\*\//g,m,last=null;
+          while((m=re.exec(src)))last=m[1];
+          if(!last)return;
+          var reg=null;try{reg=JSON.parse(decodeURIComponent(escape(atob(last))));}catch(eReg){return;}
+          if(!reg||!reg.parts||!reg.parts[id])return;
+
+          pwin.__DBNativeReopenUUID=id;
+          var launcher=pdoc.getElementById("luke_tools_launcher_271");
+          var panel=pdoc.getElementById("luke_tools_panel_271");
+          try{if(panel&&panel.style.display==="none"&&launcher)launcher.click();else if(!panel&&launcher)launcher.click();}catch(eLaunch){}
+          setTimeout(function(){
+            try{
+              pwin.postMessage({
+                type:"LukeToolsRunJsonTool",
+                url:"https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesNativeSandbox_Loader.txt?v=native-reopen-1",
+                name:"Native Bones Test",
+                id:"DemBones_Native_Test",
+                fs:"0",
+                F_Screen:"0",
+                panelWidth:"",
+                panelHeight:"",
+                cssUrl:""
+              },"*");
+            }catch(ePost){}
+          },60);
+        }catch(e){}
+      },0);
+    },true);
+  }catch(e){}
+}
 function cleanupNativeBoneUi(){
   try{stopWickFrameFollower();}catch(e){}
   try{leaveAddBoneMode();}catch(e){}
+  try{var pd=window.parent&&window.parent.document;if(pd&&typeof pd.__dbNativeBoneCaptureCleanup==="function")pd.__dbNativeBoneCaptureCleanup();}catch(eCaptureCleanup){}
   try{
     if(state.overlay&&state.overlay.parentNode)state.overlay.parentNode.removeChild(state.overlay);
     state.overlay=null;
@@ -1201,11 +1334,22 @@ function closeTool(){
 }
 
 Array.prototype.forEach.call(document.querySelectorAll(".tab"),function(b){b.addEventListener("click",function(){switchTab(b.getAttribute("data-tab"));});});
-$("useSelected").onclick=useSelected;$("drawPart").onclick=function(){openDrawing("part");};$("drawGizmo").onclick=function(){openDrawing("gizmo");};$("boneType").onchange=function(){state.newBoneType=this.value||"normal";if(state.tab==="bones"){clearWickSelection();enterAddBoneMode();}};$("addBone").onclick=function(){clearWickSelection();enterAddBoneMode();};$("autoSizeBones").onclick=autoSizeAllEnvelopesNative;$("clearBones").onclick=clearBones;$("setBoneKey").onclick=setBoneKey;$("addCharacter").onclick=addCharacter;$("removeCharacter").onclick=removeCharacter;$("gizmoSingle").onclick=function(){setGizmoMode("single");};$("gizmoFollow").onclick=function(){setGizmoMode("sync");};$("gizmoLoop").onclick=function(){setGizmoMode("loop");};$("closeBtn").onclick=closeTool;
+$("useSelected").onclick=useSelected;$("drawPart").onclick=function(){openDrawing("part");};$("drawGizmo").onclick=function(){openDrawing("gizmo");};$("boneType").onchange=function(){state.newBoneType=this.value||"normal";if(state.tab==="bones"){clearWickSelection();setBoneWorkMode("add");}};$("addBone").onclick=function(){clearWickSelection();setBoneWorkMode("add");};$("editBone").onclick=function(){clearWickSelection();setBoneWorkMode("edit");};$("autoSizeBones").onclick=autoSizeAllEnvelopesNative;$("clearBones").onclick=clearBones;$("setBoneKey").onclick=setBoneKey;$("addCharacter").onclick=addCharacter;$("removeCharacter").onclick=removeCharacter;$("gizmoSingle").onclick=function(){setGizmoMode("single");};$("gizmoFollow").onclick=function(){setGizmoMode("sync");};$("gizmoLoop").onclick=function(){setGizmoMode("loop");};$("closeBtn").onclick=closeTool;
 
-refresh();readRegistry();installReceivers();installBoneCapture();installNativePanelCleanup();startWickFrameFollower();
-var sel=selectedObjects();if(sel.length===1){var id=uuid(sel[0]);if(state.registry.parts[id]){state.current=sel[0];state.currentUUID=id;}}
-renderAll();
+refresh();readRegistry();installReceivers();installBoneCapture();installNativeDoubleClickReopen();installNativePanelCleanup();startWickFrameFollower();
+var reopened=false;
+try{
+  var reopenId=String(window.parent.__DBNativeReopenUUID||"");
+  if(reopenId&&state.registry.parts[reopenId]){
+    var ro=resolve(reopenId);
+    if(ro){state.current=ro;state.currentUUID=reopenId;state.boneEditMode=true;reopened=true;}
+  }
+  window.parent.__DBNativeReopenUUID="";
+}catch(eReopen){}
+if(!reopened){
+  var sel=selectedObjects();if(sel.length===1){var id=uuid(sel[0]);if(state.registry.parts[id]){state.current=sel[0];state.currentUUID=id;}}
+}
+if(reopened)switchTab("bones");else renderAll();
 state.timer=setInterval(function(){try{if(state.currentUUID){var o=resolve(state.currentUUID);if(o){state.current=o;syncBoneRows();var p=currentPart(),e=exposure(o);if(p&&p.deformationEnabled&&e&&Number(p.lastBakedLength||0)!==Number(e.length||0))rebuildNativeOutput(p,o);renderAll();}}}catch(e){}},700);
 status("Native Wick ownership mode. Select a Wick item or create one in Drawing.");
 })();
