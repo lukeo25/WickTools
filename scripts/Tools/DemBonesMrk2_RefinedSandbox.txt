@@ -20452,6 +20452,118 @@ html, body, #app{
     try { mcRenderStageParts_v087(); } catch(e) { mcLog('Stage part render failed: ' + (e && e.message ? e.message : e)); }
   };
 
+  // FIX GPT_23-09-2026_AssembleMoveOnly:
+  // Character Assemble needs only one direct stage interaction: drag the selected
+  // Character item to move its existing part transform. This does not activate
+  // RotoBones, create keys, or change Animate behaviour.
+  function mcInstallAssembleMoveSurface_v20260923(){
+    var pdoc = null;
+    try { pdoc = window.parent && window.parent.document ? window.parent.document : document; } catch(eDoc){}
+    if (!pdoc) return;
+
+    // Install the parent-document move/up handlers once. The actual drag starts
+    // only from the selected Character artwork while its mode is Assemble.
+    if (!pdoc.__mcAssembleMoveHandlers_v20260923) {
+      var onMove = function(ev){
+        try {
+          var mc = mcEnsure();
+          var d = mc && mc.__assembleMoveDrag_v20260923;
+          if (!d) return;
+          var part = mcFindPart ? mcFindPart(d.partId) : null;
+          if (!part || part.mode !== 'assemble') { mc.__assembleMoveDrag_v20260923 = null; return; }
+
+          var now = mcClientToStage(Number(ev.clientX || 0), Number(ev.clientY || 0));
+          if (!now) return;
+          var dx = Number(now.x || 0) - Number(d.startStage.x || 0);
+          var dy = Number(now.y || 0) - Number(d.startStage.y || 0);
+          if (ev.shiftKey) {
+            if (Math.abs(dx) >= Math.abs(dy)) dy = 0;
+            else dx = 0;
+          }
+
+          var oldT = mcSafeClone(part.transform || d.startTransform);
+          var nextT = mcSafeClone(d.startTransform);
+          nextT.x = Number(d.startTransform.x || 0) + dx;
+          nextT.y = Number(d.startTransform.y || 0) + dy;
+          part.transform = nextT;
+
+          try { mcApplyPinnedChildren(part.id, oldT, nextT); } catch(ePins){}
+          try { mcApplyTransformToApp(nextT); } catch(eApply){}
+          try { mcRenderStageParts_v087(); } catch(eStage){}
+          try { mcRenderScaleHandles_v071(); } catch(eHandles){}
+          try { ev.preventDefault(); ev.stopPropagation(); } catch(eStop){}
+        } catch(eMove){}
+      };
+
+      var onUp = function(ev){
+        try {
+          var mc = mcEnsure();
+          if (!mc || !mc.__assembleMoveDrag_v20260923) return;
+          mc.__assembleMoveDrag_v20260923 = null;
+          try { mcRenderPanel(); } catch(ePanel){}
+          try { mcRenderStageParts_v087(); } catch(eStage){}
+          try { ev.preventDefault(); ev.stopPropagation(); } catch(eStop){}
+        } catch(eUp){}
+      };
+
+      pdoc.addEventListener('pointermove', onMove, true);
+      pdoc.addEventListener('pointerup', onUp, true);
+      pdoc.addEventListener('pointercancel', onUp, true);
+      pdoc.__mcAssembleMoveHandlers_v20260923 = { move:onMove, up:onUp };
+    }
+
+    var host = null;
+    try { host = pdoc.getElementById('mcStagePartsHost_v040'); } catch(eHost){}
+    if (!host) return;
+
+    var mc = mcEnsure();
+    var selected = mcSelectedPart ? mcSelectedPart() : null;
+    selected = selected ? mcNormalizePartMode(selected) : null;
+
+    // Every Character preview remains click-through except the selected part in Assemble.
+    try {
+      Array.prototype.slice.call(host.querySelectorAll('[data-mc-stage-part-id]')).forEach(function(node){
+        var id = Number(node.getAttribute('data-mc-stage-part-id') || 0);
+        var movable = !!(selected && selected.mode === 'assemble' && Number(selected.id || 0) === id);
+        node.style.pointerEvents = movable ? 'auto' : 'none';
+        node.style.cursor = movable ? 'move' : '';
+        if (!movable || node.__mcAssembleMoveBound_v20260923) return;
+        node.__mcAssembleMoveBound_v20260923 = true;
+        node.addEventListener('pointerdown', function(ev){
+          try {
+            var liveMc = mcEnsure();
+            var part = mcFindPart ? mcFindPart(id) : null;
+            if (!part || part.mode !== 'assemble') return;
+            var start = mcClientToStage(Number(ev.clientX || 0), Number(ev.clientY || 0));
+            if (!start) return;
+            liveMc.selectedId = id;
+            liveMc.__assembleMoveDrag_v20260923 = {
+              partId:id,
+              startStage:{ x:Number(start.x || 0), y:Number(start.y || 0) },
+              startTransform:mcSafeClone(part.transform || mcReadTransform())
+            };
+            try { node.setPointerCapture(ev.pointerId); } catch(eCapture){}
+            try { ev.preventDefault(); ev.stopPropagation(); } catch(eStop){}
+          } catch(eDown){}
+        }, true);
+      });
+    } catch(eBind){}
+  }
+
+  var mcRenderStageParts_AssembleMoveBase_v20260923 = mcRenderStageParts;
+  mcRenderStageParts = function(){
+    var result = mcRenderStageParts_AssembleMoveBase_v20260923.apply(this, arguments);
+    try { mcInstallAssembleMoveSurface_v20260923(); } catch(eInstall){}
+    return result;
+  };
+
+  var mcRenderStageParts_v087_AssembleMoveBase_v20260923 = mcRenderStageParts_v087;
+  mcRenderStageParts_v087 = function(){
+    var result = mcRenderStageParts_v087_AssembleMoveBase_v20260923.apply(this, arguments);
+    try { mcInstallAssembleMoveSurface_v20260923(); } catch(eInstallDirect){}
+    return result;
+  };
+
   var renderOverlay_Base_v087 = renderOverlay;
   renderOverlay = function(){
     try { mcResolvedLivePartsForFrame_v087(App.currentFrame || 1); } catch(eResolveBeforeOverlay_v087){}
