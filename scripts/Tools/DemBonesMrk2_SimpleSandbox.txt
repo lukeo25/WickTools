@@ -952,6 +952,7 @@ body.dbSimpleSandbox #tabs .tabBtn[data-tab="expression"]{order:5;}
 body.dbSimpleSandbox [data-page="source"] #dbm2Panel h3{font-size:0;}
 body.dbSimpleSandbox [data-page="source"] #dbm2Panel h3:after{content:"Part";font-size:14px;}
 body.dbSimpleSandbox [data-page="source"] #dbm2Panel p.small{display:none;}
+body.dbSimpleSandbox #dbm2Panel{display:none!important;}
 body.dbSimpleSandbox #dbm2Resume,
 body.dbSimpleSandbox #dbm2Finish,
 body.dbSimpleSandbox #dbm2Enabled{display:none!important;}
@@ -1015,7 +1016,7 @@ body.dbSimpleSandbox #dbm2Bind{font-weight:700;}
             <button id="btnAddDummyArea" class="secondary">Add Dummy</button> <!-- FIX v18.182_GPT -->
           </div>
                     <div class="row rowButtonsSym_Claude cols2"> <!-- FIX GPT_20-09-2026_DrawingToDemBones -->
-            <button id="btnUseSelectedCurve" class="secondary">Use Selected Artwork</button>
+            <button id="btnUseSelectedCurve" class="secondary">Use Selected Wick Artwork</button>
             <button id="btnOpenDrawingForDemBones" class="secondary">Draw</button>
           </div>
           <div class="row"><label class="small" style="display:flex;align-items:center;gap:4px;min-width:0;"><input type="checkbox" id="chkUseSelectedCurveRemoveOriginals_Claude"> Remove Originals</label></div> <!-- FIX Claude_10-07-2026_V6/V8 -->
@@ -15179,34 +15180,109 @@ body.dbSimpleSandbox #dbm2Bind{font-weight:700;}
     } catch(err) { log('Could not open Drawing: '+(err&&err.message?err.message:err)); }
   }
 
-  async function receiveDrawingSelectionForDemBones(event){ // FIX GPT_20-09-2026_DrawingToDemBones
-    var data=event&&event.data;
-    if(!data || data.type!=='LukeToolsDemBonesDrawingSelection' || !data.svgText) return;
+
+  function simpleSandboxActiveFrame(){
+    refreshBridgeRefs();
+    try { if (App.project && App.project.activeFrame) return App.project.activeFrame; } catch(e){}
     try {
-      var svgText=String(data.svgText||'');
-      var fileName=String(data.fileName||'Drawing Selection.svg');
-      var w=180,h=180;
-      try {
-        var doc=new DOMParser().parseFromString(svgText,'image/svg+xml');
-        var root=doc.documentElement;
-        var vb=String(root.getAttribute('viewBox')||'').trim().split(/[ ,]+/).map(Number);
-        if(vb.length===4 && isFinite(vb[2]) && isFinite(vb[3]) && vb[2]>0 && vb[3]>0){ w=vb[2]; h=vb[3]; }
-        else { w=parseFloat(root.getAttribute('width'))||w; h=parseFloat(root.getAttribute('height'))||h; }
-      } catch(eParse){}
-      if(!App.source.viewportRect){
-        var vp=parentViewportForDummyArea();
-        var scale=Math.min(1,Math.min((vp.width*0.60)/Math.max(1,w),(vp.height*0.60)/Math.max(1,h)));
-        var vw=Math.max(40,w*scale), vh=Math.max(40,h*scale);
-        createBlankSourceAreaAtViewport((vp.width-vw)*0.5,(vp.height-vh)*0.5,vw,vh,'drawing-area','Drawing selection');
+      var tl=App.project&&App.project.activeTimeline, layer=tl&&tl.activeLayer;
+      if(typeof layer==='number') layer=tl.layers[layer]||null;
+      if(!layer&&tl&&tl.layers&&tl.layers.length) layer=tl.layers[0];
+      var n=Math.max(1,Math.round(Number(tl&&tl.playheadPosition||1)));
+      if(layer&&typeof layer.getFrameAtPlayheadPosition==='function'){
+        var f=layer.getFrameAtPlayheadPosition(n);
+        if(f) return f;
       }
-      try { if(window.DemBonesMrk2 && window.DemBonesMrk2.binding) window.DemBonesMrk2.finish(); } catch(eFinish){}
-      await loadSvgTextAsSource(svgText,fileName,'drawing-selection',null);
-      App.source.selectedIdentifier='Drawing selection';
-      App.source.selectedUUID='drawing-selection';
-      removeSetAreaOverlay(); ensureOverlay(); hideSetAreaVisualFrame(); fitOverlayToSource();
-      setActiveTab('source'); updateUI(); renderOverlay(); markDirty();
-      log('Drawing selection added directly to the current DemBones Part. Add bones when ready.');
-    } catch(err){ log('Drawing to DemBones failed: '+(err&&err.message?err.message:err)); }
+      if(layer){
+        var nf=new App.Wick.Frame({start:n,end:n});
+        if(typeof layer.addFrame==='function') layer.addFrame(nf);
+        return nf;
+      }
+    } catch(e2){}
+    return null;
+  }
+
+  function simpleSandboxCollectPaperGeometry(root){
+    var out=[];
+    function walk(node){
+      if(!node)return;
+      if(node.className==='Path'||node.className==='CompoundPath'){out.push(node);return;}
+      try{Array.prototype.slice.call(node.children||[]).forEach(walk);}catch(e){}
+    }
+    walk(root);return out;
+  }
+
+  async function simpleSandboxImportDrawingNativeAndBind(data){
+    refreshBridgeRefs();
+    if(!App.project||!App.Wick||!App.Wick.Path||!App.paper||!App.paper.project||typeof App.paper.project.importSVG!=='function')
+      throw new Error('Native Wick/Paper curve APIs are unavailable.');
+
+    var frame=simpleSandboxActiveFrame();
+    if(!frame) throw new Error('No active Wick frame is available.');
+
+    var imported=null, paths=[];
+    try {
+      imported=App.paper.project.importSVG(String(data.svgText||''),{insert:false,expandShapes:true});
+      if(!imported) throw new Error('Drawing SVG could not be imported.');
+
+      var drawingW=Math.max(1,Number(data.drawingPage&&data.drawingPage.w)||Number(App.project.width)||720);
+      var drawingH=Math.max(1,Number(data.drawingPage&&data.drawingPage.h)||Number(App.project.height)||480);
+      var wickW=Math.max(1,Number(data.wickStage&&data.wickStage.w)||Number(App.project.width)||drawingW);
+      var wickH=Math.max(1,Number(data.wickStage&&data.wickStage.h)||Number(App.project.height)||drawingH);
+      var sx=wickW/drawingW, sy=wickH/drawingH;
+      try {
+        if(imported.scale&&(Math.abs(sx-1)>0.000001||Math.abs(sy-1)>0.000001))
+          imported.scale(sx,sy,new App.paper.Point(0,0));
+      } catch(eScale){}
+
+      var items=simpleSandboxCollectPaperGeometry(imported);
+      if(!items.length) throw new Error('Drawing selection contained no native curves.');
+
+      items.forEach(function(item,index){
+        var json=item.exportJSON({asString:false});
+        var wp=new App.Wick.Path({json:json});
+        try{wp.identifier='Drawing_'+(index+1);}catch(eId){}
+        addToFrame(frame,wp);
+        paths.push(wp);
+      });
+
+      if(!paths.length) throw new Error('No Wick curves were created from Drawing.');
+
+      try {
+        if(App.project.selection){
+          if(typeof App.project.selection.clear==='function') App.project.selection.clear();
+          if(typeof App.project.selection.selectMultipleObjects==='function') App.project.selection.selectMultipleObjects(paths);
+          else if(typeof App.project.selection.select==='function') paths.forEach(function(p){App.project.selection.select(p);});
+        }
+      } catch(eSel){}
+
+      markDirty();
+      try{if(App.project.view&&App.project.view.render)App.project.view.render();}catch(eRender){}
+      try{if(App.ed&&App.ed.syncInterfaces)App.ed.syncInterfaces();}catch(eSync){}
+
+      if(!window.DemBonesMrk2||typeof window.DemBonesMrk2.bind!=='function')
+        throw new Error('DemBonesMrk2 live binder is not ready.');
+
+      await window.DemBonesMrk2.bind();
+      setActiveTab('bones');
+      return {ok:true,count:paths.length};
+    } finally {
+      try{if(imported&&imported.remove)imported.remove();}catch(eRemove){}
+    }
+  }
+
+  async function receiveDrawingSelectionForDemBones(event){
+    var data=event&&event.data;
+    if(!data || data.type!=='LukeToolsDemBonesDrawingSelection' || !data.svgText) return {ok:false,error:'No Drawing selection was supplied.'};
+    try {
+      var result=await simpleSandboxImportDrawingNativeAndBind(data);
+      log('Drawing selection added as native Wick curves and bound to DemBonesMrk2. Bones now deform the real Wick artwork.');
+      return result;
+    } catch(err) {
+      var message=err&&err.message?err.message:String(err);
+      log('Drawing to DemBones live bind failed: '+message);
+      return {ok:false,error:message};
+    }
   }
   function bindEvents(){
     var panelEl = el('panel'); // FIX v8.2
@@ -15242,7 +15318,13 @@ body.dbSimpleSandbox #dbm2Bind{font-weight:700;}
     el('btnSetArea').addEventListener('click', beginSetAreaMode); // FIX v6.0
     if (el('btnAddDummyArea')) el('btnAddDummyArea').addEventListener('click', addDummyArea); // FIX v18.182_GPT
     el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } promptLocalImageFile(); }); // FIX v6.0
-    if (el('btnUseSelectedCurve')) el('btnUseSelectedCurve').addEventListener('click', useSelectedWickCurveAsSource); // FIX v14.4
+    if (el('btnUseSelectedCurve')) el('btnUseSelectedCurve').addEventListener('click', function(){
+      try {
+        refreshBridgeRefs();
+        if (window.DemBonesMrk2 && typeof window.DemBonesMrk2.bind === 'function') return window.DemBonesMrk2.bind();
+        var b=el('dbm2Bind'); if(b) return b.click();
+      } catch(err) { log('Use Selected Artwork failed: '+(err&&err.message?err.message:err)); }
+    }); // FIX v14.4
     if (el('btnOpenDrawingForDemBones')) el('btnOpenDrawingForDemBones').addEventListener('click', openDrawingForDemBones); // FIX GPT_20-09-2026_DrawingToDemBones
     if (el('btnUseSelectedCurveRemove')) el('btnUseSelectedCurveRemove').addEventListener('click', useSelectedWickCurveAsSourceAndRemoveOriginal); // FIX v14.5
     el('fileImageLoader').addEventListener('change', onImageFileChosen); // FIX v6.0
