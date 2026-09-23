@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DemBones Native Sandbox v0.1</title>
+<title>DemBones Native Sandbox v0.2 — Direct Path Test</title>
 <style>
 :root{color-scheme:dark;--bg:#0a1522;--panel:#102033;--panel2:#172a40;--line:#35506f;--text:#e7eef7;--muted:#aebed0;--blue:#3aa7ff;--green:#24d394;--gold:#e2b53d;--red:#c96772}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
@@ -234,8 +234,26 @@ function framePaths(f){
   return [];
 }
 function captureNativeSource(part,o){
-  if(!part||!o||!o.timeline)return null;
+  if(!part||!o)return null;
   if(part.nativeSource&&part.nativeSource.version===1)return part.nativeSource;
+
+  // NATIVE PATH TEST: a selected Wick Path is the artwork. Do not wrap it in
+  // a Clip or build replacement frames. Store only a rest-state data snapshot.
+  if(!o.timeline && o.json){
+    var pj=o.json;
+    if(typeof pj==="string"){try{pj=JSON.parse(pj);}catch(eParsePath){}}
+    var directSource={
+      version:1,
+      directPath:true,
+      pathUUID:uuid(o),
+      json:cloneData(pj),
+      rigGeometry:captureWickPathRigGeometry(o,o)
+    };
+    part.nativeSource=directSource;
+    return directSource;
+  }
+
+  if(!o.timeline)return null;
   var source={version:1,frameCount:1,animationType:"loop",isSynced:false,singleFrameNumber:1,layers:[]};
   try{source.animationType=String(o.animationType||"loop");}catch(e){}
   try{source.isSynced=!!o.isSynced;}catch(e){}
@@ -387,8 +405,33 @@ function makeNativePath(rec,json){
   return p;
 }
 function rebuildNativeOutput(part,o,transientPose,transientFrame){
-  if(!part||!o||!o.timeline||state.baking)return false;
-  var source=captureNativeSource(part,o),e=exposure(o);if(!source||!e)return false;
+  if(!part||!o||state.baking)return false;
+  var source=captureNativeSource(part,o);
+  if(!source)return false;
+
+  // Plain Wick Path: deform the SAME object directly. Bone keys remain data;
+  // changing/scrubbing the Wick frame simply recalculates this native path.
+  if(source.directPath){
+    var directPose=transientPose||poseForFrame(part,transientFrame||playhead());
+    var directJson=deformCapturedRecord(
+      {json:source.json,rigGeometry:source.rigGeometry},
+      part,
+      directPose,
+      o
+    );
+    if(!directJson)return false;
+    state.baking=true;
+    try{
+      if(!assignJsonToWickPath(o,directJson))return false;
+      part.deformationEnabled=true;
+      dirty("DemBones direct native path deformation");
+      try{if(state.project&&state.project.view&&state.project.view.render)state.project.view.render();}catch(eDirectRender){}
+      return true;
+    }finally{state.baking=false;}
+  }
+
+  if(!o.timeline)return false;
+  var e=exposure(o);if(!e)return false;
   if(part.kind==="gizmo"){
     state.baking=true;
     try{
@@ -439,7 +482,14 @@ function rebuildNativeOutput(part,o,transientPose,transientFrame){
   }finally{state.baking=false;}
 }
 function restoreNativeSource(part,o){
-  var source=part&&part.nativeSource;if(!source||!o||!o.timeline)return;
+  var source=part&&part.nativeSource;if(!source||!o)return;
+  if(source.directPath){
+    assignJsonToWickPath(o,source.json);
+    delete part.deformationEnabled;
+    dirty("Restore direct native Wick path");
+    return;
+  }
+  if(!o.timeline)return;
   source.layers.forEach(function(srcLayer,li){
     var layer=ensureInternalLayer(o,li,srcLayer);if(!layer)return;removeLayerFrames(layer);
     (srcLayer.frames||[]).forEach(function(srcF){
@@ -469,8 +519,28 @@ function assignJsonToWickPath(path,json){
 }
 function updateCurrentNativePose(part,o,pose,absFrame){
   if(!part||!o||!part.nativeSource)return false;
+  var source=part.nativeSource;
+
+  // Direct native Wick Path: rewrite only this selected curve.
+  if(source.directPath){
+    var directJson=deformCapturedRecord(
+      {json:source.json,rigGeometry:source.rigGeometry},
+      part,
+      pose,
+      o
+    );
+    if(!directJson)return false;
+    state.baking=true;
+    try{
+      if(!assignJsonToWickPath(o,directJson))return false;
+      try{if(typeof o.updateJSON==="function")o.updateJSON();}catch(eUpdateDirect){}
+      try{if(state.project&&state.project.view&&state.project.view.render)state.project.view.render();}catch(eRenderDirect){}
+      return true;
+    }finally{state.baking=false;}
+  }
+
   var e=exposure(o);if(!e)return false;
-  var local=Math.max(1,Math.min(e.length,absFrame-e.start+1)),source=part.nativeSource;
+  var local=Math.max(1,Math.min(e.length,absFrame-e.start+1));
   state.baking=true;
   try{
     source.layers.forEach(function(srcLayer,li){
@@ -662,7 +732,9 @@ function ensureDeformationReady(){
   var p=currentPart(),o=currentObject();if(!p||!o||!(p.bones||[]).length)return false;
   repairSharedJointParents(p);
   var needRecapture=!p.nativeSource;
-  if(!needRecapture&&p.nativeSource&&p.nativeSource.layers){
+  if(!needRecapture&&p.nativeSource&&p.nativeSource.directPath){
+    needRecapture=!p.nativeSource.json;
+  }else if(!needRecapture&&p.nativeSource&&p.nativeSource.layers){
     needRecapture=!p.nativeSource.layers.some(function(l){return (l.frames||[]).some(function(f){return (f.paths||[]).some(function(r){return !!r.rigGeometry;});});});
   }
   if(needRecapture){delete p.nativeSource;captureNativeSource(p,o);writeRegistry();}
@@ -1030,7 +1102,7 @@ function syncCurrentPartToWickFrame(force){
 
   // A Gizmo keeps its Draw-session frame structure, so preview the interpolated
   // bone pose against the currently displayed Draw frame as the Wick playhead moves.
-  if(part.kind==="gizmo"&&part.deformationEnabled&&state.tab==="animate"&&!state.animDrag){
+  if(part.deformationEnabled&&state.tab==="animate"&&!state.animDrag&&(part.kind==="gizmo"||(part.nativeSource&&part.nativeSource.directPath))){
     try{
       var pose=poseForFrame(part,fr);
       updateCurrentNativePose(part,o,pose,fr);
