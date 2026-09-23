@@ -89,7 +89,7 @@ button{border:1px solid #527398;background:#20344c;color:#edf6ff;border-radius:8
 
 var MARKER_BEGIN="/*DBNATIVE_REGISTRY:";
 var MARKER_RE=/\/\*DBNATIVE_REGISTRY:([A-Za-z0-9+/=]+)\*\//g;
-var state={B:null,ed:null,project:null,Wick:null,paper:null,current:null,currentUUID:"",registry:{version:1,characterId:"character_1",parts:{}},overlay:null,modeBadge:null,addingBone:false,drag:null,animDrag:null,tab:"part",timer:null,baking:false,newBoneType:"normal",selectedBoneId:null};
+var state={B:null,ed:null,project:null,Wick:null,paper:null,current:null,currentUUID:"",registry:{version:1,characterId:"character_1",parts:{}},overlay:null,modeBadge:null,addingBone:false,drag:null,animDrag:null,tab:"part",timer:null,followRAF:null,lastFollowFrame:null,baking:false,newBoneType:"normal",selectedBoneId:null};
 
 function $(id){return document.getElementById(id);}
 function bridge(){try{return window.LukeToolsBridge||(window.parent&&window.parent.LukeToolsBridge)||(window.top&&window.top.LukeToolsBridge)||null;}catch(e){return null;}}
@@ -628,7 +628,8 @@ function endAnimateDrag(){
     part.boneKeys[String(d.frame)]=keyFromPoseMap(part,d.pose);
     writeRegistry();
     rebuildNativeOutput(part,o);
-    status("Bone key set on Wick frame "+d.frame+". Native Wick deformation saved.");
+    state.lastFollowFrame=null;syncCurrentPartToWickFrame(true);
+    status("Bone key set on Wick frame "+d.frame+". Native Wick deformation saved with interpolated in-between poses.");
   }
   state.animDrag=null;renderAll();return true;
 }
@@ -908,7 +909,7 @@ function findLayer(tl,id){if(!tl||!tl.layers)return null;for(var i=0;i<tl.layers
 function ensureBoneRow(part,bone){var o=resolve(part.uuid),e=exposure(o),tl=e&&e.timeline;if(!o||!e||!tl||!state.Wick||!state.Wick.Layer||!state.Wick.Frame)return;var id=layerIdForBone(part,bone),layer=findLayer(tl,id);if(!layer){try{layer=new state.Wick.Layer({name:part.name+" / "+bone.name,identifier:id});}catch(x){layer=new state.Wick.Layer();layer.name=part.name+" / "+bone.name;layer.identifier=id;}try{layer.locked=true;}catch(x){}try{tl.addLayer(layer);}catch(x){return;}}var frames=[];try{frames=Array.prototype.slice.call(layer.frames||[]);}catch(x){}var f=frames[0]||null;if(!f){try{f=new state.Wick.Frame({start:e.start,end:e.end});layer.addFrame(f);}catch(x){}}if(f){try{f.start=e.start;f.end=e.end;f.identifier="DBNativeExposure_"+bone.id;}catch(x){}}}
 function removeBoneRows(part){var o=resolve(part.uuid),tl=timelineForObject(o);if(!tl||!tl.layers)return;for(var i=tl.layers.length-1;i>=0;i--){var l=tl.layers[i],id=String(l&&l.identifier||"");if(id.indexOf("DBNative_"+String(part.uuid).replace(/[^A-Za-z0-9_]/g,"_")+"_Bone_")===0){try{tl.removeLayer(l);}catch(e){}}}}
 function syncBoneRows(){var p=currentPart();if(!p)return;(p.bones||[]).forEach(function(b){ensureBoneRow(p,b);});dirty("DemBones Native bone rows");}
-function setBoneKey(){var p=currentPart(),o=currentObject();if(!p||!(p.bones||[]).length){status("Add a bone first.",true);return;}ensureDeformationReady();var fr=playhead(),pose=poseForFrame(p,fr);if(!p.boneKeys)p.boneKeys={};p.boneKeys[String(fr)]=keyFromPoseMap(p,pose);writeRegistry();rebuildNativeOutput(p,o);renderAll();status("Bone key set on Wick frame "+fr+". Native Wick deformation saved.");}
+function setBoneKey(){var p=currentPart(),o=currentObject();if(!p||!(p.bones||[]).length){status("Add a bone first.",true);return;}ensureDeformationReady();var fr=playhead(),pose=poseForFrame(p,fr);if(!p.boneKeys)p.boneKeys={};p.boneKeys[String(fr)]=keyFromPoseMap(p,pose);writeRegistry();rebuildNativeOutput(p,o);state.lastFollowFrame=null;syncCurrentPartToWickFrame(true);renderAll();status("Bone key set on Wick frame "+fr+". Native Wick deformation saved with interpolated in-between poses.");}
 function addCharacter(){var p=currentPart();if(!p){status("Choose a Part first.",true);return;}p.inCharacter=true;p.characterId=state.registry.characterId||"character_1";writeRegistry();syncBoneRows();renderAll();syncBoneOverlayVisibility();status("Added to Character without deleting or replacing the Wick item. Bones remain visible and attached to this native Wick Part.");}
 function removeCharacter(){var p=currentPart();if(!p)return;p.inCharacter=false;delete p.characterId;writeRegistry();renderAll();status("Removed Character membership. Wick item remains unchanged.");}
 
@@ -1004,7 +1005,51 @@ function activeFrame(){refresh();try{if(state.project&&state.project.activeFrame
 function importDrawingAsNativePart(data){refresh();if(!state.Wick||!state.paper)throw new Error("Wick/Paper APIs are unavailable.");var imported=state.paper.project.importSVG(String(data.svgText||""),{insert:false,expandShapes:true});if(!imported)throw new Error("Drawing SVG could not be imported.");var sx=(data.wickStage&&data.drawingPage)?Number(data.wickStage.w)/Math.max(1,Number(data.drawingPage.w)):1,sy=(data.wickStage&&data.drawingPage)?Number(data.wickStage.h)/Math.max(1,Number(data.drawingPage.h)):1;if(imported.scale&&(Math.abs(sx-1)>.0001||Math.abs(sy-1)>.0001))imported.scale(sx,sy,new state.paper.Point(0,0));var paths=[];(function walk(n){if(!n)return;if(n.className==="Path"||n.className==="CompoundPath"){paths.push(n);return;}if(n.children)Array.prototype.slice.call(n.children).forEach(walk);})(imported);if(!paths.length)throw new Error("Drawing contained no native paths.");var clip=new state.Wick.Clip({identifier:"DBNativePart_"+Date.now()});try{clip.name=String(data.fileName||"Drawing Part").replace(/\.[^.]+$/,"");}catch(e){}var layer=null;try{layer=new state.Wick.Layer({name:"Artwork"});clip.timeline.addLayer(layer);}catch(e){layer=clip.timeline.layers&&clip.timeline.layers[0];}var f=new state.Wick.Frame({start:1,end:1});if(layer&&layer.addFrame)layer.addFrame(f);paths.forEach(function(pp){var json=pp.exportJSON({asString:false}),wp=null;try{wp=new state.Wick.Path({json:json});}catch(e){try{wp=new state.Wick.Path(json,pp);}catch(x){wp=new state.Wick.Path(json);}}addObjectToFrame(f,wp);});try{imported.remove();}catch(e){}var sf=activeFrame();if(!sf||!addObjectToFrame(sf,clip))throw new Error("Could not place native Drawing Part on the Wick frame.");dirty("Create native DemBones Part");useObject(clip);return {ok:true,uuid:uuid(clip)};}
 function importNativeGizmo(data){var o=resolve(String(data&&data.uuid||""));if(!o)throw new Error("Native Gizmo Clip could not be resolved.");useObject(o);return {ok:true,uuid:uuid(o),keptNative:true};}
 function installReceivers(){try{if(window.parent){window.parent.__LukeToolsDemBonesReceiveDrawing=function(data){try{return importDrawingAsNativePart(data&&data.data?data.data:data);}catch(e){status(e.message||String(e),true);return {ok:false,error:e.message||String(e)};}};window.parent.__LukeToolsDemBonesImportNativeGizmo=function(data){try{return importNativeGizmo(data&&data.data?data.data:data);}catch(e){status(e.message||String(e),true);return {ok:false,error:e.message||String(e)};}};}}catch(e){}}
+
+function syncCurrentPartToWickFrame(force){
+  if(!state.currentUUID)return;
+  var part=currentPart(),o=currentObject();if(!part||!o)return;
+  var fr=playhead();
+  if(!force&&fr===state.lastFollowFrame)return;
+  state.lastFollowFrame=fr;
+
+  var e=exposure(o);
+  if(e){
+    var local=Math.max(1,Math.min(e.length,fr-e.start+1));
+    if(part.kind!=="gizmo"){
+      try{o.timeline.playheadPosition=local;}catch(eTl){}
+    }else if(part.nativeSource){
+      try{o.timeline.playheadPosition=sourceFrameNumber(part,part.nativeSource,local);}catch(eG){}
+    }
+  }
+
+  // Bone overlays must follow Wick every frame, not on the old 700 ms poll.
+  if(state.tab==="animate"||state.tab==="bones"||state.tab==="character"){
+    try{renderOverlay();}catch(eOverlay){}
+  }
+
+  // A Gizmo keeps its Draw-session frame structure, so preview the interpolated
+  // bone pose against the currently displayed Draw frame as the Wick playhead moves.
+  if(part.kind==="gizmo"&&part.deformationEnabled&&state.tab==="animate"&&!state.animDrag){
+    try{
+      var pose=poseForFrame(part,fr);
+      updateCurrentNativePose(part,o,pose,fr);
+    }catch(ePreview){}
+  }
+}
+function startWickFrameFollower(){
+  function tick(){
+    try{syncCurrentPartToWickFrame(false);}catch(e){}
+    state.followRAF=requestAnimationFrame(tick);
+  }
+  if(!state.followRAF)state.followRAF=requestAnimationFrame(tick);
+}
+function stopWickFrameFollower(){
+  try{if(state.followRAF)cancelAnimationFrame(state.followRAF);}catch(e){}
+  state.followRAF=null;
+}
 function cleanupNativeBoneUi(){
+  try{stopWickFrameFollower();}catch(e){}
   try{leaveAddBoneMode();}catch(e){}
   try{
     if(state.overlay&&state.overlay.parentNode)state.overlay.parentNode.removeChild(state.overlay);
@@ -1061,7 +1106,7 @@ function closeTool(){
 Array.prototype.forEach.call(document.querySelectorAll(".tab"),function(b){b.addEventListener("click",function(){switchTab(b.getAttribute("data-tab"));});});
 $("useSelected").onclick=useSelected;$("drawPart").onclick=function(){openDrawing("part");};$("drawGizmo").onclick=function(){openDrawing("gizmo");};$("boneType").onchange=function(){state.newBoneType=this.value||"normal";if(state.tab==="bones"){clearWickSelection();enterAddBoneMode();}};$("addBone").onclick=function(){clearWickSelection();enterAddBoneMode();};$("autoSizeBones").onclick=autoSizeAllEnvelopesNative;$("clearBones").onclick=clearBones;$("setBoneKey").onclick=setBoneKey;$("addCharacter").onclick=addCharacter;$("removeCharacter").onclick=removeCharacter;$("gizmoSingle").onclick=function(){setGizmoMode("single");};$("gizmoFollow").onclick=function(){setGizmoMode("sync");};$("gizmoLoop").onclick=function(){setGizmoMode("loop");};$("closeBtn").onclick=closeTool;
 
-refresh();readRegistry();installReceivers();installBoneCapture();installNativePanelCleanup();
+refresh();readRegistry();installReceivers();installBoneCapture();installNativePanelCleanup();startWickFrameFollower();
 var sel=selectedObjects();if(sel.length===1){var id=uuid(sel[0]);if(state.registry.parts[id]){state.current=sel[0];state.currentUUID=id;}}
 renderAll();
 state.timer=setInterval(function(){try{if(state.currentUUID){var o=resolve(state.currentUUID);if(o){state.current=o;syncBoneRows();var p=currentPart(),e=exposure(o);if(p&&p.deformationEnabled&&e&&Number(p.lastBakedLength||0)!==Number(e.length||0))rebuildNativeOutput(p,o);renderAll();}}}catch(e){}},700);
