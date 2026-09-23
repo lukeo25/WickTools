@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBones Refined Sandbox — DemBonesMrk2 + working Gizmos</title> <!-- FIX GPT_23-09-2026_GizmoSingleStageCopy_AnimateDial: one Gizmo stage copy after Character transfer; selected Character Gizmo shows the existing dial/control in Animate --> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBones Refined Sandbox — DemBonesMrk2 + working Gizmos</title> <!-- FIX GPT_23-09-2026_StaleRigMousemove: missing transferred/deleted rig clips no longer throw on every mousemove; stale overlays shut down cleanly --> <!-- FIX GPT_23-09-2026_GizmoSingleStageCopy_AnimateDial: one Gizmo stage copy after Character transfer; selected Character Gizmo shows the existing dial/control in Animate --> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -24852,9 +24852,26 @@ function installDemBonesMrk2() {
   function rigStageMatrix() {
     if (!live.binding) return null;
     var common = null;
-    live.binding.rows.forEach(function (row) {
+    var rows = live.binding.rows || [];
+    for (var ri = 0; ri < rows.length; ri += 1) {
+      var row = rows[ri];
       var clip = resolve(row.clipUUID);
-      if (!clip) throw new Error('A rig curve was removed. Reopen the rig from the stage.');
+      if (!clip) {
+        // FIX GPT_23-09-2026_StaleRigMousemove:
+        // The managed Wick clip may legitimately disappear when a part/Gizmo is
+        // transferred to Character or deleted. This function is called from
+        // document mousemove, so throwing here creates an exception on every
+        // pointer event and makes Wick progressively unusable.
+        live.missing = true;
+        live.visible = false;
+        clearTimeout(live.timer);
+        live.timer = null;
+        try { if (live.raf) cancelAnimationFrame(live.raf); } catch(eCancelMissingRig){}
+        live.raf = null;
+        try { showRigUI(false); } catch(eHideMissingRig){}
+        try { removeProxyOverlay(false); } catch(eProxyMissingRig){}
+        return null;
+      }
       // Keep geometry and keys in their binding coordinates. Wick owns the
       // outer affine transform; the overlay and pointer use that same transform.
       // Compare the managed clip against its own baseline matrix, not the
@@ -24867,8 +24884,9 @@ function installDemBonesMrk2() {
       if (common && delta.some(function (v, i) { return Math.abs(v-common[i]) > 1e-5; }))
         throw new Error('This rig contains several curves. Select and transform all of its curves together, then choose Resume updates.');
       common = delta;
-    });
-    var b = live.binding.bounds;
+    }
+    var b = live.binding && live.binding.bounds;
+    if (!b) return null;
     return G.multiply(common || [1,0,0,1,0,0], [1,0,0,1,b.x,b.y]);
   }
   function rigClientMatrix() {
@@ -25271,7 +25289,12 @@ function installDemBonesMrk2() {
     if (!App.overlay.root) return;
     try {
       bounds = bounds || App.overlay.previewBounds;
-      var m=rigClientMatrix(), origin=G.transform(m,{x:bounds.minX||0,y:bounds.minY||0});
+      var m=rigClientMatrix();
+      if (!m) {
+        showRigUI(false);
+        return;
+      }
+      var origin=G.transform(m,{x:bounds.minX||0,y:bounds.minY||0});
       var hostRect=updateOverlayClipHost()||{left:0,top:0}, style=App.overlay.root.style;
       style.left='0px'; style.top='0px';
       style.width=Math.max(1,bounds.width)+'px'; style.height=Math.max(1,bounds.height)+'px';
@@ -25304,7 +25327,9 @@ function installDemBonesMrk2() {
   var oldClientLocal=clientToOverlayLocal;
   clientToOverlayLocal=function (x,y) {
     if (!live.binding) return oldClientLocal.apply(this,arguments);
-    return G.transform(G.inverse(rigClientMatrix()),{x:x,y:y});
+    var m = rigClientMatrix();
+    if (!m) return {x:0,y:0};
+    return G.transform(G.inverse(m),{x:x,y:y});
   };
   var oldViewSignature=getStageViewSignature;
   getStageViewSignature=function () {
