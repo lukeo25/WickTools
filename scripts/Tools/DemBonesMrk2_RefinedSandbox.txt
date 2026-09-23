@@ -20528,8 +20528,30 @@ html, body, #app{
     var selected = mcSelectedPart ? mcSelectedPart() : null;
     selected = selected ? mcNormalizePartMode(selected) : null;
 
+    function mcStartAssembleMove_v20260923(partId, ev, captureNode){
+      try {
+        var liveMc = mcEnsure();
+        var part = mcFindPart ? mcFindPart(partId) : null;
+        if (!part || part.mode !== 'assemble') return false;
+        var start = mcClientToStage(Number(ev.clientX || 0), Number(ev.clientY || 0));
+        if (!start) return false;
+        liveMc.selectedId = Number(partId || 0);
+        liveMc.__assembleMoveDrag_v20260923 = {
+          partId:Number(partId || 0),
+          startStage:{ x:Number(start.x || 0), y:Number(start.y || 0) },
+          startTransform:mcSafeClone(part.transform || mcReadTransform())
+        };
+        try { if (captureNode && captureNode.setPointerCapture) captureNode.setPointerCapture(ev.pointerId); } catch(eCapture){}
+        try { ev.preventDefault(); ev.stopPropagation(); } catch(eStop){}
+        return true;
+      } catch(eDown) {
+        return false;
+      }
+    }
+
     // Every Character preview remains click-through except the selected part in Assemble.
     try {
+      host.style.pointerEvents = (selected && selected.mode === 'assemble') ? 'auto' : (mc.pinPickSourceId ? 'auto' : 'none');
       Array.prototype.slice.call(host.querySelectorAll('[data-mc-stage-part-id]')).forEach(function(node){
         var id = Number(node.getAttribute('data-mc-stage-part-id') || 0);
         var movable = !!(selected && selected.mode === 'assemble' && Number(selected.id || 0) === id);
@@ -20538,24 +20560,63 @@ html, body, #app{
         if (!movable || node.__mcAssembleMoveBound_v20260923) return;
         node.__mcAssembleMoveBound_v20260923 = true;
         node.addEventListener('pointerdown', function(ev){
-          try {
-            var liveMc = mcEnsure();
-            var part = mcFindPart ? mcFindPart(id) : null;
-            if (!part || part.mode !== 'assemble') return;
-            var start = mcClientToStage(Number(ev.clientX || 0), Number(ev.clientY || 0));
-            if (!start) return;
-            liveMc.selectedId = id;
-            liveMc.__assembleMoveDrag_v20260923 = {
-              partId:id,
-              startStage:{ x:Number(start.x || 0), y:Number(start.y || 0) },
-              startTransform:mcSafeClone(part.transform || mcReadTransform())
-            };
-            try { node.setPointerCapture(ev.pointerId); } catch(eCapture){}
-            try { ev.preventDefault(); ev.stopPropagation(); } catch(eStop){}
-          } catch(eDown){}
+          mcStartAssembleMove_v20260923(id, ev, node);
         }, true);
       });
     } catch(eBind){}
+
+    // The selected part's base/root bone is also a placement handle in Assemble.
+    // Dragging it moves the whole Character part; it does NOT create a bone key.
+    try {
+      var oldRootHit = host.querySelector('[data-mc-assemble-root-bone-hit="1"]');
+      if (oldRootHit && oldRootHit.parentNode) oldRootHit.parentNode.removeChild(oldRootHit);
+
+      if (selected && selected.mode === 'assemble' && selected.state && Array.isArray(selected.state.bones) && selected.state.bones.length) {
+        var rootBone = null;
+        try { rootBone = mcRootBoneInState ? mcRootBoneInState(selected.state) : null; } catch(eRoot){}
+        if (!rootBone) rootBone = selected.state.bones[0];
+
+        if (rootBone && rootBone.head && rootBone.tail) {
+          var headStage = mcPartStagePointForBone(selected, rootBone.id, App.currentFrame || 1, 'head');
+          var tailStage = mcPartStagePointForBone(selected, rootBone.id, App.currentFrame || 1, 'tail');
+          var headClient = headStage ? mcStagePointToClient_v071(headStage) : null;
+          var tailClient = tailStage ? mcStagePointToClient_v071(tailStage) : null;
+          var stageRect = mcStageRect_v071 ? mcStageRect_v071() : mcStageRect_v040();
+
+          if (headClient && tailClient && stageRect) {
+            var x1 = Number(headClient.x || 0) - Number(stageRect.left || 0);
+            var y1 = Number(headClient.y || 0) - Number(stageRect.top || 0);
+            var x2 = Number(tailClient.x || 0) - Number(stageRect.left || 0);
+            var y2 = Number(tailClient.y || 0) - Number(stageRect.top || 0);
+            var dx = x2 - x1, dy = y2 - y1;
+            var len = Math.max(16, Math.sqrt(dx*dx + dy*dy));
+            var ang = Math.atan2(dy, dx) * 180 / Math.PI;
+
+            var hit = pdoc.createElement('div');
+            hit.setAttribute('data-mc-assemble-root-bone-hit','1');
+            hit.setAttribute('data-mc-stage-part-id',String(selected.id));
+            hit.title = 'Move Character from base bone';
+            hit.style.cssText = [
+              'position:absolute',
+              'left:' + Math.round(x1) + 'px',
+              'top:' + Math.round(y1 - 9) + 'px',
+              'width:' + Math.round(len) + 'px',
+              'height:18px',
+              'transform-origin:0 50%',
+              'transform:rotate(' + ang + 'deg)',
+              'z-index:2147481200',
+              'pointer-events:auto',
+              'cursor:move',
+              'background:transparent'
+            ].join(';');
+            hit.addEventListener('pointerdown', function(ev){
+              mcStartAssembleMove_v20260923(Number(selected.id || 0), ev, hit);
+            }, true);
+            host.appendChild(hit);
+          }
+        }
+      }
+    } catch(eRootHit){}
   }
 
   var mcRenderStageParts_AssembleMoveBase_v20260923 = mcRenderStageParts;
