@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DemBones Native Sandbox v0.6 — Stage Bones + Timeline Keys</title>
+<title>DemBones Native Sandbox v0.7 — Rotational Bone Tween</title>
 <style>
 :root{color-scheme:dark;--bg:#0a1522;--panel:#102033;--panel2:#172a40;--line:#35506f;--text:#e7eef7;--muted:#aebed0;--blue:#3aa7ff;--green:#24d394;--gold:#e2b53d;--red:#c96772}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
@@ -313,6 +313,12 @@ function poseMapFromKey(part,key){
   return out;
 }
 function lerpPoint(a,b,t){return {x:Number(a.x||0)+(Number(b.x||0)-Number(a.x||0))*t,y:Number(a.y||0)+(Number(b.y||0)-Number(a.y||0))*t};}
+function shortestAngleDelta(a,b){
+  var d=b-a;
+  while(d>Math.PI)d-=Math.PI*2;
+  while(d<-Math.PI)d+=Math.PI*2;
+  return d;
+}
 function poseForFrame(part,fr){
   var rest=poseMapFromKey(part,null),keys=Object.keys(part.boneKeys||{}).map(Number).filter(function(n){return isFinite(n);}).sort(function(a,b){return a-b;});
   if(!keys.length)return rest;
@@ -323,7 +329,27 @@ function poseForFrame(part,fr){
   var a=prevKey?poseMapFromKey(part,prevKey):rest;
   if(next==null)return enforcePoseConnections(part,a);
   var b=poseMapFromKey(part,nextKey),den=Math.max(1,next-prev),t=Math.max(0,Math.min(1,(fr-prev)/den)),out={};
-  (part.bones||[]).forEach(function(bone){var id=String(bone.id),pa=a[id]||{head:bone.head,tail:bone.tail},pb=b[id]||pa;out[id]={head:lerpPoint(pa.head,pb.head,t),tail:lerpPoint(pa.tail,pb.tail,t)};});
+
+  // Bone animation is rotational, not endpoint-linear. Interpolate the joint
+  // position, then rotate the bone through the shortest angular path so the
+  // tail travels in an arc. Normal/Chain bones retain rest length; Stretchy
+  // bones may interpolate keyed length as well.
+  (part.bones||[]).forEach(function(bone){
+    var id=String(bone.id),pa=a[id]||{head:bone.head,tail:bone.tail},pb=b[id]||pa;
+    var head=lerpPoint(pa.head,pb.head,t);
+    var avx=pa.tail.x-pa.head.x,avy=pa.tail.y-pa.head.y;
+    var bvx=pb.tail.x-pb.head.x,bvy=pb.tail.y-pb.head.y;
+    var aa=Math.atan2(avy,avx),ba=Math.atan2(bvy,bvx);
+    var ang=aa+shortestAngleDelta(aa,ba)*t;
+    var la=Math.hypot(avx,avy)||Math.max(1,Number(bone.restLength||1));
+    var lb=Math.hypot(bvx,bvy)||la;
+    var type=String(bone.type||"normal").toLowerCase();
+    var len=(type==="stretchy")?(la+(lb-la)*t):Math.max(1,Number(bone.restLength||la));
+    out[id]={
+      head:head,
+      tail:{x:head.x+Math.cos(ang)*len,y:head.y+Math.sin(ang)*len}
+    };
+  });
   return enforcePoseConnections(part,out);
 }
 function keyFromPoseMap(part,map){return (part.bones||[]).map(function(b){var p=map[String(b.id)]||{head:b.head,tail:b.tail};return {id:b.id,head:cloneData(p.head),tail:cloneData(p.tail)};});}
@@ -978,17 +1004,9 @@ function boneLineMarkup(b){
   var a=overlayPoint(viewportPoint(ah.x,ah.y)),z=overlayPoint(viewportPoint(zh.x,zh.y));
   var vhp=overlayPoint(viewportPoint(hp.x,hp.y)),vhn=overlayPoint(viewportPoint(hn.x,hn.y)),vtp=overlayPoint(viewportPoint(tp.x,tp.y)),vtn=overlayPoint(viewportPoint(tn.x,tn.y));
   var rs=envelopeCircleRadius(pb.head,g.hp,o),re=envelopeCircleRadius(pb.tail,g.tp,o);
-  // Rounded/arched envelope: quadratic shoulders join the two end arcs instead
-  // of the previous straight four-sided polygon.
-  var mx1=(vhp.x+vtp.x)/2,my1=(vhp.y+vtp.y)/2,mx2=(vhn.x+vtn.x)/2,my2=(vhn.y+vtn.y)/2;
-  var arch=Math.max(4,Math.min(24,Math.abs(rs-re)*0.25+6));
-  var dx=z.x-a.x,dy=z.y-a.y,L=Math.hypot(dx,dy)||1,nx=-dy/L,ny=dx/L;
-  var c1x=mx1+nx*arch,c1y=my1+ny*arch,c2x=mx2-nx*arch,c2y=my2-ny*arch;
-  return '<path d="M '+vhp.x+' '+vhp.y+
-    ' Q '+c1x+' '+c1y+' '+vtp.x+' '+vtp.y+
-    ' A '+re+' '+re+' 0 0 1 '+vtn.x+' '+vtn.y+
-    ' Q '+c2x+' '+c2y+' '+vhn.x+' '+vhn.y+
-    ' A '+rs+' '+rs+' 0 0 1 '+vhp.x+' '+vhp.y+' Z" fill="rgba(150,78,255,.10)" stroke="rgba(180,110,255,.95)" stroke-width="2"/>'+
+  return '<path d="M '+vhp.x+' '+vhp.y+' L '+vtp.x+' '+vtp.y+' L '+vtn.x+' '+vtn.y+' L '+vhn.x+' '+vhn.y+' Z" fill="rgba(150,78,255,.10)" stroke="rgba(180,110,255,.95)" stroke-width="2"/>'+
+    '<circle cx="'+a.x+'" cy="'+a.y+'" r="'+rs+'" fill="rgba(150,78,255,.10)" stroke="rgba(180,110,255,.95)" stroke-width="2"/>'+
+    '<circle cx="'+z.x+'" cy="'+z.y+'" r="'+re+'" fill="rgba(150,78,255,.10)" stroke="rgba(180,110,255,.95)" stroke-width="2"/>'+
     '<circle cx="'+vhp.x+'" cy="'+vhp.y+'" r="5" fill="#c77cff" stroke="#fff" stroke-width="2"/>'+
     '<circle cx="'+vhn.x+'" cy="'+vhn.y+'" r="5" fill="#c77cff" stroke="#fff" stroke-width="2"/>'+
     '<circle cx="'+vtp.x+'" cy="'+vtp.y+'" r="5" fill="#c77cff" stroke="#fff" stroke-width="2"/>'+
