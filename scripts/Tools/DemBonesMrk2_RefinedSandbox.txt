@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBones Refined Sandbox — DemBonesMrk2 + working Gizmos</title> <!-- FIX GPT_23-09-2026_SelectedAssemblePartStaysVisible: selected Assemble parts remain in Character stage renderer; only a genuinely loaded live Animate/Add-Bones part is omitted; Character host stays above Wick canvas --> <!-- FIX GPT_23-09-2026_GizmoClipNoReskin: Gizmo internal frames are copied as untouched native Wick curves inside the Gizmo Clip; DemBones never reskins/rebakes Gizmo artwork on close --> <!-- FIX GPT_23-09-2026_TimelineDiamondsNoHelperLayers: remove fake DemBones key layers/frames; show small green Bone and yellow Gizmo diamonds on real Wick rows; hide CharacterSpan implementation label --> <!-- FIX GPT_23-09-2026_CloseNativeCurvesAndGizmoClips: close commits shape rigs as Wick curves on frames and Gizmos as real nested Wick Gizmo Clips; Gizmos never pass through the Character curve-flatten path --> <!-- FIX GPT_23-09-2026_CharacterCollapsedDragReorder: header arrow is open/close control; Delete is red inside open panel; closed cards drag to reorder; open cards cannot drag --> <!-- FIX GPT_23-09-2026_GizmoTimelineIsTruth: remove duplicate Gizmo key buttons and redundant Part stays selected/Gizmo On controls; Wick timeline is the key display --> <!-- FIX GPT_23-09-2026_StaleRigMousemove: missing transferred/deleted rig clips no longer throw on every mousemove; stale overlays shut down cleanly --> <!-- FIX GPT_23-09-2026_GizmoSingleStageCopy_AnimateDial: one Gizmo stage copy after Character transfer; selected Character Gizmo shows the existing dial/control in Animate --> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBones Refined Sandbox — DemBonesMrk2 + working Gizmos</title> <!-- FIX GPT_23-09-2026_AssemblePinAnimatedParent: Assemble pinning reads target bones directly from stored Character animation; no target activation/load; Parts and Gizmos can pin to animated parent bones on any Wick frame --> <!-- FIX GPT_23-09-2026_SelectedAssemblePartStaysVisible: selected Assemble parts remain in Character stage renderer; only a genuinely loaded live Animate/Add-Bones part is omitted; Character host stays above Wick canvas --> <!-- FIX GPT_23-09-2026_GizmoClipNoReskin: Gizmo internal frames are copied as untouched native Wick curves inside the Gizmo Clip; DemBones never reskins/rebakes Gizmo artwork on close --> <!-- FIX GPT_23-09-2026_TimelineDiamondsNoHelperLayers: remove fake DemBones key layers/frames; show small green Bone and yellow Gizmo diamonds on real Wick rows; hide CharacterSpan implementation label --> <!-- FIX GPT_23-09-2026_CloseNativeCurvesAndGizmoClips: close commits shape rigs as Wick curves on frames and Gizmos as real nested Wick Gizmo Clips; Gizmos never pass through the Character curve-flatten path --> <!-- FIX GPT_23-09-2026_CharacterCollapsedDragReorder: header arrow is open/close control; Delete is red inside open panel; closed cards drag to reorder; open cards cannot drag --> <!-- FIX GPT_23-09-2026_GizmoTimelineIsTruth: remove duplicate Gizmo key buttons and redundant Part stays selected/Gizmo On controls; Wick timeline is the key display --> <!-- FIX GPT_23-09-2026_StaleRigMousemove: missing transferred/deleted rig clips no longer throw on every mousemove; stale overlays shut down cleanly --> <!-- FIX GPT_23-09-2026_GizmoSingleStageCopy_AnimateDial: one Gizmo stage copy after Character transfer; selected Character Gizmo shows the existing dial/control in Animate --> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -17316,13 +17316,14 @@ html, body, #app{
     });
   }
 
-  function mcStartPinPickFor(id){ // FIX v18.263_GPT: canonical Pin To Parent entry
+  function mcStartPinPickFor(id){ // FIX GPT_23-09-2026_AssemblePinAnimatedParent
     var mc = mcEnsure();
     var p = mcFindPart(id || mc.selectedId);
     if (!p) { mcLog('No part selected.'); return; }
-    if (!p.state) { mcLog('Load Bone Json into this part before pinning it.'); return; }
+    if (!p.state) { mcLog('This Character item has no Part state to pin.'); return; }
 
-    // Store live edits only when this exact source part is actually loaded.
+    // Pinning is an Assemble operation. Preserve all animation in p.state, but
+    // never keep/load the live rig merely to choose a parent bone.
     try {
       var loadedId = 0;
       if (typeof mcCurrentLoadedPartId_Strict_v18121_GPT === 'function') loadedId = mcCurrentLoadedPartId_Strict_v18121_GPT();
@@ -17330,14 +17331,23 @@ html, body, #app{
       if (Number(loadedId || 0) === Number(p.id || 0)) mcCaptureActivePart();
     } catch(eCapture){}
 
+    p.mode = 'assemble';
+    p.editTarget = p.editTarget || 'bone';
     mc.selectedId = p.id;
     mc.pinPickSourceId = p.id;
+
+    // Clear only the live editor instance. Stored Character animation remains intact.
+    try { mcClearLiveRigForAssemble_v18260_GPT(); } catch(eClearLive){}
+    try { mcShowCharacterPanelWhileRuntimeMode('character'); } catch(eCharacterMode){}
+
+    // Parent bones are drawn/resolved directly from each Character part.state at
+    // App.currentFrame, including animated parents. No target part activation is required.
     mcInstallPinCursorFollower();
     mcInstallParentStagePinPicker();
     mcSetPinCursor(true);
-    try { ensureOverlay(); updateOverlayClipHost(); } catch(ePinOverlay){}
     try { mcRenderStageParts(); } catch(ePinRender){}
-    mcLog('Pin mode: click a visible bone on the stage.');
+    try { mcRenderPinPickLayer_v039(); } catch(ePinLayer){}
+    mcLog('Pin mode: click a bone on any other Character part. Animated parent bones use their pose on the current Wick frame.');
     mcRenderPanel();
   }
 
@@ -17413,46 +17423,12 @@ html, body, #app{
     if (action !== 'name' && action !== 'x' && action !== 'y' && action !== 'w' && action !== 'h' && action !== 'rot' && action !== 'up' && action !== 'down' && action !== 'arrow' && action !== 'pin' && action !== 'togglePart') /* FIX v18.150_GPT */ { // FIX v_083: reorder must not activate another part. // FIX v18.110_GPT: pin mode must not switch selectedId before the active part state is safely captured.
       if (id) mc.selectedId = id;
     }
-    if (mc.pinPickSourceId && action !== 'pin' && id && id !== mc.pinPickSourceId) { // FIX v18.117_GPT
-      // FIX v18.117_GPT: Pin mode must allow loading an unselected target part so its bones can be picked.
-      // Keep the original source part id locked, and prevent the activation capture path from writing one part JSON into another part.
-      var sourceIdForPin117 = Number(mc.pinPickSourceId || 0);
-      var targetIdForPin117 = Number(id || 0);
-      var targetPartForPin117 = mcFindPart(targetIdForPin117);
-      if (targetPartForPin117 && targetPartForPin117.state) {
-        try { if (evt) { evt.preventDefault(); evt.stopPropagation(); if (evt.stopImmediatePropagation) evt.stopImmediatePropagation(); } } catch(eStopPin117){}
-        try { mcCaptureActivePart(); } catch(eCaptureSourcePin117){}
-        try { mc.selectedId = targetIdForPin117; } catch(eSelectTargetPin117){}
-        try { mc.pinPickSourceId = sourceIdForPin117; } catch(eSourceBeforePin117){}
-        Promise.resolve()
-          .then(function(){ return loadRigProjectState(mcSafeClone(targetPartForPin117.state)); })
-          .then(function(){
-            try { mcApplyTransformToApp(targetPartForPin117.transform || {}); } catch(eApplyTargetPin117){}
-            try { if (el('inpClipName') && targetPartForPin117.name) el('inpClipName').value = String(targetPartForPin117.name); } catch(eNamePin117){}
-            try { updateUI(); } catch(eUpdatePin117){}
-            try { renderOverlay(); } catch(eOverlayPin117){}
-            try { mc.pinPickSourceId = sourceIdForPin117; } catch(eSourceAfterPin117){}
-            try { mcSetPinCursor(true); } catch(eCursorPin117){}
-            try { mcInstallPinCursorFollower(); } catch(eFollowPin117){}
-            try { mcInstallParentStagePinPicker(); } catch(ePickerPin117){}
-            try { mcRenderStageParts(); } catch(eStagePin117){}
-            try { mcRenderPinPickLayer_v039(); } catch(eLayerPin117){}
-            try { mcRenderPanel(); } catch(ePanelPin117){}
-            mcLog('Now click a visible bone on ' + ((targetPartForPin117 && targetPartForPin117.name) || 'the parent part') + '.');
-          })
-          .catch(function(err){
-            try { mc.pinPickSourceId = sourceIdForPin117; } catch(eSourceErrPin117){}
-            try { mcSetPinCursor(true); } catch(eCursorErrPin117){}
-            mcLog('Pin target activation failed: ' + (err && err.message ? err.message : err));
-          });
-        return;
-      }
-      try { mcSetPinCursor(true); } catch(ePinCursor117){}
-      try { mcRenderStageParts(); } catch(eStagePin117b){}
-      try { renderOverlay(); } catch(eOverlayPin117b){}
-      mcLog('Now click a visible bone on ' + ((mcFindPart(id) && mcFindPart(id).name) || 'the parent part') + '.');
-      return;
-    }
+    // FIX GPT_23-09-2026_AssemblePinAnimatedParent:
+    // Pin target selection happens only on the stage bone overlay. Do not load,
+    // activate, or overwrite another Character part while pin mode is active.
+    // This keeps the source stable and lets animated parent bones be resolved
+    // directly from their stored state at the current Wick frame.
+
     if (action === 'togglePart') {
       mcTogglePartOpen_v20260923(id);
     } else if (action === 'loadPart') {
@@ -17618,6 +17594,7 @@ html, body, #app{
 
   function mcRenderPinPickLayer_v039(){
     var mc = mcEnsure();
+    try { syncFrameFromWick(); } catch(eSyncPinLayer){}
     mcRemovePinPickLayer_v039();
     if (!mc.pinPickSourceId) return;
     var pdoc = mcPinParentDocument_v039();
@@ -17748,6 +17725,10 @@ html, body, #app{
 
     source.parentPin = {
       targetPartId:target.id,
+      pinCreatedOnWickFrame:Math.max(1, Math.round(Number(frameNow || 1) || 1)),
+      childKind:String(source.kind || ((source.state && source.state.source && source.state.source.gizmo) ? 'gizmo' : 'part')),
+      // Gizmo frame choice is intentionally NOT stored here. Pinning controls
+      // only the Character transform; the Gizmo keeps its own frame/timeline state.
       boneId:String(bone.id == null ? '' : bone.id),
       attachPoint:attachPoint,
       childRootBoneId:childAttach.boneId == null ? null : String(childAttach.boneId),
