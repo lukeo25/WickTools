@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DemBones Native Sandbox v0.3 — Repeatable Direct Path Test</title>
+<title>DemBones Native Sandbox v0.4 — Native Path Timeline Follow</title>
 <style>
 :root{color-scheme:dark;--bg:#0a1522;--panel:#102033;--panel2:#172a40;--line:#35506f;--text:#e7eef7;--muted:#aebed0;--blue:#3aa7ff;--green:#24d394;--gold:#e2b53d;--red:#c96772}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
@@ -546,7 +546,6 @@ function updateCurrentNativePose(part,o,pose,absFrame){
     state.baking=true;
     try{
       if(!assignJsonToWickPath(o,directJson))return false;
-      try{if(typeof o.updateJSON==="function")o.updateJSON();}catch(eUpdateDirect){}
       try{if(state.project&&state.project.view&&state.project.view.render)state.project.view.render();}catch(eRenderDirect){}
       return true;
     }finally{state.baking=false;}
@@ -709,8 +708,10 @@ function endAnimateDrag(){
   if(part&&o){
     if(!part.boneKeys)part.boneKeys={};
     part.boneKeys[String(d.frame)]=keyFromPoseMap(part,d.pose);
-    writeRegistry();
     rebuildNativeOutput(part,o);
+    // Persist after rebuild so direct native Path deformation state and the
+    // newly written key survive renderAll/readRegistry.
+    writeRegistry();
     state.lastFollowFrame=null;syncCurrentPartToWickFrame(true);
     status("Bone key set on Wick frame "+d.frame+". Native Wick deformation saved with interpolated in-between poses.");
   }
@@ -998,7 +999,7 @@ function findLayer(tl,id){if(!tl||!tl.layers)return null;for(var i=0;i<tl.layers
 function ensureBoneRow(part,bone){var o=resolve(part.uuid),e=exposure(o),tl=e&&e.timeline;if(!o||!e||!tl||!state.Wick||!state.Wick.Layer||!state.Wick.Frame)return;var id=layerIdForBone(part,bone),layer=findLayer(tl,id);if(!layer){try{layer=new state.Wick.Layer({name:part.name+" / "+bone.name,identifier:id});}catch(x){layer=new state.Wick.Layer();layer.name=part.name+" / "+bone.name;layer.identifier=id;}try{layer.locked=true;}catch(x){}try{tl.addLayer(layer);}catch(x){return;}}var frames=[];try{frames=Array.prototype.slice.call(layer.frames||[]);}catch(x){}var f=frames[0]||null;if(!f){try{f=new state.Wick.Frame({start:e.start,end:e.end});layer.addFrame(f);}catch(x){}}if(f){try{f.start=e.start;f.end=e.end;f.identifier="DBNativeExposure_"+bone.id;}catch(x){}}}
 function removeBoneRows(part){var o=resolve(part.uuid),tl=timelineForObject(o);if(!tl||!tl.layers)return;for(var i=tl.layers.length-1;i>=0;i--){var l=tl.layers[i],id=String(l&&l.identifier||"");if(id.indexOf("DBNative_"+String(part.uuid).replace(/[^A-Za-z0-9_]/g,"_")+"_Bone_")===0){try{tl.removeLayer(l);}catch(e){}}}}
 function syncBoneRows(){var p=currentPart();if(!p)return;(p.bones||[]).forEach(function(b){ensureBoneRow(p,b);});dirty("DemBones Native bone rows");}
-function setBoneKey(){var p=currentPart(),o=currentObject();if(!p||!(p.bones||[]).length){status("Add a bone first.",true);return;}ensureDeformationReady();var fr=playhead(),pose=poseForFrame(p,fr);if(!p.boneKeys)p.boneKeys={};p.boneKeys[String(fr)]=keyFromPoseMap(p,pose);writeRegistry();rebuildNativeOutput(p,o);state.lastFollowFrame=null;syncCurrentPartToWickFrame(true);renderAll();status("Bone key set on Wick frame "+fr+". Native Wick deformation saved with interpolated in-between poses.");}
+function setBoneKey(){var p=currentPart(),o=currentObject();if(!p||!(p.bones||[]).length){status("Add a bone first.",true);return;}ensureDeformationReady();var fr=playhead(),pose=poseForFrame(p,fr);if(!p.boneKeys)p.boneKeys={};p.boneKeys[String(fr)]=keyFromPoseMap(p,pose);rebuildNativeOutput(p,o);writeRegistry();state.lastFollowFrame=null;syncCurrentPartToWickFrame(true);renderAll();status("Bone key set on Wick frame "+fr+". Native Wick deformation saved with interpolated in-between poses.");}
 function addCharacter(){var p=currentPart();if(!p){status("Choose a Part first.",true);return;}p.inCharacter=true;p.characterId=state.registry.characterId||"character_1";writeRegistry();syncBoneRows();renderAll();syncBoneOverlayVisibility();status("Added to Character without deleting or replacing the Wick item. Bones remain visible and attached to this native Wick Part.");}
 function removeCharacter(){var p=currentPart();if(!p)return;p.inCharacter=false;delete p.characterId;writeRegistry();renderAll();status("Removed Character membership. Wick item remains unchanged.");}
 
@@ -1119,7 +1120,14 @@ function syncCurrentPartToWickFrame(force){
 
   // A Gizmo keeps its Draw-session frame structure, so preview the interpolated
   // bone pose against the currently displayed Draw frame as the Wick playhead moves.
-  if(part.deformationEnabled&&state.tab==="animate"&&!state.animDrag&&(part.kind==="gizmo"||(part.nativeSource&&part.nativeSource.directPath))){
+  // A direct native Path must follow the Wick playhead whenever it has
+  // DemBones source data. Do not gate this on deformationEnabled: renderAll()
+  // reloads persisted registry state, and older/current registry saves may not
+  // contain that transient flag even though the bone keys are valid.
+  if(state.tab==="animate"&&!state.animDrag&&(
+      part.kind==="gizmo" ||
+      (part.nativeSource&&part.nativeSource.directPath)
+    )){
     try{
       var pose=poseForFrame(part,fr);
       updateCurrentNativePose(part,o,pose,fr);
