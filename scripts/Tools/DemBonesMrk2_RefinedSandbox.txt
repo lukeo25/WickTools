@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBones Refined Sandbox — DemBonesMrk2 + working Gizmos</title> <!-- FIX GPT_23-09-2026_CharacterCollapsedDragReorder: header arrow is open/close control; Delete is red inside open panel; closed cards drag to reorder; open cards cannot drag --> <!-- FIX GPT_23-09-2026_GizmoTimelineIsTruth: remove duplicate Gizmo key buttons and redundant Part stays selected/Gizmo On controls; Wick timeline is the key display --> <!-- FIX GPT_23-09-2026_StaleRigMousemove: missing transferred/deleted rig clips no longer throw on every mousemove; stale overlays shut down cleanly --> <!-- FIX GPT_23-09-2026_GizmoSingleStageCopy_AnimateDial: one Gizmo stage copy after Character transfer; selected Character Gizmo shows the existing dial/control in Animate --> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBones Refined Sandbox — DemBonesMrk2 + working Gizmos</title> <!-- FIX GPT_23-09-2026_CloseNativeCurvesAndGizmoClips: close commits shape rigs as Wick curves on frames and Gizmos as real nested Wick Gizmo Clips; Gizmos never pass through the Character curve-flatten path --> <!-- FIX GPT_23-09-2026_CharacterCollapsedDragReorder: header arrow is open/close control; Delete is red inside open panel; closed cards drag to reorder; open cards cannot drag --> <!-- FIX GPT_23-09-2026_GizmoTimelineIsTruth: remove duplicate Gizmo key buttons and redundant Part stays selected/Gizmo On controls; Wick timeline is the key display --> <!-- FIX GPT_23-09-2026_StaleRigMousemove: missing transferred/deleted rig clips no longer throw on every mousemove; stale overlays shut down cleanly --> <!-- FIX GPT_23-09-2026_GizmoSingleStageCopy_AnimateDial: one Gizmo stage copy after Character transfer; selected Character Gizmo shows the existing dial/control in Animate --> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -14556,6 +14556,150 @@ html, body, #app{
     } catch(e){}
   }
 
+  function mcGizmoHeldSlotForCommit_v20260923(gizmo, frame){
+    gizmo = gizmo || {};
+    var frames = Array.isArray(gizmo.frames) ? gizmo.frames : [];
+    var count = Math.max(1, frames.length);
+    var keys = gizmo.timelineKeys || {};
+    var chosenSlot = null;
+    if (keys[String(frame)] != null && isFinite(Number(keys[String(frame)]))) {
+      chosenSlot = Math.round(Number(keys[String(frame)]));
+    } else {
+      var bestKeyFrame = -1;
+      Object.keys(keys).forEach(function(key){
+        var keyFrame = Number(key);
+        var keySlot = Number(keys[key]);
+        if (!isFinite(keyFrame) || !isFinite(keySlot)) return;
+        if (keyFrame <= frame && keyFrame > bestKeyFrame) {
+          bestKeyFrame = keyFrame;
+          chosenSlot = Math.round(keySlot);
+        }
+      });
+    }
+    if (chosenSlot == null) chosenSlot = Math.round(Number(gizmo.defaultFrame || 1) || 1);
+    return Math.max(1, Math.min(count, chosenSlot));
+  }
+
+  function mcGizmoInternalFrameNumber_v20260923(gizmo, slot){
+    var frames = gizmo && Array.isArray(gizmo.frames) ? gizmo.frames : [];
+    var item = frames[Math.max(0, Math.min(frames.length - 1, Number(slot || 1) - 1))] || null;
+    return Math.max(1, Math.round(Number(item && item.gizmoFrameNumber || slot || 1) || 1));
+  }
+
+  function mcGizmoNativeForStoredFrame_v20260923(frameData, gizmo, sourceState){
+    if (!frameData) return null;
+    try {
+      if (frameData.native && frameData.native.shapes && frameData.native.shapes.length) return mcSafeClone(frameData.native);
+    } catch(eNative){}
+    try {
+      var union = gizmo && gizmo.unionBounds ? gizmo.unionBounds : null;
+      var displaySvg = String(frameData.displaySvg || '');
+      if (!displaySvg && typeof dbm2ComposeGizmoFrameInUnion_v18268_GPT === 'function') {
+        displaySvg = dbm2ComposeGizmoFrameInUnion_v18268_GPT(frameData, union);
+      }
+      if (!displaySvg) displaySvg = String(frameData.raw || '');
+      if (!displaySvg) return null;
+      var w = Math.max(1, Number(union && union.w || sourceState && sourceState.width || frameData.width || 1));
+      var h = Math.max(1, Number(union && union.h || sourceState && sourceState.height || frameData.height || 1));
+      return parseNativeSvg(displaySvg, w, h);
+    } catch(eParse) {
+      return null;
+    }
+  }
+
+  function mcBuildNativeGizmoClipForCharacterFrame_v20260923(basePart, resolvedPart, outerFrame, exportBounds, parentBounds){
+    var state = basePart && basePart.state ? basePart.state : null;
+    var sourceState = state && state.source ? state.source : null;
+    var gizmo = sourceState && sourceState.gizmo ? sourceState.gizmo : null;
+    var storedFrames = gizmo && Array.isArray(gizmo.frames) ? gizmo.frames : [];
+    if (!gizmo || !storedFrames.length) return null;
+
+    var clipName = String(basePart.name || gizmo.sourceName || ('Gizmo_' + basePart.id));
+    var clip = new App.Wick.Clip({ identifier:makeValidIdentifier(clipName + '_gizmo_' + outerFrame + '_' + Date.now(), 'GizmoClip') });
+    try { clip.name = clipName; } catch(eName){}
+    try {
+      while (clip.timeline.layers.length) clip.timeline.removeLayer(clip.timeline.layers[0]);
+    } catch(eClear){}
+
+    var layer = new App.Wick.Layer();
+    try { layer.name = 'Gizmo Frames'; } catch(eLayerName){}
+    clip.timeline.addLayer(layer);
+
+    var savedSvgNative = mcSafeClone(App.source && App.source.svgNative || null);
+    var savedSvgRaw = App.source && App.source.svgRaw ? String(App.source.svgRaw) : '';
+    var savedWidth = Number(App.source && App.source.width || 1);
+    var savedHeight = Number(App.source && App.source.height || 1);
+    var made = 0;
+
+    try {
+      for (var gi = 0; gi < storedFrames.length; gi += 1) {
+        var frameData = storedFrames[gi] || {};
+        var internalFrameNumber = Math.max(1, Math.round(Number(frameData.gizmoFrameNumber || (gi + 1)) || (gi + 1)));
+        var internalFrame = new App.Wick.Frame({ start:internalFrameNumber, end:internalFrameNumber });
+        try { internalFrame.identifier = makeValidIdentifier(String(frameData.label || ('frame_' + internalFrameNumber)), 'frame_' + internalFrameNumber); } catch(eId){}
+        layer.addFrame(internalFrame);
+
+        var native = mcGizmoNativeForStoredFrame_v20260923(frameData, gizmo, sourceState);
+        if (!native || !native.shapes || !native.shapes.length) continue;
+
+        App.source.svgNative = native;
+        App.source.svgRaw = String(frameData.displaySvg || frameData.raw || '');
+        App.source.width = Math.max(1, Number(sourceState.width || frameData.width || savedWidth || 1));
+        App.source.height = Math.max(1, Number(sourceState.height || frameData.height || savedHeight || 1));
+
+        var records = nativeShapePathRecordsFromFrame(outerFrame, exportBounds);
+        for (var si = 0; si < records.length; si += 1) {
+          var bakedRecord = mcBakeRecordToCharacterClip(records[si], resolvedPart, exportBounds, parentBounds);
+          var path = createNativeWickPathFromRecord(bakedRecord, outerFrame, si + 1);
+          try { path.name = clipName + '_GizmoCurve_' + internalFrameNumber + '_' + (si + 1); } catch(ePathName){}
+          mcResetPathTransformAfterBake(path);
+          addToFrame(internalFrame, path);
+          made += 1;
+        }
+      }
+    } finally {
+      App.source.svgNative = savedSvgNative;
+      App.source.svgRaw = savedSvgRaw;
+      App.source.width = savedWidth;
+      App.source.height = savedHeight;
+    }
+
+    if (!made) return null;
+
+    var heldSlot = mcGizmoHeldSlotForCommit_v20260923(gizmo, outerFrame);
+    var heldInternalFrame = mcGizmoInternalFrameNumber_v20260923(gizmo, heldSlot);
+    try { clip.animationType = 'single'; } catch(eAnim){}
+    try { clip._animationType = 'single'; } catch(eAnim2){}
+    try { clip.isSynced = false; clip._isSynced = false; } catch(eSync){}
+    try { clip.singleFrameNumber = heldInternalFrame; } catch(eSingle){}
+    try { if (clip.timeline) clip.timeline.playheadPosition = heldInternalFrame; } catch(ePlay){}
+
+    try {
+      var familyId = String(gizmo.sourceUUID || basePart.uid || ('gizmo_' + basePart.id)).replace(/[^A-Za-z0-9_-]/g,'') || ('gizmo_' + basePart.id);
+      var anchor = gizmo.anchor || null;
+      var script = '/*LUKE_FRAME_GIZMO:1*/\n/*LUKE_FRAME_GIZMO_ID:' + familyId + '*/';
+      if (anchor && isFinite(Number(anchor.x)) && isFinite(Number(anchor.y))) {
+        script += '\n/*LUKE_FRAME_GIZMO_ANCHOR:' + Number(anchor.x) + ',' + Number(anchor.y) + '*/';
+      }
+      if (typeof clip.addScript === 'function') clip.addScript('default', script);
+      else {
+        if (!clip.scripts) clip.scripts = [];
+        clip.scripts.push({name:'default',src:script});
+      }
+    } catch(eScript){}
+
+    try {
+      if (!clip.transformation) clip.transformation = {};
+      clip.transformation.x = 0;
+      clip.transformation.y = 0;
+      clip.transformation.scaleX = 1;
+      clip.transformation.scaleY = 1;
+      clip.transformation.rotation = 0;
+    } catch(eTransform){}
+
+    return clip;
+  }
+
   async function mcCommitCharacterNativeClip(){ // FIX v_045
     var mc = mcEnsure();
     mcCaptureActivePart();
@@ -14581,6 +14725,7 @@ html, body, #app{
     try { parentClip.bounds = { x:0, y:0, width:parentClip.width || parentBounds.w, height:parentClip.height || parentBounds.h }; } catch(eBounds){}
     var partExportBounds = {};
     var madePaths = 0;
+    var madeGizmoClips = 0;
     for (var pIndex = 0; pIndex < commitParts_v083.length; pIndex += 1) {
       var basePart = commitParts_v083[pIndex]; // FIX v_083
       var partName = String(basePart.name || ('Part ' + basePart.id));
@@ -14608,66 +14753,35 @@ html, body, #app{
           var resolvedPart = mcFindPartInList(resolvedParts, basePart.id) || basePart;
           var exportBounds = partExportBounds[basePart.id] || computeAnimationExportBounds();
 
-          // FIX GPT_21-09-2026_GizmoCommitKeepsKeys:
-          // A Character Gizmo is discrete frame-choice animation. Resolve the
-          // held Gizmo slot for THIS Wick frame, load that frame's SVG geometry,
-          // then let the existing DemBones pose/bone deformation bake it.
-          try {
-            var commitGizmo = basePart && basePart.state && basePart.state.source
-              ? basePart.state.source.gizmo
-              : null;
-            if (commitGizmo && Array.isArray(commitGizmo.frames) && commitGizmo.frames.length) {
-              var maxGizmoSlot = commitGizmo.frames.length;
-              var keys = commitGizmo.timelineKeys || {};
-              var chosenSlot = null;
-              if (keys[String(fi)] != null && isFinite(Number(keys[String(fi)]))) {
-                chosenSlot = Math.round(Number(keys[String(fi)]));
-              } else {
-                var bestKeyFrame = -1;
-                Object.keys(keys).forEach(function(key){
-                  var keyFrame = Number(key);
-                  var keySlot = Number(keys[key]);
-                  if (!isFinite(keyFrame) || !isFinite(keySlot)) return;
-                  if (keyFrame <= fi && keyFrame > bestKeyFrame) {
-                    bestKeyFrame = keyFrame;
-                    chosenSlot = Math.round(keySlot);
-                  }
-                });
-              }
-              if (chosenSlot == null) chosenSlot = Math.round(Number(commitGizmo.defaultFrame || 1) || 1);
-              chosenSlot = Math.max(1, Math.min(maxGizmoSlot, chosenSlot));
+          var commitGizmo = basePart && basePart.state && basePart.state.source
+            ? basePart.state.source.gizmo
+            : null;
 
-              var chosenGizmoFrame = commitGizmo.frames[chosenSlot - 1] || null;
-              var chosenSvg = '';
-              if (chosenGizmoFrame && chosenGizmoFrame.raw) {
-                chosenSvg = String(chosenGizmoFrame.raw);
-              } else if (chosenGizmoFrame) {
-                dbm2LogMissingGizmoFrameArtwork_v18266_GPT(chosenGizmoFrame);
-              }
-
-              if (chosenSvg) {
-                var commitW = Math.max(1, Number(basePart.state.source.width || App.source.width || 300));
-                var commitH = Math.max(1, Number(basePart.state.source.height || App.source.height || 200));
-                App.source.svgRaw = chosenSvg;
-                App.source.svgNative = parseNativeSvg(chosenSvg, commitW, commitH);
-                App.source.width = commitW;
-                App.source.height = commitH;
-                App.source.gizmo = mcSafeClone(commitGizmo);
-                App.source.gizmo.defaultFrame = chosenSlot;
-              }
+          // FIX GPT_23-09-2026_CloseNativeCurvesAndGizmoClips:
+          // Shape-derived DemBones parts become native Wick paths on the Character
+          // frame. Gizmos remain actual Wick Clips. Never flatten a Gizmo into the
+          // Character frame's path collection.
+          if (commitGizmo && Array.isArray(commitGizmo.frames) && commitGizmo.frames.length) {
+            var gizmoClip = mcBuildNativeGizmoClipForCharacterFrame_v20260923(
+              basePart,
+              resolvedPart,
+              fi,
+              exportBounds,
+              parentBounds
+            );
+            if (!gizmoClip) throw new Error('Could not rebuild Gizmo as a native Wick Clip.');
+            addToFrame(frame, gizmoClip);
+            madeGizmoClips += 1;
+          } else {
+            var records = nativeShapePathRecordsFromFrame(fi, exportBounds);
+            for (var si = 0; si < records.length; si += 1) {
+              var bakedRecord = mcBakeRecordToCharacterClip(records[si], resolvedPart, exportBounds, parentBounds);
+              var path = createNativeWickPathFromRecord(bakedRecord, fi, si + 1);
+              try { path.name = partName + '_Curve_' + fi + '_' + (si + 1); } catch(ePathName){}
+              mcResetPathTransformAfterBake(path);
+              addToFrame(frame, path);
+              madePaths += 1;
             }
-          } catch(eGizmoCommitFrame) {
-            try { mcLog('Gizmo frame bake warning on Wick frame ' + fi + ': ' + (eGizmoCommitFrame && eGizmoCommitFrame.message ? eGizmoCommitFrame.message : eGizmoCommitFrame)); } catch(eGizmoCommitLog){}
-          }
-
-          var records = nativeShapePathRecordsFromFrame(fi, exportBounds);
-          for (var si = 0; si < records.length; si += 1) {
-            var bakedRecord = mcBakeRecordToCharacterClip(records[si], resolvedPart, exportBounds, parentBounds); // FIX v_046
-            var path = createNativeWickPathFromRecord(bakedRecord, fi, si + 1); // FIX v_046
-            try { path.name = partName + '_Curve_' + fi + '_' + (si + 1); } catch(ePathName){}
-            mcResetPathTransformAfterBake(path); // FIX v_046
-            addToFrame(frame, path);
-            madePaths += 1;
           }
         } catch(frameErr) {
           mcLog('Commit skipped ' + partName + ' frame ' + fi + ': ' + (frameErr && frameErr.message ? frameErr.message : frameErr));
@@ -14675,10 +14789,10 @@ html, body, #app{
       }
     }
     mc.loading = false;
-    if (!madePaths) {
+    if (!madePaths && !madeGizmoClips) {
       if (savedState) { try { await loadRigProjectState(savedState); } catch(eRestoreFail){} }
       mc.selectedId = savedSelected;
-      mcLog('Character commit failed. No native curves were committed.');
+      mcLog('Character commit failed. No native curves or Gizmo Clips were committed.');
       return;
     }
     try {
@@ -14726,7 +14840,7 @@ html, body, #app{
     try { var host = (window.parent && window.parent.document ? window.parent.document : document).getElementById('mcStagePartsHost'); if (host && host.parentNode) host.parentNode.removeChild(host); } catch(eHostRemove){}
     try { markDirty(); } catch(eDirty){}
     mcRenderPanel();
-    mcLog('Committed assembled character into one native Wick clip with the original Wick stage insertion path restored, plus Frame_Bone support.'); // FIX v18.97_GPT
+    mcLog('Committed Character natively: shape rigs are Wick curves on frames; Gizmos remain Wick Gizmo Clips.'); // FIX GPT_23-09-2026_CloseNativeCurvesAndGizmoClips
   }
 
 
