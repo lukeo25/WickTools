@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DemBones Native Sandbox v0.2 — Direct Path Test</title>
+<title>DemBones Native Sandbox v0.3 — Repeatable Direct Path Test</title>
 <style>
 :root{color-scheme:dark;--bg:#0a1522;--panel:#102033;--panel2:#172a40;--line:#35506f;--text:#e7eef7;--muted:#aebed0;--blue:#3aa7ff;--green:#24d394;--gold:#e2b53d;--red:#c96772}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
@@ -118,13 +118,25 @@ function objectName(o){try{return String(o.name||o.identifier||o.classname||"Wic
 function isClip(o){if(!o)return false;try{if(state.Wick&&state.Wick.Clip&&o instanceof state.Wick.Clip)return true;}catch(e){}try{return o.classname==="Clip"&&!!o.timeline;}catch(e){return false;}}
 function isGizmo(o){return isClip(o)&&scriptText(o).indexOf("/*LUKE_FRAME_GIZMO:1*/")>=0;}
 function resolve(id){id=String(id||"");if(!id)return null;refresh();try{var C=state.Wick&&state.Wick.ObjectCache;if(C&&C.getObjectByUUID)return C.getObjectByUUID(id);}catch(e){}return null;}
-function objectStageMatrix(o){
+function rawObjectStageMatrix(o){
   try{
     var item=o&&o.view&&(o.view.group||o.view.item);
     var v=item&&item.globalMatrix&&item.globalMatrix.values;
     if(v&&v.length>=6)return [Number(v[0]),Number(v[1]),Number(v[2]),Number(v[3]),Number(v[4]),Number(v[5])];
   }catch(e){}
   return [1,0,0,1,0,0];
+}
+function objectStageMatrix(o){
+  // Direct native Path deformation must stay in the same rest coordinate space
+  // across repeated edits. Wick may alter the live view matrix/bounds when the
+  // Path JSON is rewritten, so use the matrix captured when the Path was bound.
+  try{
+    var id=uuid(o),p=id&&state.registry&&state.registry.parts&&state.registry.parts[id];
+    if(p&&p.nativeSource&&p.nativeSource.directPath&&Array.isArray(p.nativeSource.objectMatrix)){
+      return p.nativeSource.objectMatrix.slice();
+    }
+  }catch(eStableMatrix){}
+  return rawObjectStageMatrix(o);
 }
 function transformPointByMatrix(m,p){return {x:m[0]*p.x+m[2]*p.y+m[4],y:m[1]*p.x+m[3]*p.y+m[5]};}
 function inverseTransformPointByMatrix(m,p){
@@ -247,6 +259,7 @@ function captureNativeSource(part,o){
       directPath:true,
       pathUUID:uuid(o),
       json:cloneData(pj),
+      objectMatrix:rawObjectStageMatrix(o),
       rigGeometry:captureWickPathRigGeometry(o,o)
     };
     part.nativeSource=directSource;
@@ -734,6 +747,10 @@ function ensureDeformationReady(){
   var needRecapture=!p.nativeSource;
   if(!needRecapture&&p.nativeSource&&p.nativeSource.directPath){
     needRecapture=!p.nativeSource.json;
+    if(!needRecapture&&!Array.isArray(p.nativeSource.objectMatrix)){
+      p.nativeSource.objectMatrix=rawObjectStageMatrix(o);
+      writeRegistry();
+    }
   }else if(!needRecapture&&p.nativeSource&&p.nativeSource.layers){
     needRecapture=!p.nativeSource.layers.some(function(l){return (l.frames||[]).some(function(f){return (f.paths||[]).some(function(r){return !!r.rigGeometry;});});});
   }
