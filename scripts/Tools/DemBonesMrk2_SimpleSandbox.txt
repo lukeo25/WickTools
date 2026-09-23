@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBones Simple Sandbox — based on DemBonesMrk2</title> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBones Core Sandbox — Mk2 Boning, Simplified UI</title> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -938,17 +938,49 @@ html, body, #app{
 }
 
 
-/* SIMPLE SANDBOX UI ONLY — DemBonesMrk2 engine below is unchanged. */
-body.dbSimpleSandbox #tabs .tabBtn[data-tab="editbone"],
+/* SIMPLE SANDBOX UI ONLY — DemBonesMrk2 engine below is unchanged.
+   The core rig, bone rendering, edit behaviour, deformation, interpolation,
+   proxy timeline rows/diamonds and reopen logic are all Mk2 code. */
 body.dbSimpleSandbox #tabs .tabBtn[data-tab="animatepoints"],
+body.dbSimpleSandbox #tabs .tabBtn[data-tab="expression"],
 body.dbSimpleSandbox #tabs .tabBtn[data-tab="stamp"],
 body.dbSimpleSandbox #tabs .tabBtn[data-tab="help"]{display:none!important;}
 body.dbSimpleSandbox #tabs{grid-template-columns:repeat(5,minmax(0,1fr))!important;}
 body.dbSimpleSandbox #tabs .tabBtn[data-tab="source"]{order:1;}
 body.dbSimpleSandbox #tabs .tabBtn[data-tab="bones"]{order:2;}
-body.dbSimpleSandbox #tabs .tabBtn[data-tab="animate"]{order:3;}
-body.dbSimpleSandbox #tabs .tabBtn[data-tab="character"]{order:4;}
-body.dbSimpleSandbox #tabs .tabBtn[data-tab="expression"]{order:5;}
+body.dbSimpleSandbox #tabs .tabBtn[data-tab="editbone"]{order:3;}
+body.dbSimpleSandbox #tabs .tabBtn[data-tab="animate"]{order:4;}
+body.dbSimpleSandbox #tabs .tabBtn[data-tab="character"]{order:5;}
+body.dbSimpleSandbox #tabs .tabBtn[data-tab="editbone"]{font-size:0;}
+body.dbSimpleSandbox #tabs .tabBtn[data-tab="editbone"]:after{content:"Edit";font-size:12px;}
+
+/* Part: keep only the practical intake/save flow. */
+body.dbSimpleSandbox [data-page="source"] .section:has(#btnSetArea) .row:has(#btnSetArea),
+body.dbSimpleSandbox [data-page="source"] .section:has(#btnSetArea) .row:has(#chkUseSelectedCurveRemoveOriginals_Claude),
+body.dbSimpleSandbox [data-page="source"] .section:has(#btnSetArea) .row:has(#btnImportSelectedGizmoAsPart),
+body.dbSimpleSandbox [data-page="source"] .section:has(#btnSetArea) .notice,
+body.dbSimpleSandbox [data-page="source"] .section:has(#btnSetArea) .row:has(input[name="curvePointMode_Claude"]),
+body.dbSimpleSandbox [data-page="source"] .section:has(#btnSetArea) .row:has(#selectedInfo),
+body.dbSimpleSandbox [data-page="source"] .section:has(#btnSetArea) .row:has(#sourceInfo),
+body.dbSimpleSandbox [data-page="source"] .section:has(#btnSetArea) .row:has(#overlayInfo),
+body.dbSimpleSandbox [data-page="source"] .section:has(#chkShowImage){display:none!important;}
+
+/* Bones: use Mk2 bones, but do not expose expression/Gizmo bone types. */
+body.dbSimpleSandbox #selBoneType option[value="lip"],
+body.dbSimpleSandbox #selBoneType option[value="wink"]{display:none!important;}
+
+/* Edit: keep real Mk2 rest-bone editing; hide Frame/Gizmo-only origin controls. */
+body.dbSimpleSandbox [data-page="editbone"] .row:has(#numEditFrameBoneOriginX){display:none!important;}
+
+/* Animate: keep Mk2 bone keys. Hide curve, frame-bone and manual proxy setup UI.
+   Proxy rows still auto-create through Mk2 ensureProxyLayerForCreatedBone(). */
+body.dbSimpleSandbox [data-page="animate"] .section:has(#btnAnimateCurvesFromAnimate),
+body.dbSimpleSandbox [data-page="animate"] .section:has(#frameBoneAnimateSlots),
+body.dbSimpleSandbox [data-page="animate"] .section:has(#btnProxySetup){display:none!important;}
+
+/* Remove all visible Gizmo/Expression UI from this simplified shell. */
+body.dbSimpleSandbox [data-page="expression"]{display:none!important;}
+
 body.dbSimpleSandbox [data-page="source"] #dbm2Panel h3{font-size:0;}
 body.dbSimpleSandbox [data-page="source"] #dbm2Panel h3:after{content:"Part";font-size:14px;}
 body.dbSimpleSandbox [data-page="source"] #dbm2Panel p.small{display:none;}
@@ -962,6 +994,15 @@ body.dbSimpleSandbox #dbm2Bind{font-weight:700;}
 </style>
 </head>
 <body class="dbSimpleSandbox">
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  try{
+    Array.prototype.slice.call(document.querySelectorAll('#selBoneType option[value="lip"],#selBoneType option[value="wink"]')).forEach(function(o){
+      if(o&&o.parentNode)o.parentNode.removeChild(o);
+    });
+  }catch(e){}
+});
+</script>
 <!-- Derived from DemBonesMrk2 unchanged engine; simplified workflow shell only. -->
 <div id="app">
   <div id="topbar">
