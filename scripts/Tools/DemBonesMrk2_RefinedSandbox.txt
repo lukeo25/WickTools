@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBones Refined Sandbox — DemBonesMrk2 + working Gizmos</title> <!-- FIX GPT_23-09-2026_CloseNativeCurvesAndGizmoClips: close commits shape rigs as Wick curves on frames and Gizmos as real nested Wick Gizmo Clips; Gizmos never pass through the Character curve-flatten path --> <!-- FIX GPT_23-09-2026_CharacterCollapsedDragReorder: header arrow is open/close control; Delete is red inside open panel; closed cards drag to reorder; open cards cannot drag --> <!-- FIX GPT_23-09-2026_GizmoTimelineIsTruth: remove duplicate Gizmo key buttons and redundant Part stays selected/Gizmo On controls; Wick timeline is the key display --> <!-- FIX GPT_23-09-2026_StaleRigMousemove: missing transferred/deleted rig clips no longer throw on every mousemove; stale overlays shut down cleanly --> <!-- FIX GPT_23-09-2026_GizmoSingleStageCopy_AnimateDial: one Gizmo stage copy after Character transfer; selected Character Gizmo shows the existing dial/control in Animate --> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBones Refined Sandbox — DemBonesMrk2 + working Gizmos</title> <!-- FIX GPT_23-09-2026_TimelineDiamondsNoHelperLayers: remove fake DemBones key layers/frames; show small green Bone and yellow Gizmo diamonds on real Wick rows; hide CharacterSpan implementation label --> <!-- FIX GPT_23-09-2026_CloseNativeCurvesAndGizmoClips: close commits shape rigs as Wick curves on frames and Gizmos as real nested Wick Gizmo Clips; Gizmos never pass through the Character curve-flatten path --> <!-- FIX GPT_23-09-2026_CharacterCollapsedDragReorder: header arrow is open/close control; Delete is red inside open panel; closed cards drag to reorder; open cards cannot drag --> <!-- FIX GPT_23-09-2026_GizmoTimelineIsTruth: remove duplicate Gizmo key buttons and redundant Part stays selected/Gizmo On controls; Wick timeline is the key display --> <!-- FIX GPT_23-09-2026_StaleRigMousemove: missing transferred/deleted rig clips no longer throw on every mousemove; stale overlays shut down cleanly --> <!-- FIX GPT_23-09-2026_GizmoSingleStageCopy_AnimateDial: one Gizmo stage copy after Character transfer; selected Character Gizmo shows the existing dial/control in Animate --> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -12872,7 +12872,11 @@ html, body, #app{
     if (!canvas) return;
     var wickCanvas = proxyTimelineCanvas();
     var tl = proxyTimeline();
-    if (!wickCanvas || !tl || !App.proxy.layers.length) return;
+    var mcDiamondState_v20260923 = App.__mcTimelineDiamondState_v20260923 || null;
+    var hasMcDiamonds_v20260923 = !!(mcDiamondState_v20260923 &&
+      ((mcDiamondState_v20260923.boneFrames && mcDiamondState_v20260923.boneFrames.length) ||
+       (mcDiamondState_v20260923.gizmoFrames && mcDiamondState_v20260923.gizmoFrames.length)));
+    if (!wickCanvas || !tl || (!App.proxy.layers.length && !hasMcDiamonds_v20260923)) return;
     if (canvas.width !== wickCanvas.width) canvas.width = wickCanvas.width;
     if (canvas.height !== wickCanvas.height) canvas.height = wickCanvas.height;
     canvas.style.width = Math.max(1, wickCanvas.offsetWidth) + 'px'; // FIX v15.7: do not compress the active overlay canvas by subtracting the scrollbar width.
@@ -12966,6 +12970,70 @@ html, body, #app{
       var px = frameAreaX + (ph - 1) * CW + CW / 2;
       ctx.beginPath(); ctx.moveTo(px, rowY); ctx.lineTo(px, rowY + rowH); ctx.strokeStyle = '#FF5C5C'; ctx.lineWidth = 3; ctx.stroke();
     });
+
+    // FIX GPT_23-09-2026_TimelineDiamondsNoHelperLayers:
+    // Character animation keys are display-only diamonds over existing Wick rows.
+    // Bone keys are green; Gizmo keys are yellow. No fake Wick frames or layers.
+    try {
+      var mcState = App.__mcTimelineDiamondState_v20260923 || {};
+      function mcFindTimelineLayer_v20260923(kind){
+        if (!tl || !tl.layers) return null;
+        for (var li = 0; li < tl.layers.length; li += 1) {
+          var layer = tl.layers[li];
+          if (!layer) continue;
+          var nm = '';
+          var id = '';
+          try { nm = String(layer.name || ''); id = String(layer.identifier || ''); } catch(eNames){}
+          if (kind === 'character') {
+            if (layer._ltbwRetainedCharacterLayer || id === 'DemBonesCharacter' || nm === 'Character') return layer;
+          } else if (kind === 'gizmo') {
+            if (nm === 'Gizmo' || id === 'Gizmo' || /(^|_)Gizmo($|_)/i.test(nm) || /(^|_)Gizmo($|_)/i.test(id)) return layer;
+          }
+        }
+        return null;
+      }
+
+      function mcRowYForRealLayer_v20260923(layer){
+        if (!layer || !tl || !tl.layers) return null;
+        var idx = tl.layers.indexOf(layer);
+        if (idx < 0) return null;
+        return BCH + NLH + idx * CH - scrollY + 3;
+      }
+
+      function mcDrawDiamonds_v20260923(frames, layer, fill){
+        if (!layer || !frames || !frames.length) return;
+        var rowY = mcRowYForRealLayer_v20260923(layer);
+        if (rowY == null) return;
+        var cy = rowY + CH / 2;
+        var r = Math.max(4, Math.min(6, CH * 0.22));
+        frames.forEach(function(k){
+          k = Math.max(1, Math.round(Number(k) || 1));
+          var cx = frameAreaX + (k - 1) * CW + CW / 2;
+          if (cx < rowLeft || cx > rowRight + 20) return;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy-r);
+          ctx.lineTo(cx+r, cy);
+          ctx.lineTo(cx, cy+r);
+          ctx.lineTo(cx-r, cy);
+          ctx.closePath();
+          ctx.fillStyle = fill;
+          ctx.fill();
+          ctx.strokeStyle = '#10222b';
+          ctx.lineWidth = Math.max(1, 1.5 * scaleY);
+          ctx.stroke();
+        });
+      }
+
+      var characterLayer_v20260923 = mcFindTimelineLayer_v20260923('character');
+      var gizmoLayer_v20260923 = mcFindTimelineLayer_v20260923('gizmo');
+
+      mcDrawDiamonds_v20260923(mcState.boneFrames || [], characterLayer_v20260923, '#1EE29A');
+      mcDrawDiamonds_v20260923(
+        mcState.gizmoFrames || [],
+        gizmoLayer_v20260923 || characterLayer_v20260923,
+        '#E2B53D'
+      );
+    } catch(eCharacterDiamonds_v20260923){}
     ctx.restore(); // FIX v11.3: end clip region
     App.proxy.hitMeta = hitMeta;
     updateProxyHits(tl, rowLeft / scaleX, rowRight / scaleX); // FIX v15.7: convert hit clipping back to CSS pixels.
@@ -22572,7 +22640,7 @@ html, body, #app{
         else throw new Error('Could not add retained Character layer');
 
         var frame = new App.Wick.Frame({ start:1, end:span });
-        try { frame.start = 1; frame.end = span; frame.identifier = 'DemBonesCharacterSpan'; } catch(eFrameProps122){}
+        try { frame.start = 1; frame.end = span; frame.identifier = ''; frame._ltbwCharacterSpan = true; } catch(eFrameProps122){}
         if (typeof characterLayer.addFrame === 'function') characterLayer.addFrame(frame);
         else if (characterLayer.frames && typeof characterLayer.frames.push === 'function') characterLayer.frames.push(frame);
         else throw new Error('Could not create retained Character span');
@@ -27530,41 +27598,30 @@ function installDemBonesMrk2() {
     return rows;
   }
 
-  function mcWriteCharacterMainTimelineKeys_v18252_GPT(state){
-    var tl = mcRootTimelineForCharacterKeys_v18252_GPT();
-    if (!tl || !App.Wick || !App.Wick.Layer || !App.Wick.Frame) return false;
+  function mcWriteCharacterMainTimelineKeys_v18252_GPT(state){ // FIX GPT_23-09-2026_TimelineDiamondsNoHelperLayers
+    // Remove every old fake Wick layer/frame previously used only to display keys.
     mcRemoveCharacterKeyLayers_v18252_GPT();
 
     var rows = mcCharacterKeyRows_v18252_GPT(state || mcBuildCharacterState());
-    rows.slice().reverse().forEach(function(row){
-      var layer = null;
-      try { layer = new App.Wick.Layer({ name:row.name, identifier:row.id }); }
-      catch(eLayer){ try { layer = new window.parent.Wick.Layer({ name:row.name, identifier:row.id }); } catch(eLayer2){} }
-      if (!layer) return;
-      try {
-        layer.name = row.name;
-        layer.identifier = row.id;
-        layer.locked = true;
-        layer._ltbwCharacterKeyLayer = true;
-      } catch(eProps){}
-      try {
-        if (typeof tl.addLayer === 'function') tl.addLayer(layer);
-        else if (tl.layers && typeof tl.layers.push === 'function') tl.layers.push(layer);
-      } catch(eAddLayer){ return; }
-
-      row.frames.forEach(function(frameNumber){
-        try {
-          var frame = new App.Wick.Frame({ start:frameNumber, end:frameNumber });
-          frame.start = frameNumber;
-          frame.end = frameNumber;
-          frame.identifier = makeValidIdentifier('key_' + frameNumber, 'key_' + frameNumber);
-          frame._ltbwCharacterKeyFrame = true;
-          if (typeof layer.addFrame === 'function') layer.addFrame(frame);
-          else if (layer.frames && typeof layer.frames.push === 'function') layer.frames.push(frame);
-        } catch(eFrame){}
-      });
+    var boneFrames = [];
+    var gizmoFrames = [];
+    rows.forEach(function(row){
+      if (!row || !Array.isArray(row.frames)) return;
+      if (String(row.id || '') === 'DemBonesCharacterKey_Gizmo') {
+        gizmoFrames = gizmoFrames.concat(row.frames);
+      } else {
+        boneFrames = boneFrames.concat(row.frames);
+      }
     });
-    try { markDirty(); } catch(eDirty){}
+
+    App.__mcTimelineDiamondState_v20260923 = {
+      boneFrames:mcUniqueSortedFrames_v18252_GPT(boneFrames),
+      gizmoFrames:mcUniqueSortedFrames_v18252_GPT(gizmoFrames)
+    };
+
+    // Diamonds are an overlay on the real Wick rows. No DemBones helper layer is created.
+    try { ensureProxyOverlayCanvasForTimeline(); } catch(eOverlay){}
+    try { scheduleProxyFrame(); } catch(eSchedule){}
     try { proxyRefreshWickTimelineUI(); } catch(eRefresh){}
     return true;
   }
@@ -27684,6 +27741,7 @@ function installDemBonesMrk2() {
         }
       });
     } catch(e){}
+    try { mcRemoveCharacterKeyLayers_v18252_GPT(); } catch(e){ console.error('[MyCharacter] stale Character key layer cleanup failed', e); } // FIX GPT_23-09-2026_TimelineDiamondsNoHelperLayers
     try { syncFrameCountFromWickTimeline(); } catch(e){ console.error('[MyCharacter] sync frame count failed', e); } // FIX v_018
     try { updateUI(); } catch(e){ console.error('[MyCharacter] updateUI failed', e); } // FIX v_018
     try { log('MyCharacter v_070 ready. Layer hierarchy selected overlay order active.'); } catch(e){} // FIX v_018
