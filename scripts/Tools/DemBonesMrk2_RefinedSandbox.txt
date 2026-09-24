@@ -28271,79 +28271,110 @@ function installDemBonesMrk2() {
       return null;
     }
 
+    function mcUnifiedClearLiveOverlayTransform(){
+      try {
+        if (!App.overlay || !App.overlay.root || !App.overlay.root.style) return;
+        App.overlay.root.style.transform = 'none';
+        App.overlay.root.style.transformOrigin = '50% 50%';
+        if (App.overlay.canvas && App.overlay.canvas.style) {
+          App.overlay.canvas.style.transform = 'none';
+          App.overlay.canvas.style.transformOrigin = '0 0';
+        }
+        if (App.overlay.svgLayer && App.overlay.svgLayer.style) {
+          App.overlay.svgLayer.style.transform = 'none';
+          App.overlay.svgLayer.style.transformOrigin = '0 0';
+        }
+      } catch(e){}
+    }
+
+    function mcUnifiedUnrotatedRootRect(){
+      try {
+        if (!App.overlay || !App.overlay.root) return null;
+        var root = App.overlay.root;
+        var oldTransform = root.style.transform;
+        var oldOrigin = root.style.transformOrigin;
+        root.style.transform = 'none';
+        root.style.transformOrigin = '50% 50%';
+        var rect = root.getBoundingClientRect();
+        root.style.transform = oldTransform;
+        root.style.transformOrigin = oldOrigin;
+        return rect;
+      } catch(e){ return null; }
+    }
+
     function mcUnifiedApplyLiveOverlayTransform(){
       try {
         if (!App.overlay || !App.overlay.root) return;
         var part = mcUnifiedSelectedPart();
         var active = !!(part && part.state && (part.mode === 'animate' || (App.interaction && App.interaction.addBoneMode)));
         var rot = active ? (Number(part.transform && part.transform.rotation || 0) || 0) : 0;
+        var root = App.overlay.root;
 
-        var rootRect = App.overlay.root.getBoundingClientRect();
-        var originX = Math.max(1,Number(rootRect.width || 1))*0.5;
-        var originY = Math.max(1,Number(rootRect.height || 1))*0.5;
+        // FIX GPT_24-09-2026_StageSpaceRotation:
+        // Rotate the live edit overlay as ONE unit. Rotating canvas/svg children
+        // independently left RotoBones in its unrotated local basis when Animate opened.
+        if (App.overlay.canvas && App.overlay.canvas.style) {
+          App.overlay.canvas.style.transform = 'none';
+          App.overlay.canvas.style.transformOrigin = '0 0';
+        }
+        if (App.overlay.svgLayer && App.overlay.svgLayer.style) {
+          App.overlay.svgLayer.style.transform = 'none';
+          App.overlay.svgLayer.style.transformOrigin = '0 0';
+        }
 
-        // Pinned parts may have an explicit root-bone origin. Preserve that only
-        // for their inherited pin transform; ordinary Character parts rotate about
-        // their wrapper centre exactly like Wick.
+        var origin = '50% 50%';
         if (active && part.parentPin && part.parentPin.boneId && typeof mcSelectedPinnedOverlayOrigin_v063 === 'function') {
           try {
+            var rr = mcUnifiedUnrotatedRootRect();
             var bounds = App.overlay.previewBounds || {offsetX:0,offsetY:0,width:App.source&&App.source.width||1,height:App.source&&App.source.height||1};
-            var po = mcSelectedPinnedOverlayOrigin_v063(bounds, rootRect);
-            if (po) { originX=Number(po.x||originX); originY=Number(po.y||originY); }
+            var po = rr ? mcSelectedPinnedOverlayOrigin_v063(bounds, rr) : null;
+            if (po) origin = Number(po.x||0) + 'px ' + Number(po.y||0) + 'px';
           } catch(ePinnedOrigin){}
         }
 
+        root.style.transformOrigin = origin;
+        root.style.transform = active && Math.abs(rot) > 0.001 ? ('rotate(' + rot + 'deg)') : 'none';
+
         App.overlay.mcUnifiedPartVisual_v20260924 = {
           active:active && Math.abs(rot)>0.001,
-          rotation:rot,
-          left:Number(rootRect.left||0),
-          top:Number(rootRect.top||0),
-          width:Math.max(1,Number(rootRect.width||1)),
-          height:Math.max(1,Number(rootRect.height||1)),
-          originPx:originX,
-          originPy:originY
+          rotation:rot
         };
-
-        [App.overlay.canvas, App.overlay.svgLayer].forEach(function(node){
-          if (!node || !node.style) return;
-          if (active && Math.abs(rot)>0.001) {
-            node.style.transformOrigin = originX + 'px ' + originY + 'px';
-            node.style.transform = 'rotate(' + rot + 'deg)';
-          } else {
-            node.style.transformOrigin = '0 0';
-            node.style.transform = 'none';
-          }
-        });
       } catch(e){}
     }
 
-    // Final client->local mapping: if the selected Character wrapper is rotated,
-    // inverse-rotate pointer input through that exact wrapper before RotoBones sees it.
+    // FIX GPT_24-09-2026_StageSpaceRotation:
+    // Pointer hit-testing must inverse the same wrapper rotation used visually.
+    // Temporarily read/use the unrotated root rect so getBoundingClientRect's
+    // rotated AABB can never corrupt bone dragging.
     var baseClientToLocalUnified = clientToOverlayLocal;
     clientToOverlayLocal = function(clientX, clientY){
       var info = App.overlay && App.overlay.mcUnifiedPartVisual_v20260924;
-      if (!info || !info.active) return baseClientToLocalUnified.apply(this, arguments);
+      if (!info || !info.active || !App.overlay || !App.overlay.root) {
+        return baseClientToLocalUnified.apply(this, arguments);
+      }
 
-      var px = Number(clientX||0)-Number(info.left||0);
-      var py = Number(clientY||0)-Number(info.top||0);
-      var ox = Number(info.originPx||0);
-      var oy = Number(info.originPy||0);
+      var root = App.overlay.root;
+      var oldTransform = root.style.transform;
+      var oldOrigin = root.style.transformOrigin;
+      root.style.transform = 'none';
+      root.style.transformOrigin = '50% 50%';
+      var rect = root.getBoundingClientRect();
+      var cx = Number(rect.left||0) + Number(rect.width||0)*0.5;
+      var cy = Number(rect.top||0) + Number(rect.height||0)*0.5;
       var a = -Number(info.rotation||0)*Math.PI/180;
-      var dx=px-ox, dy=py-oy;
-      var ux=ox + dx*Math.cos(a)-dy*Math.sin(a);
-      var uy=oy + dx*Math.sin(a)+dy*Math.cos(a);
-
-      // Feed the unrotated client point to the pre-existing mapper. This keeps all
-      // of the established source/bounds logic and only removes wrapper rotation.
-      return baseClientToLocalUnified.call(
-        this,
-        Number(info.left||0)+ux,
-        Number(info.top||0)+uy
-      );
+      var dx = Number(clientX||0)-cx;
+      var dy = Number(clientY||0)-cy;
+      var ux = cx + dx*Math.cos(a)-dy*Math.sin(a);
+      var uy = cy + dx*Math.sin(a)+dy*Math.cos(a);
+      var result = baseClientToLocalUnified.call(this, ux, uy);
+      root.style.transform = oldTransform;
+      root.style.transformOrigin = oldOrigin;
+      return result;
     };
 
-    var baseRenderOverlayUnified = renderOverlay;
+    var baseRenderOverlayUnified = renderOverlay;var baseRenderOverlayUnified = renderOverlay;
     renderOverlay = function(){
+      try { mcUnifiedClearLiveOverlayTransform(); } catch(e){}
       var result = baseRenderOverlayUnified.apply(this, arguments);
       try { mcUnifiedApplyLiveOverlayTransform(); } catch(e){}
       return result;
@@ -28351,6 +28382,7 @@ function installDemBonesMrk2() {
 
     var baseResizeOverlayUnified = resizeOverlayCanvas;
     resizeOverlayCanvas = function(){
+      try { mcUnifiedClearLiveOverlayTransform(); } catch(e){}
       var result = baseResizeOverlayUnified.apply(this, arguments);
       try { mcUnifiedApplyLiveOverlayTransform(); } catch(e){}
       return result;
@@ -28358,6 +28390,7 @@ function installDemBonesMrk2() {
 
     var baseApplyViewportUnified = applyOverlayViewportForBounds;
     applyOverlayViewportForBounds = function(bounds){
+      try { mcUnifiedClearLiveOverlayTransform(); } catch(e){}
       var result = baseApplyViewportUnified.apply(this, arguments);
       try { mcUnifiedApplyLiveOverlayTransform(); } catch(e){}
       return result;
@@ -28464,12 +28497,16 @@ function installDemBonesMrk2() {
           var centerClient=mcUnifiedPartClientCenter(live);
           if(!centerClient)return;
 
-          var startAngle=Math.atan2(
-            Number(startClient.y||0)-Number(centerClient.y||0),
-            Number(startClient.x||0)-Number(centerClient.x||0)
-          );
           var startStage=mcClientToStage(Number(startClient.x||0),Number(startClient.y||0));
           if(!startStage)return;
+          var centerStage={
+            x:Number(base.x||0)+Math.max(1,Number(base.w||1))*0.5,
+            y:Number(base.y||0)+Math.max(1,Number(base.h||1))*0.5
+          };
+          var startAngle=Math.atan2(
+            Number(startStage.y||0)-Number(centerStage.y||0),
+            Number(startStage.x||0)-Number(centerStage.x||0)
+          );
 
           var xs=Number(node.getAttribute('data-mc-u-xs')||0);
           var ys=Number(node.getAttribute('data-mc-u-ys')||0);
@@ -28481,17 +28518,19 @@ function installDemBonesMrk2() {
             try{mcApplyTransformToApp(next);}catch(e){}
             try{mcRenderStageParts_v087();}catch(e){try{mcRenderStageParts();}catch(e2){}}
             try{mcRenderScaleHandles_v071();}catch(e){}
-            try{mcRenderPanel();}catch(e){}
           }
 
           function move(mev){
             var client=mcEventClientInParent?mcEventClientInParent(mev):{x:Number(mev.clientX||0),y:Number(mev.clientY||0)};
             if(kind==='rotate'){
-              // Rotation is intentionally calculated entirely in client/screen space.
-              // No rotated overlay or stage inverse is allowed to affect the handle.
+              // FIX GPT_24-09-2026_StageSpaceRotation:
+              // Rotation follows the Wick stage coordinates used by part.transform.
+              // This keeps the dragged corner and pointer on the same angular basis.
+              var nowRotate=mcClientToStage(Number(client.x||0),Number(client.y||0));
+              if(!nowRotate)return;
               var a=Math.atan2(
-                Number(client.y||0)-Number(centerClient.y||0),
-                Number(client.x||0)-Number(centerClient.x||0)
+                Number(nowRotate.y||0)-Number(centerStage.y||0),
+                Number(nowRotate.x||0)-Number(centerStage.x||0)
               );
               var delta=(a-startAngle)*180/Math.PI;
               while(delta>180)delta-=360;
