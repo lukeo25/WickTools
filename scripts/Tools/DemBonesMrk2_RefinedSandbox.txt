@@ -28434,6 +28434,17 @@ function installDemBonesMrk2() {
   // One Character Part transform owns artwork, bones and handles in every Character mode.
   // Rotation is never stored in bone data and never applied to only one visual layer.
   (function(){
+    // FIX GPT_08-10-2026_SCOPE_GUARD:
+    // This legacy transform patch can be appended outside the main DemBones closure.
+    // In that case its private helpers (including clientToOverlayLocal) are unavailable.
+    // Do not let it crash the entire sandbox; the main in-scope implementation remains active.
+    if (typeof clientToOverlayLocal !== 'function' ||
+        typeof renderOverlay !== 'function' ||
+        typeof resizeOverlayCanvas !== 'function' ||
+        typeof applyOverlayViewportForBounds !== 'function') {
+      return;
+    }
+
     function mcUnifiedSelectedPart(){
       try {
         var mc = mcEnsure();
@@ -28554,7 +28565,7 @@ function installDemBonesMrk2() {
       return result;
     };
 
-    var baseRenderOverlayUnified = renderOverlay;var baseRenderOverlayUnified = renderOverlay;
+    var baseRenderOverlayUnified = renderOverlay;
     renderOverlay = function(){
       try { mcUnifiedClearLiveOverlayTransform(); } catch(e){}
       var result = baseRenderOverlayUnified.apply(this, arguments);
