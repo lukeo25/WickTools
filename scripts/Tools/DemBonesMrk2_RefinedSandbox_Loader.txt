@@ -7,7 +7,7 @@
 (function(){
   "use strict";
 
-  var SOURCE="https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_RefinedSandbox.txt?v=png-clip-placement-7e7ee58";
+  var SOURCE="https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_RefinedSandbox.txt?v=scope-guard-82d2fc8";
 
   function fail(msg){
     var e=document.getElementById("status");
