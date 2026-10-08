@@ -273,7 +273,7 @@
           "id": "DemBones_Pose_Sandbox",
           "label": "Dem Bones Pose",
           "iconUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Panel_SVG/PoseLibrary.svg",
-          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_RefinedSandbox_Loader.txt?v=png-single-visible-a70051a",
+          "toolUrl": "https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_RefinedSandbox_Loader.txt?v=add-bone-cd121d9",
           "action": "tool",
           "F_Screen": 0
         }
