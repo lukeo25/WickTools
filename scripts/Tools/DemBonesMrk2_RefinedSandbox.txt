@@ -1183,6 +1183,7 @@ html, body, #app{
             </select>
           </div>
           <div class="sandboxActionGrid">
+            <button id="btnSandboxAddBone" class="softBtn softBtnAccent" type="button">Add Bone</button>
             <button id="btnSandboxAutoSize" class="softBtn softBtnSecondary" type="button">Auto Size</button>
             <button id="btnSandboxEditBone" class="softBtn softBtnSecondary" type="button">Edit Selected</button>
             <button id="btnSandboxDeleteBone" class="softBtn softBtnWarn" type="button">Delete Selected</button>
@@ -8962,6 +8963,7 @@ html, body, #app{
     // FIX v12.4: creating a new bone must not add that bone to every existing animation keyframe.
     // The bone stays at rest until the user actually moves that bone in Animate mode.
     ensureProxyLayerForCreatedBone(bone); // FIX v10.9: create the real Wick proxy layer immediately when the bone is created
+    if (App.activeTab === 'bones') App.interaction.addBoneMode = true; // FIX GPT_09-10-2026_KEEP_ADD_BONE_ACTIVE
     updateUI();
     renderOverlay();
   }
@@ -28171,11 +28173,34 @@ function installDemBonesMrk2() {
     if (el('btnSandboxSavePart')) el('btnSandboxSavePart').addEventListener('click', function(){ dbSimplifiedProxy('btnSaveRigProject'); });
     if (el('btnSandboxAddCharacter')) el('btnSandboxAddCharacter').addEventListener('click', dbAddCurrentPartToOpenCharacter); // FIX GPT_19-09-2026_CharacterPartFlow
     if (el('selSandboxBoneKind')) el('selSandboxBoneKind').addEventListener('change', function(){ dbSimplifiedChooseBone(this.value); });
+    if (el('btnSandboxAddBone')) el('btnSandboxAddBone').addEventListener('click', function(){ // FIX GPT_09-10-2026_RETURN_TO_ADD_BONE
+      App.activeTab = 'bones';
+      App.interaction.addBoneMode = true;
+      App.interaction.dragging = false;
+      App.interaction.dragType = '';
+      App.interaction.boneId = null;
+      App.frameBonePinMode = false;
+      if (App.paint) App.paint.enabled = false;
+      if (el('sandboxBoneStatus')) el('sandboxBoneStatus').textContent = 'Add Bone mode: drag on the artwork to create another bone.';
+      try {
+        if (App.overlay && App.overlay.canvas && App.overlay.canvas.style) App.overlay.canvas.style.cursor = 'crosshair';
+        if (App.overlay && App.overlay.svgLayer && App.overlay.svgLayer.style) App.overlay.svgLayer.style.cursor = 'crosshair';
+        if (App.overlay && App.overlay.root && App.overlay.root.style) App.overlay.root.style.cursor = 'crosshair';
+      } catch(eCursor){}
+      updateUI();
+      renderOverlay();
+      log('Add Bone mode: drag on the artwork to create another bone.');
+    });
     if (el('btnSandboxAutoSize')) el('btnSandboxAutoSize').addEventListener('click', function(){ autoSizeAllEnvelopes(); }); // FIX GPT_19-09-2026_AutoSizeAll
     if (el('btnSandboxEditBone')) el('btnSandboxEditBone').addEventListener('click', function(){
       if (!getSelectedBone()) { log('Select a bone first.'); return; }
       App.interaction.addBoneMode = false;
-      if (el('sandboxBoneStatus')) el('sandboxBoneStatus').textContent = 'Edit selected bone and envelope directly with its stage nodes.';
+      if (el('sandboxBoneStatus')) el('sandboxBoneStatus').textContent = 'Edit selected bone and envelope directly with its stage nodes. Click Add Bone when ready to create another.';
+      try {
+        if (App.overlay && App.overlay.canvas && App.overlay.canvas.style) App.overlay.canvas.style.cursor = 'default';
+        if (App.overlay && App.overlay.svgLayer && App.overlay.svgLayer.style) App.overlay.svgLayer.style.cursor = 'default';
+        if (App.overlay && App.overlay.root && App.overlay.root.style) App.overlay.root.style.cursor = 'default';
+      } catch(eCursor){}
       renderOverlay();
     });
     if (el('btnSandboxDeleteBone')) el('btnSandboxDeleteBone').addEventListener('click', function(){ dbSimplifiedProxy('btnDeleteBone'); });
