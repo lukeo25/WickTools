@@ -9917,6 +9917,20 @@ html, body, #app{
       sumW += w;
     });
     if (sumW <= 0.00001) return { x:p.x, y:p.y };
+
+    // FIX GPT_09-10-2026_LOCAL_BONE_FALLOFF:
+    // Keep uninfluenced weight attached to the rest position.
+    // Previously a point touched by only one bone was divided by that bone's
+    // tiny envelope weight, turning even fringe influence into 100% deformation.
+    // This is why artwork beside a bone moved as strongly as artwork under it.
+    if (sumW < 1) {
+      var restW = 1 - sumW;
+      sumX += p.x * restW;
+      sumY += p.y * restW;
+      sumW = 1;
+    }
+
+    // Overlapping envelopes may legitimately exceed 1. Normalise those only.
     return { x: sumX / sumW, y: sumY / sumW };
   }
 
