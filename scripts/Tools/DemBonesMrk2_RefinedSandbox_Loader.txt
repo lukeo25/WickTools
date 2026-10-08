@@ -7,7 +7,7 @@
 (function(){
   "use strict";
 
-  var SOURCE="https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_RefinedSandbox.txt?v=png-single-visible-a70051a";
+  var SOURCE="https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_RefinedSandbox.txt?v=add-bone-cd121d9";
 
   function fail(msg){
     var e=document.getElementById("status");
