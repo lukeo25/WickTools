@@ -6250,16 +6250,54 @@ html, body, #app{
     return useSelectedWickCurveAsSourceInternal(true); // FIX v17.2
   }
 
-  function setPngSourceClipViewVisible_GPT(clip, visible){ // FIX GPT_08-10-2026_PNG_SINGLE_VISIBLE
+  function setPngSourceClipViewVisible_GPT(clip, visible){ // FIX GPT_08-10-2026_PNG_SINGLE_VISIBLE_MODEL
     if (!clip) return;
+    var show = !!visible;
+
+    // Hide/show the Wick model itself so a Wick re-render cannot recreate a
+    // second visible copy underneath the DemBones working overlay.
+    try { clip.opacity = show ? 1 : 0; } catch(eOpacity){}
+    try { clip.visible = show; } catch(eVisible){}
+    try { clip._visible = show; } catch(eVisible2){}
+
     try {
       var view = clip.view || null;
       var item = view && (view.group || view.item || view);
       if (item) {
-        if ('visible' in item) item.visible = !!visible;
-        if (item.style && typeof item.style === 'object') item.style.display = visible ? '' : 'none';
+        try { item.opacity = show ? 1 : 0; } catch(eItemOpacity){}
+        if ('visible' in item) item.visible = show;
+        if (item.style && typeof item.style === 'object') item.style.display = show ? '' : 'none';
       }
     } catch(eView){}
+
+    // The PNG path inside the clip also gets model-level opacity. This is the
+    // reliable fallback in Wick builds that ignore Clip.visible on refresh.
+    try {
+      var tl = clip.timeline;
+      (tl && tl.layers ? tl.layers : []).forEach(function(layer){
+        (layer && layer.frames ? layer.frames : []).forEach(function(frame){
+          var lists = [];
+          try { if (Array.isArray(frame.paths)) lists.push(frame.paths); } catch(e0){}
+          try { if (Array.isArray(frame.objects)) lists.push(frame.objects); } catch(e1){}
+          try { if (Array.isArray(frame.children)) lists.push(frame.children); } catch(e2){}
+          try { if (Array.isArray(frame._children)) lists.push(frame._children); } catch(e3){}
+          lists.forEach(function(list){
+            list.forEach(function(obj){
+              if (!obj) return;
+              try { obj.opacity = show ? 1 : 0; } catch(e4){}
+              try {
+                var ov = obj.view || null;
+                var oi = ov && (ov.group || ov.item || ov);
+                if (oi) {
+                  try { oi.opacity = show ? 1 : 0; } catch(e5){}
+                  if ('visible' in oi) oi.visible = show;
+                }
+              } catch(e6){}
+            });
+          });
+        });
+      });
+    } catch(eChildren){}
   }
 
   async function createPlacedPngClipFromSelectedArea(file, loaded){ // FIX GPT_08-10-2026_PNG_SCALE_TO_AREA
@@ -6350,6 +6388,7 @@ html, body, #app{
       }
     } catch(ePT){}
     addToFrame(frame,pathObj);
+    try { pathObj.opacity = 0; } catch(eHidePathModel){} // FIX GPT_08-10-2026_PNG_SINGLE_VISIBLE_MODEL
 
     var scaleX = stageW / localW;
     var scaleY = stageH / localH;
@@ -6366,6 +6405,13 @@ html, body, #app{
 
     if (target) mcInsertClipOnCapturedVisibleStage(clip,target);
     else addClipToWickProject(clip);
+
+    try {
+      setPngSourceClipViewVisible_GPT(clip, false);
+      setTimeout(function(){ try { setPngSourceClipViewVisible_GPT(clip, false); } catch(e0){} }, 0);
+      setTimeout(function(){ try { setPngSourceClipViewVisible_GPT(clip, false); } catch(e1){} }, 80);
+      setTimeout(function(){ try { setPngSourceClipViewVisible_GPT(clip, false); } catch(e2){} }, 250);
+    } catch(eHideAfterInsert){}
 
     // The real Wick clip must exist immediately, but while DemBones is editing,
     // only the working overlay should be visible. Otherwise the source appears twice.
