@@ -7,7 +7,7 @@
 (function(){
   "use strict";
 
-  var SOURCE="https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_RefinedSandbox.txt?v=refined-png-alpha-area-2";
+  var SOURCE="https://raw.githubusercontent.com/lukeo25/WickTools/main/scripts/Tools/DemBonesMrk2_RefinedSandbox.txt?v=refined-png-stage-area-3";
 
   function fail(msg){
     var e=document.getElementById("status");
@@ -86,74 +86,35 @@
 
     var applyOld="applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX v7.5";
     var applyNew=
-      "if (loaded.isPng && App.source && App.source.__pngPlacementRect) {"+
-      "\n        var pr=App.source.__pngPlacementRect;"+
-      "\n        var pw=Math.max(1,Math.round(Number(pr.width||pr.w||0)));"+
-      "\n        var ph=Math.max(1,Math.round(Number(pr.height||pr.h||0)));"+
-      "\n        if (pw>0 && ph>0) {"+
-      "\n          var pc=document.createElement('canvas'); pc.width=pw; pc.height=ph;"+
-      "\n          var pctx=pc.getContext('2d',{alpha:true});"+
-      "\n          pctx.clearRect(0,0,pw,ph);"+
-      "\n          pctx.drawImage(loaded.image,0,0,pw,ph);"+
-      "\n          var pdata=pc.toDataURL('image/png');"+
-      "\n          var pimg=new Image(); pimg.src=pdata;"+
-      "\n          loaded.dataUrl=pdata; loaded.image=pimg; loaded.width=pw; loaded.height=ph;"+
-      "\n        }"+
-      "\n      }"+
-      "\n      applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: loaded.isPng ? 'local-png' : 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX GPT_08-10-2026_PNG_ALPHA_MESH_AREA"+
+      "applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: loaded.isPng ? 'local-png' : 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX GPT_08-10-2026_PNG_STAGE_AREA"+
       "\n      if (loaded.isPng) {"+
-      "\n        if (App.source && App.source.__pngPlacementRect) App.source.viewportRect=App.source.__pngPlacementRect;"+
       "\n        App.grid.resolution = Math.max(32, Number(App.grid.resolution || 32));"+
       "\n        App.grid.cols = App.grid.resolution;"+
       "\n        App.grid.rows = App.grid.resolution;"+
       "\n        try { buildAlphaMask(); } catch(eMask) { log('PNG alpha mask warning: '+(eMask&&eMask.message?eMask.message:String(eMask))); }"+
-      "\n        try { if (App.source && App.source.alphaMask) App.source.alphaMask.threshold = 8; } catch(eThreshold) {}"+
       "\n        try { renderOverlay(); } catch(eRender) {}"+
-      "\n        var rr=App.source&&App.source.viewportRect;"+
-      "\n        var rw=rr?Math.round(Number(rr.width||rr.w||0)):0, rh=rr?Math.round(Number(rr.height||rr.h||0)):0;"+
-      "\n        log('PNG loaded into selected area '+rw+' x '+rh+'. Alpha transparency defines the mesh.');"+
-      "\n        try { delete App.source.__pngPlacementRect; delete App.source.__pngAreaReady; } catch(eClean) {}"+
-      "\n        var bp=el('btnLoadPng'); if(bp) bp.textContent='Load PNG';"+
+      "\n        var sb=App.source&&App.source.stagePlacementBounds;"+
+      "\n        if(sb) log('PNG placed in selected stage area '+Math.round(sb.w)+' x '+Math.round(sb.h)+' at '+Math.round(sb.x)+', '+Math.round(sb.y)+'. Alpha defines the mesh silhouette.');"+
+      "\n        else log('PNG loaded. Alpha defines the mesh silhouette.');"+
       "\n      }";
 
     html=replaceOne(html, applyOld, applyNew, "apply PNG source");
 
     html=html.replace(/SVG file input not found\./g, "SVG / PNG file input not found.");
-    html=html.replace(/Choose the SVG for this area/g, "Choose the SVG or PNG for this area");
+    html=html.replace(/Choose the SVG for this area/g, "Choose the image for this area");
+    html=html.replace(/Drag to set the bone area\. After release, choose the SVG for this area\. Press Esc to cancel\./g, "Drag the rectangle where the image will be placed. After release, choose the image file. Press Esc to cancel.");
 
     var clickOld="el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } promptLocalImageFile(); }); // FIX v6.0";
     var clickNew=
-      "el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } var inp=el('fileImageLoader'); if(inp) inp.accept='.svg,image/svg+xml'; promptLocalImageFile(); }); // FIX GPT_08-10-2026_PNG_ALPHA_MESH"+
+      "el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } var inp=el('fileImageLoader'); if(inp) inp.accept='.svg,image/svg+xml'; promptLocalImageFile(); }); // FIX GPT_08-10-2026_PNG_STAGE_AREA"+
       "\n    if (el('btnLoadPng')) el('btnLoadPng').addEventListener('click', function(){"+
-      "\n      var btn=this;"+
-      "\n      if (!App.source.__pngAreaReady) {"+
-      "\n        App.source.__pngPlacementRect=null;"+
-      "\n        App.source.__pngAreaReady=false;"+
-      "\n        App.source.viewportRect=null;"+
-      "\n        btn.textContent='Select area…';"+
-      "\n        log('PNG import: drag a fresh placement area on the stage. The PNG will be stretched to exactly fill that area.');"+
-      "\n        var setBtn=el('btnSetArea');"+
-      "\n        if (!setBtn) { btn.textContent='Load PNG'; log('Set Area control not found.'); return; }"+
-      "\n        setBtn.click();"+
-      "\n        var started=Date.now();"+
-      "\n        var watch=setInterval(function(){"+
-      "\n          var r=App.source&&App.source.viewportRect;"+
-      "\n          var w=r?Number(r.width||r.w||0):0, h=r?Number(r.height||r.h||0):0;"+
-      "\n          if (r && w>1 && h>1) {"+
-      "\n            clearInterval(watch);"+
-      "\n            App.source.__pngPlacementRect={x:Number(r.x||r.left||0),y:Number(r.y||r.top||0),width:w,height:h,w:w,h:h};"+
-      "\n            App.source.__pngAreaReady=true;"+
-      "\n            btn.textContent='Choose PNG';"+
-      "\n            log('PNG area set to '+Math.round(w)+' x '+Math.round(h)+'. Click Choose PNG.');"+
-      "\n          } else if (Date.now()-started>120000) {"+
-      "\n            clearInterval(watch); btn.textContent='Load PNG'; App.source.__pngAreaReady=false; log('PNG area selection cancelled or timed out.');"+
-      "\n          }"+
-      "\n        },80);"+
-      "\n        return;"+
-      "\n      }"+
-      "\n      var inp=el('fileImageLoader'); if(inp) inp.accept='.png,image/png';"+
-      "\n      promptLocalImageFile();"+
-      "\n    }); // FIX GPT_08-10-2026_PNG_AREA_REQUIRED";
+      "\n      var inp=el('fileImageLoader');"+
+      "\n      if(inp) inp.accept='.png,image/png';"+
+      "\n      App.source.stagePlacementBounds=null;"+
+      "\n      App.source.viewportRect=null;"+
+      "\n      log('PNG import: drag the rectangle where the PNG is to be placed. The PNG will be scaled to exactly fill that rectangle.');"+
+      "\n      beginSetAreaMode();"+
+      "\n    }); // FIX GPT_08-10-2026_PNG_STAGE_AREA";
 
     html=replaceOne(html, clickOld, clickNew, "PNG button");
 
