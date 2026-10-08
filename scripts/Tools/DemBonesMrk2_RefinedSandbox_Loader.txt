@@ -14,122 +14,14 @@
     if(e)e.textContent="DemBones Refined Sandbox failed to load: "+msg;
   }
 
-  function replaceOne(text, oldText, newText, label){
-    var i=text.indexOf(oldText);
-    if(i<0) throw new Error("Missing patch anchor: "+label);
-    return text.slice(0,i)+newText+text.slice(i+oldText.length);
-  }
-
-  function patch(html){
-    // -------------------------------------------------------------------------
-    // PNG IMPORT
-    // -------------------------------------------------------------------------
-    // Keep SVG import intact, add a separate PNG button, and let PNG alpha
-    // define the usable mesh region through the existing DemBones alpha mask.
-    // -------------------------------------------------------------------------
-
-    html=html.replace(
-      /<button id="btnLoadImage" class="secondary">Load SVG<\/button>/g,
-      '<button id="btnLoadImage" class="secondary">Load SVG</button>\n            <button id="btnLoadPng" class="secondary">Load PNG</button>'
-    );
-
-    html=html.replace(
-      /<input type="file" id="fileImageLoader" accept="\.svg,image\/svg\+xml" style="display:none;">/g,
-      '<input type="file" id="fileImageLoader" accept=".svg,image/svg+xml,.png,image/png" style="display:none;">'
-    );
-
-    html=html.replace(
-      /<div class="row"><label>Loaded SVG<\/label><div id="sourceInfo" class="small">No SVG loaded<\/div><\/div>/g,
-      '<div class="row"><label>Loaded source</label><div id="sourceInfo" class="small">No source loaded</div></div>'
-    );
-
-    var loaderAnchor="function loadImageFromFile(file){ // FIX v7.2\n    return new Promise(function(resolve, reject){\n      try {";
-    if(html.indexOf(loaderAnchor)<0){
-      loaderAnchor="function loadImageFromFile(file){ // FIX v7.2\r\n    return new Promise(function(resolve, reject){\r\n      try {";
-    }
-
-    var pngLoader=loaderAnchor+
-      "\n        var isPng = !!(file && (((file.type || '').toLowerCase() === 'image/png') || /\\.png$/i.test(file.name || ''))); // FIX GPT_08-10-2026_PNG_ALPHA_MESH"+
-      "\n        if (isPng) {"+
-      "\n          var pngReader = new FileReader();"+
-      "\n          pngReader.onerror = function(){ reject(new Error('Could not read PNG file.')); };"+
-      "\n          pngReader.onload = function(){"+
-      "\n            try {"+
-      "\n              var pngDataUrl = String(pngReader.result || '');"+
-      "\n              var pngImage = new Image();"+
-      "\n              pngImage.onload = function(){"+
-      "\n                resolve({"+
-      "\n                  dataUrl: pngDataUrl,"+
-      "\n                  image: pngImage,"+
-      "\n                  fileName: String(file.name || 'image.png'),"+
-      "\n                  svgRaw: '',"+
-      "\n                  svgNative: null,"+
-      "\n                  width: Math.max(1,pngImage.naturalWidth || pngImage.width || 1),"+
-      "\n                  height: Math.max(1,pngImage.naturalHeight || pngImage.height || 1),"+
-      "\n                  isPng: true"+
-      "\n                });"+
-      "\n              };"+
-      "\n              pngImage.onerror = function(){ reject(new Error('Could not decode PNG image.')); };"+
-      "\n              pngImage.src = pngDataUrl;"+
-      "\n            } catch(ePng) { reject(ePng); }"+
-      "\n          };"+
-      "\n          pngReader.readAsDataURL(file);"+
-      "\n          return;"+
-      "\n        }";
-
-    html=replaceOne(html, loaderAnchor, pngLoader, "PNG file loader");
-
-    html=html.replace(
-      "reject(new Error('This tool only accepts SVG files, including normal SVG and Inkscape SVG.'));",
-      "reject(new Error('This tool accepts SVG and PNG files.'));"
-    );
-
-    var applyOld="applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX v7.5";
-    var applyNew=
-      "applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: loaded.isPng ? 'local-png' : 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX GPT_08-10-2026_PNG_STAGE_AREA"+
-      "\n      if (loaded.isPng) {"+
-      "\n        App.grid.resolution = Math.max(32, Number(App.grid.resolution || 32));"+
-      "\n        App.grid.cols = App.grid.resolution;"+
-      "\n        App.grid.rows = App.grid.resolution;"+
-      "\n        try { buildAlphaMask(); } catch(eMask) { log('PNG alpha mask warning: '+(eMask&&eMask.message?eMask.message:String(eMask))); }"+
-      "\n        try { renderOverlay(); } catch(eRender) {}"+
-      "\n        var sb=App.source&&App.source.stagePlacementBounds;"+
-      "\n        if(sb) log('PNG placed in selected stage area '+Math.round(sb.w)+' x '+Math.round(sb.h)+' at '+Math.round(sb.x)+', '+Math.round(sb.y)+'. Alpha defines the mesh silhouette.');"+
-      "\n        else log('PNG loaded. Alpha defines the mesh silhouette.');"+
-      "\n      }";
-
-    html=replaceOne(html, applyOld, applyNew, "apply PNG source");
-
-    html=html.replace(/SVG file input not found\./g, "SVG / PNG file input not found.");
-    html=html.replace(/Choose the SVG for this area/g, "Choose the image for this area");
-    html=html.replace(/Drag to set the bone area\. After release, choose the SVG for this area\. Press Esc to cancel\./g, "Drag the rectangle where the image will be placed. After release, choose the image file. Press Esc to cancel.");
-
-    var clickOld="el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } promptLocalImageFile(); }); // FIX v6.0";
-    var clickNew=
-      "el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } var inp=el('fileImageLoader'); if(inp) inp.accept='.svg,image/svg+xml'; promptLocalImageFile(); }); // FIX GPT_08-10-2026_PNG_STAGE_AREA"+
-      "\n    if (el('btnLoadPng')) el('btnLoadPng').addEventListener('click', function(){"+
-      "\n      var inp=el('fileImageLoader');"+
-      "\n      if(inp) inp.accept='.png,image/png';"+
-      "\n      App.source.stagePlacementBounds=null;"+
-      "\n      App.source.viewportRect=null;"+
-      "\n      log('PNG import: drag the rectangle where the PNG is to be placed. The PNG will be scaled to exactly fill that rectangle.');"+
-      "\n      beginSetAreaMode();"+
-      "\n    }); // FIX GPT_08-10-2026_PNG_STAGE_AREA";
-
-    html=replaceOne(html, clickOld, clickNew, "PNG button");
-
-    return html;
-  }
-
   fetch(SOURCE,{cache:"no-store"})
     .then(function(r){
       if(!r.ok) throw new Error("HTTP "+r.status);
       return r.text();
     })
     .then(function(html){
-      var patched=patch(html);
       document.open();
-      document.write(patched);
+      document.write(html);
       document.close();
     })
     .catch(function(err){
