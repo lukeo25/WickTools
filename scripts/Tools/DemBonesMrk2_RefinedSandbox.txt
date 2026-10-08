@@ -1882,6 +1882,7 @@ html, body, #app{
       setAreaMove: null, // FIX v6.0
       setAreaUp: null, // FIX v6.0
       setAreaKey: null, // FIX v6.0
+      pngImportState: 'idle', // FIX GPT_08-10-2026_PNG_SEQUENCE: idle -> selecting-area -> choosing-file -> loading -> idle
       hoverLocal: null, // FIX v6.4
       lastPaintLocal: null, // FIX v6.4
       parentCloseHandler: null, // FIX v9.7
@@ -4488,7 +4489,7 @@ html, body, #app{
   function promptLocalImageFile(){ // FIX v6.0
     var inp = el('fileImageLoader');
     if (!inp) {
-      log('SVG file input not found.');
+      log('Image file input not found.');
       return;
     }
     try { inp.value = ''; } catch(e){}
@@ -6356,19 +6357,22 @@ html, body, #app{
   async function onImageFileChosen(evt){ // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
     var file = evt && evt.target && evt.target.files && evt.target.files[0] ? evt.target.files[0] : null;
     if (!file) {
-      try { delete App.source.__pendingPngImport; } catch(eCancel){}
+      if (App.interaction) App.interaction.pngImportState='idle';
       return;
     }
     try {
       var loaded = await loadImageFromFile(file);
       if (loaded.isPng) {
-        if (!App.source.__pendingPngImport) throw new Error('Use Load PNG and draw the placement area before choosing a PNG.');
+        if (!App.interaction || App.interaction.pngImportState !== 'choosing-file') {
+          throw new Error('PNG import must start with area selection.');
+        }
+        App.interaction.pngImportState='loading';
         await createPlacedPngClipFromSelectedArea(file,loaded);
-        try { delete App.source.__pendingPngImport; } catch(eDone){}
+        App.interaction.pngImportState='idle';
         return;
       }
 
-      try { delete App.source.__pendingPngImport; } catch(eSvgPending){}
+      if (App.interaction) App.interaction.pngImportState='idle';
       applyLoadedSourceImage(loaded.dataUrl, loaded.image, {
         fileName:loaded.fileName,
         mode:'local-svg',
@@ -6383,9 +6387,23 @@ html, body, #app{
         if (el('selExportMode')) el('selExportMode').value='nativeCurve';
       }
     } catch(e) {
-      try { delete App.source.__pendingPngImport; } catch(ePending){}
+      if (App.interaction) App.interaction.pngImportState='idle';
       log('Image load failed: ' + (e && e.message ? e.message : e));
     }
+  }
+
+  function beginPngImportSequence(){ // FIX GPT_08-10-2026_PNG_SEQUENCE
+    if (!App.interaction) App.interaction = {};
+    App.interaction.pngImportState = 'selecting-area';
+    App.source.viewportRect = null;
+    App.source.stagePlacementBounds = null;
+    var input = el('fileImageLoader');
+    if (input) {
+      try { input.value=''; } catch(e){}
+      input.accept='.png,image/png';
+    }
+    log('PNG import: draw the placement area on the Wick stage. The file chooser opens only after you release the mouse.');
+    beginSetAreaMode();
   }
 
   function beginSetAreaMode(){ // FIX v18.181_GPT: Set Area can create a blank source area without loading an SVG
@@ -6410,8 +6428,8 @@ html, body, #app{
       'user-select:none'
     ].join(';');
     var label = pdoc.createElement('div');
-    label.textContent = App.source.__pendingPngImport
-      ? 'Drag the rectangle where the PNG will be placed. Release to choose the PNG. Press Esc to cancel.'
+    label.textContent = (App.interaction && App.interaction.pngImportState === 'selecting-area')
+      ? 'Drag the PNG placement area. Release to choose the PNG. Press Esc to cancel.'
       : 'Drag to set the bone area. After release, choose the SVG for this area. Press Esc to cancel.';
     label.style.cssText = 'position:fixed;left:18px;top:18px;padding:8px 10px;background:rgba(20,20,20,0.92);color:#fff;border:1px solid #52b1ff;font:12px Arial,sans-serif;pointer-events:none;';
     var box = pdoc.createElement('div');
@@ -6466,7 +6484,7 @@ html, body, #app{
       var height = Math.abs(ev.clientY - sy);
       removeSetAreaOverlay();
       if (width < 10 || height < 10) {
-        try { delete App.source.__pendingPngImport; } catch(ePendingSmall){}
+        if (App.interaction) App.interaction.pngImportState='idle';
         log('Set area cancelled because the drag was too small.');
         updateUI();
         return;
@@ -6475,7 +6493,7 @@ html, body, #app{
       App.source.viewportRect = { x: left, y: top, width: width, height: height };
       App.source.stagePlacementBounds = getSetAreaStageBounds(); // FIX v8.8: set area becomes stage anchored so Wick zoom and pan can move the overlay correctly without keyframing it.
 
-      if (App.source.__pendingPngImport || !App.source.image) {
+      if ((App.interaction && App.interaction.pngImportState === 'selecting-area') || !App.source.image) {
         App.source.width = Math.max(1, Math.round(width));
         App.source.height = Math.max(1, Math.round(height));
         App.source.fileName = 'Blank set area';
@@ -6494,16 +6512,18 @@ html, body, #app{
       renderOverlay();
 
       updateUI();
-      if (App.source.__pendingPngImport) {
+      if (App.interaction && App.interaction.pngImportState === 'selecting-area') {
+        App.interaction.pngImportState = 'choosing-file';
         var pngInput=el('fileImageLoader');
         if (pngInput) pngInput.accept='.png,image/png';
-        log('PNG area selected: ' + Math.round(width) + ' x ' + Math.round(height) + ' at ' + Math.round(left) + ', ' + Math.round(top) + '. Choose the PNG.');
+        log('PNG area selected: ' + Math.round(width) + ' x ' + Math.round(height) + ' at ' + Math.round(left) + ', ' + Math.round(top) + '. Now choose the PNG.');
+        promptLocalImageFile();
       } else {
         var svgInput=el('fileImageLoader');
         if (svgInput) svgInput.accept='.svg,image/svg+xml';
         log('Set area: ' + Math.round(width) + ' x ' + Math.round(height) + ' at ' + Math.round(left) + ', ' + Math.round(top) + '. Choose the SVG for this area, or cancel the file picker to keep a blank setup area.');
-      }
-      promptLocalImageFile(); // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
+        promptLocalImageFile();
+      } // FIX GPT_08-10-2026_PNG_SEQUENCE
     };
 
     App.interaction.setAreaKey = function(ev){
@@ -6511,7 +6531,7 @@ html, body, #app{
         ev.preventDefault();
         ev.stopPropagation();
         removeSetAreaOverlay();
-        try { delete App.source.__pendingPngImport; } catch(ePendingEsc){}
+        if (App.interaction) App.interaction.pngImportState='idle';
         log('Set area cancelled.');
       }
     };
@@ -15854,25 +15874,18 @@ html, body, #app{
     if (el('btnEditBoneModeEnvelope')) el('btnEditBoneModeEnvelope').addEventListener('click', function(){ setEditBoneMode('envelope'); }); // FIX v16.6
 
     el('btnSetArea').addEventListener('click', function(){
-      try { delete App.source.__pendingPngImport; } catch(e){}
+      
       var inp=el('fileImageLoader'); if(inp) inp.accept='.svg,image/svg+xml';
       beginSetAreaMode();
     }); // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
     if (el('btnAddDummyArea')) el('btnAddDummyArea').addEventListener('click', addDummyArea); // FIX v18.182_GPT
     el('btnLoadImage').addEventListener('click', function(){
-      try { delete App.source.__pendingPngImport; } catch(e){}
+      
       if (!App.source.viewportRect) { log('Set the area first.'); return; }
       var inp=el('fileImageLoader'); if(inp) inp.accept='.svg,image/svg+xml';
       promptLocalImageFile();
     }); // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
-    if (el('btnLoadPng')) el('btnLoadPng').addEventListener('click', function(){
-      App.source.__pendingPngImport=true;
-      App.source.viewportRect=null;
-      App.source.stagePlacementBounds=null;
-      var inp=el('fileImageLoader'); if(inp) inp.accept='.png,image/png';
-      log('PNG import: drag the rectangle where the PNG is to be placed.');
-      beginSetAreaMode();
-    }); // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
+    if (el('btnLoadPng')) el('btnLoadPng').addEventListener('click', beginPngImportSequence); // FIX GPT_08-10-2026_PNG_SEQUENCE
     if (el('btnUseSelectedCurve')) el('btnUseSelectedCurve').addEventListener('click', useSelectedWickCurveAsSource); // FIX v14.4
     if (el('btnUseSelectedCurveRemove')) el('btnUseSelectedCurveRemove').addEventListener('click', useSelectedWickCurveAsSourceAndRemoveOriginal); // FIX v14.5
     el('fileImageLoader').addEventListener('change', onImageFileChosen); // FIX v6.0
@@ -28045,17 +28058,7 @@ function installDemBonesMrk2() {
       } catch(eContext){}
       dbOpenDrawingSeparatePanel();
     }); // FIX GPT_20-09-2026_DrawGizmoEntry_v2
-    if (el('btnSandboxImportArtwork')) el('btnSandboxImportArtwork').addEventListener('click', function(){
-      try {
-        if (!App.source.viewportRect) {
-          var fit = getFittedStageRect();
-          createBlankSourceAreaAtViewport(fit.x, fit.y, fit.width, fit.height, 'import-area', 'Imported artwork');
-        }
-        var input = el('fileImageLoader');
-        if (input) input.accept = '.svg,image/svg+xml,.png,image/png';
-        promptLocalImageFile();
-      } catch(error) { log('Import artwork failed: ' + (error && error.message ? error.message : error)); }
-    });
+    if (el('btnSandboxImportArtwork')) el('btnSandboxImportArtwork').addEventListener('click', beginPngImportSequence); // FIX GPT_08-10-2026_PNG_SEQUENCE
     if (el('btnSandboxOpenBones')) el('btnSandboxOpenBones').addEventListener('click', function(){ setActiveTab('bones'); });
     if (el('btnSandboxSavePart')) el('btnSandboxSavePart').addEventListener('click', function(){ dbSimplifiedProxy('btnSaveRigProject'); });
     if (el('btnSandboxAddCharacter')) el('btnSandboxAddCharacter').addEventListener('click', dbAddCurrentPartToOpenCharacter); // FIX GPT_19-09-2026_CharacterPartFlow
