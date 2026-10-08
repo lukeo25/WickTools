@@ -6250,6 +6250,18 @@ html, body, #app{
     return useSelectedWickCurveAsSourceInternal(true); // FIX v17.2
   }
 
+  function setPngSourceClipViewVisible_GPT(clip, visible){ // FIX GPT_08-10-2026_PNG_SINGLE_VISIBLE
+    if (!clip) return;
+    try {
+      var view = clip.view || null;
+      var item = view && (view.group || view.item || view);
+      if (item) {
+        if ('visible' in item) item.visible = !!visible;
+        if (item.style && typeof item.style === 'object') item.style.display = visible ? '' : 'none';
+      }
+    } catch(eView){}
+  }
+
   async function createPlacedPngClipFromSelectedArea(file, loaded){ // FIX GPT_08-10-2026_PNG_SCALE_TO_AREA
     if (!file || !loaded || !loaded.image) throw new Error('PNG source is missing.');
     if (!App.source || !App.source.viewportRect) throw new Error('Draw the PNG placement area first.');
@@ -6355,6 +6367,14 @@ html, body, #app{
     if (target) mcInsertClipOnCapturedVisibleStage(clip,target);
     else addClipToWickProject(clip);
 
+    // The real Wick clip must exist immediately, but while DemBones is editing,
+    // only the working overlay should be visible. Otherwise the source appears twice.
+    try {
+      App.source.pngSourceClip = clip;
+      App.source.pngSourceClipIdentifier = clip.identifier || clip.name || base;
+      setPngSourceClipViewVisible_GPT(clip, false);
+    } catch(eHideSource){}
+
     try {
       if (!App.committedClipIdentifiers) App.committedClipIdentifiers=[];
       App.committedClipIdentifiers.push(clip.identifier || clip.name || base);
@@ -6373,6 +6393,7 @@ html, body, #app{
     App.source.viewportRect = {x:vp.x,y:vp.y,width:localW,height:localH};
     App.source.stagePlacementBounds = {x:stageX,y:stageY,w:stageW,h:stageH,cx:stageCX,cy:stageCY};
     App.source.sourceClipIdentifier = clip.identifier || clip.name || base;
+    App.source.pngSourceClip = clip;
     App.source.alphaThreshold = 8;
     buildAlphaMask();
     ensureOverlay();
@@ -6956,7 +6977,16 @@ html, body, #app{
     try { updateUI(); } catch(e){}
   }
 
-  function cleanupToolOverlays(){ // FIX v9.7
+  function cleanupToolOverlays(){
+    // FIX GPT_08-10-2026_PNG_SINGLE_VISIBLE:
+    // If the PNG source clip was only hidden for live DemBones editing, restore it
+    // when the tool closes. A later commit may clear/replace this reference.
+    try {
+      if (App && App.source && App.source.pngSourceClip) {
+        setPngSourceClipViewVisible_GPT(App.source.pngSourceClip, true);
+      }
+    } catch(eRestorePngSource){}
+ // FIX v9.7
     if (App.interaction.cleanupDone) return; // FIX v9.7
     App.interaction.cleanupDone = true; // FIX v9.7
     try { stop(); } catch(e){} // FIX v9.7
