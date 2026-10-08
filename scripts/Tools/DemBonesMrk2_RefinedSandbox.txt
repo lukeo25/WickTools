@@ -6250,7 +6250,7 @@ html, body, #app{
     return useSelectedWickCurveAsSourceInternal(true); // FIX v17.2
   }
 
-  async function createPlacedPngClipFromSelectedArea(file, loaded){ // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
+  async function createPlacedPngClipFromSelectedArea(file, loaded){ // FIX GPT_08-10-2026_PNG_SCALE_TO_AREA
     if (!file || !loaded || !loaded.image) throw new Error('PNG source is missing.');
     if (!App.source || !App.source.viewportRect) throw new Error('Draw the PNG placement area first.');
 
@@ -6258,17 +6258,42 @@ html, body, #app{
     var target = null;
     try { target = mcCaptureVisibleStageCommitTarget(); } catch(eTarget) {}
 
-    var vp = App.source.viewportRect;
+    var vp = {
+      x:Number(App.source.viewportRect.x || 0),
+      y:Number(App.source.viewportRect.y || 0),
+      width:Math.max(1,Number(App.source.viewportRect.width || 1)),
+      height:Math.max(1,Number(App.source.viewportRect.height || 1))
+    };
     var sb = App.source.stagePlacementBounds || getSetAreaStageBounds();
     if (!sb) throw new Error('Could not convert the selected area to Wick stage coordinates.');
 
+    var localW = Math.max(1, Math.round(vp.width));
+    var localH = Math.max(1, Math.round(vp.height));
     var stageX = Number(sb.x || 0);
     var stageY = Number(sb.y || 0);
     var stageW = Math.max(1, Number(sb.w || 1));
     var stageH = Math.max(1, Number(sb.h || 1));
+    var stageCX = Number(sb.cx != null ? sb.cx : stageX + stageW * 0.5);
+    var stageCY = Number(sb.cy != null ? sb.cy : stageY + stageH * 0.5);
+
+    var resizeCanvas = document.createElement('canvas');
+    resizeCanvas.width = localW;
+    resizeCanvas.height = localH;
+    var resizeCtx = resizeCanvas.getContext('2d', {alpha:true});
+    resizeCtx.clearRect(0,0,localW,localH);
+    resizeCtx.drawImage(loaded.image,0,0,localW,localH);
+    var fittedDataUrl = resizeCanvas.toDataURL('image/png');
+
+    var fittedImage = new Image();
+    await new Promise(function(resolve,reject){
+      fittedImage.onload=resolve;
+      fittedImage.onerror=function(){ reject(new Error('Could not create the fitted PNG.')); };
+      fittedImage.src=fittedDataUrl;
+    });
+
     var base = String(file.name || 'PNG_Part').replace(/\.[^.]+$/,'') || 'PNG_Part';
     var assetName = (base + '_DemBones_' + Date.now() + '.png').replace(/[^A-Za-z0-9_.-]+/g,'_');
-    var assetFile = dataURLToFile(loaded.dataUrl, assetName);
+    var assetFile = dataURLToFile(fittedDataUrl, assetName);
 
     await forceCommitFilesIntoAssets([assetFile], [assetName]);
     var found = await waitForAssets([assetName], 15000);
@@ -6278,8 +6303,8 @@ html, body, #app{
     var clipId = makeValidIdentifier(base + '_' + Date.now(), 'DemBonesPNG');
     var clip = new App.Wick.Clip({ identifier:clipId });
     try { clip.name = base; } catch(eName){}
-    try { clip.width = stageW; clip.height = stageH; } catch(eSize){}
-    try { clip.bounds = {x:0,y:0,width:stageW,height:stageH}; } catch(eBounds){}
+    try { clip.width = localW; clip.height = localH; } catch(eSize){}
+    try { clip.bounds = {x:0,y:0,width:localW,height:localH}; } catch(eBounds){}
 
     var safeN=20;
     try {
@@ -6296,8 +6321,13 @@ html, body, #app{
 
     var pathObj = await createImagePathFromAssetAny(asset);
     try { pathObj.identifier='png_source'; } catch(eId){}
-    try { pathObj.x=0; pathObj.y=0; pathObj.width=stageW; pathObj.height=stageH; } catch(eXY){}
-    try { pathObj.bounds={x:0,y:0,width:stageW,height:stageH}; } catch(ePB){}
+    try {
+      pathObj.x=0;
+      pathObj.y=0;
+      pathObj.width=localW;
+      pathObj.height=localH;
+      pathObj.bounds={x:0,y:0,width:localW,height:localH};
+    } catch(ePathSize){}
     try {
       if (pathObj.transformation) {
         pathObj.transformation.x=0;
@@ -6309,15 +6339,17 @@ html, body, #app{
     } catch(ePT){}
     addToFrame(frame,pathObj);
 
+    var scaleX = stageW / localW;
+    var scaleY = stageH / localH;
     try {
-      clip.x=stageX;
-      clip.y=stageY;
       if (!clip.transformation) clip.transformation={};
-      clip.transformation.x=stageX;
-      clip.transformation.y=stageY;
-      clip.transformation.scaleX=1;
-      clip.transformation.scaleY=1;
+      clip.transformation.x=stageCX;
+      clip.transformation.y=stageCY;
+      clip.transformation.scaleX=scaleX;
+      clip.transformation.scaleY=scaleY;
       clip.transformation.rotation=0;
+      try { clip.x=stageCX; clip.y=stageCY; } catch(eXY){}
+      try { clip.scaleX=scaleX; clip.scaleY=scaleY; } catch(eScale){}
     } catch(ePlace){}
 
     if (target) mcInsertClipOnCapturedVisibleStage(clip,target);
@@ -6329,19 +6361,17 @@ html, body, #app{
     } catch(eKeep){}
     markDirty();
 
-    // DemBones local source uses the selected viewport size. stagePlacementBounds
-    // remains the authoritative Wick-stage position and size.
-    applyLoadedSourceImage(loaded.dataUrl, loaded.image, {
+    applyLoadedSourceImage(fittedDataUrl, fittedImage, {
       fileName:loaded.fileName,
       mode:'local-png',
       label:loaded.fileName,
       svgRaw:'',
       svgNative:null,
-      width:Math.max(1,Math.round(Number(vp.width||loaded.width||1))),
-      height:Math.max(1,Math.round(Number(vp.height||loaded.height||1)))
+      width:localW,
+      height:localH
     });
-    App.source.viewportRect = {x:Number(vp.x||0),y:Number(vp.y||0),width:Number(vp.width||1),height:Number(vp.height||1)};
-    App.source.stagePlacementBounds = {x:stageX,y:stageY,w:stageW,h:stageH,cx:stageX+stageW*0.5,cy:stageY+stageH*0.5};
+    App.source.viewportRect = {x:vp.x,y:vp.y,width:localW,height:localH};
+    App.source.stagePlacementBounds = {x:stageX,y:stageY,w:stageW,h:stageH,cx:stageCX,cy:stageCY};
     App.source.sourceClipIdentifier = clip.identifier || clip.name || base;
     App.source.alphaThreshold = 8;
     buildAlphaMask();
@@ -6350,7 +6380,9 @@ html, body, #app{
     renderOverlay();
     updateUI();
 
-    log('Created Wick PNG clip "'+base+'" at '+Math.round(stageX)+', '+Math.round(stageY)+' sized '+Math.round(stageW)+' x '+Math.round(stageH)+'. PNG alpha defines the DemBones mesh.');
+    log('PNG fitted to selected area. Local '+localW+' x '+localH+
+        ' -> Wick stage '+Math.round(stageW)+' x '+Math.round(stageH)+
+        ' at '+Math.round(stageX)+', '+Math.round(stageY)+'. Alpha defines the mesh.');
     return clip;
   }
 
