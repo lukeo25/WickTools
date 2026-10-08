@@ -1123,6 +1123,7 @@ html, body, #app{
           <div class="row rowButtonsSym_Claude cols3" style="margin-top:8px;"> <!-- FIX Claude_10-07-2026_V8: symmetric grid, matches tabs/mcTopActions -->
             <button id="btnSetArea">Set Area</button>
             <button id="btnLoadImage" class="secondary">Load SVG</button>
+            <button id="btnLoadPng" class="secondary">Load PNG</button>
             <button id="btnAddDummyArea" class="secondary">Add Dummy</button> <!-- FIX v18.182_GPT -->
           </div>
           <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
@@ -1136,7 +1137,7 @@ html, body, #app{
             <button id="btnImportSelectedGizmoAsPart" class="secondary">Import Selected Gizmo As Part</button>
           </div>
           <div class="notice small">Part imports use the Gizmo frame currently shown on the stage as the artwork for this bone-rigged part. The original Gizmo Clip remains untouched.</div> <!-- FIX v18.220_GPT -->
-          <input type="file" id="fileImageLoader" accept=".svg,image/svg+xml" style="display:none;">
+          <input type="file" id="fileImageLoader" accept=".svg,image/svg+xml,.png,image/png" style="display:none;">
           <div class="row"><label>Curve points</label></div>
           <div class="row rowButtonsSym_Claude cols1"> <!-- FIX Claude_10-07-2026_V8 -->
             <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="curvePointMode_Claude" id="radCurvePointsSelected_Claude" value="selected" checked> Use selected curve points</label>
@@ -1146,7 +1147,7 @@ html, body, #app{
             <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="curvePointMode_Claude" id="radCurvePointsLimb_Claude" value="limb"> Limb</label>
           </div>
           <div class="row"><label>Set area</label><div id="selectedInfo" class="small">No area set</div></div>
-          <div class="row"><label>Loaded SVG</label><div id="sourceInfo" class="small">No SVG loaded</div></div>
+          <div class="row"><label>Loaded source</label><div id="sourceInfo" class="small">No source loaded</div></div>
           <div class="row"><label>Overlay</label><div id="overlayInfo" class="small">Not active</div></div>
         </div>
 
@@ -5307,33 +5308,61 @@ html, body, #app{
     });
   }
 
-  function loadImageFromFile(file){ // FIX v7.2
+  function loadImageFromFile(file){ // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
     return new Promise(function(resolve, reject){
       try {
-        var isSvg = !!(file && ((file.type || '').toLowerCase().indexOf('svg') >= 0 || /\.svg$/i.test(file.name || ''))); // FIX v7.2
-        if (!isSvg) { // FIX v7.2
-          reject(new Error('This tool only accepts SVG files, including normal SVG and Inkscape SVG.')); // FIX v7.2
-          return; // FIX v7.2
+        var isPng = !!(file && (((file.type || '').toLowerCase() === 'image/png') || /\.png$/i.test(file.name || '')));
+        var isSvg = !!(file && ((file.type || '').toLowerCase().indexOf('svg') >= 0 || /\.svg$/i.test(file.name || '')));
+        if (!isPng && !isSvg) {
+          reject(new Error('This tool accepts SVG and PNG files.'));
+          return;
         }
+
         var reader = new FileReader();
         reader.onload = function(){
           var dataUrl = reader.result;
           loadImageFromUrl(dataUrl).then(async function(img){
+            var targetW = Math.max(1, Math.round(App.source.viewportRect && App.source.viewportRect.width ? App.source.viewportRect.width : (img.naturalWidth || img.width || 100)));
+            var targetH = Math.max(1, Math.round(App.source.viewportRect && App.source.viewportRect.height ? App.source.viewportRect.height : (img.naturalHeight || img.height || 100)));
+
+            if (isPng) {
+              resolve({
+                dataUrl:dataUrl,
+                image:img,
+                fileName:file && file.name ? file.name : 'image.png',
+                isPng:true,
+                isSvg:false,
+                svgRaw:'',
+                svgNative:null,
+                width:targetW,
+                height:targetH
+              });
+              return;
+            }
+
             var svgRaw = '';
             var svgNative = null;
-            var targetW = Math.max(1, Math.round(App.source.viewportRect && App.source.viewportRect.width ? App.source.viewportRect.width : (img.naturalWidth || img.width || 100))); // FIX v7.5
-            var targetH = Math.max(1, Math.round(App.source.viewportRect && App.source.viewportRect.height ? App.source.viewportRect.height : (img.naturalHeight || img.height || 100))); // FIX v7.5
             try {
               svgRaw = await readFileAsText(file);
-              svgNative = parseNativeSvg(svgRaw, targetW, targetH); // FIX v7.5: SVG coordinates are normalised to the Set Area so bones and SVG share the same scale.
-              svgNative = mcDensifyNativeSvgForDeform(svgNative); // FIX v_006: keep imported curves dense enough for deformation
+              svgNative = parseNativeSvg(svgRaw, targetW, targetH);
+              svgNative = mcDensifyNativeSvgForDeform(svgNative);
             } catch(svgErr) {
               log('SVG native parse warning: ' + (svgErr && svgErr.message ? svgErr.message : svgErr));
             }
-            resolve({ dataUrl: dataUrl, image: img, fileName: file && file.name ? file.name : 'svg', isSvg: true, svgRaw: svgRaw, svgNative: svgNative, width: targetW, height: targetH }); // FIX v7.5
-          }).catch(function(err){ reject(err || new Error('SVG load failed')); });
+            resolve({
+              dataUrl:dataUrl,
+              image:img,
+              fileName:file && file.name ? file.name : 'svg',
+              isPng:false,
+              isSvg:true,
+              svgRaw:svgRaw,
+              svgNative:svgNative,
+              width:targetW,
+              height:targetH
+            });
+          }).catch(function(err){ reject(err || new Error((isPng ? 'PNG' : 'SVG') + ' load failed')); });
         };
-        reader.onerror = function(){ reject(reader.error || new Error('Could not read SVG file.')); };
+        reader.onerror = function(){ reject(reader.error || new Error('Could not read image file.')); };
         reader.readAsDataURL(file);
       } catch(e) {
         reject(e);
@@ -6220,18 +6249,142 @@ html, body, #app{
     return useSelectedWickCurveAsSourceInternal(true); // FIX v17.2
   }
 
-  async function onImageFileChosen(evt){ // FIX v7.1
+  async function createPlacedPngClipFromSelectedArea(file, loaded){ // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
+    if (!file || !loaded || !loaded.image) throw new Error('PNG source is missing.');
+    if (!App.source || !App.source.viewportRect) throw new Error('Draw the PNG placement area first.');
+
+    refreshBridgeRefs();
+    var target = null;
+    try { target = mcCaptureVisibleStageCommitTarget(); } catch(eTarget) {}
+
+    var vp = App.source.viewportRect;
+    var sb = App.source.stagePlacementBounds || getSetAreaStageBounds();
+    if (!sb) throw new Error('Could not convert the selected area to Wick stage coordinates.');
+
+    var stageX = Number(sb.x || 0);
+    var stageY = Number(sb.y || 0);
+    var stageW = Math.max(1, Number(sb.w || 1));
+    var stageH = Math.max(1, Number(sb.h || 1));
+    var base = String(file.name || 'PNG_Part').replace(/\.[^.]+$/,'') || 'PNG_Part';
+    var assetName = (base + '_DemBones_' + Date.now() + '.png').replace(/[^A-Za-z0-9_.-]+/g,'_');
+    var assetFile = dataURLToFile(loaded.dataUrl, assetName);
+
+    await forceCommitFilesIntoAssets([assetFile], [assetName]);
+    var found = await waitForAssets([assetName], 15000);
+    var asset = found && found[assetName];
+    if (!asset) throw new Error('PNG was not available in the Wick asset library after import.');
+
+    var clipId = makeValidIdentifier(base + '_' + Date.now(), 'DemBonesPNG');
+    var clip = new App.Wick.Clip({ identifier:clipId });
+    try { clip.name = base; } catch(eName){}
+    try { clip.width = stageW; clip.height = stageH; } catch(eSize){}
+    try { clip.bounds = {x:0,y:0,width:stageW,height:stageH}; } catch(eBounds){}
+
+    var safeN=20;
+    try {
+      while (clip.timeline.layers.length && safeN-- > 0) clip.timeline.removeLayer(clip.timeline.layers[0]);
+    } catch(eClear){}
+
+    var layer = new App.Wick.Layer();
+    try { layer.name='PNG'; } catch(eLayer){}
+    clip.timeline.addLayer(layer);
+
+    var frame = new App.Wick.Frame({start:1,end:1});
+    try { frame.identifier='frame_1'; } catch(eFrame){}
+    layer.addFrame(frame);
+
+    var pathObj = await createImagePathFromAssetAny(asset);
+    try { pathObj.identifier='png_source'; } catch(eId){}
+    try { pathObj.x=0; pathObj.y=0; pathObj.width=stageW; pathObj.height=stageH; } catch(eXY){}
+    try { pathObj.bounds={x:0,y:0,width:stageW,height:stageH}; } catch(ePB){}
+    try {
+      if (pathObj.transformation) {
+        pathObj.transformation.x=0;
+        pathObj.transformation.y=0;
+        pathObj.transformation.scaleX=1;
+        pathObj.transformation.scaleY=1;
+        pathObj.transformation.rotation=0;
+      }
+    } catch(ePT){}
+    addToFrame(frame,pathObj);
+
+    try {
+      clip.x=stageX;
+      clip.y=stageY;
+      if (!clip.transformation) clip.transformation={};
+      clip.transformation.x=stageX;
+      clip.transformation.y=stageY;
+      clip.transformation.scaleX=1;
+      clip.transformation.scaleY=1;
+      clip.transformation.rotation=0;
+    } catch(ePlace){}
+
+    if (target) mcInsertClipOnCapturedVisibleStage(clip,target);
+    else addClipToWickProject(clip);
+
+    try {
+      if (!App.committedClipIdentifiers) App.committedClipIdentifiers=[];
+      App.committedClipIdentifiers.push(clip.identifier || clip.name || base);
+    } catch(eKeep){}
+    markDirty();
+
+    // DemBones local source uses the selected viewport size. stagePlacementBounds
+    // remains the authoritative Wick-stage position and size.
+    applyLoadedSourceImage(loaded.dataUrl, loaded.image, {
+      fileName:loaded.fileName,
+      mode:'local-png',
+      label:loaded.fileName,
+      svgRaw:'',
+      svgNative:null,
+      width:Math.max(1,Math.round(Number(vp.width||loaded.width||1))),
+      height:Math.max(1,Math.round(Number(vp.height||loaded.height||1)))
+    });
+    App.source.viewportRect = {x:Number(vp.x||0),y:Number(vp.y||0),width:Number(vp.width||1),height:Number(vp.height||1)};
+    App.source.stagePlacementBounds = {x:stageX,y:stageY,w:stageW,h:stageH,cx:stageX+stageW*0.5,cy:stageY+stageH*0.5};
+    App.source.sourceClipIdentifier = clip.identifier || clip.name || base;
+    App.source.alphaThreshold = 8;
+    buildAlphaMask();
+    ensureOverlay();
+    fitOverlayToSource();
+    renderOverlay();
+    updateUI();
+
+    log('Created Wick PNG clip "'+base+'" at '+Math.round(stageX)+', '+Math.round(stageY)+' sized '+Math.round(stageW)+' x '+Math.round(stageH)+'. PNG alpha defines the DemBones mesh.');
+    return clip;
+  }
+
+  async function onImageFileChosen(evt){ // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
     var file = evt && evt.target && evt.target.files && evt.target.files[0] ? evt.target.files[0] : null;
-    if (!file) return;
+    if (!file) {
+      try { delete App.source.__pendingPngImport; } catch(eCancel){}
+      return;
+    }
     try {
       var loaded = await loadImageFromFile(file);
-      applyLoadedSourceImage(loaded.dataUrl, loaded.image, { fileName: loaded.fileName, mode: 'local-svg', label: loaded.fileName, svgRaw: loaded.svgRaw, svgNative: loaded.svgNative, width: loaded.width, height: loaded.height }); // FIX v7.5
+      if (loaded.isPng) {
+        if (!App.source.__pendingPngImport) throw new Error('Use Load PNG and draw the placement area before choosing a PNG.');
+        await createPlacedPngClipFromSelectedArea(file,loaded);
+        try { delete App.source.__pendingPngImport; } catch(eDone){}
+        return;
+      }
+
+      try { delete App.source.__pendingPngImport; } catch(eSvgPending){}
+      applyLoadedSourceImage(loaded.dataUrl, loaded.image, {
+        fileName:loaded.fileName,
+        mode:'local-svg',
+        label:loaded.fileName,
+        svgRaw:loaded.svgRaw,
+        svgNative:loaded.svgNative,
+        width:loaded.width,
+        height:loaded.height
+      });
       if (loaded.svgNative && loaded.svgNative.shapes && loaded.svgNative.shapes.length) {
         log('SVG Native Mode ready: parsed ' + loaded.svgNative.shapes.length + ' vector shape' + (loaded.svgNative.shapes.length === 1 ? '' : 's') + ' with preserved curve commands.');
-        if (el('selExportMode')) el('selExportMode').value = 'nativeCurve'; // FIX v16.9: native Wick curves are the default commit mode.
+        if (el('selExportMode')) el('selExportMode').value='nativeCurve';
       }
     } catch(e) {
-      log('SVG load failed: ' + (e && e.message ? e.message : e));
+      try { delete App.source.__pendingPngImport; } catch(ePending){}
+      log('Image load failed: ' + (e && e.message ? e.message : e));
     }
   }
 
@@ -6257,7 +6410,9 @@ html, body, #app{
       'user-select:none'
     ].join(';');
     var label = pdoc.createElement('div');
-    label.textContent = 'Drag to set the bone area. After release, choose the SVG for this area. Press Esc to cancel.';
+    label.textContent = App.source.__pendingPngImport
+      ? 'Drag the rectangle where the PNG will be placed. Release to choose the PNG. Press Esc to cancel.'
+      : 'Drag to set the bone area. After release, choose the SVG for this area. Press Esc to cancel.';
     label.style.cssText = 'position:fixed;left:18px;top:18px;padding:8px 10px;background:rgba(20,20,20,0.92);color:#fff;border:1px solid #52b1ff;font:12px Arial,sans-serif;pointer-events:none;';
     var box = pdoc.createElement('div');
     box.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;border:2px solid #52b1ff;background:transparent;box-shadow:0 0 0 1px rgba(82,177,255,0.35) inset;pointer-events:none;display:none;'; // FIX v6.2
@@ -6311,6 +6466,7 @@ html, body, #app{
       var height = Math.abs(ev.clientY - sy);
       removeSetAreaOverlay();
       if (width < 10 || height < 10) {
+        try { delete App.source.__pendingPngImport; } catch(ePendingSmall){}
         log('Set area cancelled because the drag was too small.');
         updateUI();
         return;
@@ -6319,7 +6475,7 @@ html, body, #app{
       App.source.viewportRect = { x: left, y: top, width: width, height: height };
       App.source.stagePlacementBounds = getSetAreaStageBounds(); // FIX v8.8: set area becomes stage anchored so Wick zoom and pan can move the overlay correctly without keyframing it.
 
-      if (!App.source.image) {
+      if (App.source.__pendingPngImport || !App.source.image) {
         App.source.width = Math.max(1, Math.round(width));
         App.source.height = Math.max(1, Math.round(height));
         App.source.fileName = 'Blank set area';
@@ -6338,8 +6494,16 @@ html, body, #app{
       renderOverlay();
 
       updateUI();
-      log('Set area: ' + Math.round(width) + ' x ' + Math.round(height) + ' at ' + Math.round(left) + ', ' + Math.round(top) + '. Choose the SVG for this area, or cancel the file picker to keep a blank setup area.');
-      promptLocalImageFile(); // FIX v18.196_GPT: Set Area should request the SVG again after the area is chosen. Cancel keeps the blank area for dummy or expression setup.
+      if (App.source.__pendingPngImport) {
+        var pngInput=el('fileImageLoader');
+        if (pngInput) pngInput.accept='.png,image/png';
+        log('PNG area selected: ' + Math.round(width) + ' x ' + Math.round(height) + ' at ' + Math.round(left) + ', ' + Math.round(top) + '. Choose the PNG.');
+      } else {
+        var svgInput=el('fileImageLoader');
+        if (svgInput) svgInput.accept='.svg,image/svg+xml';
+        log('Set area: ' + Math.round(width) + ' x ' + Math.round(height) + ' at ' + Math.round(left) + ', ' + Math.round(top) + '. Choose the SVG for this area, or cancel the file picker to keep a blank setup area.');
+      }
+      promptLocalImageFile(); // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
     };
 
     App.interaction.setAreaKey = function(ev){
@@ -6347,6 +6511,7 @@ html, body, #app{
         ev.preventDefault();
         ev.stopPropagation();
         removeSetAreaOverlay();
+        try { delete App.source.__pendingPngImport; } catch(ePendingEsc){}
         log('Set area cancelled.');
       }
     };
@@ -15688,9 +15853,26 @@ html, body, #app{
     if (el('btnEditBoneModeBone')) el('btnEditBoneModeBone').addEventListener('click', function(){ setEditBoneMode('bone'); }); // FIX v16.6
     if (el('btnEditBoneModeEnvelope')) el('btnEditBoneModeEnvelope').addEventListener('click', function(){ setEditBoneMode('envelope'); }); // FIX v16.6
 
-    el('btnSetArea').addEventListener('click', beginSetAreaMode); // FIX v6.0
+    el('btnSetArea').addEventListener('click', function(){
+      try { delete App.source.__pendingPngImport; } catch(e){}
+      var inp=el('fileImageLoader'); if(inp) inp.accept='.svg,image/svg+xml';
+      beginSetAreaMode();
+    }); // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
     if (el('btnAddDummyArea')) el('btnAddDummyArea').addEventListener('click', addDummyArea); // FIX v18.182_GPT
-    el('btnLoadImage').addEventListener('click', function(){ if (!App.source.viewportRect) { log('Set the area first.'); return; } promptLocalImageFile(); }); // FIX v6.0
+    el('btnLoadImage').addEventListener('click', function(){
+      try { delete App.source.__pendingPngImport; } catch(e){}
+      if (!App.source.viewportRect) { log('Set the area first.'); return; }
+      var inp=el('fileImageLoader'); if(inp) inp.accept='.svg,image/svg+xml';
+      promptLocalImageFile();
+    }); // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
+    if (el('btnLoadPng')) el('btnLoadPng').addEventListener('click', function(){
+      App.source.__pendingPngImport=true;
+      App.source.viewportRect=null;
+      App.source.stagePlacementBounds=null;
+      var inp=el('fileImageLoader'); if(inp) inp.accept='.png,image/png';
+      log('PNG import: drag the rectangle where the PNG is to be placed.');
+      beginSetAreaMode();
+    }); // FIX GPT_08-10-2026_PNG_CLIP_IMPORT
     if (el('btnUseSelectedCurve')) el('btnUseSelectedCurve').addEventListener('click', useSelectedWickCurveAsSource); // FIX v14.4
     if (el('btnUseSelectedCurveRemove')) el('btnUseSelectedCurveRemove').addEventListener('click', useSelectedWickCurveAsSourceAndRemoveOriginal); // FIX v14.5
     el('fileImageLoader').addEventListener('change', onImageFileChosen); // FIX v6.0
