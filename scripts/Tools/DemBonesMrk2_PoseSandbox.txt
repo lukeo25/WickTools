@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBonesMrk2 — Alpha Silhouette Mesh GPT v18.276</title> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBonesMrk2 — Bone-Local Alpha Mesh GPT v18.277</title> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -9599,49 +9599,127 @@ html, body, #app{
     return !!(a && b && dist(a, b) >= 8);
   }
 
-  function skinPointByPose(p, pose){
-    if (!App.bones.length) return { x:p.x, y:p.y };
-    var sumW = 0;
-    var sumX = 0;
-    var sumY = 0;
-    App.bones.forEach(function(b){
-      var rest = { head: b.head, tail: b.tail };
-      var cur = poseHasBone(pose, b.id) ? pose[b.id] : rest;
-      var distInfo = pointToSegmentDistance(p, rest.head, rest.tail);
-      var envStart = getBoneEnvStart(b);
-      var envEnd = getBoneEnvEnd(b); // GPT v18.274: skin weights use fixed REST envelopes, never moving pose envelopes
-      var radius = Math.max(1, lerp(envStart, envEnd, distInfo.t)); // FIX v6.3: envelope width varies from head to tail
-      if (distInfo.d > radius) return;
-      // GPT v18.273: strong local bone influence in REST-space envelopes.
-      var normalizedDistance = clamp(distInfo.d / radius, 0, 1);
-      var core = Math.max(0, 1 - normalizedDistance * normalizedDistance);
-      var w = core * core * Math.max(0, b.strength == null ? 1 : b.strength); // GPT v18.274: less pinched falloff, responsive across limb width
-      w *= sampleWeightMap(b, p.x, p.y); // FIX v6.4: per bone weight painting multiplies local influence
-      var restDirV = { x: rest.tail.x - rest.head.x, y: rest.tail.y - rest.head.y };
-      var curDirV = { x: cur.tail.x - cur.head.x, y: cur.tail.y - cur.head.y };
-      var restDir = normalize(restDirV);
-      var curDir = normalize(curDirV);
-      var restPerp = { x: -restDir.y, y: restDir.x };
-      var curPerp = { x: -curDir.y, y: curDir.x };
-      var rel = { x: p.x - rest.head.x, y: p.y - rest.head.y };
-      var u = rel.x * restDir.x + rel.y * restDir.y;
-      var v = rel.x * restPerp.x + rel.y * restPerp.y;
-      var restLen = Math.max(0.0001, Math.sqrt(restDirV.x * restDirV.x + restDirV.y * restDirV.y)); // FIX v17.1
-      var curLen = Math.max(0.0001, Math.sqrt(curDirV.x * curDirV.x + curDirV.y * curDirV.y)); // FIX v17.1
-      var scaleU = isStretchyBone(b) ? (curLen / restLen) : 1; // FIX v17.1: stretchy bones pull curve points along the bone axis as the tail stretches.
-      var scaleV = 1; // FIX v17.1: do not thicken or squash the curve sideways when a stretchy bone changes length.
-      var tx = cur.head.x + curDir.x * u * scaleU + curPerp.x * v * scaleV; // FIX v17.1
-      var ty = cur.head.y + curDir.y * u * scaleU + curPerp.y * v * scaleV; // FIX v17.1
-      sumX += tx * w;
-      sumY += ty * w;
-      sumW += w;
-    });
-    if (sumW <= 0.00001) return { x:p.x, y:p.y };
-    // GPT v18.273: retain original pixels as weight fades; avoid distant full-strength motion.
-    var influence = Math.min(1, Math.max(0, sumW * 4.0)); // GPT v18.274: nearby pixels follow animated bone strongly
-    return { x: p.x + (sumX / sumW - p.x) * influence, y: p.y + (sumY / sumW - p.y) * influence };
+  // GPT v18.277: bind bones through the contiguous alpha-mesh surface, not empty PNG space.
+  function alphaBoneBindings_v18277(mesh){
+    if(!mesh || !mesh.vertices || !mesh.edges)return null;
+    var active=App.bones.filter(function(b){return b && b.head && b.tail && !b.isDummy && Number(b.strength==null?1:b.strength)>0;});
+    var signature=mesh.signature+'|'+active.map(function(b){
+      return [b.id,b.head.x,b.head.y,b.tail.x,b.tail.y,getBoneEnvStart(b),getBoneEnvEnd(b),b.strength].join(',');
+    }).join('|');
+    if(mesh._binding_v18277 && mesh._binding_v18277.signature===signature)return mesh._binding_v18277;
+    var verts=mesh.vertices,adj=mesh._adj_v18277;
+    if(!adj){
+      adj=verts.map(function(){return [];});
+      for(var z=0;z<mesh.edges.length;z+=2){
+        var i=mesh.edges[z],j=mesh.edges[z+1];
+        if(i===j||!verts[i]||!verts[j])continue;
+        var d=dist(verts[i],verts[j]);
+        if(d<0.00001)continue;
+        adj[i].push([j,d]);adj[j].push([i,d]);
+      }
+      mesh._adj_v18277=adj;
+    }
+    function distanceField(b){
+      var limit=Math.max(1,getBoneEnvStart(b),getBoneEnvEnd(b));
+      var seedRadius=Math.min(4,Math.max(1.5,limit*0.17));
+      var field=new Float32Array(verts.length),heap=[],nearest=-1,nearestDist=Infinity;
+      field.fill(Infinity);
+      function push(i,d){
+        var k=heap.length;heap.push({i:i,d:d});
+        while(k>0){var parent=(k-1)>>1;if(heap[parent].d<=d)break;heap[k]=heap[parent];k=parent;}
+        heap[k]={i:i,d:d};
+      }
+      function pop(){
+        var result=heap[0],last=heap.pop();
+        if(heap.length){
+          var k=0;
+          while(true){
+            var l=k*2+1;if(l>=heap.length)break;
+            var r=l+1,child=r<heap.length&&heap[r].d<heap[l].d?r:l;
+            if(last.d<=heap[child].d)break;
+            heap[k]=heap[child];k=child;
+          }
+          heap[k]=last;
+        }
+        return result;
+      }
+      for(var i=0;i<verts.length;i++){
+        var d=pointToSegmentDistance(verts[i],b.head,b.tail).d;
+        if(d<nearestDist){nearestDist=d;nearest=i;}
+        if(d<=seedRadius){field[i]=d;push(i,d);}
+      }
+      // Capture a nearby off-centre bone, but not an unrelated distant island.
+      if(!heap.length && nearest>=0 && nearestDist<=Math.min(9,Math.max(3,limit*0.55))){
+        field[nearest]=nearestDist;push(nearest,nearestDist);
+      }
+      while(heap.length){
+        var entry=pop();
+        if(entry.d>limit+0.5)break;
+        if(entry.d>field[entry.i]+0.0001)continue;
+        var links=adj[entry.i];
+        for(var e=0;e<links.length;e++){
+          var j=links[e][0],newD=entry.d+links[e][1];
+          if(newD>limit+0.5||newD>=field[j]-0.0001)continue;
+          field[j]=newD;push(j,newD);
+        }
+      }
+      return field;
+    }
+    var result={signature:signature,fields:Object.create(null)};
+    active.forEach(function(b){result.fields[String(b.id)]=distanceField(b);});
+    mesh._binding_v18277=result;
+    return result;
   }
 
+  // GPT v18.277: the closest eligible bone follows the geometry directly beneath it.
+  // Neighbouring bones blend at junctions; unbound mesh vertices remain stationary.
+  function skinPointByPose(p,pose,vertexIndex,bindings){
+    if(!App.bones.length)return {x:p.x,y:p.y};
+    var options=[],nearest=Infinity,maxWeight=0;
+    App.bones.forEach(function(b){
+      if(!b||!b.head||!b.tail||b.isDummy)return;
+      var strength=Math.max(0,Number(b.strength==null?1:b.strength));
+      if(strength<=0||!isFinite(strength))return;
+      var info=pointToSegmentDistance(p,b.head,b.tail);
+      var distance=info.d;
+      if(bindings && vertexIndex!=null){
+        var arr=bindings.fields[String(b.id)];
+        if(!arr)return;
+        distance=arr[vertexIndex];
+      }
+      if(!isFinite(distance))return;
+      var radius=Math.max(1,lerp(getBoneEnvStart(b),getBoneEnvEnd(b),info.t));
+      if(distance>=radius)return;
+      var t=distance/radius,local=Math.pow(Math.max(0,1-t*t),2);
+      var strengthWeight=local*strength*sampleWeightMap(b,p.x,p.y);
+      if(strengthWeight<0.00001)return;
+      var cur=poseHasBone(pose,b.id)?pose[b.id]:b;
+      var rvec={x:b.tail.x-b.head.x,y:b.tail.y-b.head.y};
+      var cvec={x:cur.tail.x-cur.head.x,y:cur.tail.y-cur.head.y};
+      var rd=normalize(rvec),cd=normalize(cvec),perp={x:-rd.y,y:rd.x},cp={x:-cd.y,y:cd.x};
+      var rel={x:p.x-b.head.x,y:p.y-b.head.y};
+      var u=rel.x*rd.x+rel.y*rd.y,v=rel.x*perp.x+rel.y*perp.y;
+      var rl=Math.max(0.0001,Math.sqrt(rvec.x*rvec.x+rvec.y*rvec.y));
+      var cl=Math.max(0.0001,Math.sqrt(cvec.x*cvec.x+cvec.y*cvec.y));
+      var lengthFactor=isStretchyBone(b)?cl/rl:1;
+      var x=cur.head.x+cd.x*u*lengthFactor+cp.x*v;
+      var y=cur.head.y+cd.y*u*lengthFactor+cp.y*v;
+      options.push({d:distance,w:strengthWeight,x:x,y:y});
+      if(distance<nearest)nearest=distance;
+      if(strengthWeight>maxWeight)maxWeight=strengthWeight;
+    });
+    if(!options.length)return {x:p.x,y:p.y};
+    var sw=0,sx=0,sy=0;
+    for(var i=0;i<options.length;i++){
+      var o=options[i];
+      var favour=Math.pow((nearest+2)/(o.d+2),7);
+      var weight=o.w*favour;
+      sw+=weight;sx+=weight*o.x;sy+=weight*o.y;
+    }
+    if(sw<=0.00001)return {x:p.x,y:p.y};
+    var influence=Math.min(1,maxWeight*1.5);
+    return {x:p.x+((sx/sw)-p.x)*influence,y:p.y+((sy/sw)-p.y)*influence};
+  }
 
   // GPT v18.276: topology follows PNG alpha, rather than an axis-aligned rectangle.
   // Each boundary cell is clipped to the dilated mask with marching triangles.
@@ -9743,7 +9821,9 @@ html, body, #app{
 
   function buildWarpedVertices(pose){
     var rest = buildRestVertices();
-    return rest.map(function(p){ return skinPointByPose(p, pose); });
+    var alphaMesh=getAlphaConformingMesh();
+    var bindings=alphaMesh?alphaBoneBindings_v18277(alphaMesh):null;
+    return rest.map(function(p,i){return skinPointByPose(p,pose,alphaMesh?i:null,bindings);});
   }
 
   function vertexIndex(x, y){ return y * (App.grid.cols + 1) + x; }
@@ -9802,7 +9882,8 @@ html, body, #app{
     var oy = Number(renderOpts.offsetY || 0); // FIX v6.9
     var alphaMesh=getAlphaConformingMesh();
     if(alphaMesh){
-      var v=alphaMesh.vertices, warped=v.map(function(p){return skinPointByPose(p,pose);});
+      var v=alphaMesh.vertices, bindings=alphaBoneBindings_v18277(alphaMesh);
+      var warped=v.map(function(p,i){return skinPointByPose(p,pose,i,bindings);});
       var faces=alphaMesh.triangles,lines=alphaMesh.edges;
       ctx.save();
       ctx.clearRect(0,0,w,h);
