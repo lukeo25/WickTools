@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DemBonesMrk2 — Bone-Local Alpha Mesh GPT v18.278</title> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
+<title>DemBonesMrk2 — Bone-Local Alpha Mesh GPT v18.279</title> <!-- FIX v18.272_GPT: redraw/pin refresh capture Character state only when the selected part is actually loaded live; retained/Assemble state no longer hammers the safe-capture guard --> <!-- FIX v18.271_GPT: every imported Gizmo frame stores native union-space vectors once; final commit swaps stored native frame directly with no reparse --> <!-- FIX v18.270_GPT: final Character commit resolves keyed Gizmo slot per Wick frame and bakes that native frame through the existing bone deformation path --> <!-- FIX v18.269_GPT: Character stage owns artwork in edit modes while overlay owns bones/handles; Gizmo Part flow no longer depends on parent-bone import state --> <!-- FIX v18.268_GPT: Gizmo frames stay native vector geometry in one union coordinate space; no image embedding, scaling or densification --> <!-- FIX v18.267_GPT: transferred Character parts are no longer marked live; empty Build Part state cannot recapture/overwrite Character transforms --> <!-- FIX v18.266_GPT: stored Gizmo frames use one raw-SVG schema at import/render; blank frame artwork is rejected and logged once --> <!-- FIX v18.257a_GPT: remove final obsolete expression-page CSS remnant --> <!-- FIX v18.263b_GPT: one pin declaration only; Gizmo key writer syncs the real Wick playhead --> <!-- FIX v18.263a_GPT: removed superseded pin completion overrides so v18.263 is the sole completion path --> <!-- FIX v18.265_GPT: native Gizmo frames stay untouched; union is metadata/display space only; no frame rewrite/refit --> <!-- FIX v18.264_GPT: retained Character survives reopen; hidden during edit; automatic replacement on close; no prompt --> <!-- FIX v18.262_GPT: one Character-card Gizmo selector; grey unless Animate; keyed to Wick; one shared Gizmo timeline row --> <!-- FIX v18.261_GPT: Animate and Add Bones are the only explicit rig-loading Character modes; Animate bone drags persist keys on mouseup --> <!-- FIX v18.260_GPT: Assemble is Character placement only; no stored rig is activated --> <!-- FIX v18.259_GPT: Character card selection is data-only; non-selected cards auto-collapse; reorder stays data-only --> <!-- FIX v18.257_GPT: remove duplicate sandbox Gizmo/Lip/Eye workflow; Gizmos enter only through Part --> <!-- FIX Claude_11-07-2026_V40_GPT: curve animation drags lock the Wick frame, bone pose, overlay mapping and pointer offset until mouseup so subsequent point positions stay under the mouse --> <!-- FIX Claude_11-07-2026_V39_GPT: recorded curve-point keys remain active during Animate playback, scrubbing, preview and commit; mouseup performs a final guaranteed point-key write --> <!-- FIX Claude_11-07-2026_V38_GPT: restores untouched Wick timeline syncing and adds an explicit Animate Curves workflow inside Animate without globally replacing the curve editor or core keyframe functions --> <!-- FIX Claude_11-07-2026_V36_GPT: moved curve points retain their original point-specific bone weights after editing in a posed frame; removed V35 whole-map outside-envelope override --> <!-- FIX Claude_10-07-2026_V35: superseded by V36 point-specific binding --> <!-- FIX v18.29 --> <!-- FIX v18.10 --> <!-- FIX v18.1 --> <!-- FIX v18.5 --> <!-- FIX v18.6 --> <!-- FIX v18.5 --> <!-- FIX v18.4 --> <!-- FIX v18.3 --> <!-- FIX v18.2 --> <!-- FIX v18.1 --> <!-- FIX v18.0 --> <!-- FIX v17.2 --> <!-- FIX v17.1 --> <!-- FIX v17.0 --> <!-- FIX v16.9 --> <!-- FIX v16.7 --> <!-- FIX v16.6 --> <!-- FIX v16.3 --> <!-- FIX v16.2 --> <!-- FIX v16.1 --> <!-- FIX v16.0 --> <!-- FIX v15.9 --> <!-- FIX v15.8 --> <!-- FIX v15.6 --> <!-- FIX v15.1 --> <!-- FIX v14.9 -->
 <style>
 html, body {
   margin: 0;
@@ -983,6 +983,15 @@ html, body, #app{
 .sandboxBoneTypeGrid button.active{border-color:#45acf0;background:#244662;color:#fff;}
 #selSandboxBoneKind{flex:1 1 auto;width:100%;min-width:0;}
 #sandboxBoneList{margin-top:10px;display:grid;gap:6px;}
+/* GPT v18.279: compact PNG mesh controls, inside visible Bones tab */
+.sandboxMeshControls{margin-top:12px;padding:10px;border:1px solid #36536b;border-radius:8px;background:#0b1a2a;display:grid;gap:8px;}
+.sandboxMeshControls h4{margin:0;color:#9cdeff;font-size:13px;}
+.sandboxMeshRow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0!important;}
+.sandboxMeshRow label{min-width:108px!important;flex:0 0 108px;font-size:12px;}
+.sandboxMeshRow input[type=range]{flex:1 1 95px;min-width:75px;}
+.sandboxMeshRow input[type=color]{width:48px;min-width:48px;height:30px;cursor:pointer;padding:2px;border:1px solid #41617c;border-radius:6px;background:#101d2a;}
+.sandboxMeshRow .small{min-width:74px;text-align:right;}
+.sandboxMeshHint{font-size:11px;line-height:1.35;color:#9db1c4;}
 .sandboxBoneRow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 9px;border:1px solid #304b62;border-radius:7px;background:#122236;color:#dce8f2;text-align:left;cursor:pointer;}
 .sandboxBoneRow.active{border-color:#1ee29a;background:#17382f;}
 .sandboxBoneRow span{color:#9eb2c4;font-size:11px;}
@@ -1169,6 +1178,14 @@ html, body, #app{
             <button id="btnSandboxEditBone" class="softBtn softBtnSecondary" type="button">Edit Selected</button>
             <button id="btnSandboxDeleteBone" class="softBtn softBtnWarn" type="button">Delete Selected</button>
             <button id="btnSandboxClearBones" class="softBtn softBtnWarn" type="button">Clear All</button>
+          </div>
+          <!-- GPT v18.279: visible PNG mesh controls -->
+          <div class="sandboxMeshControls" role="group" aria-label="PNG mesh settings">
+            <h4>PNG Mesh</h4>
+            <div class="row sandboxMeshRow"><label for="chkSandboxShowMesh">Show mesh edges</label><input type="checkbox" id="chkSandboxShowMesh" checked></div>
+            <div class="row sandboxMeshRow"><label for="inpSandboxMeshEdgeColour">Edge colour</label><input type="color" id="inpSandboxMeshEdgeColour" value="#53cfff" title="Choose mesh edge colour"></div>
+            <div class="row sandboxMeshRow"><label for="rngSandboxMeshDensity">Mesh density</label><input type="range" id="rngSandboxMeshDensity" min="12" max="160" step="4" value="64"><span id="txtSandboxMeshDensity" class="small">64 · normal</span></div>
+            <div class="sandboxMeshHint">Left: coarser triangles. Right: finer triangles. PNG meshes follow the image alpha. SVG Native curves retain their own geometry.</div>
           </div>
           <div id="sandboxBoneStatus" class="sandboxReadout">No bone selected.</div>
           <div id="sandboxBoneList"></div>
@@ -1779,6 +1796,7 @@ html, body, #app{
     flags: {
       showImage: true,
       showMesh: true,
+      meshEdgeColour: '#53cfff', // GPT v18.279: serialized via App.flags
       showBones: true,
       followWick: true
     },
@@ -4090,6 +4108,12 @@ html, body, #app{
     el('txtOverlayOpacity').textContent = Math.round(App.overlay.opacity * 100) + '%';
     if (el('txtGridResolution')) el('txtGridResolution').textContent = App.grid.resolution + ' x ' + App.grid.resolution; // FIX v4.7
     if (el('rngGridResolution')) el('rngGridResolution').value = String(App.grid.resolution); // FIX v4.7
+    // GPT v18.279: refresh controls after loading a saved part or switching panels.
+    var meshDensity_v18279=clamp(Math.round(Number(App.grid.resolution||64)),12,160);
+    if(el('rngSandboxMeshDensity'))el('rngSandboxMeshDensity').value=String(meshDensity_v18279);
+    if(el('txtSandboxMeshDensity'))el('txtSandboxMeshDensity').textContent=meshDensity_v18279+(meshDensity_v18279===64?' · normal':(meshDensity_v18279<64?' · coarse':' · fine'));
+    if(el('inpSandboxMeshEdgeColour'))el('inpSandboxMeshEdgeColour').value=meshEdgeColour_v18279();
+    if(el('chkSandboxShowMesh'))el('chkSandboxShowMesh').checked=!!App.flags.showMesh;
     if (el('wickFrameIndicator')) { // FIX v8.3
       var ind = el('wickFrameIndicator'); // FIX v8.3
       ind.textContent = 'Frame ' + App.currentFrame + ' / ' + App.frameCount + '  drag to scrub'; // FIX v8.3
@@ -9671,6 +9695,12 @@ html, body, #app{
     return result;
   }
 
+  // GPT v18.279: saved colour is hex-validated before use in a canvas.
+  function meshEdgeColour_v18279(){
+    var c=String((App.flags&&App.flags.meshEdgeColour)||'#53cfff');
+    return /^#[0-9a-f]{6}$/i.test(c)?c:'#53cfff';
+  }
+
   // GPT v18.277: the closest eligible bone follows the geometry directly beneath it.
   // Neighbouring bones blend at junctions; unbound mesh vertices remain stationary.
   function skinPointByPose(p,pose,vertexIndex,bindings){
@@ -9729,8 +9759,11 @@ html, body, #app{
     var mask=App.source.silhouetteMask;
     var b=mask.bounds;
     if(!b || b.w<1 || b.h<1) return null;
-    var density=Math.max(3, Number(App.grid.resolution || App.grid.cols || 40));
-    var step=Math.max(1.8, Math.sqrt(b.w*b.h/12500), Math.max(b.w,b.h)/Math.max(100,density*2));
+    // GPT v18.279: scale triangle size for small AND large PNG alpha meshes.
+    // 64 preserves the prior baseline; cap cell count to protect interactive frame rate.
+    var density=clamp(Math.round(Number(App.grid.resolution||App.grid.cols||64)),12,160);
+    var baselineStep=Math.max(1.8,Math.sqrt(b.w*b.h/12500),Math.max(b.w,b.h)/128);
+    var step=Math.max(0.85,Math.sqrt(b.w*b.h/30000),baselineStep*64/density);
     var cols=Math.max(1, Math.ceil(b.w/step)), rows=Math.max(1, Math.ceil(b.h/step));
     var signature=[mask.width,mask.height,b.x,b.y,b.w,b.h,cols,rows].join('/');
     if (App.source.alphaMesh && App.source.alphaMesh.signature===signature) return App.source.alphaMesh;
@@ -9896,8 +9929,9 @@ html, body, #app{
       }
       if(App.flags.showMesh){
         ctx.beginPath();
-        ctx.strokeStyle='rgba(83,207,255,0.26)';
-        ctx.lineWidth=0.6;
+        ctx.strokeStyle=meshEdgeColour_v18279(); // GPT v18.279
+        ctx.globalAlpha=0.75;
+        ctx.lineWidth=0.8;
         for(var ei=0;ei<lines.length;ei+=2){
           var va=warped[lines[ei]],vb=warped[lines[ei+1]];
           ctx.moveTo(va.x+ox,va.y+oy);ctx.lineTo(vb.x+ox,vb.y+oy);
@@ -9928,7 +9962,8 @@ html, body, #app{
     }
 
     if (App.flags.showMesh) {
-      ctx.strokeStyle = 'rgba(83, 207, 255, 0.18)'; // FIX v6.6
+      ctx.strokeStyle = meshEdgeColour_v18279(); // GPT v18.279: legacy grid style also uses picker
+      ctx.globalAlpha = 0.75;
       ctx.lineWidth = 1;
       for (var yy = 0; yy <= App.grid.rows; yy++) {
         ctx.beginPath();
@@ -15740,6 +15775,16 @@ html, body, #app{
 
     el('chkShowImage').addEventListener('change', function(){ App.flags.showImage = !!this.checked; renderOverlay(); });
     if (el('chkShowMesh')) el('chkShowMesh').addEventListener('change', function(){ App.flags.showMesh = !!this.checked; renderOverlay(); }); // FIX v13.5
+    // GPT v18.279: mesh geometry and its vertex-to-bone distance fields are recomputed after density changes.
+    if(el('chkSandboxShowMesh'))el('chkSandboxShowMesh').addEventListener('change',function(){App.flags.showMesh=!!this.checked;updateUI();renderOverlay();markDirty();});
+    if(el('inpSandboxMeshEdgeColour'))el('inpSandboxMeshEdgeColour').addEventListener('input',function(){App.flags.meshEdgeColour=/^#[0-9a-f]{6}$/i.test(this.value)?this.value:'#53cfff';renderOverlay();});
+    if(el('inpSandboxMeshEdgeColour'))el('inpSandboxMeshEdgeColour').addEventListener('change',function(){markDirty();});
+    if(el('rngSandboxMeshDensity'))el('rngSandboxMeshDensity').addEventListener('input',function(){
+      var d=clamp(Math.round(Number(this.value)||64),12,160);
+      if(App.grid.resolution!==d){App.grid.resolution=d;App.grid.cols=d;App.grid.rows=d;App.source.alphaMesh=null;}
+      updateUI();renderOverlay();
+    });
+    if(el('rngSandboxMeshDensity'))el('rngSandboxMeshDensity').addEventListener('change',function(){markDirty();});
     el('chkShowBones').addEventListener('change', function(){ App.flags.showBones = !!this.checked; renderOverlay(); });
     if (el('rngGridResolution')) el('rngGridResolution').addEventListener('input', function(){ // FIX v13.1: grid control removed for SVG Native workflow, guard kept for compatibility
       App.grid.resolution = clamp(parseInt(this.value, 10) || 18, 3, 40);
