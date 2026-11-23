@@ -6186,7 +6186,7 @@ html, body, #app{
     } else log('Selected Wick curve converted to SVG source, but no native vector shapes were parsed.');
   }
 
-  function clearWickSelectionAfterArtworkUse(){ // FIX v18.226_GPT
+  function clearWickSelectionAfterArtworkUse(immediateOnly){ // FIX v18.226_GPT
     refreshBridgeRefs();
     function clearOnce(){
       var cleared = false;
@@ -6205,6 +6205,7 @@ html, body, #app{
       return cleared;
     }
     var result = clearOnce();
+    if (immediateOnly === true) return result;
     setTimeout(clearOnce, 0);
     setTimeout(clearOnce, 80);
     setTimeout(clearOnce, 240);
@@ -6950,6 +6951,7 @@ html, body, #app{
       'user-select:none',
       'contain:layout paint'
     ].join(';');
+    clipHost.inert = dbPickingWickArtwork();
     var root = pdoc.createElement('div');
     root.setAttribute('data-luketools-bonewarp-overlay', App.interaction.overlayOwnerId);
     root.setAttribute('data-luketools-bonewarp-kind', 'stage');
@@ -10472,7 +10474,27 @@ html, body, #app{
     return true;
   }
 
+  function dbPickingWickArtwork(){
+    var source = App.source || {};
+    return App.activeTab === 'source' && !(source.image || source.svgNative ||
+      (source.dummy && source.dummy.active)) && !!(App.myCharacter && App.myCharacter.parts.length);
+  }
+
+  function dbSyncWickPickingOverlays(){
+    var picking = dbPickingWickArtwork();
+    var doc = window.parent.document;
+    var parts = doc.getElementById('mcStagePartsHost_v040');
+    var handles = doc.getElementById('mcScaleHandlesHost_v071');
+    if (parts) parts.inert = picking;
+    if (handles) {
+      handles.inert = picking;
+      handles.hidden = picking;
+    }
+    if (App.overlay.clipHost) App.overlay.clipHost.inert = picking;
+  }
+
   function renderOverlay(){
+    dbSyncWickPickingOverlays();
     if (!App.overlay.canvas) return; // FIX v18.181_GPT: allow blank set area
     try { if (App.myCharacter && App.myCharacter.parts && App.myCharacter.parts.length) mcRefreshPinnedChildren(); } catch(eMcPinRefresh){} // FIX v_022
 
@@ -18338,6 +18360,7 @@ html, body, #app{
       'background:transparent',
       'user-select:none'
     ].join(';');
+    host.inert = dbPickingWickArtwork();
     return host;
   }
 
@@ -20847,6 +20870,8 @@ html, body, #app{
       'background:transparent',
       'user-select:none'
     ].join(';');
+    host.inert = dbPickingWickArtwork();
+    host.hidden = host.inert;
     return host;
   }
 
@@ -26242,6 +26267,21 @@ function installDemBonesMrk2() {
     refreshBridgeRefs();
     if (!App.project || !App.Wick) { fail(new Error('Open this tool through LukeTools in Wick Editor.')); return; }
     if (App.project.playing) { status('Stop Wick playback before binding curves.', true); return; }
+    var selected = getSelectedObjects();
+    var found = selected.length === 1 && host.findRig(selected[0]);
+    if (found && found.data && found.data.format === 'DemBonesMrk2') return resume(found);
+    if (found && found.object === selected[0] && found.data && found.data.format === 'DemBonesCharacter') {
+      status('The whole character is selected. Select the individual Wick curve you want to add.', true);
+      return;
+    }
+    var capture;
+    try {
+      capture = collect(selected);
+      if (capture.frame.parent.locked) throw new Error('Unlock the selected layer first.');
+    } catch (error) {
+      status(error.message, true);
+      return;
+    }
     if (live.binding) {
       var stillPresent = rigVisibility().exists;
       if (live.suspended && stillPresent) { status('Finish or resume the current rig before binding another.', true); return; }
@@ -26249,11 +26289,8 @@ function installDemBonesMrk2() {
       removeProxyOverlay(false);
       live.binding = null;
     }
-    var selected = getSelectedObjects();
-    var found = selected.length === 1 && host.findRig(selected[0]);
-    if (found) return resume(found);
     live.suspended = false; live.restoring = true;
-    var capture, inserted = [];
+    var inserted = [];
     try {
       // FIX GPT_19-09-2026_MultiIngest: permit repeated ingestion into the same Sandbox.
       // Store the current Character part, then disengage it from the live App rig before
@@ -26269,8 +26306,6 @@ function installDemBonesMrk2() {
           mcRenderStageParts();
         } catch(eDetachCharacter){}
       }
-      capture = collect(selected);
-      if (capture.frame.parent.locked) throw new Error('Unlock the selected layer first.');
       App.bones = []; App.keyframes = {}; App.pointKeys = {}; App.frameBones = []; App.frameBoneKeys = {};
       App.nextBoneId = 1; App.selectedBoneId = null; App.smooth.enabled = false;
       await useCapture(capture);
@@ -27832,7 +27867,7 @@ function installDemBonesMrk2() {
       if (shouldConsumeSelectedSource && App.sandboxSelectedSourceObjects && App.sandboxSelectedSourceObjects.length) {
         removeOriginalSelectedCurveObjects(App.sandboxSelectedSourceObjects.slice());
         App.sandboxSelectedSourceObjects = [];
-        clearWickSelectionAfterArtworkUse();
+        clearWickSelectionAfterArtworkUse(true);
       }
     } catch(eConsumeSource) {
       var remainingSourceObjects = (App.sandboxSelectedSourceObjects || []).filter(function(sourceObject){
@@ -27854,7 +27889,7 @@ function installDemBonesMrk2() {
     } catch(eConsumeGizmoSnapshot){}
 
     App.sandboxSelectedSourceObjects = []; // Never let an earlier part's source leak into the next ingestion.
-    try { clearWickSelectionAfterArtworkUse(); } catch(eClearSelection){}
+    try { clearWickSelectionAfterArtworkUse(true); } catch(eClearSelection){}
     try { if (App.ed && typeof App.ed.syncInterfaces === 'function') App.ed.syncInterfaces(); } catch(eSync){}
     try { if (App.project && App.project.view && typeof App.project.view.render === 'function') App.project.view.render(); } catch(eRenderProject){}
     try { markDirty(); } catch(eDirtyProject){}
@@ -27874,9 +27909,9 @@ function installDemBonesMrk2() {
     part.mode = 'assemble';
     part.editTarget = 'bone';
     try { mcRenderPanel(); } catch(ePanel){}
-    try { mcOpenTab('character'); } catch(eTab){}
+    try { setActiveTab('source'); } catch(eTab){}
     try { mcRenderStageParts(); } catch(eStage){}
-    try { mcLog('Moved "' + part.name + '" into the current character.'); } catch(eLog){}
+    try { mcLog('Moved "' + part.name + '" into the current character. Select the next Wick curve, then click Use Selected Artwork.'); } catch(eLog){}
   }
 
   function dbLoadPartIntoOpenCharacter(){ // FIX GPT_19-09-2026_CharacterPartFlow
